@@ -3,7 +3,13 @@
   "private": true,
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "lint:contracts": "node packages/contracts/scripts/validate.mjs"
+    "lint:contracts": "node packages/contracts/scripts/validate.mjs",
+    "dev:web": "pnpm --filter web dev",
+    "lint": "pnpm --filter web lint",
+    "typecheck": "pnpm --filter web typecheck",
+    "test": "pnpm --filter web test",
+    "build": "pnpm --filter web build",
+    "test:e2e": "pnpm --filter web test:e2e"
   },
   "engines": {
     "node": ">=20"
