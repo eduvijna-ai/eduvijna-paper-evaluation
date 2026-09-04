@@ -8,15 +8,23 @@ const rootDir = path.dirname(fileURLToPath(import.meta.url));
 export default defineConfig({
   plugins: [react()],
   test: {
-    environment: "node",
+    environment: "jsdom",
     include: ["src/**/*.test.{ts,tsx}"],
     globals: false,
-    pool: "threads",
+    pool: "forks",
+    maxWorkers: 1,
     fileParallelism: false,
+    setupFiles: ["./vitest.setup.ts"],
+    testTimeout: 20000,
   },
   resolve: {
     alias: {
       "@": path.resolve(rootDir, "./src"),
+      "next/link": path.resolve(rootDir, "./src/test/mocks/next-link.tsx"),
+      "next/navigation": path.resolve(
+        rootDir,
+        "./src/test/mocks/next-navigation.ts",
+      ),
     },
   },
 });
