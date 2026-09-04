@@ -7,6 +7,7 @@ import type {
   IdentityMatchState,
   ImprovementBlueprintState,
   LearningPathStepKind,
+  MappingNodeState,
   SubmissionState,
   UserRole,
 } from "./enums";
@@ -20,6 +21,7 @@ export type {
   IdentityMatchState,
   ImprovementBlueprintState,
   LearningPathStepKind,
+  MappingNodeState,
   SubmissionState,
   UserRole,
 };
@@ -171,10 +173,29 @@ export interface PaperPage {
   height: number;
 }
 
+/** Normalized rect relative to a page: all values in [0, 1]. */
+export interface NormalizedRect {
+  page_number: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface PaperDocument {
+  id: string;
+  title: string;
+  page_count: number;
+  pages: PaperPage[];
+}
+
 export interface EvidenceRegion {
   id: string;
   page_id: string;
+  page_number: number;
+  /** Normalized 0–1 relative to page width */
   x: number;
+  /** Normalized 0–1 relative to page height */
   y: number;
   width: number;
   height: number;
@@ -182,6 +203,7 @@ export interface EvidenceRegion {
   confidence: Confidence;
   question_id: string | null;
   crossed_out: boolean;
+  annotation_kind?: "FULL" | "PARTIAL" | "DEDUCTION" | "NEUTRAL";
 }
 
 export interface MappingNode {
@@ -189,7 +211,14 @@ export interface MappingNode {
   question_code: string;
   region_ids: string[];
   confidence: Confidence;
-  status: "MAPPED" | "AMBIGUOUS" | "UNMAPPED" | "CROSSED_OUT";
+  status: MappingNodeState;
+}
+
+export interface CurriculumMapEntry {
+  question_id: string;
+  question_code: string;
+  curriculum_node_ids: string[];
+  node_titles: string[];
 }
 
 export interface StudentMatchCandidate {

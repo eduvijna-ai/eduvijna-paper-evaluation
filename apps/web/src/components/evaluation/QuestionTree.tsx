@@ -8,22 +8,35 @@ import { StatusBadge } from "@/components/layout/PageHeader";
 export function QuestionStatus({
   state,
 }: {
-  state: EvaluationWorkflowState | "MAPPED" | "AMBIGUOUS" | "UNMAPPED" | "CROSSED_OUT";
+  state:
+    | EvaluationWorkflowState
+    | "PROPOSED"
+    | "REVIEW_REQUIRED"
+    | "CONFIRMED"
+    | "CROSSED_OUT"
+    | "MAPPED"
+    | "AMBIGUOUS"
+    | "UNMAPPED";
 }) {
   if (
+    state === "PROPOSED" ||
+    state === "REVIEW_REQUIRED" ||
+    state === "CONFIRMED" ||
+    state === "CROSSED_OUT" ||
     state === "MAPPED" ||
     state === "AMBIGUOUS" ||
-    state === "UNMAPPED" ||
-    state === "CROSSED_OUT"
+    state === "UNMAPPED"
   ) {
     const tone =
-      state === "MAPPED"
+      state === "CONFIRMED" || state === "MAPPED"
         ? "bg-teal-50 text-teal-800 ring-teal-200"
-        : state === "AMBIGUOUS"
-          ? "bg-amber-50 text-amber-900 ring-amber-200"
-          : state === "CROSSED_OUT"
-            ? "bg-slate-100 text-slate-600 ring-slate-200"
-            : "bg-rose-50 text-rose-800 ring-rose-200";
+        : state === "PROPOSED"
+          ? "bg-sky-50 text-sky-800 ring-sky-200"
+          : state === "REVIEW_REQUIRED" || state === "AMBIGUOUS"
+            ? "bg-amber-50 text-amber-900 ring-amber-200"
+            : state === "CROSSED_OUT"
+              ? "bg-slate-100 text-slate-600 ring-slate-200"
+              : "bg-rose-50 text-rose-800 ring-rose-200";
     return (
       <span
         data-testid={`question-status-${state}`}
@@ -109,7 +122,17 @@ function QuestionTreeNode({
       {status && (
         <div className="px-2 pb-1" style={{ paddingLeft: 8 + depth * 12 }}>
           <QuestionStatus
-            state={status as EvaluationWorkflowState | "MAPPED" | "AMBIGUOUS" | "UNMAPPED" | "CROSSED_OUT"}
+            state={
+              status as
+                | EvaluationWorkflowState
+                | "PROPOSED"
+                | "REVIEW_REQUIRED"
+                | "CONFIRMED"
+                | "CROSSED_OUT"
+                | "MAPPED"
+                | "AMBIGUOUS"
+                | "UNMAPPED"
+            }
           />
         </div>
       )}

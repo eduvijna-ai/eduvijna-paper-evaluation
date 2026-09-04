@@ -8,21 +8,6 @@ import { PageHeader, StatusBadge } from "@/components/layout/PageHeader";
 import { DataTable } from "@/components/ui/DataTable";
 import { ErrorState, LoadingState } from "@/components/ui/FeedbackStates";
 
-function reviewPath(state: string, id: string): string {
-  switch (state) {
-    case "IDENTITY_REVIEW":
-      return `/submissions/${id}/identity`;
-    case "MAPPING_REVIEW":
-      return `/submissions/${id}/mapping`;
-    case "EVALUATION_REVIEW":
-    case "APPROVED":
-    case "PUBLISHED":
-      return `/submissions/${id}/evaluation`;
-    default:
-      return `/submissions/${id}/review`;
-  }
-}
-
 export default function SubmissionsPage() {
   const router = useRouter();
   const { data, isLoading, isError, refetch } = useQuery({
@@ -52,7 +37,7 @@ export default function SubmissionsPage() {
       <DataTable
         data-testid="submissions-table"
         rows={data}
-        onRowClick={(row) => router.push(reviewPath(row.workflow_state, row.id))}
+        onRowClick={(row) => router.push(`/submissions/${row.id}`)}
         columns={[
           {
             key: "student",

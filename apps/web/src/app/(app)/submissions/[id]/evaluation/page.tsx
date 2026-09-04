@@ -202,6 +202,19 @@ export default function EvaluationWorkspacePage({
             </p>
           </div>
 
+          <div className="border-t border-slate-100 pt-3">
+            <h2 className="text-sm font-semibold text-slate-800">
+              Evaluation method
+            </h2>
+            <p
+              data-testid="evaluation-method"
+              className="mt-1 text-sm text-slate-600"
+            >
+              Rubric-aligned step scoring with ECF where applicable. Proposed AI
+              score awaits teacher confirmation.
+            </p>
+          </div>
+
           {actionMessage && (
             <p
               data-testid="teacher-action-result"

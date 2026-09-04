@@ -111,8 +111,17 @@ export const MAPPING_ACTIONS = [
   "SPLIT",
   "IGNORE",
   "MARK_CROSSED_OUT",
+  "MARK_CONTINUATION",
 ] as const;
 export type MappingAction = (typeof MAPPING_ACTIONS)[number];
+
+export const MAPPING_NODE_STATES = [
+  "PROPOSED",
+  "REVIEW_REQUIRED",
+  "CONFIRMED",
+  "CROSSED_OUT",
+] as const;
+export type MappingNodeState = (typeof MAPPING_NODE_STATES)[number];
 
 export const TEACHER_REVIEW_ACTIONS = [
   "ACCEPT",

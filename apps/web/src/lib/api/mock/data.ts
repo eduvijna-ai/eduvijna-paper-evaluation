@@ -16,6 +16,7 @@ import type {
   Question,
   RubricCriterion,
   AnswerKeyStep,
+  CurriculumMapEntry,
   Student,
   StudentAnalytics,
   StudentReport,
@@ -330,66 +331,77 @@ export const paperPages: PaperPage[] = [
   { id: "page-2", page_number: 2, label: "Page 2", width: 800, height: 1100 },
 ];
 
+/** Evidence regions use normalized 0–1 page coords (PDF.js-compatible). */
 export const evidenceRegions: EvidenceRegion[] = [
   {
     id: "reg-1",
     page_id: "page-1",
-    x: 8,
-    y: 12,
-    width: 40,
-    height: 8,
+    page_number: 1,
+    x: 0.08,
+    y: 0.12,
+    width: 0.4,
+    height: 0.08,
     label: "Roll / Name block",
     confidence: 0.72,
     question_id: null,
     crossed_out: false,
+    annotation_kind: "NEUTRAL",
   },
   {
     id: "reg-2",
     page_id: "page-1",
-    x: 10,
-    y: 24,
-    width: 78,
-    height: 22,
+    page_number: 1,
+    x: 0.1,
+    y: 0.24,
+    width: 0.78,
+    height: 0.22,
     label: "Q1 working",
     confidence: 0.91,
     question_id: "q-1",
     crossed_out: false,
+    annotation_kind: "FULL",
   },
   {
     id: "reg-3",
     page_id: "page-1",
-    x: 10,
-    y: 50,
-    width: 78,
-    height: 18,
+    page_number: 1,
+    x: 0.1,
+    y: 0.5,
+    width: 0.78,
+    height: 0.18,
     label: "Q2 working",
     confidence: 0.58,
     question_id: "q-2",
     crossed_out: false,
+    annotation_kind: "PARTIAL",
   },
   {
     id: "reg-4",
     page_id: "page-2",
-    x: 12,
-    y: 18,
-    width: 75,
-    height: 28,
+    page_number: 2,
+    x: 0.12,
+    y: 0.18,
+    width: 0.75,
+    height: 0.28,
     label: "Q3 proof",
     confidence: 0.87,
     question_id: "q-3",
     crossed_out: false,
+    annotation_kind: "FULL",
   },
   {
     id: "reg-5",
     page_id: "page-2",
-    x: 12,
-    y: 55,
-    width: 70,
-    height: 16,
+    page_number: 2,
+    x: 0.12,
+    y: 0.55,
+    width: 0.7,
+    height: 0.16,
     label: "Crossed-out attempt",
     confidence: 0.45,
     question_id: "q-4",
     crossed_out: true,
+    annotation_kind: "DEDUCTION",
   },
 ];
 
@@ -580,6 +592,7 @@ export const evaluationLedgers: EvaluationLedger[] = [
     ],
     feedback_draft: "BPT identified but ratio orientation incorrect.",
     corrected_approach: "AD/DB = AE/EC ⇒ 2/3 = 2.4/EC ⇒ EC = 3.6 cm.",
+    ecf_applied: true,
   }),
   ledgerBase({
     id: "led-q3",
@@ -679,21 +692,21 @@ export function getMappingReview(submissionId: string): MappingReviewPayload {
         question_code: "Q1",
         region_ids: ["reg-2"],
         confidence: 0.91,
-        status: "MAPPED",
+        status: "CONFIRMED",
       },
       {
         question_id: "q-2",
         question_code: "Q2",
         region_ids: ["reg-3"],
         confidence: 0.58,
-        status: "AMBIGUOUS",
+        status: "REVIEW_REQUIRED",
       },
       {
         question_id: "q-3",
         question_code: "Q3",
         region_ids: ["reg-4"],
         confidence: 0.87,
-        status: "MAPPED",
+        status: "PROPOSED",
       },
       {
         question_id: "q-4",
@@ -1049,42 +1062,79 @@ export function getImprovementBlueprint(
   return {
     id: "imp-demo-001",
     student_id: studentId,
-    title: "Improvement Check — Similarity & Quadratics",
+    title: "Improvement Check — Calculus & Statistics",
     workflow_state: "PENDING_APPROVAL",
     target_topics: [
-      "Similarity / BPT",
-      "Quadratic root arithmetic",
-      "Profit & loss",
+      "Second Derivatives",
+      "Maxima/Minima",
+      "Variance",
+      "Regression",
     ],
     question_outline: [
       {
         code: "I1",
-        focus: "BPT with missing segment",
+        focus: "Second Derivatives (2q)",
         max_mark: 4,
         difficulty: "MEDIUM",
       },
       {
         code: "I2",
-        focus: "Quadratic roots with ECF trap",
+        focus: "Second Derivatives — application",
         max_mark: 4,
         difficulty: "MEDIUM",
       },
       {
         code: "I3",
-        focus: "Profit % to cost price",
+        focus: "Maxima/Minima (2q)",
+        max_mark: 4,
+        difficulty: "MEDIUM",
+      },
+      {
+        code: "I4",
+        focus: "Maxima/Minima — word problem",
+        max_mark: 4,
+        difficulty: "HARD",
+      },
+      {
+        code: "I5",
+        focus: "Variance (2q)",
         max_mark: 3,
         difficulty: "EASY",
       },
       {
-        code: "I4",
-        focus: "Mixed application",
+        code: "I6",
+        focus: "Variance — interpretation",
+        max_mark: 3,
+        difficulty: "MEDIUM",
+      },
+      {
+        code: "I7",
+        focus: "Regression (1q)",
         max_mark: 5,
         difficulty: "HARD",
       },
     ],
-    teacher_notes: "Awaiting teacher approval before student release.",
+    teacher_notes:
+      "Awaiting teacher approval before student release. Recommendations restricted to student's curriculum.",
     created_at: "2026-08-18T09:00:00Z",
   };
+}
+
+export function getAssessmentCurriculumMap(
+  assessmentId: string,
+): CurriculumMapEntry[] {
+  const qs = questions.filter(
+    (q) => q.assessment_id === assessmentId && q.parent_id === null,
+  );
+  const titleById = new Map(curriculumNodes.map((n) => [n.id, n.title]));
+  return qs.map((q) => ({
+    question_id: q.id,
+    question_code: q.code,
+    curriculum_node_ids: q.curriculum_node_ids,
+    node_titles: q.curriculum_node_ids.map(
+      (id) => titleById.get(id) ?? id,
+    ),
+  }));
 }
 
 export function buildCurriculumTree(): CurriculumNode[] {

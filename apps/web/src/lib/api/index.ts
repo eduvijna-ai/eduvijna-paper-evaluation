@@ -1,2 +1,8 @@
-export { api, createApiClient, getApiMode } from "./client";
-export type { ApiClient } from "./types";
+export {
+  api,
+  createApiClient,
+  getApiMode,
+  MockEduVijnaApi,
+  HttpEduVijnaApi,
+} from "./client";
+export type { ApiClient, OperationalHealth } from "./types";

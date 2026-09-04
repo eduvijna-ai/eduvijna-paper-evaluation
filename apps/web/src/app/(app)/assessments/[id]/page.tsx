@@ -21,6 +21,35 @@ export default function AssessmentDetailPage({
   if (isLoading) return <LoadingState />;
   if (isError || !data) return <ErrorState onRetry={() => void refetch()} />;
 
+  const navLinks = [
+    {
+      href: `/assessments/${id}/questions`,
+      label: "Questions",
+      testId: "link-questions",
+    },
+    {
+      href: `/assessments/${id}/answer-key`,
+      label: "Answer key",
+      testId: "link-answer-key",
+    },
+    {
+      href: `/assessments/${id}/rubric`,
+      label: "Rubric",
+      testId: "link-rubric",
+    },
+    {
+      href: `/assessments/${id}/curriculum-map`,
+      label: "Curriculum map",
+      testId: "link-curriculum-map",
+    },
+    {
+      href: `/analytics/assessments/${id}`,
+      label: "Analytics",
+      testId: "link-analytics",
+      primary: true,
+    },
+  ];
+
   return (
     <div data-testid="assessment-detail-page">
       <PageHeader
@@ -33,24 +62,20 @@ export default function AssessmentDetailPage({
         actions={
           <div className="flex flex-wrap gap-2">
             <StatusBadge kind="assessment" state={data.workflow_state} />
-            <Link
-              href={`/assessments/${id}/questions`}
-              className="rounded-md border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50"
-            >
-              Questions
-            </Link>
-            <Link
-              href={`/assessments/${id}/rubric`}
-              className="rounded-md border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50"
-            >
-              Rubric
-            </Link>
-            <Link
-              href={`/analytics/assessments/${id}`}
-              className="rounded-md bg-teal-800 px-3 py-2 text-sm font-medium text-white hover:bg-teal-900"
-            >
-              Analytics
-            </Link>
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                data-testid={link.testId}
+                className={
+                  link.primary
+                    ? "rounded-md bg-teal-800 px-3 py-2 text-sm font-medium text-white hover:bg-teal-900"
+                    : "rounded-md border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50"
+                }
+              >
+                {link.label}
+              </Link>
+            ))}
           </div>
         }
       />
@@ -72,6 +97,24 @@ export default function AssessmentDetailPage({
           </dd>
         </div>
       </dl>
+
+      <nav
+        data-testid="assessment-subnav"
+        className="mt-4 flex flex-wrap gap-2 border-t border-slate-200 pt-4"
+        aria-label="Assessment sections"
+      >
+        {navLinks
+          .filter((l) => !l.primary)
+          .map((link) => (
+            <Link
+              key={`subnav-${link.href}`}
+              href={link.href}
+              className="rounded-md bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-200"
+            >
+              {link.label}
+            </Link>
+          ))}
+      </nav>
     </div>
   );
 }

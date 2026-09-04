@@ -46,6 +46,13 @@ export default function AdaptiveLearningPage({
         }
       />
 
+      <p
+        data-testid="curriculum-restriction-notice"
+        className="mb-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700"
+      >
+        Recommendations restricted to student&apos;s curriculum.
+      </p>
+
       <section className="grid gap-3 lg:grid-cols-3">
         {data.priorities.map((topic) => (
           <TopicPriorityCard key={topic.id} topic={topic} />

@@ -109,6 +109,38 @@ export function RubricCriterionRow({
 }: {
   criterion: CriterionDecisionRow;
 }) {
+  const decisionMeta: Record<
+    CriterionDecisionRow["decision"],
+    { glyph: string; label: string; className: string }
+  > = {
+    AWARDED: {
+      glyph: "✓",
+      label: "Full credit",
+      className: "text-teal-800",
+    },
+    PARTIAL: {
+      glyph: "△",
+      label: "Partial credit",
+      className: "text-amber-800",
+    },
+    DEDUCTED: {
+      glyph: "✕",
+      label: "Mark lost",
+      className: "text-rose-800",
+    },
+    NOT_APPLICABLE: {
+      glyph: "—",
+      label: "Not applicable",
+      className: "text-slate-500",
+    },
+    UNREADABLE: {
+      glyph: "?",
+      label: "Unreadable",
+      className: "text-slate-600",
+    },
+  };
+  const meta = decisionMeta[criterion.decision];
+
   return (
     <li
       data-testid={`rubric-criterion-${criterion.rubric_criterion_id}`}
@@ -135,8 +167,16 @@ export function RubricCriterionRow({
             {criterion.final_marks ?? criterion.proposed_marks}/
             {criterion.max_marks}
           </div>
-          <div className="text-[11px] uppercase tracking-wide text-slate-500">
-            {criterion.decision}
+          <div
+            className={cn(
+              "mt-0.5 inline-flex items-center gap-1 text-[11px] font-medium",
+              meta.className,
+            )}
+            aria-label={meta.label}
+            title={meta.label}
+          >
+            <span aria-hidden>{meta.glyph}</span>
+            <span>{meta.label}</span>
           </div>
         </div>
       </div>

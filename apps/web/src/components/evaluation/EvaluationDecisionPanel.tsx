@@ -148,32 +148,73 @@ export function EvaluationDecisionPanel({
         </div>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2" data-testid="confidence-dimensions">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Confidence dimensions
+        </h3>
         <ConfidenceIndicator
-          value={ledger.evaluation_confidence}
-          label="Evaluation confidence"
-        />
-        <ConfidenceIndicator
-          value={ledger.transcription_confidence}
-          label="Transcription confidence"
+          value={ledger.identity_confidence}
+          label="Identity"
         />
         <ConfidenceIndicator
           value={ledger.mapping_confidence}
-          label="Mapping confidence"
+          label="Mapping"
         />
+        <ConfidenceIndicator
+          value={ledger.transcription_confidence}
+          label="Transcription"
+        />
+        <ConfidenceIndicator
+          value={ledger.evaluation_confidence}
+          label="Evaluation"
+        />
+        {ledger.math_verification_confidence !== null && (
+          <ConfidenceIndicator
+            value={ledger.math_verification_confidence}
+            label="Math verification"
+          />
+        )}
       </div>
 
       {ledger.error_codes.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {ledger.error_codes.map((code) => (
-            <ErrorCategoryBadge key={code} code={code} />
-          ))}
+        <div>
+          <h3 className="mb-2 text-sm font-semibold text-slate-800">Errors</h3>
+          <div className="flex flex-wrap gap-1.5">
+            {ledger.error_codes.map((code) => (
+              <ErrorCategoryBadge key={code} code={code} />
+            ))}
+          </div>
         </div>
       )}
 
       <div>
+        <h3 className="mb-1 text-sm font-semibold text-slate-800">
+          First divergence
+        </h3>
+        <p className="text-sm text-slate-700">
+          {ledger.criterion_decisions.find(
+            (c) => c.decision === "PARTIAL" || c.decision === "DEDUCTED",
+          )?.deduction_reason ??
+            (ledger.error_codes[0]
+              ? `First flagged: ${ledger.error_codes[0]}`
+              : "No divergence recorded.")}
+        </p>
+      </div>
+
+      <div>
+        <h3 className="mb-1 text-sm font-semibold text-slate-800">
+          Alternative approach
+        </h3>
+        <p className="text-sm text-slate-700 whitespace-pre-wrap">
+          {ledger.error_codes.includes("VALID_ALTERNATIVE")
+            ? "Student used a valid alternative method."
+            : ledger.corrected_approach || "—"}
+        </p>
+      </div>
+
+      <div>
         <h3 className="mb-2 text-sm font-semibold text-slate-800">
-          Criterion decisions
+          Criterion decisions / deductions
         </h3>
         <ScoreBreakdown criteria={ledger.criterion_decisions} />
       </div>
@@ -197,7 +238,10 @@ export function EvaluationDecisionPanel({
       </div>
 
       {ledger.ecf_applied && (
-        <p className="rounded-md bg-sky-50 px-3 py-2 text-xs text-sky-900 ring-1 ring-sky-200">
+        <p
+          data-testid="ecf-applied"
+          className="rounded-md bg-sky-50 px-3 py-2 text-xs text-sky-900 ring-1 ring-sky-200"
+        >
           Error carried forward (ECF) applied on this question.
         </p>
       )}

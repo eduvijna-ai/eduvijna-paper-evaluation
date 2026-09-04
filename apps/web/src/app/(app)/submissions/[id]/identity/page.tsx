@@ -11,6 +11,7 @@ import {
 } from "@/components/identity/StudentIdentityCard";
 import { PaperViewerShell } from "@/components/paper/PaperViewerShell";
 import { ErrorState, LoadingState } from "@/components/ui/FeedbackStates";
+import { Button } from "@/components/ui/primitives";
 
 export default function IdentityReviewPage({
   params,
@@ -24,6 +25,7 @@ export default function IdentityReviewPage({
     null,
   );
   const [activePageId, setActivePageId] = useState("page-1");
+  const [choosingDifferent, setChoosingDifferent] = useState(false);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["identity", id],
@@ -38,20 +40,44 @@ export default function IdentityReviewPage({
     },
   });
 
+  const unmatchedMutation = useMutation({
+    mutationFn: () => api.markIdentityUnmatched(id),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["identity", id] });
+      await queryClient.invalidateQueries({ queryKey: ["submissions"] });
+      setSelectedStudentId(null);
+      setChoosingDifferent(false);
+      await refetch();
+    },
+  });
+
   if (isLoading) return <LoadingState />;
   if (isError || !data) return <ErrorState onRetry={() => void refetch()} />;
+
+  const lowConfidence = data.submission.identity_confidence < 0.65;
+  const notFinalized =
+    data.submission.student_match_state !== "CONFIRMED" || lowConfidence;
 
   return (
     <div data-testid="identity-review-page">
       <PageHeader
         title="Identity review"
-        description="Confirm roll/name against the demo roster before mapping."
+        description="Confirm roll/name against the demo roster before mapping. Low confidence never looks finalized."
         breadcrumbs={[
           { label: "Submissions", href: "/submissions" },
-          { label: id },
+          { label: id, href: `/submissions/${id}` },
           { label: "Identity" },
         ]}
       />
+      {notFinalized && (
+        <div
+          data-testid="identity-not-finalized-banner"
+          className="mb-4 rounded-md bg-amber-50 px-4 py-3 text-sm text-amber-950 ring-1 ring-amber-200"
+        >
+          Identity is unresolved — do not treat this paper as matched until a
+          teacher confirms a roster student.
+        </div>
+      )}
       <div className="grid gap-4 xl:grid-cols-2">
         <PaperViewerShell
           pages={data.pages}
@@ -77,22 +103,59 @@ export default function IdentityReviewPage({
                   key={c.student_id}
                   candidate={c}
                   selected={selectedStudentId === c.student_id}
-                  onSelect={() => setSelectedStudentId(c.student_id)}
+                  onSelect={() => {
+                    setSelectedStudentId(c.student_id);
+                    setChoosingDifferent(true);
+                  }}
                 />
               ))}
             </div>
           </div>
-          <button
-            type="button"
-            data-testid="confirm-identity"
-            disabled={!selectedStudentId || confirmMutation.isPending}
-            onClick={() => {
-              if (selectedStudentId) confirmMutation.mutate(selectedStudentId);
-            }}
-            className="rounded-md bg-teal-800 px-3 py-2 text-sm font-medium text-white hover:bg-teal-900 disabled:opacity-50"
-          >
-            Confirm match
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              data-testid="confirm-identity"
+              disabled={!selectedStudentId || confirmMutation.isPending}
+              onClick={() => {
+                if (selectedStudentId) confirmMutation.mutate(selectedStudentId);
+              }}
+            >
+              Confirm
+            </Button>
+            <Button
+              variant="secondary"
+              data-testid="choose-different-student"
+              onClick={() => {
+                setChoosingDifferent(true);
+                setSelectedStudentId(null);
+              }}
+            >
+              Choose Different Student
+            </Button>
+            <Button
+              variant="danger"
+              data-testid="mark-unmatched"
+              disabled={unmatchedMutation.isPending}
+              onClick={() => unmatchedMutation.mutate()}
+            >
+              Mark Unmatched
+            </Button>
+          </div>
+          {choosingDifferent && !selectedStudentId && (
+            <p
+              data-testid="choose-different-hint"
+              className="text-xs text-slate-600"
+            >
+              Select a different roster candidate above, then Confirm.
+            </p>
+          )}
+          {unmatchedMutation.isSuccess && (
+            <p
+              data-testid="unmatched-result"
+              className="text-xs text-amber-900"
+            >
+              Marked unmatched — remains in identity review.
+            </p>
+          )}
         </div>
       </div>
     </div>

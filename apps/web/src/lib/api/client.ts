@@ -1,10 +1,11 @@
 import type { ApiClient } from "./types";
-import { mockApiClient } from "./mock/adapter";
+import { MockEduVijnaApi } from "./mock/adapter";
+import { HttpEduVijnaApi } from "./http/adapter";
 
 /**
  * API mode is selected via NEXT_PUBLIC_API_MODE.
  * Default: mock (synthetic fixtures for CVB frontend).
- * Future: http adapter against OpenAPI domain endpoints.
+ * http: operational health/ready/version live; domain methods throw until OpenAPI lands.
  */
 export function getApiMode(): "mock" | "http" {
   const mode = process.env.NEXT_PUBLIC_API_MODE ?? "mock";
@@ -12,13 +13,9 @@ export function getApiMode(): "mock" | "http" {
 }
 
 export function createApiClient(): ApiClient {
-  const mode = getApiMode();
-  if (mode === "http") {
-    // Domain OpenAPI endpoints are not yet available — fall back to mock.
-    // See docs/engineering/FRONTEND_CONTRACT_REQUESTS.md
-    return mockApiClient;
-  }
-  return mockApiClient;
+  return getApiMode() === "http" ? HttpEduVijnaApi : MockEduVijnaApi;
 }
 
 export const api = createApiClient();
+
+export { MockEduVijnaApi, HttpEduVijnaApi };

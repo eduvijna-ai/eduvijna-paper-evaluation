@@ -2,12 +2,14 @@ import { applyTeacherReviewAction } from "@/lib/helpers/teacher-actions";
 import type { MappingAction, TeacherReviewAction } from "@/lib/types/enums";
 import type { ApiClient } from "../types";
 import {
+  answerKeys,
   assessments,
   buildCurriculumTree,
   buildQuestionTree,
   curricula,
   getAdaptiveLearning,
   getAssessmentAnalytics,
+  getAssessmentCurriculumMap,
   getDashboardSummary,
   getEvaluationWorkspace,
   getIdentityReview,
@@ -30,7 +32,17 @@ function delay<T>(value: T, ms = 120): Promise<T> {
   });
 }
 
-export const mockApiClient: ApiClient = {
+/** Active mock adapter — all domain reads/writes against synthetic fixtures. */
+export const MockEduVijnaApi: ApiClient = {
+  async getHealth() {
+    return delay({ status: "ok" as const, service: "web-mock" });
+  },
+  async getReady() {
+    return delay({ status: "ok" as const, service: "web-mock" });
+  },
+  async getVersion() {
+    return delay({ version: "0.1.0-cvb", build: "mock" });
+  },
   async getDashboard() {
     return delay(getDashboardSummary());
   },
@@ -61,7 +73,20 @@ export const mockApiClient: ApiClient = {
     return delay(buildQuestionTree(id));
   },
   async getAssessmentRubric(id) {
-    return delay(rubrics.filter((r) => r.question_id.startsWith("q-") && assessments.some((a) => a.id === id)));
+    return delay(
+      rubrics.filter(
+        (r) =>
+          r.question_id.startsWith("q-") &&
+          assessments.some((a) => a.id === id),
+      ),
+    );
+  },
+  async getAssessmentAnswerKey(id) {
+    void id;
+    return delay(answerKeys);
+  },
+  async getAssessmentCurriculumMap(id) {
+    return delay(getAssessmentCurriculumMap(id));
   },
   async listSubmissions() {
     return delay(submissions);
@@ -86,6 +111,15 @@ export const mockApiClient: ApiClient = {
     submission.workflow_state = "MAPPING_REVIEW";
     return delay({ ...submission });
   },
+  async markIdentityUnmatched(submissionId) {
+    const submission = submissions.find((s) => s.id === submissionId);
+    if (!submission) throw new Error(`Submission not found: ${submissionId}`);
+    submission.student_id = null;
+    submission.student_display_name = null;
+    submission.student_match_state = "UNMATCHED";
+    submission.identity_confidence = 0;
+    return delay({ ...submission });
+  },
   async getMappingReview(submissionId) {
     return delay(getMappingReview(submissionId));
   },
@@ -103,7 +137,6 @@ export const mockApiClient: ApiClient = {
     action: TeacherReviewAction,
     payload,
   ) {
-    void submissionId;
     void ledgerId;
     const workspace = getEvaluationWorkspace(submissionId);
     const ledger = workspace.ledgers.find((l) => l.id === ledgerId);
@@ -146,3 +179,6 @@ export const mockApiClient: ApiClient = {
     });
   },
 };
+
+/** @deprecated Prefer MockEduVijnaApi */
+export const mockApiClient = MockEduVijnaApi;
