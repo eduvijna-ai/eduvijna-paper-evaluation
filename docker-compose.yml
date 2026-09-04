@@ -1,0 +1,92 @@
+name: eduvijna-paper-evaluation
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-eduvijna}
+      POSTGRES_USER: ${POSTGRES_USER:-eduvijna}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eduvijna_local_dev_only}
+    ports:
+      - "${POSTGRES_PUBLISH_PORT:-15432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${REDIS_PUBLISH_PORT:-16379}:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-eduvijna_minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-eduvijna_minio_dev_only}
+    ports:
+      - "${MINIO_API_PORT:-19000}:9000"
+      - "${MINIO_CONSOLE_PORT:-19001}:9001"
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./apps/api
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      APP_NAME: ${APP_NAME:-eduvijna-paper-evaluation}
+      APP_ENV: ${APP_ENV:-local}
+      API_VERSION: ${API_VERSION:-0.1.0}
+      GIT_SHA: ${GIT_SHA:-local-dev}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+asyncpg://eduvijna:eduvijna_local_dev_only@postgres:5432/eduvijna}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      S3_ENDPOINT_URL: ${S3_ENDPOINT_URL:-http://minio:9000}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-eduvijna_minio}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-eduvijna_minio_dev_only}
+      S3_BUCKET: ${S3_BUCKET:-eduvijna-papers}
+    ports:
+      - "${API_PUBLISH_PORT:-18000}:8000"
+    volumes:
+      - ./apps/api/alembic.ini:/app/alembic.ini:ro
+      - ./database:/database:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
