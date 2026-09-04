@@ -1,0 +1,1 @@
+"""EduVijna API package."""

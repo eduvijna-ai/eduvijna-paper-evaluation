@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/rubric.schema.json",
+  "title": "RubricVersion",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "rubric_id", "version_number", "status", "criteria"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "rubric_id": { "type": "string", "format": "uuid" },
+    "version_number": { "type": "integer", "minimum": 1 },
+    "status": { "enum": ["DRAFT", "IN_REVIEW", "APPROVED", "PUBLISHED", "SUPERSEDED"] },
+    "criteria": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/criterion" }
+    }
+  },
+  "$defs": {
+    "criterion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "rubric_version_id",
+        "question_id",
+        "label",
+        "sort_order",
+        "max_marks",
+        "scoring_mode",
+        "partial_marks_allowed"
+      ],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "rubric_version_id": { "type": "string", "format": "uuid" },
+        "question_id": { "type": "string", "format": "uuid" },
+        "label": { "type": "string", "minLength": 1 },
+        "description": { "type": ["string", "null"] },
+        "sort_order": { "type": "integer", "minimum": 0 },
+        "max_marks": { "type": "number", "minimum": 0 },
+        "scoring_mode": { "enum": ["PARTIAL", "ALL_OR_NOTHING", "ADDITIVE", "DEDUCTIVE"] },
+        "partial_marks_allowed": { "type": "boolean" },
+        "depends_on_criterion_ids": {
+          "type": "array",
+          "items": { "type": "string", "format": "uuid" },
+          "uniqueItems": true
+        },
+        "curriculum_node_ids": {
+          "type": "array",
+          "items": { "type": "string", "format": "uuid" },
+          "uniqueItems": true
+        },
+        "ecf_enabled": { "type": "boolean", "default": false },
+        "accepted_equivalent_expressions": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    }
+  }
+}

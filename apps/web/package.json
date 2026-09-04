@@ -1,0 +1,8 @@
+{
+  "name": "@eduvijna/web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "placeholder": "node -e \"console.log('Frontend is owned by Cursor B')\""
+  }
+}

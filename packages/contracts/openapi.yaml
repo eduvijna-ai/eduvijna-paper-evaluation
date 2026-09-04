@@ -1,0 +1,69 @@
+openapi: 3.1.0
+info:
+  title: EduVijna Paper Evaluation API
+  version: 0.1.0
+paths:
+  /health:
+    get:
+      operationId: health
+      summary: Liveness check
+      responses:
+        "200":
+          description: API process is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+  /ready:
+    get:
+      operationId: ready
+      summary: Dependency readiness check
+      responses:
+        "200":
+          description: API dependencies are ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+        "503":
+          description: A required dependency is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /api/v1/system/version:
+    get:
+      operationId: systemVersion
+      summary: Build and API version
+      responses:
+        "200":
+          description: Current application version information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VersionResponse"
+components:
+  schemas:
+    StatusResponse:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          examples: [ok]
+    VersionResponse:
+      type: object
+      additionalProperties: false
+      required: [application, environment, git_sha, api_version]
+      properties:
+        application:
+          type: string
+        environment:
+          type: string
+        git_sha:
+          type: string
+        api_version:
+          type: string
+    ErrorEnvelope:
+      $ref: "./schemas/error.schema.json"

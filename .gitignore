@@ -1,0 +1,84 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+uv.lock
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+.eggs/
+apps/api/.venv/
+packages/contracts/node_modules/
+
+# Environment & secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+*.pem
+*.key
+id_rsa*
+*.p12
+*.pfx
+credentials.json
+service-account*.json
+secrets/
+.secrets/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Docker / local data
+.docker-data/
+data/local/
+*.log
+logs/
+
+# Object storage / uploads (never commit papers)
+uploads/
+storage/
+minio-data/
+*.pdf
+!docs/**/*.md
+answer-sheets/
+student-papers/
+raw-papers/
+
+# Test / coverage
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+blob-report/
+
+# Build artifacts
+.next/
+out/
+*.tsbuildinfo
+
+# Alembic / temp
+*.sql.bak
+
+# Cursor / agent temp
+.tmp*
+.tmp-*.json
