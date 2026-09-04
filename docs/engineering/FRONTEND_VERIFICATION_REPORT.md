@@ -63,8 +63,8 @@ Primary gap: OpenAPI currently exposes only `health` / `ready` / `version`. Doma
 
 | Item | Value |
 |------|-------|
-| Commit SHA | *(filled after commit)* |
-| PR URL | *(filled after PR open)* |
+| Commit SHA | `c2593514d266507f2f0cca4db065209e34c4110a` |
+| PR URL | https://github.com/eduvijna/eduvijna-paper-evaluation/pull/3 |
 | Target branch | `develop` |
 | Merge | **Not merged** (per Engineer B brief) |
 
