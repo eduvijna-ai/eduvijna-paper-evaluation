@@ -107,3 +107,15 @@ Branch protection on `main` **succeeded** (PR required, force pushes disabled).
 1. Merge PR into `develop` after review (do not merge to `main` without release process).
 2. Cursor B starts from `cursor-a/bootstrap-foundation` (or `develop` after merge) to scaffold Next.js app under `apps/web` / `packages/ui`.
 3. Cursor A Day 2+: assessment/rubric migrations, object-storage upload contract, Celery job skeleton.
+
+## A1 — Platform Foundation
+
+Added migration `20260904_0002`, tenant-derived JWT/Argon2 authentication, RBAC, institution,
+academic-year, class-section, student and guardian APIs, transactional CSV validation/commit,
+audit events, an idempotent demo seed, expanded OpenAPI contracts, and integration coverage.
+Detailed design, configuration, seed credentials, permission mapping, and limitations are in
+`docs/engineering/A1_PLATFORM_FOUNDATION_REPORT.md`.
+
+A1 verification passed on 2026-09-04: Ruff, strict mypy (29 source files), pytest (6 passed
+against Postgres), contracts validation, Docker Compose config, full `base -> head` migration,
+latest-revision downgrade/re-upgrade, rebuilt API health, and seeded authenticated HTTP smoke.
