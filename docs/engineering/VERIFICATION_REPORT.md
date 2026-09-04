@@ -27,7 +27,9 @@
 | Visibility | **PRIVATE** |
 | Branches | `main`, `develop`, `cursor-a/bootstrap-foundation` |
 | Working branch | `cursor-a/bootstrap-foundation` |
-| PR | See section below after open |
+| Commit SHA | `3d67e2424807494ff7d2773ffef8c66c79b17e0f` |
+| PR | https://github.com/eduvijna/eduvijna-paper-evaluation/pull/2 |
+| Tracking issue | https://github.com/eduvijna/eduvijna-paper-evaluation/issues/1 |
 
 ## Commands executed
 
