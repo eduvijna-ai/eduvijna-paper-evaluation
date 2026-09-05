@@ -30,7 +30,18 @@ from app.db.models import (
     RubricVersion,
 )
 from app.db.session import get_db_session
-from app.services.ai_proposals import unavailable
+from app.services.academic_freeze import (
+    answer_key_audit_payload,
+    ensure_academic_config_mutable,
+    rubric_criterion_audit_payload,
+    rubric_version_audit_payload,
+)
+from app.services.ai_proposals import (
+    AnswerKeyProposalRequest,
+    CurriculumMappingProposalRequest,
+    RubricProposalRequest,
+    unavailable,
+)
 from app.services.assessment_transitions import validate_transition
 from app.services.curriculum import (
     build_tree,
@@ -157,7 +168,8 @@ class AnswerKeyVersionIn(BaseModel):
     question_version_id: uuid.UUID
     answer_text: str
     structured_answer: dict[str, Any] | None = None
-    source_type: str = Field(pattern="^(TEACHER|AI_PROPOSED|IMPORTED)$")
+    # AI_PROPOSED is server-assigned by the proposal service only.
+    source_type: str = Field(pattern="^(TEACHER|IMPORTED)$")
     status: str = Field(default="DRAFT", pattern="^(DRAFT|REVIEW_REQUIRED)$")
 
 
@@ -175,7 +187,8 @@ class RubricIn(BaseModel):
 
 class RubricVersionIn(BaseModel):
     question_version_id: uuid.UUID
-    source_type: str = Field(default="TEACHER", pattern="^(TEACHER|AI_PROPOSED|IMPORTED)$")
+    # AI_PROPOSED is server-assigned by the proposal service only.
+    source_type: str = Field(default="TEACHER", pattern="^(TEACHER|IMPORTED)$")
     status: str = Field(default="DRAFT", pattern="^(DRAFT|REVIEW_REQUIRED)$")
 
 
@@ -811,6 +824,8 @@ async def create_answer_key_version(
     db: Db,
     auth: AuthContext = Depends(require_permissions("assessment:manage")),
 ) -> dict[str, Any]:
+    assessment = await _scoped(db, Assessment, assessment_id, auth.tenant_id)
+    ensure_academic_config_mutable(assessment)
     key = await _answer_key_for(db, auth, assessment_id)
     version = await _scoped(db, AssessmentVersion, payload.assessment_version_id, auth.tenant_id)
     question = await _scoped(db, QuestionVersion, payload.question_version_id, auth.tenant_id)
@@ -833,20 +848,16 @@ async def create_answer_key_version(
             AnswerKeyVersion.answer_key_id == key.id
         )
     )
-    data = payload.model_dump()
-    # Client-authored AI provenance cannot auto-approve; force human review.
-    if data["source_type"] == "AI_PROPOSED":
-        data["status"] = "REVIEW_REQUIRED"
     item = AnswerKeyVersion(
         tenant_id=auth.tenant_id,
         answer_key_id=key.id,
         version_number=(latest or 0) + 1,
         created_by=auth.user_id,
-        **data,
+        **payload.model_dump(),
     )
     db.add(item)
     await db.flush()
-    await _audit(db, auth, item, "created", payload.model_dump(mode="json"))
+    await _audit(db, auth, item, "created", answer_key_audit_payload(item, "created"))
     await _commit(db)
     return _dump(item)
 
@@ -859,11 +870,14 @@ async def patch_answer_key_version(
     auth: AuthContext = Depends(require_permissions("assessment:manage")),
 ) -> dict[str, Any]:
     item = await _scoped(db, AnswerKeyVersion, version_id, auth.tenant_id)
+    key = await _scoped(db, AnswerKey, item.answer_key_id, auth.tenant_id)
+    assessment = await _scoped(db, Assessment, key.assessment_id, auth.tenant_id)
+    ensure_academic_config_mutable(assessment)
     if item.status in {"APPROVED", "SUPERSEDED"}:
         raise HTTPException(409, "Approved answer keys are immutable; create a new version")
-    for key, value in payload.model_dump(exclude_unset=True).items():
-        setattr(item, key, value)
-    await _audit(db, auth, item, "updated", payload.model_dump(exclude_unset=True, mode="json"))
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(item, field, value)
+    await _audit(db, auth, item, "updated", answer_key_audit_payload(item, "updated"))
     await _commit(db)
     await db.refresh(item)
     return _dump(item)
@@ -876,12 +890,15 @@ async def approve_answer_key(
     auth: AuthContext = Depends(require_permissions("assessment:approve")),
 ) -> dict[str, Any]:
     item = await _scoped(db, AnswerKeyVersion, version_id, auth.tenant_id)
+    key = await _scoped(db, AnswerKey, item.answer_key_id, auth.tenant_id)
+    assessment = await _scoped(db, Assessment, key.assessment_id, auth.tenant_id)
+    ensure_academic_config_mutable(assessment)
     if item.status not in {"DRAFT", "REVIEW_REQUIRED"}:
         raise HTTPException(409, "Answer key version cannot be approved")
     item.status = "APPROVED"
     item.approved_by = auth.user_id
     item.approved_at = datetime.now(UTC)
-    await _audit(db, auth, item, "approved", {})
+    await _audit(db, auth, item, "approved", answer_key_audit_payload(item, "approved"))
     await _commit(db)
     await db.refresh(item)
     return _dump(item)
@@ -894,7 +911,8 @@ async def create_rubric(
     db: Db,
     auth: AuthContext = Depends(require_permissions("rubric:manage")),
 ) -> dict[str, Any]:
-    await _scoped(db, Assessment, assessment_id, auth.tenant_id)
+    assessment = await _scoped(db, Assessment, assessment_id, auth.tenant_id)
+    ensure_academic_config_mutable(assessment)
     question = await _scoped(db, QuestionVersion, payload.question_version_id, auth.tenant_id)
     version = await _scoped(db, AssessmentVersion, question.assessment_version_id, auth.tenant_id)
     if version.assessment_id != assessment_id:
@@ -902,7 +920,20 @@ async def create_rubric(
     item = Rubric(tenant_id=auth.tenant_id, assessment_id=assessment_id, **payload.model_dump())
     db.add(item)
     await db.flush()
-    await _audit(db, auth, item, "created", payload.model_dump(mode="json"))
+    await _audit(
+        db,
+        auth,
+        item,
+        "created",
+        {
+            "action": "created",
+            "rubric_id": str(item.id),
+            "assessment_id": str(assessment_id),
+            "question_version_id": str(item.question_version_id),
+            "title": item.title,
+            "provenance": item.provenance,
+        },
+    )
     await _commit(db)
     return _dump(item)
 
@@ -930,6 +961,8 @@ async def create_rubric_version(
     auth: AuthContext = Depends(require_permissions("rubric:manage")),
 ) -> dict[str, Any]:
     rubric = await _scoped(db, Rubric, rubric_id, auth.tenant_id)
+    assessment = await _scoped(db, Assessment, rubric.assessment_id, auth.tenant_id)
+    ensure_academic_config_mutable(assessment)
     question = await _scoped(db, QuestionVersion, payload.question_version_id, auth.tenant_id)
     if rubric.question_version_id != question.id:
         raise HTTPException(404, "Question not found")
@@ -948,19 +981,16 @@ async def create_rubric_version(
     latest = await db.scalar(
         select(func.max(RubricVersion.version_number)).where(RubricVersion.rubric_id == rubric.id)
     )
-    data = payload.model_dump()
-    if data["source_type"] == "AI_PROPOSED":
-        data["status"] = "REVIEW_REQUIRED"
     item = RubricVersion(
         tenant_id=auth.tenant_id,
         rubric_id=rubric.id,
         version_number=(latest or 0) + 1,
         created_by=auth.user_id,
-        **data,
+        **payload.model_dump(),
     )
     db.add(item)
     await db.flush()
-    await _audit(db, auth, item, "created", payload.model_dump(mode="json"))
+    await _audit(db, auth, item, "created", rubric_version_audit_payload(item, "created"))
     await _commit(db)
     return _dump(item)
 
@@ -973,11 +1003,14 @@ async def patch_rubric_version(
     auth: AuthContext = Depends(require_permissions("rubric:manage")),
 ) -> dict[str, Any]:
     item = await _scoped(db, RubricVersion, version_id, auth.tenant_id)
+    rubric = await _scoped(db, Rubric, item.rubric_id, auth.tenant_id)
+    assessment = await _scoped(db, Assessment, rubric.assessment_id, auth.tenant_id)
+    ensure_academic_config_mutable(assessment)
     if item.status in {"APPROVED", "SUPERSEDED"}:
         raise HTTPException(409, "Approved rubrics are immutable; create a new version")
     item.status = payload.status
     item.source_type = payload.source_type
-    await _audit(db, auth, item, "updated", payload.model_dump(mode="json"))
+    await _audit(db, auth, item, "updated", rubric_version_audit_payload(item, "updated"))
     await _commit(db)
     await db.refresh(item)
     return _dump(item)
@@ -991,6 +1024,9 @@ async def create_criterion(
     auth: AuthContext = Depends(require_permissions("rubric:manage")),
 ) -> dict[str, Any]:
     version = await _scoped(db, RubricVersion, version_id, auth.tenant_id)
+    rubric = await _scoped(db, Rubric, version.rubric_id, auth.tenant_id)
+    assessment = await _scoped(db, Assessment, rubric.assessment_id, auth.tenant_id)
+    ensure_academic_config_mutable(assessment)
     if version.status in {"APPROVED", "SUPERSEDED"}:
         raise HTTPException(409, "Approved rubrics are immutable")
     item = RubricCriterion(
@@ -998,7 +1034,7 @@ async def create_criterion(
     )
     db.add(item)
     await db.flush()
-    await _audit(db, auth, item, "created", payload.model_dump(mode="json"))
+    await _audit(db, auth, item, "created", rubric_criterion_audit_payload(item, "created"))
     await _commit(db)
     return _dump(item)
 
@@ -1030,11 +1066,14 @@ async def patch_criterion(
 ) -> dict[str, Any]:
     item = await _scoped(db, RubricCriterion, criterion_id, auth.tenant_id)
     version = await _scoped(db, RubricVersion, item.rubric_version_id, auth.tenant_id)
+    rubric = await _scoped(db, Rubric, version.rubric_id, auth.tenant_id)
+    assessment = await _scoped(db, Assessment, rubric.assessment_id, auth.tenant_id)
+    ensure_academic_config_mutable(assessment)
     if version.status in {"APPROVED", "SUPERSEDED"}:
         raise HTTPException(409, "Approved rubrics are immutable")
     for key, value in payload.model_dump(exclude_unset=True).items():
         setattr(item, key, value)
-    await _audit(db, auth, item, "updated", payload.model_dump(exclude_unset=True, mode="json"))
+    await _audit(db, auth, item, "updated", rubric_criterion_audit_payload(item, "updated"))
     await _commit(db)
     await db.refresh(item)
     return _dump(item)
@@ -1048,9 +1087,12 @@ async def delete_criterion(
 ) -> None:
     item = await _scoped(db, RubricCriterion, criterion_id, auth.tenant_id)
     version = await _scoped(db, RubricVersion, item.rubric_version_id, auth.tenant_id)
+    rubric = await _scoped(db, Rubric, version.rubric_id, auth.tenant_id)
+    assessment = await _scoped(db, Assessment, rubric.assessment_id, auth.tenant_id)
+    ensure_academic_config_mutable(assessment)
     if version.status in {"APPROVED", "SUPERSEDED"}:
         raise HTTPException(409, "Approved rubrics are immutable")
-    await _audit(db, auth, item, "deleted", {})
+    await _audit(db, auth, item, "deleted", rubric_criterion_audit_payload(item, "deleted"))
     await db.delete(item)
     await _commit(db)
 
@@ -1084,6 +1126,9 @@ async def approve_rubric(
     auth: AuthContext = Depends(require_permissions("rubric:approve")),
 ) -> dict[str, Any]:
     item = await _scoped(db, RubricVersion, version_id, auth.tenant_id)
+    rubric = await _scoped(db, Rubric, item.rubric_id, auth.tenant_id)
+    assessment = await _scoped(db, Assessment, rubric.assessment_id, auth.tenant_id)
+    ensure_academic_config_mutable(assessment)
     if item.status not in {"DRAFT", "REVIEW_REQUIRED"}:
         raise HTTPException(409, "Rubric version cannot be approved")
     question = await _scoped(db, QuestionVersion, item.question_version_id, auth.tenant_id)
@@ -1103,7 +1148,7 @@ async def approve_rubric(
     item.status = "APPROVED"
     item.approved_by = auth.user_id
     item.approved_at = datetime.now(UTC)
-    await _audit(db, auth, item, "approved", {})
+    await _audit(db, auth, item, "approved", rubric_version_audit_payload(item, "approved"))
     await _commit(db)
     await db.refresh(item)
     return _dump(item)
@@ -1120,6 +1165,7 @@ async def create_mapping(
     node = await _scoped(db, CurriculumNode, payload.curriculum_node_id, auth.tenant_id)
     version = await _scoped(db, AssessmentVersion, question.assessment_version_id, auth.tenant_id)
     assessment = await _scoped(db, Assessment, version.assessment_id, auth.tenant_id)
+    ensure_academic_config_mutable(assessment)
     if node.curriculum_id != assessment.curriculum_id:
         raise HTTPException(422, "Curriculum node does not belong to assessment curriculum")
     item = QuestionCurriculumMapping(
@@ -1129,7 +1175,20 @@ async def create_mapping(
     )
     db.add(item)
     await db.flush()
-    await _audit(db, auth, item, "created", payload.model_dump(mode="json"))
+    await _audit(
+        db,
+        auth,
+        item,
+        "created",
+        {
+            "action": "created",
+            "mapping_id": str(item.id),
+            "question_version_id": str(question.id),
+            "curriculum_node_id": str(item.curriculum_node_id),
+            "mapping_type": item.mapping_type,
+            "weight": str(item.weight) if item.weight is not None else None,
+        },
+    )
     await _commit(db)
     return _dump(item)
 
@@ -1157,34 +1216,62 @@ async def delete_mapping(
     auth: AuthContext = Depends(require_permissions("curriculum:manage")),
 ) -> None:
     item = await _scoped(db, QuestionCurriculumMapping, mapping_id, auth.tenant_id)
-    await _audit(db, auth, item, "deleted", {})
+    question = await _scoped(db, QuestionVersion, item.question_version_id, auth.tenant_id)
+    version = await _scoped(db, AssessmentVersion, question.assessment_version_id, auth.tenant_id)
+    assessment = await _scoped(db, Assessment, version.assessment_id, auth.tenant_id)
+    ensure_academic_config_mutable(assessment)
+    await _audit(
+        db,
+        auth,
+        item,
+        "deleted",
+        {
+            "action": "deleted",
+            "mapping_id": str(item.id),
+            "question_version_id": str(item.question_version_id),
+            "curriculum_node_id": str(item.curriculum_node_id),
+            "mapping_type": item.mapping_type,
+        },
+    )
     await db.delete(item)
     await _commit(db)
 
 
 @router.post("/ai/proposals/answer-key")
 async def propose_answer_key(
-    payload: dict[str, Any],
+    payload: AnswerKeyProposalRequest,
     db: Db,
     auth: AuthContext = Depends(require_permissions("assessment:manage")),
 ) -> Response:
-    await unavailable(db, tenant_id=auth.tenant_id, operation="propose_answer_key", request=payload)
+    await unavailable(
+        db,
+        tenant_id=auth.tenant_id,
+        operation="propose_answer_key",
+        request=payload,
+        requested_by=auth.user_id,
+    )
     raise AssertionError("unreachable")
 
 
 @router.post("/ai/proposals/rubric")
 async def propose_rubric(
-    payload: dict[str, Any],
+    payload: RubricProposalRequest,
     db: Db,
     auth: AuthContext = Depends(require_permissions("rubric:manage")),
 ) -> Response:
-    await unavailable(db, tenant_id=auth.tenant_id, operation="propose_rubric", request=payload)
+    await unavailable(
+        db,
+        tenant_id=auth.tenant_id,
+        operation="propose_rubric",
+        request=payload,
+        requested_by=auth.user_id,
+    )
     raise AssertionError("unreachable")
 
 
 @router.post("/ai/proposals/curriculum-mapping")
 async def suggest_curriculum_mapping(
-    payload: dict[str, Any],
+    payload: CurriculumMappingProposalRequest,
     db: Db,
     auth: AuthContext = Depends(require_permissions("curriculum:manage")),
 ) -> Response:
@@ -1193,5 +1280,6 @@ async def suggest_curriculum_mapping(
         tenant_id=auth.tenant_id,
         operation="suggest_curriculum_mapping",
         request=payload,
+        requested_by=auth.user_id,
     )
     raise AssertionError("unreachable")

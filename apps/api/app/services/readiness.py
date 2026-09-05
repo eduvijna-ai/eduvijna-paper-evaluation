@@ -28,13 +28,6 @@ async def ensure_assessment_ready(
             )
         ).all()
     )
-    marks_ok, total = reconcile_marks(questions, assessment_version.max_marks)
-    if not marks_ok:
-        raise HTTPException(
-            409,
-            "Assessment marks do not reconcile: "
-            f"leaf total {total} != {assessment_version.max_marks}",
-        )
     parent_ids = {
         question.parent_question_version_id
         for question in questions
@@ -45,6 +38,23 @@ async def ensure_assessment_ready(
         for question in questions
         if question.id not in parent_ids and question.scoring_mode == "LEAF_SCORABLE"
     ]
+    if not leaves:
+        raise HTTPException(
+            409,
+            {
+                "code": "ASSESSMENT_NO_SCORABLE_QUESTIONS",
+                "message": (
+                    "Assessment must include at least one LEAF_SCORABLE question before READY"
+                ),
+            },
+        )
+    marks_ok, total = reconcile_marks(questions, assessment_version.max_marks)
+    if not marks_ok:
+        raise HTTPException(
+            409,
+            "Assessment marks do not reconcile: "
+            f"leaf total {total} != {assessment_version.max_marks}",
+        )
     for question in leaves:
         answer = await db.scalar(
             select(AnswerKeyVersion).where(

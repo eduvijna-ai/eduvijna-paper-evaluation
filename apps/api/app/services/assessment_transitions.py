@@ -9,6 +9,10 @@ ALLOWED_TRANSITIONS: dict[str, frozenset[str]] = {
     "ARCHIVED": frozenset(),
 }
 
+# CVB policy: DRAFT -> READY is a permitted shortcut when the full readiness gate
+# (scorable leaves, mark reconcile, approved answer keys, approved reconciled rubrics)
+# passes. RUBRIC_REVIEW remains an optional institutional review state.
+
 
 def validate_transition(current: str, target: str) -> None:
     """DRAFT→READY is allowed only after readiness validation by the caller."""

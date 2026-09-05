@@ -29,9 +29,14 @@ Creating an assessment creates version 1. Allowed transitions are:
 - `ACTIVE -> CLOSED`
 - `CLOSED -> ARCHIVED`
 
-Direct `DRAFT -> READY` is intentionally allowed only after the same readiness gate used from
-rubric review. Question editing and deletion require both the assessment and version to remain
-`DRAFT`.
+**CVB transition policy:** `DRAFT -> READY` is a permitted shortcut when the complete
+readiness gate passes. `RUBRIC_REVIEW` is an optional institutional review state.
+Readiness validation is never weakened for either path.
+
+Question editing and deletion require both the assessment and version to remain
+`DRAFT`. After `READY`/`ACTIVE`/`CLOSED`/`ARCHIVED`, answer-key versions, rubric
+versions/criteria, and question curriculum mappings cannot be created or superseded
+(`ASSESSMENT_ACADEMIC_CONFIG_FROZEN`). Future controlled revision workflows are out of A2 scope.
 
 Scoring decision: **LEAF_SCORABLE leaves carry marks; CONTAINER_DERIVED parents are display
 aggregates derived from descendants — never double-count.**
@@ -55,14 +60,25 @@ Rubric reconciliation semantics:
 
 READY requires:
 
-1. leaf marks equal assessment-version max marks;
-2. every scorable leaf has an approved answer-key version;
-3. every scorable leaf has an approved rubric version;
-4. every approved rubric reconciles.
+1. at least one `LEAF_SCORABLE` question (`ASSESSMENT_NO_SCORABLE_QUESTIONS` otherwise);
+2. leaf marks equal assessment-version max marks;
+3. every scorable leaf has an approved answer-key version;
+4. every scorable leaf has an approved rubric version;
+5. every approved rubric reconciles.
 
 Curriculum question mappings are supported but **not** mandatory for READY in CVB A2.
 PATCH of a DRAFT assessment `max_marks` also updates DRAFT assessment-version `max_marks`
 so readiness stays consistent.
+
+Manual create endpoints accept only `TEACHER` / `IMPORTED` provenance.
+`AI_PROPOSED` is server-assigned by the AI proposal service path only.
+
+## Delete / cascade policy
+
+Database CASCADE supports controlled teardown during the current CVB draft lifecycle.
+No production public API deletes an assessment/version/rubric/answer key in a way that
+cascades away approved academic history. Enterprise retention/soft-delete remains in
+requirements for later phases.
 
 ## Authorization and audit
 
