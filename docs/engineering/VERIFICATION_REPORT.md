@@ -128,3 +128,20 @@ latest-revision downgrade/re-upgrade, rebuilt API health, and seeded authenticat
 - Live smoke codes: health/ready/me/institution 200; student CRUD 201/200; import validate+commit 200; guardian link 201; foreign student 404; unauth 401
 - Migration: `20260904_0001` unchanged; `20260904_0002` downgrade→upgrade PASS
 - Gate fixes: explicit A1 coverage tests; nullable student year/section in API+OpenAPI; session-scoped asyncio loop for DB tests
+
+## A2 — Curriculum and Assessment Foundation
+
+A2 introduces revision `20260905_0003`, curriculum and prerequisite graphs, assessment and
+question versioning, leaf-only mark reconciliation, immutable approved answer-key/rubric
+versions, readiness enforcement, mappings, RBAC, audit events, controlled AI unavailability,
+OpenAPI contracts, and A2-T01..A2-T24 gate coverage.
+
+Verification evidence and any remaining limitations are recorded in the A2 report and this
+section before PR handoff.
+
+- Ruff and strict mypy: PASS
+- Full API pytest suite: 24 passed; focused A2 gate rerun: 7 passed
+- Migration `20260905_0003` upgrade, downgrade one revision, and re-upgrade: PASS
+- Contracts validation and `docker compose config --quiet`: PASS
+- Live curl/JSON smoke: health/login 200, curriculum/node/assessment create 201,
+  AI proposal 503 with `AI_PROVIDER_UNAVAILABLE`
