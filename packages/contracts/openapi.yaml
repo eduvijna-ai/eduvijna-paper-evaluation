@@ -112,7 +112,7 @@ paths:
     patch:
       operationId: updateAcademicYear
       security: [{ bearerAuth: [] }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AcademicYearInput" } } } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AcademicYearPatch" } } } }
       responses:
         "200": { description: Updated academic year, content: { application/json: { schema: { $ref: "#/components/schemas/AcademicYear" } } } }
   /api/v1/class-sections:
@@ -138,7 +138,7 @@ paths:
     patch:
       operationId: updateClassSection
       security: [{ bearerAuth: [] }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ClassSectionInput" } } } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ClassSectionPatch" } } } }
       responses:
         "200": { description: Updated class section, content: { application/json: { schema: { $ref: "#/components/schemas/ClassSection" } } } }
   /api/v1/students:
@@ -164,7 +164,7 @@ paths:
     patch:
       operationId: updateStudent
       security: [{ bearerAuth: [] }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/StudentInput" } } } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/StudentPatch" } } } }
       responses:
         "200": { description: Updated student, content: { application/json: { schema: { $ref: "#/components/schemas/Student" } } } }
   /api/v1/students/import/validate:
@@ -218,7 +218,7 @@ paths:
     patch:
       operationId: updateGuardian
       security: [{ bearerAuth: [] }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/GuardianInput" } } } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/GuardianPatch" } } } }
       responses:
         "200": { description: Updated guardian, content: { application/json: { schema: { $ref: "#/components/schemas/Guardian" } } } }
   /api/v1/students/{student_id}/guardians/{guardian_id}:
@@ -264,7 +264,7 @@ paths:
     patch:
       operationId: updateCurriculum
       security: [{ bearerAuth: [] }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CurriculumInput" } } } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CurriculumPatch" } } } }
       responses: { "200": { description: Curriculum updated } }
   /api/v1/curricula/{id}/tree:
     parameters: [{ $ref: "#/components/parameters/Id" }]
@@ -284,7 +284,7 @@ paths:
     patch:
       operationId: updateCurriculumNode
       security: [{ bearerAuth: [] }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CurriculumNodeInput" } } } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CurriculumNodePatch" } } } }
       responses: { "200": { description: Curriculum node updated }, "409": { description: Parent cycle } }
   /api/v1/curricula/{id}/prerequisites:
     parameters: [{ $ref: "#/components/parameters/Id" }]
@@ -318,7 +318,7 @@ paths:
     patch:
       operationId: updateAssessment
       security: [{ bearerAuth: [] }]
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AssessmentInput" } } } }
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AssessmentPatch" } } } }
       responses: { "200": { description: DRAFT assessment updated }, "409": { description: Assessment immutable in current state } }
   /api/v1/assessments/{id}/versions:
     parameters: [{ $ref: "#/components/parameters/Id" }]
@@ -354,6 +354,7 @@ paths:
     patch:
       operationId: updateQuestionVersion
       security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/QuestionVersionPatch" } } } }
       responses: { "200": { description: Question version updated }, "409": { description: Not editable or cyclic } }
     delete:
       operationId: deleteQuestionVersion
@@ -381,6 +382,7 @@ paths:
     patch:
       operationId: updateAnswerKeyVersion
       security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AnswerKeyVersionPatch" } } } }
       responses: { "200": { description: Draft answer key updated }, "409": { description: Approved version immutable } }
   /api/v1/answer-key-versions/{id}/approve:
     parameters: [{ $ref: "#/components/parameters/Id" }]
@@ -410,6 +412,7 @@ paths:
     patch:
       operationId: updateRubricVersion
       security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/RubricVersionPatch" } } } }
       responses: { "200": { description: Draft rubric updated }, "409": { description: Approved version immutable } }
   /api/v1/rubric-versions/{id}/criteria:
     parameters: [{ $ref: "#/components/parameters/Id" }]
@@ -433,6 +436,7 @@ paths:
     patch:
       operationId: updateRubricCriterion
       security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/RubricCriterionPatch" } } } }
       responses: { "200": { description: Draft criterion updated }, "409": { description: Approved rubric immutable } }
     delete:
       operationId: deleteRubricCriterion
@@ -465,16 +469,19 @@ paths:
     post:
       operationId: proposeAnswerKey
       security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AnswerKeyProposalRequest" } } } }
       responses: { "503": { description: AI provider unavailable; no content fabricated } }
   /api/v1/ai/proposals/rubric:
     post:
       operationId: proposeRubric
       security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/RubricProposalRequest" } } } }
       responses: { "503": { description: AI provider unavailable; no content fabricated } }
   /api/v1/ai/proposals/curriculum-mapping:
     post:
       operationId: suggestCurriculumMapping
       security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CurriculumMappingProposalRequest" } } } }
       responses: { "503": { description: AI provider unavailable; no content fabricated } }
 components:
   securitySchemes:
@@ -703,7 +710,7 @@ components:
         question_version_id: { type: string, format: uuid }
         answer_text: { type: string }
         structured_answer: { type: [object, "null"], additionalProperties: true }
-        source_type: { type: string, enum: [TEACHER, AI_PROPOSED, IMPORTED] }
+        source_type: { type: string, enum: [TEACHER, IMPORTED], description: AI_PROPOSED is server-assigned by proposal flow only }
         status: { type: string, enum: [DRAFT, REVIEW_REQUIRED], default: DRAFT }
     RubricCriterionInput:
       type: object
@@ -729,3 +736,133 @@ components:
         curriculum_node_id: { type: string, format: uuid }
         mapping_type: { type: string, enum: [PRIMARY, SECONDARY, LEARNING_OUTCOME, SKILL] }
         weight: { oneOf: [{ $ref: "#/components/schemas/Money" }, { type: "null" }] }
+    AnswerKeyVersionPatch:
+      type: object
+      properties:
+        answer_text: { type: string }
+        structured_answer: { type: [object, "null"], additionalProperties: true }
+        status: { type: string, enum: [DRAFT, REVIEW_REQUIRED] }
+    RubricCriterionPatch:
+      type: object
+      properties:
+        description: { type: string }
+        max_marks: { $ref: "#/components/schemas/Money" }
+        sequence: { type: integer }
+        scoring_mode: { type: string, enum: [ADDITIVE, DEDUCTIVE, ALL_OR_NOTHING] }
+        partial_credit_allowed: { type: boolean }
+        dependency_rule: { type: [object, "null"], additionalProperties: true }
+        ecf_policy: { type: string, enum: [NONE, ALLOW_METHOD_CREDIT, CUSTOM_REVIEW] }
+        unit_requirement: { type: [string, "null"] }
+        precision_requirement: { type: [string, "null"] }
+        required_reasoning: { type: [string, "null"] }
+        accepted_equivalents: { type: array, items: {} }
+        teacher_comment: { type: [string, "null"] }
+    RubricVersionPatch:
+      type: object
+      required: [question_version_id]
+      properties:
+        question_version_id: { type: string, format: uuid }
+        source_type: { type: string, enum: [TEACHER, IMPORTED] }
+        status: { type: string, enum: [DRAFT, REVIEW_REQUIRED], default: DRAFT }
+    AcademicYearPatch:
+      type: object
+      properties:
+        name: { type: string }
+        starts_on: { type: string, format: date }
+        ends_on: { type: string, format: date }
+        is_current: { type: boolean }
+    ClassSectionPatch:
+      type: object
+      properties:
+        academic_year_id: { type: string, format: uuid }
+        name: { type: string }
+        grade_label: { type: string }
+    StudentPatch:
+      type: object
+      properties:
+        student_code: { type: string }
+        admission_number: { type: [string, "null"] }
+        roll_number: { type: [string, "null"] }
+        full_name: { type: string }
+        class_section_id: { type: [string, "null"], format: uuid }
+        academic_year_id: { type: [string, "null"], format: uuid }
+        status: { type: string }
+    GuardianPatch:
+      type: object
+      properties:
+        display_name: { type: string }
+        email: { type: [string, "null"], format: email }
+        phone: { type: [string, "null"] }
+    CurriculumPatch:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: [string, "null"] }
+        academic_framework: { type: [string, "null"] }
+        version_label: { type: string }
+        status: { type: string }
+    CurriculumNodePatch:
+      type: object
+      properties:
+        parent_id: { type: [string, "null"], format: uuid }
+        node_type: { type: string }
+        name: { type: string }
+        description: { type: [string, "null"] }
+        sequence: { type: integer }
+        metadata: { type: object, additionalProperties: true }
+        status: { type: string }
+    AssessmentPatch:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: [string, "null"] }
+        assessment_type: { type: string }
+        max_marks: { $ref: "#/components/schemas/Money" }
+        duration_minutes: { type: [integer, "null"] }
+    QuestionVersionPatch:
+      type: object
+      properties:
+        parent_question_version_id: { type: [string, "null"], format: uuid }
+        display_label: { type: string }
+        sequence: { type: integer }
+        prompt_text: { type: string }
+        max_marks: { $ref: "#/components/schemas/Money" }
+        question_type: { type: string }
+        scoring_mode: { type: string, enum: [LEAF_SCORABLE, CONTAINER_DERIVED] }
+        instructions: { type: [string, "null"] }
+    AnswerKeyProposalRequest:
+      type: object
+      additionalProperties: false
+      required: [question_version_id]
+      properties:
+        question_version_id: { type: string, format: uuid }
+        assessment_version_id: { type: [string, "null"], format: uuid }
+        instructions: { type: [string, "null"], maxLength: 500 }
+        context:
+          type: object
+          additionalProperties: { type: string }
+          maxProperties: 20
+    RubricProposalRequest:
+      type: object
+      additionalProperties: false
+      required: [question_version_id]
+      properties:
+        question_version_id: { type: string, format: uuid }
+        assessment_version_id: { type: [string, "null"], format: uuid }
+        instructions: { type: [string, "null"], maxLength: 500 }
+        context:
+          type: object
+          additionalProperties: { type: string }
+          maxProperties: 20
+    CurriculumMappingProposalRequest:
+      type: object
+      additionalProperties: false
+      required: [question_version_id]
+      properties:
+        question_version_id: { type: string, format: uuid }
+        curriculum_id: { type: [string, "null"], format: uuid }
+        instructions: { type: [string, "null"], maxLength: 500 }
+        context:
+          type: object
+          additionalProperties: { type: string }
+          maxProperties: 20
