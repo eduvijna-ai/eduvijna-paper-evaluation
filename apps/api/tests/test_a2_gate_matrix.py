@@ -520,7 +520,7 @@ def test_a2_domain_service_edges() -> None:
 
 @pytest.mark.asyncio
 async def test_a2_manage_cannot_approve_and_ai_proposed_review() -> None:
-    """A2-T25 manage≠approve; A2-T26 AI_PROPOSED forces REVIEW_REQUIRED."""
+    """A2-T25 manage≠approve; A2-T26 manual AI_PROPOSED rejected (server-controlled)."""
     async with gate_client() as client:
         headers = await _headers(client)
         data = await _foundation(client, headers)
@@ -538,7 +538,7 @@ async def test_a2_manage_cannot_approve_and_ai_proposed_review() -> None:
             },
         )
         assert leaf.status_code == 201
-        key = await client.post(
+        rejected = await client.post(
             f"/api/v1/assessments/{data['assessment']['id']}/answer-key-versions",
             headers=headers,
             json={
@@ -549,9 +549,19 @@ async def test_a2_manage_cannot_approve_and_ai_proposed_review() -> None:
                 "status": "DRAFT",
             },
         )
+        assert rejected.status_code == 422
+        key = await client.post(
+            f"/api/v1/assessments/{data['assessment']['id']}/answer-key-versions",
+            headers=headers,
+            json={
+                "assessment_version_id": data["version_id"],
+                "question_version_id": leaf.json()["id"],
+                "answer_text": "4",
+                "source_type": "TEACHER",
+                "status": "DRAFT",
+            },
+        )
         assert key.status_code == 201
-        assert key.json()["status"] == "REVIEW_REQUIRED"
-        assert key.json()["source_type"] == "AI_PROPOSED"
 
         provider = JwtAuthProvider(get_settings())
         login = await client.post(
