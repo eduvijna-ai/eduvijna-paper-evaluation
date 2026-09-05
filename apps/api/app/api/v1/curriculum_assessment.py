@@ -175,7 +175,7 @@ class RubricIn(BaseModel):
 
 class RubricVersionIn(BaseModel):
     question_version_id: uuid.UUID
-    source_type: str = "TEACHER"
+    source_type: str = Field(default="TEACHER", pattern="^(TEACHER|AI_PROPOSED|IMPORTED)$")
     status: str = Field(default="DRAFT", pattern="^(DRAFT|REVIEW_REQUIRED)$")
 
 
@@ -514,8 +514,21 @@ async def patch_assessment(
     item = await _scoped(db, Assessment, assessment_id, auth.tenant_id)
     if item.status != "DRAFT":
         raise HTTPException(409, "Only DRAFT assessments can be edited")
-    for key, value in payload.model_dump(exclude_unset=True).items():
+    changes = payload.model_dump(exclude_unset=True)
+    for key, value in changes.items():
         setattr(item, key, value)
+    if "max_marks" in changes:
+        draft_versions = (
+            await db.scalars(
+                select(AssessmentVersion).where(
+                    AssessmentVersion.tenant_id == auth.tenant_id,
+                    AssessmentVersion.assessment_id == assessment_id,
+                    AssessmentVersion.status == "DRAFT",
+                )
+            )
+        ).all()
+        for version in draft_versions:
+            version.max_marks = changes["max_marks"]
     await _audit(db, auth, item, "updated", payload.model_dump(exclude_unset=True, mode="json"))
     await _commit(db)
     await db.refresh(item)
@@ -820,12 +833,16 @@ async def create_answer_key_version(
             AnswerKeyVersion.answer_key_id == key.id
         )
     )
+    data = payload.model_dump()
+    # Client-authored AI provenance cannot auto-approve; force human review.
+    if data["source_type"] == "AI_PROPOSED":
+        data["status"] = "REVIEW_REQUIRED"
     item = AnswerKeyVersion(
         tenant_id=auth.tenant_id,
         answer_key_id=key.id,
         version_number=(latest or 0) + 1,
         created_by=auth.user_id,
-        **payload.model_dump(),
+        **data,
     )
     db.add(item)
     await db.flush()
@@ -931,12 +948,15 @@ async def create_rubric_version(
     latest = await db.scalar(
         select(func.max(RubricVersion.version_number)).where(RubricVersion.rubric_id == rubric.id)
     )
+    data = payload.model_dump()
+    if data["source_type"] == "AI_PROPOSED":
+        data["status"] = "REVIEW_REQUIRED"
     item = RubricVersion(
         tenant_id=auth.tenant_id,
         rubric_id=rubric.id,
         version_number=(latest or 0) + 1,
         created_by=auth.user_id,
-        **payload.model_dump(),
+        **data,
     )
     db.add(item)
     await db.flush()

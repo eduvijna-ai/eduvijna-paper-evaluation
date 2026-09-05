@@ -40,8 +40,18 @@ aggregates derived from descendants — never double-count.**
 
 Answer-key approval uses `assessment:approve`. Approved answer-key and rubric versions are
 immutable and return 409 on PATCH; subsequent work creates a new version and supersedes the
-approved version. ADDITIVE rubric criteria must total question max marks. DEDUCTIVE criteria
-start from question max and therefore are not summed into the additive total.
+approved version.
+
+Rubric reconciliation semantics:
+
+- **ADDITIVE:** sum of additive criterion `max_marks` must equal the question max.
+- **DEDUCTIVE:** scoring starts at question max; criterion `max_marks` are maximum deductions.
+  The deduction envelope must equal the question max so a full failure can reach zero.
+  DEDUCTIVE is **not** accepted merely because criteria exist, and is **not** validated by
+  treating deductions as additive awards.
+- **ALL_OR_NOTHING:** every criterion band must equal the full question max.
+- Client-authored `AI_PROPOSED` answer-key/rubric versions are forced to `REVIEW_REQUIRED`
+  and never auto-approved.
 
 READY requires:
 
@@ -49,6 +59,10 @@ READY requires:
 2. every scorable leaf has an approved answer-key version;
 3. every scorable leaf has an approved rubric version;
 4. every approved rubric reconciles.
+
+Curriculum question mappings are supported but **not** mandatory for READY in CVB A2.
+PATCH of a DRAFT assessment `max_marks` also updates DRAFT assessment-version `max_marks`
+so readiness stays consistent.
 
 ## Authorization and audit
 

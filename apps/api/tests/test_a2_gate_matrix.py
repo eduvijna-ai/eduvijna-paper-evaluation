@@ -142,6 +142,42 @@ async def test_a2_curriculum_tree_cycles_and_prerequisites() -> None:
             },
         )
         assert reverse.status_code == 409
+        # A2-T04b: three-node cycle A -> B -> C -> A
+        grandchild = await client.post(
+            f"/api/v1/curricula/{curriculum_id}/nodes",
+            headers=headers,
+            json={
+                "parent_id": child.json()["id"],
+                "node_type": "TOPIC",
+                "code": f"GC-{uuid.uuid4().hex[:6]}",
+                "name": "Grandchild",
+                "sequence": 3,
+                "metadata": {},
+            },
+        )
+        assert grandchild.status_code == 201
+        assert (
+            await client.post(
+                f"/api/v1/curricula/{curriculum_id}/prerequisites",
+                headers=headers,
+                json={
+                    "prerequisite_node_id": child.json()["id"],
+                    "dependent_node_id": grandchild.json()["id"],
+                    "relationship_type": "REQUIRED",
+                },
+            )
+        ).status_code == 201
+        assert (
+            await client.post(
+                f"/api/v1/curricula/{curriculum_id}/prerequisites",
+                headers=headers,
+                json={
+                    "prerequisite_node_id": grandchild.json()["id"],
+                    "dependent_node_id": root_id,
+                    "relationship_type": "REQUIRED",
+                },
+            )
+        ).status_code == 409
 
 
 @pytest.mark.asyncio
@@ -164,7 +200,7 @@ async def test_a2_assessment_question_marks_and_delete() -> None:
             },
         )
         assert container.status_code == 201, container.text
-        leaf = await client.post(
+        leaf_a = await client.post(
             f"/api/v1/assessment-versions/{data['version_id']}/questions",
             headers=headers,
             json={
@@ -173,24 +209,52 @@ async def test_a2_assessment_question_marks_and_delete() -> None:
                 "display_label": "1(a)",
                 "sequence": 1,
                 "prompt_text": "Solve",
-                "max_marks": "10.00",
+                "max_marks": "2.00",
                 "question_type": "STRUCTURED",
                 "scoring_mode": "LEAF_SCORABLE",
             },
         )
-        assert leaf.status_code == 201, leaf.text
+        assert leaf_a.status_code == 201, leaf_a.text
+        leaf_b = await client.post(
+            f"/api/v1/assessment-versions/{data['version_id']}/questions",
+            headers=headers,
+            json={
+                "stable_code": "Q1B",
+                "parent_question_version_id": container.json()["id"],
+                "display_label": "1(b)",
+                "sequence": 2,
+                "prompt_text": "Solve more",
+                "max_marks": "3.00",
+                "question_type": "STRUCTURED",
+                "scoring_mode": "LEAF_SCORABLE",
+            },
+        )
+        assert leaf_b.status_code == 201, leaf_b.text
+        # Foundation used 10.00 assessment marks; retarget to Case A total 5.00
+        patched = await client.patch(
+            f"/api/v1/assessments/{data['assessment']['id']}",
+            headers=headers,
+            json={"max_marks": "5.00"},
+        )
+        assert patched.status_code == 200
+        versions = await client.get(
+            f"/api/v1/assessments/{data['assessment']['id']}/versions", headers=headers
+        )
+        assert Decimal(versions.json()[0]["max_marks"]) == Decimal("5.00")
         tree = await client.get(
             f"/api/v1/assessment-versions/{data['version_id']}/questions", headers=headers
         )
-        assert tree.json()[0]["children"][0]["id"] == leaf.json()["id"]
+        assert len(tree.json()[0]["children"]) == 2
         reconcile = await client.get(
             f"/api/v1/assessment-versions/{data['version_id']}/marks/reconcile",
             headers=headers,
         )
         assert reconcile.json()["valid"] is True
-        assert Decimal(reconcile.json()["leaf_marks_total"]) == Decimal("10.00")
+        assert Decimal(reconcile.json()["leaf_marks_total"]) == Decimal("5.00")
         assert (
-            await client.delete(f"/api/v1/question-versions/{leaf.json()['id']}", headers=headers)
+            await client.delete(
+                f"/api/v1/question-versions/{leaf_b.json()['id']}", headers=headers
+            )
         ).status_code == 204
 
 
@@ -426,3 +490,92 @@ def test_a2_domain_service_edges() -> None:
         validate_transition("DRAFT", "ACTIVE")
     assert reconcile_marks([], Decimal("0.00")) == (True, Decimal("0.00"))
     assert reconcile_rubric([], Decimal("1.00")) == (False, Decimal("0.00"))
+
+    additive = [
+        type("C", (), {"max_marks": Decimal("4.00"), "scoring_mode": "ADDITIVE"})(),
+        type("C", (), {"max_marks": Decimal("6.00"), "scoring_mode": "ADDITIVE"})(),
+    ]
+    assert reconcile_rubric(additive, Decimal("10.00")) == (True, Decimal("10.00"))
+
+    # DEDUCTIVE envelope must equal question max — not a naive "any criteria" pass.
+    bad_deductive = [
+        type("C", (), {"max_marks": Decimal("99.00"), "scoring_mode": "DEDUCTIVE"})(),
+    ]
+    assert reconcile_rubric(bad_deductive, Decimal("10.00")) == (False, Decimal("99.00"))
+    good_deductive = [
+        type("C", (), {"max_marks": Decimal("4.00"), "scoring_mode": "DEDUCTIVE"})(),
+        type("C", (), {"max_marks": Decimal("6.00"), "scoring_mode": "DEDUCTIVE"})(),
+    ]
+    assert reconcile_rubric(good_deductive, Decimal("10.00")) == (True, Decimal("10.00"))
+
+    bad_aon = [
+        type("C", (), {"max_marks": Decimal("99.00"), "scoring_mode": "ALL_OR_NOTHING"})(),
+    ]
+    assert reconcile_rubric(bad_aon, Decimal("10.00"))[0] is False
+    good_aon = [
+        type("C", (), {"max_marks": Decimal("10.00"), "scoring_mode": "ALL_OR_NOTHING"})(),
+    ]
+    assert reconcile_rubric(good_aon, Decimal("10.00")) == (True, Decimal("10.00"))
+
+
+@pytest.mark.asyncio
+async def test_a2_manage_cannot_approve_and_ai_proposed_review() -> None:
+    """A2-T25 manage≠approve; A2-T26 AI_PROPOSED forces REVIEW_REQUIRED."""
+    async with gate_client() as client:
+        headers = await _headers(client)
+        data = await _foundation(client, headers)
+        leaf = await client.post(
+            f"/api/v1/assessment-versions/{data['version_id']}/questions",
+            headers=headers,
+            json={
+                "stable_code": "Q1",
+                "display_label": "1",
+                "sequence": 1,
+                "prompt_text": "2+2?",
+                "max_marks": "10.00",
+                "question_type": "SHORT",
+                "scoring_mode": "LEAF_SCORABLE",
+            },
+        )
+        assert leaf.status_code == 201
+        key = await client.post(
+            f"/api/v1/assessments/{data['assessment']['id']}/answer-key-versions",
+            headers=headers,
+            json={
+                "assessment_version_id": data["version_id"],
+                "question_version_id": leaf.json()["id"],
+                "answer_text": "4",
+                "source_type": "AI_PROPOSED",
+                "status": "DRAFT",
+            },
+        )
+        assert key.status_code == 201
+        assert key.json()["status"] == "REVIEW_REQUIRED"
+        assert key.json()["source_type"] == "AI_PROPOSED"
+
+        provider = JwtAuthProvider(get_settings())
+        login = await client.post(
+            "/api/v1/auth/login",
+            json={"email": ADMIN_EMAIL, "password": ADMIN_PASSWORD, "tenant_slug": "demo"},
+        )
+        context = provider.verify_access_token(login.json()["access_token"])
+        manage_only, _ = provider.issue_access_token(
+            AuthContext(
+                user_id=context.user_id,
+                tenant_id=context.tenant_id,
+                roles=frozenset({"TEACHER"}),
+                permissions=frozenset(
+                    {
+                        "assessment:read",
+                        "assessment:manage",
+                        "rubric:read",
+                        "rubric:manage",
+                    }
+                ),
+            )
+        )
+        denied = await client.post(
+            f"/api/v1/answer-key-versions/{key.json()['id']}/approve",
+            headers={"Authorization": f"Bearer {manage_only}"},
+        )
+        assert denied.status_code == 403
