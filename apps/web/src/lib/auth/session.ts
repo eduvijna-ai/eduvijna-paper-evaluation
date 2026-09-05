@@ -1,5 +1,11 @@
 "use client";
 
+/**
+ * DEMO / MOCK authentication only (B0).
+ * Not production-safe. B1 will integrate A1 backend auth
+ * (`POST /api/v1/auth/login`, `GET /api/v1/auth/me` + bearer token).
+ * Do not invent refresh-token behavior here.
+ */
 import type { DemoSession } from "@/lib/types/domain";
 import type { UserRole } from "@/lib/types/enums";
 

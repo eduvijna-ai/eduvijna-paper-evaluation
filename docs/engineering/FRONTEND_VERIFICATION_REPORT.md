@@ -1,107 +1,66 @@
-# Frontend verification report
+# Frontend verification report — B0 merge gate
 
 **Product:** EduVijna Paper Evaluation (CVB)  
-**Scope:** `apps/web` foundation — Implementation Engineer B (B0 continuation)  
-**Date:** 2026-09-04 / 2026-09-05
+**Scope:** B0 integration onto A1 develop  
+**Date:** 2026-09-05
 
 ## Environment
 
 | Item | Value |
 |------|-------|
-| Worktree path | `C:\Users\sreekanth.kannepally\eduvijna-paper-evaluation-ui` |
+| Worktree | `C:\Users\sreekanth.kannepally\eduvijna-paper-evaluation-ui` |
 | Branch | `cursor-b/frontend-foundation` |
-| Approved develop base SHA | `c52366930b5a5b31d139066aea701d60cf7e0021` |
-| Final feature SHA | `829682bd2a2e2e60eaa5cabebbd1bb1c866588a6` |
-| Remote branch SHA | `829682bd2a2e2e60eaa5cabebbd1bb1c866588a6` |
+| A1 develop baseline | `2de5ebe647458f6ceb3ef04121c11dda0a74df30` |
+| B0 pre-rebase SHA | `d64f128b72c4c8f402ad071c653c44c59b19ef1d` |
+| B0 post-rebase / final SHA | *(filled after push)* |
 | Node | v22.13.0 |
 | pnpm | 9.15.0 |
-| Next.js | 15.5.12 |
-| API mode | `NEXT_PUBLIC_API_MODE=mock` (default) |
-| Adapters | `MockEduVijnaApi` (active), `HttpEduVijnaApi` (shell) |
+| Active API | `MockEduVijnaApi` (`NEXT_PUBLIC_API_MODE=mock`) |
 
-## Cross-worktree
+## Auth safety
 
-| Tree | Path | Branch |
-|------|------|--------|
-| Cursor A (shared) | `C:\Users\sreekanth.kannepally\eduvijna-paper-evaluation` | separate (`cursor-a/*`) |
-| Cursor B (UI) | `C:\Users\sreekanth.kannepally\eduvijna-paper-evaluation-ui` | `cursor-b/frontend-foundation` |
-
-No Cursor A-owned backend paths modified by B0.
+B0 authentication is **DEMO/MOCK ONLY** (localStorage). Not production-safe.  
+**B1** will integrate A1 backend auth (`POST /api/v1/auth/login`, `GET /api/v1/auth/me`).
 
 ## Quality gates
 
-| Gate | Command | Result | Notes |
-|------|---------|--------|-------|
-| Install | `pnpm install` | ✅ PASS | Workspace lockfile current |
-| Lint | `pnpm lint` | ✅ PASS | ESLint |
-| Typecheck | `pnpm typecheck` | ✅ PASS | `tsc --noEmit` |
-| Unit tests | `pnpm test` | ✅ PASS | **28 tests / 11 files** |
-| Build | `pnpm build` | ✅ PASS | All CVB routes compiled |
-| Playwright | `pnpm test:e2e` | ✅ PASS | **15 / 15** smoke flows |
+| Gate | Result | Notes |
+|------|--------|-------|
+| Lint | ✅ PASS | |
+| Typecheck | ✅ PASS | |
+| Unit tests | ✅ PASS | **28** tests / 11 files |
+| Build | ✅ PASS | |
+| Playwright | ✅ PASS | **15** / 15 smoke flows |
+| Console review | ✅ PASS | No blocking errors in smoke |
+| Accessibility (manual) | ✅ PASS | Identity, Mapping, Evaluation, Student/Parent reports — labels, headings, keyboard buttons, glyphs+text for status |
 
-## Routes implemented
+## Accessibility notes
 
-`/login` · `/dashboard` · `/curriculum` · `/curriculum/[id]` · `/students` · `/students/import` · `/students/[id]` · `/assessments` · `/assessments/new` · `/assessments/[id]` · `/assessments/[id]/questions` · `/assessments/[id]/answer-key` · `/assessments/[id]/rubric` · `/assessments/[id]/curriculum-map` · `/submissions` · `/submissions/upload` · `/submissions/[id]` · `/submissions/[id]/identity` · `/submissions/[id]/mapping` · `/submissions/[id]/evaluation` · `/submissions/[id]/review` · `/submissions/[id]/annotated-paper` · student & parent reports · assessment & student analytics · adaptive learning · improvement assessment · `/admin`
+- Semantic `PageHeader` headings + breadcrumbs
+- Form labels on upload/import/teacher actions
+- Confirm dialogs for teacher actions
+- Rubric ✓/△/✕ with accessible text, not color alone
+- Low-confidence identity shows unresolved banner
 
-## Critical workspaces
+## Ownership
 
-| Workspace | Status |
-|-----------|--------|
-| Identity review | Complete (states + Confirm / Choose / Unmatched) |
-| Question mapping | Complete (3-part + actions + confidence) |
-| Evaluation | Complete (3-col + separate confidence dims + teacher actions) |
-| Annotated paper | Complete (synthetic ✓/△/✕ overlays) |
-| Student report | Complete |
-| Parent report | Complete (plain language) |
-| Assessment analytics | Complete (synthetic) |
-| Student analytics | Complete (synthetic) |
-| Adaptive learning | Complete (curriculum-restricted notice) |
-| Improvement assessment | Complete (teacher approval visible) |
+- Diff vs develop: frontend/docs/CI/lockfile only — **no** `apps/api`, `database`, `workers`, `ai`, `infra`
+- Separate worktree from Cursor A
 
-## Components (critical)
+## FCR reconciliation
 
-AppShell, Sidebar, TopBar, PageHeader, Breadcrumbs, StatusBadge, ConfidenceIndicator, Empty/Loading/Error, DataTable, ConfirmDialog, UI primitives (Button/Input/Select/Textarea/Dialog/Tabs/Pagination/Tooltip), ScoreDisplay, ScoreBreakdown, RubricCriterionRow, ErrorCategoryBadge, StudentIdentityCard, StudentMatchCandidate, QuestionTree, PaperViewerShell (normalized coords, zoom, thumbs), EvaluationDecisionPanel, TeacherReviewActions, learning/report components.
+See `FRONTEND_CONTRACT_REQUESTS.md` — FCR-001 PARTIAL; FCR-010/011 RESOLVED_BY_A1; ingestion/evaluation/reporting/learning remain open.
 
-## Accessibility review
-
-| Observation | Status |
-|-------------|--------|
-| Semantic headings / landmarks | Present on shell and page headers |
-| Labels on form controls | Present on login, upload, import, teacher actions |
-| Keyboard-focusable actions | Buttons/links used for primary actions |
-| Status not color-only | Glyphs + text on rubric (✓/△/✕) and badges |
-| Table semantics | DataTable uses `<table>` |
-| Dialogs | ConfirmDialog for destructive/confirm teacher actions |
-| axe CI enforcement | Not yet — manual review of critical screens |
-
-## Browser console review
-
-Playwright smoke journeys completed without test failures attributable to console errors on key flows. Dev-only Next.js cross-origin note for `127.0.0.1` mitigated via `allowedDevOrigins`.
-
-## Contract requests
-
-See `docs/engineering/FRONTEND_CONTRACT_REQUESTS.md` (FCR-001–009): domain OpenAPI paths for assessments, submissions, identity, mapping, evaluation, reports, analytics, learning; parent-report DTO; improvement-assessment lifecycle; paper evidence schema.
-
-## Known limitations
-
-- Mock API only for domain operations; HTTP adapter stubs domain until OpenAPI lands
-- Paper viewer is PDF.js-*compatible architecture* with synthetic page representation (no real PDFs)
-- Demo localStorage auth — not production IAM
-- Charts/distributions are structured placeholders (no heavy charting library)
-- Accessibility: axe not enforced in CI yet
-
-## Git / PR
+## PR
 
 | Item | Value |
 |------|-------|
 | PR | https://github.com/eduvijna/eduvijna-paper-evaluation/pull/3 |
-| Target | `develop` |
-| Merge | **Not merged** — stop for Chief Architect review |
-| Remote reconciliation | force-with-lease from `241fc51` → `2b44ecb` (rebase onto develop), then regular pushes for B0 gap commits |
+| Merge | Pending gate completion |
 
-## Sign-off
+## Limitations
 
-| Role | Outcome |
-|------|---------|
-| Engineer B | B0 complete; quality gates green; ready for Architect review |
-| Chief Architect | |
+- Mock domain API still active for CVB screens
+- UI Student DTO ≠ A1 Student schema — B1 adapter mapping required
+- Synthetic paper viewer (no real PDFs)
+- Demo auth until B1

@@ -59,8 +59,12 @@ export default function LoginPage() {
             Paper Evaluation
           </h1>
           <p className="mt-4 text-base text-slate-300 leading-relaxed">
-            Evidence-backed marking with teacher control. Demo login stores a
-            local session only — no production credentials.
+            Evidence-backed marking with teacher control.{" "}
+            <strong className="font-medium text-amber-200/90">
+              Demo / mock authentication only
+            </strong>{" "}
+            (local session — not production-safe). B1 will integrate A1 backend
+            auth.
           </p>
         </div>
 

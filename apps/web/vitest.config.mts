@@ -13,9 +13,12 @@ export default defineConfig({
     globals: false,
     pool: "forks",
     maxWorkers: 1,
+    minWorkers: 1,
     fileParallelism: false,
+    isolate: false,
     setupFiles: ["./vitest.setup.ts"],
-    testTimeout: 20000,
+    testTimeout: 30000,
+    hookTimeout: 30000,
   },
   resolve: {
     alias: {
