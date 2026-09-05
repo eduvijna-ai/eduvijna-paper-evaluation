@@ -31,6 +31,14 @@ PERMISSION_CODES: Final = (
     "student:import",
     "guardian:read",
     "guardian:write",
+    "curriculum:read",
+    "curriculum:manage",
+    "assessment:read",
+    "assessment:manage",
+    "assessment:approve",
+    "rubric:read",
+    "rubric:manage",
+    "rubric:approve",
 )
 
 ROLE_PERMISSION_MAP: Final = {
@@ -43,10 +51,26 @@ ROLE_PERMISSION_MAP: Final = {
             "student:read",
             "student:write",
             "guardian:read",
+            "curriculum:read",
+            "curriculum:manage",
+            "assessment:read",
+            "assessment:manage",
+            "assessment:approve",
+            "rubric:read",
+            "rubric:manage",
+            "rubric:approve",
         }
     ),
     "EVALUATOR": frozenset(
-        {"institution:read", "academic_year:read", "class_section:read", "student:read"}
+        {
+            "institution:read",
+            "academic_year:read",
+            "class_section:read",
+            "student:read",
+            "curriculum:read",
+            "assessment:read",
+            "rubric:read",
+        }
     ),
     "STUDENT": frozenset(),
     "PARENT": frozenset(),
