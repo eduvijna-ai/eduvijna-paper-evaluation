@@ -1,7 +1,17 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Index, String, Text, UniqueConstraint, func, text
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    String,
+    Text,
+    UniqueConstraint,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -11,15 +21,15 @@ class Role(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "roles"
     __table_args__ = (
         Index(
-            "uq_roles_tenant_name",
+            "uq_roles_tenant_code",
             "tenant_id",
-            "name",
+            "code",
             unique=True,
             postgresql_where=text("tenant_id IS NOT NULL"),
         ),
         Index(
-            "uq_roles_system_name",
-            "name",
+            "uq_roles_system_code",
+            "code",
             unique=True,
             postgresql_where=text("tenant_id IS NULL"),
         ),
@@ -29,6 +39,8 @@ class Role(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("tenants.id", ondelete="CASCADE"), nullable=True
     )
     name: Mapped[str] = mapped_column(String(100))
+    code: Mapped[str] = mapped_column(String(100))
+    is_system: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
@@ -52,4 +64,16 @@ class UserRole(UUIDPrimaryKeyMixin, Base):
     role_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("roles.id", ondelete="CASCADE"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class RolePermission(UUIDPrimaryKeyMixin, Base):
+    __tablename__ = "role_permissions"
+    __table_args__ = (
+        UniqueConstraint("role_id", "permission_id", name="uq_role_permissions_pair"),
+    )
+
+    role_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("roles.id", ondelete="CASCADE"))
+    permission_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("permissions.id", ondelete="CASCADE")
     )

@@ -42,7 +42,226 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/VersionResponse"
+  /api/v1/auth/login:
+    post:
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200":
+          description: Access token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/v1/auth/me:
+    get:
+      operationId: currentUser
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Current user and authorization context
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+  /api/v1/institution:
+    get:
+      operationId: currentInstitution
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Tenant primary institution
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Institution" }
+  /api/v1/academic-years:
+    get:
+      operationId: listAcademicYears
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Academic years
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/AcademicYear" } }
+    post:
+      operationId: createAcademicYear
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AcademicYearInput" }
+      responses:
+        "201":
+          description: Created academic year
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AcademicYear" }
+  /api/v1/academic-years/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getAcademicYear
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Academic year, content: { application/json: { schema: { $ref: "#/components/schemas/AcademicYear" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateAcademicYear
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AcademicYearInput" } } } }
+      responses:
+        "200": { description: Updated academic year, content: { application/json: { schema: { $ref: "#/components/schemas/AcademicYear" } } } }
+  /api/v1/class-sections:
+    get:
+      operationId: listClassSections
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Class sections, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/ClassSection" } } } } }
+    post:
+      operationId: createClassSection
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ClassSectionInput" } } } }
+      responses:
+        "201": { description: Created class section, content: { application/json: { schema: { $ref: "#/components/schemas/ClassSection" } } } }
+  /api/v1/class-sections/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getClassSection
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Class section, content: { application/json: { schema: { $ref: "#/components/schemas/ClassSection" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateClassSection
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ClassSectionInput" } } } }
+      responses:
+        "200": { description: Updated class section, content: { application/json: { schema: { $ref: "#/components/schemas/ClassSection" } } } }
+  /api/v1/students:
+    get:
+      operationId: listStudents
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Students, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Student" } } } } }
+    post:
+      operationId: createStudent
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/StudentInput" } } } }
+      responses:
+        "201": { description: Created student, content: { application/json: { schema: { $ref: "#/components/schemas/Student" } } } }
+  /api/v1/students/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getStudent
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Student, content: { application/json: { schema: { $ref: "#/components/schemas/Student" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateStudent
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/StudentInput" } } } }
+      responses:
+        "200": { description: Updated student, content: { application/json: { schema: { $ref: "#/components/schemas/Student" } } } }
+  /api/v1/students/import/validate:
+    post:
+      operationId: validateStudentImport
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties: { file: { type: string, format: binary } }
+      responses:
+        "200": { description: Per-row validation without student writes, content: { application/json: { schema: { $ref: "#/components/schemas/ImportValidation" } } } }
+  /api/v1/students/import/commit:
+    post:
+      operationId: commitStudentImport
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [import_session_id]
+              properties: { import_session_id: { type: string, format: uuid } }
+      responses:
+        "200": { description: Import commit result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+  /api/v1/guardians:
+    get:
+      operationId: listGuardians
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Guardians, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Guardian" } } } } }
+    post:
+      operationId: createGuardian
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/GuardianInput" } } } }
+      responses:
+        "201": { description: Created guardian, content: { application/json: { schema: { $ref: "#/components/schemas/Guardian" } } } }
+  /api/v1/guardians/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getGuardian
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Guardian, content: { application/json: { schema: { $ref: "#/components/schemas/Guardian" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateGuardian
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/GuardianInput" } } } }
+      responses:
+        "200": { description: Updated guardian, content: { application/json: { schema: { $ref: "#/components/schemas/Guardian" } } } }
+  /api/v1/students/{student_id}/guardians/{guardian_id}:
+    parameters:
+      - { name: student_id, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: guardian_id, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      operationId: linkStudentGuardian
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [relationship_type]
+              properties: { relationship_type: { type: string } }
+      responses:
+        "201": { description: Guardian linked }
+    delete:
+      operationId: unlinkStudentGuardian
+      security: [{ bearerAuth: [] }]
+      responses:
+        "204": { description: Guardian unlinked }
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    Unauthorized:
+      description: Authentication failed
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+    NotFound:
+      description: Resource not found, including cross-tenant access
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
   schemas:
     StatusResponse:
       type: object
@@ -67,3 +286,99 @@ components:
           type: string
     ErrorEnvelope:
       $ref: "./schemas/error.schema.json"
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+        tenant_slug: { type: [string, "null"] }
+    TokenResponse:
+      type: object
+      required: [access_token, token_type, expires_in, user]
+      properties:
+        access_token: { type: string }
+        token_type: { type: string, const: bearer }
+        expires_in: { type: integer }
+        user: { $ref: "#/components/schemas/User" }
+    User:
+      type: object
+      required: [id, tenant_id, email, display_name, status]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        display_name: { type: string }
+        status: { type: string }
+        roles: { type: array, items: { type: string } }
+        permissions: { type: array, items: { type: string } }
+    Institution:
+      type: object
+      required: [id, tenant_id, code, name]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        code: { type: string }
+        name: { type: string }
+    AcademicYearInput:
+      type: object
+      required: [name, starts_on, ends_on]
+      properties:
+        name: { type: string }
+        starts_on: { type: string, format: date }
+        ends_on: { type: string, format: date }
+        is_current: { type: boolean, default: false }
+    AcademicYear:
+      allOf:
+        - { $ref: "#/components/schemas/AcademicYearInput" }
+        - { type: object, required: [id, tenant_id, institution_id], properties: { id: { type: string, format: uuid }, tenant_id: { type: string, format: uuid }, institution_id: { type: string, format: uuid } } }
+    ClassSectionInput:
+      type: object
+      required: [academic_year_id, name, grade_label]
+      properties:
+        academic_year_id: { type: string, format: uuid }
+        name: { type: string }
+        grade_label: { type: string }
+    ClassSection:
+      allOf:
+        - { $ref: "#/components/schemas/ClassSectionInput" }
+        - { type: object, required: [id, tenant_id], properties: { id: { type: string, format: uuid }, tenant_id: { type: string, format: uuid } } }
+    StudentInput:
+      type: object
+      required: [student_code, full_name]
+      properties:
+        student_code: { type: string }
+        admission_number: { type: [string, "null"] }
+        roll_number: { type: [string, "null"] }
+        full_name: { type: string }
+        class_section_id: { type: [string, "null"], format: uuid }
+        academic_year_id: { type: [string, "null"], format: uuid }
+        status: { type: string, default: active }
+    Student:
+      allOf:
+        - { $ref: "#/components/schemas/StudentInput" }
+        - { type: object, required: [id, tenant_id, created_at, updated_at], properties: { id: { type: string, format: uuid }, tenant_id: { type: string, format: uuid }, created_at: { type: string, format: date-time }, updated_at: { type: string, format: date-time } } }
+    GuardianInput:
+      type: object
+      required: [display_name]
+      properties:
+        display_name: { type: string }
+        email: { type: [string, "null"], format: email }
+        phone: { type: [string, "null"] }
+    Guardian:
+      allOf:
+        - { $ref: "#/components/schemas/GuardianInput" }
+        - { type: object, required: [id, tenant_id], properties: { id: { type: string, format: uuid }, tenant_id: { type: string, format: uuid } } }
+    ImportValidation:
+      type: object
+      required: [import_session_id, status, valid_row_count, row_results, expires_at]
+      properties:
+        import_session_id: { type: string, format: uuid }
+        status: { type: string, enum: [VALIDATED] }
+        valid_row_count: { type: integer }
+        row_results:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        expires_at: { type: string, format: date-time }

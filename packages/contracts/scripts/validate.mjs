@@ -5,7 +5,21 @@ import yaml from "js-yaml";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const schemasDirectory = join(packageRoot, "schemas");
-const requiredPaths = ["/health", "/ready", "/api/v1/system/version"];
+const requiredPaths = [
+  "/health",
+  "/ready",
+  "/api/v1/system/version",
+  "/api/v1/auth/login",
+  "/api/v1/auth/me",
+  "/api/v1/institution",
+  "/api/v1/academic-years",
+  "/api/v1/class-sections",
+  "/api/v1/students",
+  "/api/v1/students/import/validate",
+  "/api/v1/students/import/commit",
+  "/api/v1/guardians",
+  "/api/v1/students/{student_id}/guardians/{guardian_id}",
+];
 
 const schemaFiles = (await readdir(schemasDirectory))
   .filter((name) => name.endsWith(".schema.json"))
@@ -28,8 +42,8 @@ if (!document || typeof document !== "object" || document.openapi !== "3.1.0") {
 }
 
 for (const path of requiredPaths) {
-  if (!document.paths?.[path]?.get) {
-    throw new Error(`openapi.yaml is missing GET ${path}`);
+  if (!document.paths?.[path]) {
+    throw new Error(`openapi.yaml is missing ${path}`);
   }
 }
 
