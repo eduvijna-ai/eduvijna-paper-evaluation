@@ -345,14 +345,14 @@ components:
         - { type: object, required: [id, tenant_id], properties: { id: { type: string, format: uuid }, tenant_id: { type: string, format: uuid } } }
     StudentInput:
       type: object
-      required: [student_code, full_name, class_section_id, academic_year_id]
+      required: [student_code, full_name]
       properties:
         student_code: { type: string }
         admission_number: { type: [string, "null"] }
         roll_number: { type: [string, "null"] }
         full_name: { type: string }
-        class_section_id: { type: string, format: uuid }
-        academic_year_id: { type: string, format: uuid }
+        class_section_id: { type: [string, "null"], format: uuid }
+        academic_year_id: { type: [string, "null"], format: uuid }
         status: { type: string, default: active }
     Student:
       allOf:

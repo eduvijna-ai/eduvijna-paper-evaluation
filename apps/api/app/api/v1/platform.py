@@ -123,8 +123,8 @@ class StudentIn(BaseModel):
     admission_number: str | None = Field(default=None, max_length=100)
     roll_number: str | None = Field(default=None, max_length=100)
     full_name: str = Field(min_length=1, max_length=255)
-    class_section_id: uuid.UUID
-    academic_year_id: uuid.UUID
+    class_section_id: uuid.UUID | None = None
+    academic_year_id: uuid.UUID | None = None
     status: str = "active"
 
 
@@ -447,8 +447,15 @@ async def patch_class_section(
 
 
 async def _validate_student_refs(
-    db: AsyncSession, auth: AuthContext, year_id: uuid.UUID, section_id: uuid.UUID
+    db: AsyncSession,
+    auth: AuthContext,
+    year_id: uuid.UUID | None,
+    section_id: uuid.UUID | None,
 ) -> None:
+    if year_id is None and section_id is None:
+        return
+    if year_id is None or section_id is None:
+        raise HTTPException(422, "Academic year and class section must be provided together")
     await _scoped(db, AcademicYear, year_id, auth.tenant_id)
     section = await _scoped(db, ClassSection, section_id, auth.tenant_id)
     if section.academic_year_id != year_id:

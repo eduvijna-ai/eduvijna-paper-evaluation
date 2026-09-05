@@ -119,3 +119,12 @@ Detailed design, configuration, seed credentials, permission mapping, and limita
 A1 verification passed on 2026-09-04: Ruff, strict mypy (29 source files), pytest (6 passed
 against Postgres), contracts validation, Docker Compose config, full `base -> head` migration,
 latest-revision downgrade/re-upgrade, rebuilt API health, and seeded authenticated HTTP smoke.
+
+## A1 Release Gate (2026-09-05)
+
+- Test matrix: `docs/engineering/A1_TEST_MATRIX.md` — **A1-T01..A1-T41 all PASS**
+- Collected pytest count: **17** (gate matrix + prior foundation tests)
+- CI Backend job uses Postgres service + migrations
+- Live smoke codes: health/ready/me/institution 200; student CRUD 201/200; import validate+commit 200; guardian link 201; foreign student 404; unauth 401
+- Migration: `20260904_0001` unchanged; `20260904_0002` downgrade→upgrade PASS
+- Gate fixes: explicit A1 coverage tests; nullable student year/section in API+OpenAPI; session-scoped asyncio loop for DB tests
