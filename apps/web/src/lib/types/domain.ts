@@ -36,6 +36,24 @@ export interface DemoSession {
   institutionId: string;
 }
 
+/** Authenticated session used by B1 hybrid/HTTP modes. */
+export interface AuthSession {
+  userId: string;
+  displayName: string;
+  email: string;
+  /** Primary role for display; prefer permissions for gating */
+  role: UserRole | string;
+  roles: string[];
+  permissions: string[];
+  tenantId: string;
+  institutionId: string;
+  institutionName?: string;
+  /** Epoch ms when access token is expected to expire */
+  expiresAt: number;
+  /** Auth mode: demo mock login vs real A1 bearer */
+  authMode: "demo" | "bearer";
+}
+
 export interface Curriculum {
   id: string;
   tenant_id: string;
@@ -73,6 +91,11 @@ export interface Student {
   section: string;
   status: "ACTIVE" | "TRANSFERRED" | "WITHDRAWN";
   parent_email?: string;
+  /** A1 student_code when sourced from HTTP */
+  student_code?: string;
+  academic_year_id?: string | null;
+  admission_number?: string | null;
+  roll_number?: string | null;
 }
 
 export interface Assessment {

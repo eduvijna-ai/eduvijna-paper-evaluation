@@ -1,7 +1,7 @@
-# Frontend verification report — B0 merge gate
+# Frontend verification report — B1 platform API integration
 
 **Product:** EduVijna Paper Evaluation (CVB)  
-**Scope:** B0 integration onto A1 develop  
+**Scope:** B1 real A1 API integration (hybrid)  
 **Date:** 2026-09-05
 
 ## Environment
@@ -9,58 +9,35 @@
 | Item | Value |
 |------|-------|
 | Worktree | `C:\Users\sreekanth.kannepally\eduvijna-paper-evaluation-ui` |
-| Branch | `cursor-b/frontend-foundation` |
-| A1 develop baseline | `2de5ebe647458f6ceb3ef04121c11dda0a74df30` |
-| B0 pre-rebase SHA | `d64f128b72c4c8f402ad071c653c44c59b19ef1d` |
-| B0 post-rebase / final SHA | *(filled after push)* |
-| Node | v22.13.0 |
-| pnpm | 9.15.0 |
-| Active API | `MockEduVijnaApi` (`NEXT_PUBLIC_API_MODE=mock`) |
+| Branch | `cursor-b/platform-api-integration` |
+| Base develop | `336b7165074c12ce5a99f77cd8e8f1320b81f423` |
+| Feature SHA | *(filled after push)* |
+| API mode (local B1) | `hybrid` |
+| Mock E2E mode | `mock` |
 
-## Auth safety
+## Domains
 
-B0 authentication is **DEMO/MOCK ONLY** (localStorage). Not production-safe.  
-**B1** will integrate A1 backend auth (`POST /api/v1/auth/login`, `GET /api/v1/auth/me`).
+**HTTP:** Auth, Institution, Academic years, Class sections, Students, Import, Guardians  
+**MOCK:** Curriculum, Assessment, Submissions, Evaluation, Analytics, Learning
 
-## Quality gates
+## Auth debt
 
-| Gate | Result | Notes |
-|------|--------|-------|
-| Lint | ✅ PASS | |
-| Typecheck | ✅ PASS | |
-| Unit tests | ✅ PASS | **28** tests / 11 files |
-| Build | ✅ PASS | |
-| Playwright | ✅ PASS | **15** / 15 smoke flows |
-| Console review | ✅ PASS | No blocking errors in smoke |
-| Accessibility (manual) | ✅ PASS | Identity, Mapping, Evaluation, Student/Parent reports — labels, headings, keyboard buttons, glyphs+text for status |
+Bearer JWT mirrored in sessionStorage + memory. Not production-safe cookie architecture. See B1 report.  
+Login uses `/auth/me` for permissions (TokenResponse.user may omit them).
 
-## Accessibility notes
+## Quality
 
-- Semantic `PageHeader` headings + breadcrumbs
-- Form labels on upload/import/teacher actions
-- Confirm dialogs for teacher actions
-- Rubric ✓/△/✕ with accessible text, not color alone
-- Low-confidence identity shows unresolved banner
+| Gate | Result |
+|------|--------|
+| lint | PASS |
+| typecheck | PASS |
+| unit tests | PASS (38) |
+| build | PASS |
+| Playwright mock | PASS (15) |
+| Playwright real | PASS (2) |
 
-## Ownership
+## Docs
 
-- Diff vs develop: frontend/docs/CI/lockfile only — **no** `apps/api`, `database`, `workers`, `ai`, `infra`
-- Separate worktree from Cursor A
-
-## FCR reconciliation
-
-See `FRONTEND_CONTRACT_REQUESTS.md` — FCR-001 PARTIAL; FCR-010/011 RESOLVED_BY_A1; ingestion/evaluation/reporting/learning remain open.
-
-## PR
-
-| Item | Value |
-|------|-------|
-| PR | https://github.com/eduvijna/eduvijna-paper-evaluation/pull/3 |
-| Merge | Pending gate completion |
-
-## Limitations
-
-- Mock domain API still active for CVB screens
-- UI Student DTO ≠ A1 Student schema — B1 adapter mapping required
-- Synthetic paper viewer (no real PDFs)
-- Demo auth until B1
+- `docs/engineering/B1_PLATFORM_API_INTEGRATION_REPORT.md`
+- `docs/engineering/B1_BACKEND_CHANGE_REQUESTS.md`
+- FCR-001 (A1), FCR-010, FCR-011 → IMPLEMENTED_IN_FRONTEND

@@ -1,12 +1,35 @@
 "use client";
 
 import Link from "next/link";
-import { use } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { use, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { api, isApiError } from "@/lib/api";
+import { A1_PERMISSIONS } from "@/lib/api/a1-types";
+import { getSession, hasPermission } from "@/lib/auth/session";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ErrorState, LoadingState } from "@/components/ui/FeedbackStates";
 import { ConceptMasteryBar } from "@/components/learning/LearningComponents";
+import { getApiMode } from "@/lib/api";
+
+const editSchema = z.object({
+  studentCode: z.string().min(1),
+  fullName: z.string().min(1),
+  rollNumber: z.string().optional(),
+  admissionNumber: z.string().optional(),
+});
+
+const guardianSchema = z.object({
+  displayName: z.string().min(1),
+  email: z.string().email().optional().or(z.literal("")),
+  phone: z.string().optional(),
+  relationshipType: z.string().min(1),
+});
+
+type EditValues = z.infer<typeof editSchema>;
+type GuardianForm = z.infer<typeof guardianSchema>;
 
 export default function StudentDetailPage({
   params,
@@ -14,6 +37,15 @@ export default function StudentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const queryClient = useQueryClient();
+  const session = useMemo(() => getSession(), []);
+  const canWrite = hasPermission(session, A1_PERMISSIONS.studentWrite);
+  const canGuardianWrite = hasPermission(session, A1_PERMISSIONS.guardianWrite);
+  const mode = getApiMode();
+  const [editing, setEditing] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [linkedGuardianIds, setLinkedGuardianIds] = useState<string[]>([]);
+
   const studentQuery = useQuery({
     queryKey: ["student", id],
     queryFn: () => api.getStudent(id),
@@ -21,12 +53,85 @@ export default function StudentDetailPage({
   const analyticsQuery = useQuery({
     queryKey: ["student-analytics", id],
     queryFn: () => api.getStudentAnalytics(id),
+    enabled: mode === "mock",
+  });
+  const guardiansQuery = useQuery({
+    queryKey: ["guardians"],
+    queryFn: () => api.listGuardians(),
   });
 
-  if (studentQuery.isLoading || analyticsQuery.isLoading)
-    return <LoadingState />;
-  if (studentQuery.isError || !studentQuery.data)
+  const editForm = useForm<EditValues>({
+    resolver: zodResolver(editSchema),
+  });
+  const guardianForm = useForm<GuardianForm>({
+    resolver: zodResolver(guardianSchema),
+    defaultValues: {
+      displayName: "",
+      email: "",
+      phone: "",
+      relationshipType: "PARENT",
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: (values: EditValues) =>
+      api.updateStudent(id, {
+        studentCode: values.studentCode,
+        fullName: values.fullName,
+        rollNumber: values.rollNumber,
+        admissionNumber: values.admissionNumber,
+        academicYearId: studentQuery.data?.academic_year_id,
+        classSectionId: studentQuery.data?.class_section_id || null,
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["student", id] });
+      await queryClient.invalidateQueries({ queryKey: ["students"] });
+      setEditing(false);
+      setMessage("Student updated.");
+    },
+    onError: (err) => {
+      setMessage(isApiError(err) ? err.userMessage() : "Update failed");
+    },
+  });
+
+  const createGuardianMutation = useMutation({
+    mutationFn: async (values: GuardianForm) => {
+      const guardian = await api.createGuardian({
+        displayName: values.displayName,
+        email: values.email || undefined,
+        phone: values.phone,
+      });
+      await api.linkStudentGuardian(id, guardian.id, values.relationshipType);
+      return guardian;
+    },
+    onSuccess: async (guardian) => {
+      setLinkedGuardianIds((prev) => [...prev, guardian.id]);
+      await queryClient.invalidateQueries({ queryKey: ["guardians"] });
+      guardianForm.reset({
+        displayName: "",
+        email: "",
+        phone: "",
+        relationshipType: "PARENT",
+      });
+      setMessage("Guardian created and linked.");
+    },
+    onError: (err) => {
+      setMessage(isApiError(err) ? err.userMessage() : "Guardian action failed");
+    },
+  });
+
+  if (studentQuery.isLoading) return <LoadingState />;
+  if (studentQuery.isError || !studentQuery.data) {
+    if (isApiError(studentQuery.error) && studentQuery.error.kind === "not_found") {
+      return (
+        <ErrorState
+          title="Student not found"
+          message="This student does not exist or is outside your tenant."
+        />
+      );
+    }
     return <ErrorState onRetry={() => void studentQuery.refetch()} />;
+  }
 
   const student = studentQuery.data;
   const analytics = analyticsQuery.data;
@@ -35,28 +140,105 @@ export default function StudentDetailPage({
     <div data-testid="student-detail-page">
       <PageHeader
         title={student.display_name}
-        description={`Roll ${student.external_ref} · Grade ${student.grade}-${student.section}`}
+        description={`Code ${student.student_code ?? student.external_ref} · ${student.grade}-${student.section}`}
         breadcrumbs={[
           { label: "Students", href: "/students" },
-          { label: student.external_ref },
+          { label: student.student_code ?? student.external_ref },
         ]}
         actions={
           <div className="flex gap-2">
-            <Link
-              href={`/reports/student/${student.id}/assessment/assess-demo-001`}
-              className="rounded-md border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50"
-            >
-              Student report
-            </Link>
-            <Link
-              href={`/learning/${student.id}`}
-              className="rounded-md bg-teal-800 px-3 py-2 text-sm font-medium text-white hover:bg-teal-900"
-            >
-              Adaptive learning
-            </Link>
+            {canWrite && (
+              <button
+                type="button"
+                data-testid="student-edit-toggle"
+                onClick={() => {
+                  setEditing((v) => !v);
+                  editForm.reset({
+                    studentCode:
+                      student.student_code ?? student.external_ref,
+                    fullName: student.display_name,
+                    rollNumber: student.roll_number ?? "",
+                    admissionNumber: student.admission_number ?? "",
+                  });
+                }}
+                className="rounded-md border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50"
+              >
+                Edit
+              </button>
+            )}
+            {mode === "mock" && (
+              <>
+                <Link
+                  href={`/reports/student/${student.id}/assessment/assess-demo-001`}
+                  className="rounded-md border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50"
+                >
+                  Student report
+                </Link>
+                <Link
+                  href={`/learning/${student.id}`}
+                  className="rounded-md bg-teal-800 px-3 py-2 text-sm font-medium text-white hover:bg-teal-900"
+                >
+                  Adaptive learning
+                </Link>
+              </>
+            )}
           </div>
         }
       />
+
+      {message && (
+        <p className="mb-4 rounded-md bg-teal-50 px-3 py-2 text-sm text-teal-900">
+          {message}
+        </p>
+      )}
+
+      {editing && (
+        <form
+          data-testid="student-edit-form"
+          className="mb-4 grid max-w-xl gap-3 rounded-md border border-slate-200 bg-white p-4 sm:grid-cols-2"
+          onSubmit={editForm.handleSubmit((values) =>
+            updateMutation.mutate(values),
+          )}
+        >
+          <label className="text-sm">
+            Student code
+            <input
+              className="mt-1 w-full rounded-md border px-3 py-2"
+              {...editForm.register("studentCode")}
+            />
+          </label>
+          <label className="text-sm">
+            Full name
+            <input
+              className="mt-1 w-full rounded-md border px-3 py-2"
+              {...editForm.register("fullName")}
+            />
+          </label>
+          <label className="text-sm">
+            Roll
+            <input
+              className="mt-1 w-full rounded-md border px-3 py-2"
+              {...editForm.register("rollNumber")}
+            />
+          </label>
+          <label className="text-sm">
+            Admission
+            <input
+              className="mt-1 w-full rounded-md border px-3 py-2"
+              {...editForm.register("admissionNumber")}
+            />
+          </label>
+          <button
+            type="submit"
+            data-testid="student-edit-submit"
+            disabled={updateMutation.isPending}
+            className="rounded-md bg-teal-800 px-3 py-2 text-sm text-white disabled:opacity-60 sm:col-span-2"
+          >
+            Save changes
+          </button>
+        </form>
+      )}
+
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-md border border-slate-200 bg-white p-4">
           <h2 className="text-sm font-semibold text-slate-800">Profile</h2>
@@ -66,23 +248,95 @@ export default function StudentDetailPage({
               <dd>{student.status}</dd>
             </div>
             <div className="flex justify-between">
-              <dt className="text-slate-500">Parent email</dt>
-              <dd>{student.parent_email ?? "—"}</dd>
+              <dt className="text-slate-500">Roll</dt>
+              <dd>{student.roll_number ?? student.external_ref}</dd>
             </div>
           </dl>
         </div>
-        <div className="rounded-md border border-slate-200 bg-white p-4 space-y-3">
-          <h2 className="text-sm font-semibold text-slate-800">
-            Concept mastery
-          </h2>
-          {analytics?.concept_mastery.map((c) => (
-            <ConceptMasteryBar
-              key={c.concept}
-              concept={c.concept}
-              mastery={c.mastery}
-            />
-          ))}
+
+        <div
+          className="rounded-md border border-slate-200 bg-white p-4 space-y-3"
+          data-testid="student-guardians"
+        >
+          <h2 className="text-sm font-semibold text-slate-800">Guardians</h2>
+          <p className="text-xs text-slate-500">
+            A1 has no list-links endpoint; newly linked guardians in this
+            session are shown below. Tenant guardian directory:
+          </p>
+          <ul className="space-y-1 text-sm">
+            {(guardiansQuery.data ?? []).map((g) => (
+              <li key={g.id} className="flex justify-between gap-2">
+                <span>
+                  {g.displayName}
+                  {linkedGuardianIds.includes(g.id) ? " · linked" : ""}
+                </span>
+                {canGuardianWrite && linkedGuardianIds.includes(g.id) && (
+                  <button
+                    type="button"
+                    className="text-xs text-rose-700"
+                    onClick={() => {
+                      void api.unlinkStudentGuardian(id, g.id).then(() => {
+                        setLinkedGuardianIds((prev) =>
+                          prev.filter((x) => x !== g.id),
+                        );
+                      });
+                    }}
+                  >
+                    Unlink
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+          {canGuardianWrite && (
+            <form
+              data-testid="guardian-create-form"
+              className="space-y-2 border-t border-slate-100 pt-3"
+              onSubmit={guardianForm.handleSubmit((values) =>
+                createGuardianMutation.mutate(values),
+              )}
+            >
+              <input
+                placeholder="Display name"
+                className="w-full rounded-md border px-3 py-2 text-sm"
+                {...guardianForm.register("displayName")}
+              />
+              <input
+                placeholder="Email"
+                className="w-full rounded-md border px-3 py-2 text-sm"
+                {...guardianForm.register("email")}
+              />
+              <input
+                placeholder="Relationship (e.g. PARENT)"
+                className="w-full rounded-md border px-3 py-2 text-sm"
+                {...guardianForm.register("relationshipType")}
+              />
+              <button
+                type="submit"
+                data-testid="guardian-create-submit"
+                disabled={createGuardianMutation.isPending}
+                className="rounded-md bg-teal-800 px-3 py-2 text-sm text-white disabled:opacity-60"
+              >
+                Create & link guardian
+              </button>
+            </form>
+          )}
         </div>
+
+        {mode === "mock" && (
+          <div className="rounded-md border border-slate-200 bg-white p-4 space-y-3 lg:col-span-2">
+            <h2 className="text-sm font-semibold text-slate-800">
+              Concept mastery (mock domain)
+            </h2>
+            {analytics?.concept_mastery.map((c) => (
+              <ConceptMasteryBar
+                key={c.concept}
+                concept={c.concept}
+                mastery={c.mastery}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -17,7 +17,9 @@ import {
 import { clearSession, getSession } from "@/lib/auth/session";
 import { cn } from "@/lib/utils/cn";
 import { useEffect, useState } from "react";
-import type { DemoSession } from "@/lib/types/domain";
+import type { AuthSession } from "@/lib/types/domain";
+import { api, getApiMode } from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, testId: "nav-dashboard" },
@@ -89,11 +91,23 @@ export function Sidebar() {
 
 export function TopBar() {
   const router = useRouter();
-  const [session, setSessionState] = useState<DemoSession | null>(null);
+  const [session, setSessionState] = useState<AuthSession | null>(null);
+  const mode = getApiMode();
+  const institutionQuery = useQuery({
+    queryKey: ["institution"],
+    queryFn: () => api.getInstitution(),
+    enabled: mode === "hybrid",
+    retry: false,
+  });
 
   useEffect(() => {
     setSessionState(getSession());
   }, []);
+
+  const institutionLabel =
+    institutionQuery.data?.name ??
+    session?.institutionName ??
+    (mode === "mock" ? "Demo Institution" : null);
 
   return (
     <header
@@ -101,7 +115,15 @@ export function TopBar() {
       className="flex h-14 items-center justify-between border-b border-slate-200 bg-white px-4 sm:px-6"
     >
       <div className="text-sm text-slate-500">
-        Client Validation Build · Mock API
+        {institutionLabel ? (
+          <span data-testid="institution-name">{institutionLabel}</span>
+        ) : (
+          "EduVijna"
+        )}
+        <span className="mx-2 text-slate-300">·</span>
+        <span data-testid="api-mode-badge">
+          {mode === "hybrid" ? "Platform API + mock CVB" : "Mock API"}
+        </span>
       </div>
       <div className="flex items-center gap-3">
         {session && (
@@ -109,15 +131,21 @@ export function TopBar() {
             <div className="text-sm font-medium text-slate-800">
               {session.displayName}
             </div>
-            <div className="text-xs text-slate-500">{session.role}</div>
+            <div className="text-xs text-slate-500">
+              {Array.isArray(session.roles) && session.roles.length
+                ? session.roles.join(", ")
+                : session.role}
+            </div>
           </div>
         )}
         <button
           type="button"
           data-testid="logout-button"
           onClick={() => {
-            clearSession();
-            router.push("/login");
+            void api.logout().finally(() => {
+              clearSession();
+              router.push("/login");
+            });
           }}
           className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-2.5 py-1.5 text-sm text-slate-700 hover:bg-slate-50"
         >

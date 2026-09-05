@@ -934,7 +934,30 @@ export function getAssessmentAnalytics(
 }
 
 export function getStudentAnalytics(studentId: string): StudentAnalytics {
-  const student = students.find((s) => s.id === studentId) ?? students[0];
+  const student = students.find((s) => s.id === studentId);
+  // Do not substitute a different student — avoids hybrid HTTP/mock identity mixups.
+  if (!student) {
+    return {
+      student: {
+        id: studentId,
+        tenant_id: "",
+        institution_id: "",
+        class_section_id: "",
+        external_ref: "—",
+        first_name: "",
+        last_name: "",
+        display_name: "Analytics unavailable",
+        grade: "—",
+        section: "—",
+        status: "ACTIVE",
+      },
+      assessments_taken: 0,
+      average_percentage: 0,
+      trend: [],
+      concept_mastery: [],
+      recurring_errors: [],
+    };
+  }
   return {
     student,
     assessments_taken: 3,

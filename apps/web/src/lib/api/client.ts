@@ -1,21 +1,30 @@
 import type { ApiClient } from "./types";
 import { MockEduVijnaApi } from "./mock/adapter";
-import { HttpEduVijnaApi } from "./http/adapter";
+import { HybridEduVijnaApi } from "./hybrid/adapter";
 
 /**
- * API mode is selected via NEXT_PUBLIC_API_MODE.
- * Default: mock (synthetic fixtures for CVB frontend).
- * http: operational health/ready/version live; domain methods throw until OpenAPI lands.
+ * API mode:
+ * - mock (default for Playwright B0): all domains mock + demo auth
+ * - hybrid (B1 default for local real A1): platform HTTP + CVB mock
+ *
+ * Do not use a single boolean for all domains — hybrid routes by capability.
  */
-export function getApiMode(): "mock" | "http" {
+export type ApiMode = "mock" | "hybrid";
+
+export function getApiMode(): ApiMode {
   const mode = process.env.NEXT_PUBLIC_API_MODE ?? "mock";
-  return mode === "http" ? "http" : "mock";
+  if (mode === "hybrid" || mode === "http") {
+    // "http" accepted as alias for hybrid during B1 (A2+ domains still mock).
+    return "hybrid";
+  }
+  return "mock";
 }
 
 export function createApiClient(): ApiClient {
-  return getApiMode() === "http" ? HttpEduVijnaApi : MockEduVijnaApi;
+  return getApiMode() === "hybrid" ? HybridEduVijnaApi : MockEduVijnaApi;
 }
 
 export const api = createApiClient();
 
-export { MockEduVijnaApi, HttpEduVijnaApi };
+export { MockEduVijnaApi, HybridEduVijnaApi };
+export { PlatformHttpApi } from "./http/platform";
