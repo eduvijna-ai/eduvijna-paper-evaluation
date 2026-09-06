@@ -114,6 +114,20 @@ test.describe("B1 real A1 platform flows", () => {
       { timeout: 15_000 },
     );
 
+    // Unlink + reload — link must remain absent
+    const unlinkButton = page.locator('[data-testid^="guardian-unlink-"]').first();
+    await unlinkButton.click();
+    await expect(page.getByTestId("guardians-empty")).toBeVisible({
+      timeout: 15_000,
+    });
+    await page.reload();
+    await expect(page.getByTestId("student-detail-page")).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByTestId("guardians-empty")).toBeVisible({
+      timeout: 15_000,
+    });
+
     // CSV import validate + commit
     await page.goto("/students/import");
     await expect(page.getByTestId("students-import-page")).toBeVisible();
@@ -165,6 +179,29 @@ test.describe("B1 real A1 platform flows", () => {
       timeout: 20_000,
     });
     await expect(page.getByText(importCode)).toBeVisible({ timeout: 20_000 });
+
+    // Second unique CSV import against same DB
+    const runId2 = uniqueRunId();
+    const importCode2 = `STU-IMP2-${runId2}`;
+    const csv2 = [
+      "student_code,admission_number,roll_number,full_name,academic_year,class_section",
+      `${importCode2},ADM2-${runId2.slice(0, 10)},R2${runId2.slice(0, 10)},Import Student Two,${yearName},${sectionName}`,
+    ].join("\n");
+    await page.goto("/students/import");
+    await page.getByTestId("import-file").setInputFiles({
+      name: "roster2.csv",
+      mimeType: "text/csv",
+      buffer: Buffer.from(csv2),
+    });
+    await page.getByTestId("import-validate").click();
+    await expect(page.getByTestId("import-outcome-0")).toContainText("VALID", {
+      timeout: 20_000,
+    });
+    await page.getByTestId("import-commit").click();
+    await expect(page.getByTestId("import-success")).toContainText(
+      "Imported 1 student",
+      { timeout: 20_000 },
+    );
 
     await page.getByTestId("logout-button").click();
     await expect(page.getByTestId("login-page")).toBeVisible({
