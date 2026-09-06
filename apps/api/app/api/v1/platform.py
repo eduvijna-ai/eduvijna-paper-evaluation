@@ -732,8 +732,6 @@ async def patch_student(
     changes = payload.model_dump(exclude_unset=True)
     year_id = changes.get("academic_year_id", item.academic_year_id)
     section_id = changes.get("class_section_id", item.class_section_id)
-    if year_id is None or section_id is None:
-        raise HTTPException(422, "academic_year_id and class_section_id are required")
     await _validate_student_refs(db, auth, year_id, section_id)
     for key, value in changes.items():
         setattr(item, key, value)
