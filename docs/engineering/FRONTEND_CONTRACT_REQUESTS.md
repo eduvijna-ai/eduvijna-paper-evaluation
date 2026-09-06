@@ -9,8 +9,8 @@
 
 Adapters (`NEXT_PUBLIC_API_MODE`):
 
-- `mock` (default, **B0 active**) → `MockEduVijnaApi`
-- `http` → `HttpEduVijnaApi` (operational + **A1 platform** typed helpers under `.a1`; CVB domain methods still throw until B wires A2)
+- `mock` — all domains mock + demo role login (Playwright B0)
+- `hybrid` (alias `http`) — **B1**: Auth/Institution/Years/Sections/Students/Import/Guardians via HTTP; Curriculum/Assessment/Submissions/Evaluation/Analytics/Learning remain mock
 
 A1 (PR #4) published OpenAPI for auth, institution, academic years, class sections, students, student import, and guardians.  
 A2 (PR #5) publishes curriculum trees, prerequisites, assessments/versions, question trees, mark reconciliation, answer keys, rubrics/criteria, curriculum mappings, readiness transitions, and controlled AI-proposal unavailability.
@@ -38,7 +38,7 @@ B should map mock/http adapters to these **canonical** paths (no duplicate alias
 
 | Request ID | Priority | Screen(s) | Resolution status | Resolved API / schema | Next backend phase |
 |------------|----------|-----------|-------------------|----------------------|--------------------|
-| **FCR-001** | P0 | Domain CRUD | **PARTIALLY_RESOLVED** | A1 students/institution/years/sections + A2 curricula/assessments/questions | Submissions → **OPEN_FOR_INGESTION** |
+| **FCR-001** | P0 | Domain CRUD | **IMPLEMENTED_IN_FRONTEND** (A1 platform portion); submissions still open | A1 students/institution/years/sections wired in B1 hybrid | Submissions → **OPEN_FOR_INGESTION**; A2 authoring → later B |
 | **FCR-002** | P0 | Identity review | **OPEN_FOR_INGESTION** | — (roster candidates can use A1 students in B1) | Submission identity endpoints |
 | **FCR-003** | P0 | Question mapping | **OPEN_FOR_INGESTION** | — (A2 curriculum↔question authoring map ≠ ingestion paper mapping) | Mapping GET + actions |
 | **FCR-004** | P0 | Evaluation | **OPEN_FOR_EVALUATION** | Ledger schema exists as JSON Schema; no HTTP paths yet | Evaluation workspace + teacher actions |
@@ -47,8 +47,8 @@ B should map mock/http adapters to these **canonical** paths (no duplicate alias
 | **FCR-007** | P1 | Paper viewer | **OPEN_FOR_INGESTION** | — | Evidence region / page schema |
 | **FCR-008** | P2 | Answer key / curriculum map | **RESOLVED_BY_A2** | Answer-key versions + approve; question curriculum mappings; rubrics/criteria | B adapter wiring |
 | **FCR-009** | P2 | Raw upload | **OPEN_FOR_INGESTION** | — | Multipart / pre-signed upload |
-| **FCR-010** | P0 | Auth (B1) | **RESOLVED_BY_A1** | `POST /api/v1/auth/login`, `GET /api/v1/auth/me`, `LoginRequest`, `TokenResponse`, `User` | B1 frontend wiring |
-| **FCR-011** | P1 | Guardians / import | **RESOLVED_BY_A1** | `/api/v1/guardians`, `/api/v1/students/import/validate`, `/api/v1/students/import/commit`, `ImportValidation` | B1 UI against live API |
+| **FCR-010** | P0 | Auth (B1) | **IMPLEMENTED_IN_FRONTEND** | Live `login`/`me` + hybrid session | Cookie sessions preferred (BCR) |
+| **FCR-011** | P1 | Guardians / import | **IMPLEMENTED_IN_FRONTEND** | Live guardians + CSV validate/commit + GET student guardians | — |
 
 ---
 

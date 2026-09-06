@@ -3,6 +3,7 @@ import type {
   AnswerKeyStep,
   Assessment,
   AssessmentAnalytics,
+  AuthSession,
   Curriculum,
   CurriculumMapEntry,
   CurriculumNode,
@@ -21,6 +22,23 @@ import type {
 } from "@/lib/types/domain";
 import type { MappingAction, TeacherReviewAction } from "@/lib/types/enums";
 import type { TeacherActionResult } from "@/lib/helpers/teacher-actions";
+import type {
+  AcademicYearFormValues,
+  AcademicYearView,
+  ClassSectionFormValues,
+  ClassSectionView,
+  InstitutionView,
+} from "@/lib/api/mappers/platform";
+import type {
+  GuardianFormValues,
+  GuardianView,
+  StudentGuardianLinkView,
+} from "@/lib/api/mappers/guardian";
+import type { StudentFormValues } from "@/lib/api/mappers/student";
+import type {
+  ImportCommitResult,
+  ImportValidationView,
+} from "@/lib/api/mappers/import";
 
 export interface OperationalHealth {
   status: "ok" | "degraded" | "error" | string;
@@ -30,10 +48,54 @@ export interface OperationalHealth {
   [key: string]: string | number | boolean | undefined;
 }
 
+/**
+ * Unified API surface. Components must not branch on mock vs HTTP.
+ * Domain routing is an adapter concern (hybrid client).
+ */
 export interface ApiClient {
   getHealth(): Promise<OperationalHealth>;
   getReady(): Promise<OperationalHealth>;
   getVersion(): Promise<{ version: string; build?: string }>;
+
+  login(email: string, password: string): Promise<AuthSession>;
+  logout(): Promise<void>;
+  getCurrentUser(): Promise<AuthSession>;
+
+  getInstitution(): Promise<InstitutionView>;
+  listAcademicYears(): Promise<AcademicYearView[]>;
+  createAcademicYear(form: AcademicYearFormValues): Promise<AcademicYearView>;
+  updateAcademicYear(
+    id: string,
+    form: Partial<AcademicYearFormValues>,
+  ): Promise<AcademicYearView>;
+  listClassSections(): Promise<ClassSectionView[]>;
+  createClassSection(form: ClassSectionFormValues): Promise<ClassSectionView>;
+  updateClassSection(
+    id: string,
+    form: Partial<ClassSectionFormValues>,
+  ): Promise<ClassSectionView>;
+
+  listStudents(): Promise<Student[]>;
+  getStudent(id: string): Promise<Student>;
+  createStudent(form: StudentFormValues): Promise<Student>;
+  updateStudent(id: string, form: Partial<StudentFormValues>): Promise<Student>;
+  validateStudentImport(file: Blob): Promise<ImportValidationView>;
+  commitStudentImport(importSessionId: string): Promise<ImportCommitResult>;
+
+  listGuardians(): Promise<GuardianView[]>;
+  listStudentGuardians(studentId: string): Promise<StudentGuardianLinkView[]>;
+  getGuardian(id: string): Promise<GuardianView>;
+  createGuardian(form: GuardianFormValues): Promise<GuardianView>;
+  updateGuardian(
+    id: string,
+    form: Partial<GuardianFormValues>,
+  ): Promise<GuardianView>;
+  linkStudentGuardian(
+    studentId: string,
+    guardianId: string,
+    relationshipType: string,
+  ): Promise<void>;
+  unlinkStudentGuardian(studentId: string, guardianId: string): Promise<void>;
 
   getDashboard(): Promise<DashboardSummary>;
   listCurricula(): Promise<Curriculum[]>;
@@ -41,8 +103,6 @@ export interface ApiClient {
     curriculum: Curriculum;
     tree: CurriculumNode[];
   }>;
-  listStudents(): Promise<Student[]>;
-  getStudent(id: string): Promise<Student>;
   listAssessments(): Promise<Assessment[]>;
   getAssessment(id: string): Promise<Assessment>;
   getAssessmentQuestions(id: string): Promise<Question[]>;

@@ -1,6 +1,6 @@
 /**
- * A1 OpenAPI-aligned types (packages/contracts/openapi.yaml after PR #4).
- * Used by HttpEduVijnaApi platform stubs for B1 — do not invent alternate field names.
+ * A1 OpenAPI-aligned transport types (packages/contracts/openapi.yaml).
+ * UI view-models live in mappers — do not use these snake_case shapes in components.
  */
 
 export interface LoginRequest {
@@ -56,7 +56,6 @@ export interface ClassSection extends ClassSectionInput {
   tenant_id: string;
 }
 
-/** A1 Student schema — maps to UI Student at adapter boundary in B1. */
 export interface A1StudentInput {
   student_code: string;
   admission_number?: string | null;
@@ -103,3 +102,17 @@ export interface VersionResponse {
 export interface StatusResponse {
   status: string;
 }
+
+/** A1 permission codes — frontend convenience only; backend is authoritative. */
+export const A1_PERMISSIONS = {
+  institutionRead: "institution:read",
+  academicYearRead: "academic_year:read",
+  academicYearWrite: "academic_year:write",
+  classSectionRead: "class_section:read",
+  classSectionWrite: "class_section:write",
+  studentRead: "student:read",
+  studentWrite: "student:write",
+  studentImport: "student:import",
+  guardianRead: "guardian:read",
+  guardianWrite: "guardian:write",
+} as const;
