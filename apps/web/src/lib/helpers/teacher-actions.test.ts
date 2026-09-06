@@ -19,6 +19,7 @@ describe("teacher review actions", () => {
       proposedScore: 2,
       maxMark: 4,
       newScore: 3,
+      feedback: "Adjusted by teacher",
     });
     expect(result.workflow_state).toBe("OVERRIDDEN");
     expect(result.final_human_approved_score).toBe(3);
@@ -51,13 +52,14 @@ describe("teacher review actions", () => {
     ).toBe("REVIEW_REQUIRED");
   });
 
-  it("escalates to review required", () => {
+  it("escalates to ESCALATED", () => {
     const result = applyTeacherReviewAction({
       action: "ESCALATE",
       proposedScore: 2,
       maxMark: 4,
+      feedback: "Needs senior reviewer",
     });
-    expect(result.workflow_state).toBe("REVIEW_REQUIRED");
+    expect(result.workflow_state).toBe("ESCALATED");
     expect(result.requires_followup).toBe(true);
   });
 });

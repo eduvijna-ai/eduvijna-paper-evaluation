@@ -155,7 +155,8 @@ export interface CriterionDecisionRow {
   rubric_criterion_id: string;
   criterion_label: string;
   max_marks: number;
-  proposed_marks: number;
+  /** Null when unscorable / unreadable — must not render as 0. */
+  proposed_marks: number | null;
   final_marks: number | null;
   decision: CriterionDecision;
   error_code: ErrorCode | null;
@@ -178,20 +179,33 @@ export interface EvaluationLedger {
   answer_region_ids: string[];
   max_mark: number;
   criterion_decisions: CriterionDecisionRow[];
-  proposed_ai_score: number;
+  /** Null when unreadable / no proposal — must not display as 0. */
+  proposed_ai_score: number | null;
   final_human_approved_score: number | null;
   error_codes: ErrorCode[];
   ecf_applied: boolean;
-  identity_confidence: Confidence;
-  mapping_confidence: Confidence;
-  transcription_confidence: Confidence;
-  evaluation_confidence: Confidence;
+  identity_confidence: Confidence | null;
+  mapping_confidence: Confidence | null;
+  transcription_confidence: Confidence | null;
+  evaluation_confidence: Confidence | null;
   math_verification_confidence: Confidence | null;
+  /** Optional deterministic verification summary for UI. */
+  math_verification_summary?: string | null;
   workflow_state: EvaluationWorkflowState;
   ledger_version: number;
   feedback_draft: string;
   corrected_approach: string;
   teacher_notes: string | null;
+  /** Joined transcription evidence for the evaluation center column. */
+  transcription_text?: string | null;
+  alternative_method_id?: string | null;
+  alternative_method_label?: string | null;
+  /** Distinguishes AI proposal vs human final vs deterministic verify. */
+  score_sources?: {
+    ai_proposal: boolean;
+    deterministic_verification: boolean;
+    human_final: boolean;
+  };
 }
 
 export interface PaperPage {

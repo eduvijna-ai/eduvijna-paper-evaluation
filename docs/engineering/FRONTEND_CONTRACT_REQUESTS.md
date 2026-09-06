@@ -2,15 +2,15 @@
 
 **Product:** EduVijna Paper Evaluation (CVB)  
 **Author:** Implementation Engineer B (registry); A2 backend reconciliation by Implementation Engineer A  
-**Updated:** 2026-09-06 (B4 answer-region + question mapping)  
-**Status:** A1+A2+B1+B2+B3 live through identity; B4 live for mapping through READY_FOR_EVALUATION; evaluation/reporting/learning remain open
+**Updated:** 2026-09-06 (B6 evaluation ledger review)  
+**Status:** A1+A2+B1+B2+B3 live through identity; B4 mapping; B5 transcription; B6 evaluation ledger review live; reporting/learning remain open
 
 ## Context
 
 Adapters (`NEXT_PUBLIC_API_MODE`):
 
 - `mock` — all domains mock + demo role login (Playwright B0)
-- `hybrid` (alias `http`) — Auth/Institution/Years/Sections/Students/Import/Guardians (B1), Curriculum/Assessments (B2), Submissions/Identity (B3), Mapping (B4) via HTTP; Evaluation/Analytics/Learning remain mock
+- `hybrid` (alias `http`) — Auth/Institution/Years/Sections/Students/Import/Guardians (B1), Curriculum/Assessments (B2), Submissions/Identity (B3), Mapping (B4), Transcription (B5), Evaluation (B6) via HTTP; Analytics/Reporting/Learning remain mock
 
 A1 (PR #4) published OpenAPI for auth, institution, academic years, class sections, students, student import, and guardians.  
 A2 (PR #5) publishes curriculum trees, prerequisites, assessments/versions, question trees, mark reconciliation, answer keys, rubrics/criteria, curriculum mappings, readiness transitions, and controlled AI-proposal unavailability.
@@ -41,10 +41,10 @@ B should map mock/http adapters to these **canonical** paths (no duplicate alias
 | **FCR-001** | P0 | Domain CRUD | **IMPLEMENTED_IN_FRONTEND** (A1/B1/B2); submissions list/detail **RESOLVED_BY_B3** | A1 students/institution/years/sections; A2 curricula/assessments; B3 submissions | Mapping/evaluation later |
 | **FCR-002** | P0 | Identity review | **RESOLVED_BY_B3** | `GET …/identity`, confirm, unmatched | — |
 | **FCR-003** | P0 | Question mapping | **RESOLVED_BY_B4**; B5 adds AI-assisted region/mapping proposals (human confirm still mandatory) | Mapping workspace + region CRUD + confirm/finalize | — |
-| **FCR-004** | P0 | Evaluation | **OPEN_FOR_EVALUATION** | Ledger schema exists as JSON Schema; no HTTP paths yet | Evaluation workspace + teacher actions |
+| **FCR-004** | P0 | Evaluation | **RESOLVED_BY_B6** | Evaluation prepare/workspace/finalize + accept/override/feedback/escalate | Reports/publication later |
 | **FCR-005** | P1 | Reports / Analytics | **OPEN_FOR_REPORTING** | — | Report & analytics DTOs |
 | **FCR-006** | P1 | Adaptive learning | **OPEN_FOR_LEARNING** | — | Learning + improvement blueprint |
-| **FCR-007** | P1 | Paper viewer / structure AI | **RESOLVED_BY_B5** for CVB structure pipeline (page analysis, crops, transcription review) | Page images + overlays + transcription workspace | Evaluation remains mock |
+| **FCR-007** | P1 | Paper viewer / structure AI | **RESOLVED_BY_B5** for CVB structure pipeline (page analysis, crops, transcription review) | Page images + overlays + transcription workspace | — |
 | **FCR-008** | P2 | Answer key / curriculum map | **RESOLVED_BY_A2** | Answer-key versions + approve; question curriculum mappings; rubrics/criteria | — |
 | **FCR-009** | P2 | Raw upload | **RESOLVED_BY_B3** | Multipart `POST /api/v1/submissions` + immutable MinIO storage | — |
 | **FCR-010** | P0 | Auth (B1) | **IMPLEMENTED_IN_FRONTEND** | Live `login`/`me` + hybrid session | Cookie sessions preferred (BCR) |
@@ -93,9 +93,11 @@ Live mapping workspace binds to `submission.assessment_version_id`, supports man
 
 ## FCR-004 — Evaluation ledger (P0)
 
-**Resolution:** OPEN_FOR_EVALUATION  
+**Resolution:** RESOLVED_BY_B6  
 
-JSON Schema `evaluation-ledger.schema.json` exists; HTTP workspace + action endpoints do not.
+Live evaluation prepare, workspace, accept / override / feedback / escalate, and finalize → `APPROVED`.  
+`proposed_ai_score` may be null (unreadable / no proposal) — UI must not display as zero.  
+OCR/mapping correction workflows and result publication / reports remain out of scope.
 
 ---
 

@@ -207,6 +207,9 @@ export interface ApiClient {
     action: TeacherReviewAction,
     payload?: { newScore?: number; feedback?: string },
   ): Promise<TeacherActionResult>;
+  /** B6 live evaluation. Optional for mock-source compatibility. */
+  prepareEvaluation?(submissionId: string): Promise<Submission>;
+  finalizeEvaluation?(submissionId: string): Promise<Submission>;
   getStudentReport(
     studentId: string,
     assessmentId: string,

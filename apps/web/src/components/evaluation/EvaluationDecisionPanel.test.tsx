@@ -49,7 +49,7 @@ const ledger: EvaluationLedger = {
 describe("EvaluationDecisionPanel", () => {
   it("renders separate confidence dimensions and ECF", () => {
     render(
-      <EvaluationDecisionPanel ledger={ledger} onAction={vi.fn()} />,
+      <EvaluationDecisionPanel ledger={ledger} onAction={vi.fn()} liveMode={false} />,
     );
     expect(screen.getByTestId("evaluation-decision-panel")).toBeInTheDocument();
     expect(screen.getByTestId("confidence-dimensions")).toHaveTextContent(
@@ -67,5 +67,21 @@ describe("EvaluationDecisionPanel", () => {
     expect(screen.getByTestId("score-display")).toHaveTextContent("1.5 / 3");
     expect(screen.getByTestId("ecf-applied")).toBeInTheDocument();
     expect(screen.getByTestId("teacher-review-actions")).toBeInTheDocument();
+  });
+
+  it("disables accept and shows no-proposal copy when proposed score is null", () => {
+    render(
+      <EvaluationDecisionPanel
+        ledger={{ ...ledger, proposed_ai_score: null }}
+        onAction={vi.fn()}
+        liveMode
+      />,
+    );
+    expect(screen.getByTestId("score-no-proposal")).toHaveTextContent(
+      /No automatic score proposed/i,
+    );
+    expect(screen.getByTestId("teacher-action-ACCEPT")).toBeDisabled();
+    expect(screen.getByTestId("teacher-action-OCR_TRANSCRIPTION_ERROR")).toBeDisabled();
+    expect(screen.getByTestId("teacher-action-MAPPING_ERROR")).toBeDisabled();
   });
 });

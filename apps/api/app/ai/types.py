@@ -159,5 +159,189 @@ class ProviderUnavailable(RuntimeError):
     """Configured provider cannot serve the operation."""
 
 
+# --- B6 evaluation contracts -------------------------------------------------
+
+ACADEMIC_ERROR_CODES: frozenset[str] = frozenset(
+    {
+        "CONCEPT",
+        "FORMULA",
+        "METHOD",
+        "CALCULATION",
+        "ALGEBRA",
+        "SIGN",
+        "SUBSTITUTION",
+        "NOTATION",
+        "UNIT",
+        "DIAGRAM",
+        "INTERPRETATION",
+        "INCOMPLETE",
+        "LOGIC_REASONING",
+        "PRESENTATION",
+        "FINAL_ANSWER",
+    }
+)
+
+SYSTEM_ERROR_CODES: frozenset[str] = frozenset(
+    {
+        "UNREADABLE",
+        "OCR_TRANSCRIPTION",
+        "QUESTION_MAPPING",
+        "IDENTITY_MAPPING",
+        "VALID_ALTERNATIVE",
+        "RUBRIC_AMBIGUITY",
+        "OTHER_REVIEW_REQUIRED",
+    }
+)
+
+ALL_ERROR_CODES: frozenset[str] = ACADEMIC_ERROR_CODES | SYSTEM_ERROR_CODES
+
+REVIEW_BLOCKING_ERROR_CODES: frozenset[str] = frozenset(
+    {
+        "UNREADABLE",
+        "OCR_TRANSCRIPTION",
+        "QUESTION_MAPPING",
+        "IDENTITY_MAPPING",
+        "RUBRIC_AMBIGUITY",
+        "OTHER_REVIEW_REQUIRED",
+    }
+)
+
+CriterionDecision = Literal[
+    "AWARDED", "PARTIAL", "DEDUCTED", "NOT_APPLICABLE", "UNREADABLE"
+]
+
+
+class RubricCriterionSnapshot(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: uuid.UUID
+    code: str = Field(max_length=100)
+    label: str = Field(max_length=255)
+    max_marks: Decimal
+    sequence: int = Field(ge=0)
+    scoring_mode: Literal["ADDITIVE", "DEDUCTIVE", "ALL_OR_NOTHING"] = "ADDITIVE"
+    partial_credit_allowed: bool = False
+    ecf_policy: Literal["NONE", "ALLOW_METHOD_CREDIT", "CUSTOM_REVIEW"] = "NONE"
+    unit_requirement: str | None = Field(default=None, max_length=2000)
+    precision_requirement: str | None = Field(default=None, max_length=2000)
+    accepted_equivalents: list[str] = Field(default_factory=list, max_length=50)
+
+
+class RubricEvaluationInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    question_version_id: uuid.UUID
+    assessment_version_id: uuid.UUID
+    rubric_criteria: list[RubricCriterionSnapshot] = Field(min_length=1, max_length=100)
+    answer_key_text: str = Field(default="", max_length=50_000)
+    structured_answer: dict[str, Any] | None = None
+    transcription_text: str = Field(default="", max_length=50_000)
+    blank_flag: bool = False
+    unreadable_flag: bool = False
+    math_verification_summary: dict[str, Any] | None = None
+    max_mark: Decimal = Field(ge=0)
+
+
+class CriterionProposal(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    rubric_criterion_id: uuid.UUID
+    decision: CriterionDecision
+    proposed_marks: Decimal | None = None
+    error_code: str | None = Field(default=None, max_length=64)
+    deduction_reason: str | None = Field(default=None, max_length=1000)
+    step_index: int | None = Field(default=None, ge=0)
+    ecf_source_criterion_id: uuid.UUID | None = None
+
+    @field_validator("error_code")
+    @classmethod
+    def _error_code(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        if v not in ALL_ERROR_CODES:
+            raise ValueError(f"unknown error_code: {v}")
+        return v
+
+
+class RubricEvaluationResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    criterion_proposals: list[CriterionProposal] = Field(min_length=1, max_length=100)
+    proposed_total: Decimal | None = None
+    evaluation_confidence: Decimal | None = None
+    first_divergence_step: int | None = Field(default=None, ge=0)
+    alternative_method_id: str | None = Field(default=None, max_length=100)
+    alternative_method_label: str | None = Field(default=None, max_length=255)
+    ecf_applied: bool = False
+    error_codes: list[str] = Field(default_factory=list, max_length=50)
+    deduction_reasons: list[dict[str, Any]] = Field(default_factory=list, max_length=50)
+
+    @field_validator("evaluation_confidence")
+    @classmethod
+    def _c(cls, v: Decimal | None) -> Decimal | None:
+        if v is None:
+            return v
+        return _conf(v)
+
+    @field_validator("error_codes")
+    @classmethod
+    def _codes(cls, v: list[str]) -> list[str]:
+        for code in v:
+            if code not in ALL_ERROR_CODES:
+                raise ValueError(f"unknown error_code: {code}")
+        return v
+
+
+class ErrorClassificationInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    question_version_id: uuid.UUID
+    transcription_text: str = Field(default="", max_length=50_000)
+    criterion_code: str | None = Field(default=None, max_length=100)
+    criterion_label: str | None = Field(default=None, max_length=255)
+    first_divergence_step: int | None = Field(default=None, ge=0)
+    math_verification_summary: dict[str, Any] | None = None
+
+
+class ErrorClassificationResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    error_codes: list[str] = Field(default_factory=list, max_length=20)
+    evidence_spans: list[dict[str, Any]] = Field(default_factory=list, max_length=20)
+    classification_confidence: Decimal | None = None
+
+    @field_validator("error_codes")
+    @classmethod
+    def _codes(cls, v: list[str]) -> list[str]:
+        for code in v:
+            if code not in ALL_ERROR_CODES:
+                raise ValueError(f"unknown error_code: {code}")
+        return v
+
+    @field_validator("classification_confidence")
+    @classmethod
+    def _c(cls, v: Decimal | None) -> Decimal | None:
+        if v is None:
+            return v
+        return _conf(v)
+
+
+class MathVerificationResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    equivalent: bool | None = None
+    normalized_student: str | None = Field(default=None, max_length=2000)
+    normalized_expected: str | None = Field(default=None, max_length=2000)
+    math_verification_confidence: Decimal | None = None
+    failure_reason: str | None = Field(default=None, max_length=500)
+
+    @field_validator("math_verification_confidence")
+    @classmethod
+    def _c(cls, v: Decimal | None) -> Decimal | None:
+        if v is None:
+            return v
+        return _conf(v)
+
+
 def dump_bounded(model: BaseModel) -> dict[str, Any]:
     return model.model_dump(mode="json")

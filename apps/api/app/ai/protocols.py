@@ -1,16 +1,20 @@
-"""Structure-stage AI provider protocol (B5)."""
+"""Structure- and evaluation-stage AI provider protocols (B5/B6)."""
 
 from __future__ import annotations
 
 from typing import Protocol
 
 from app.ai.types import (
+    ErrorClassificationInput,
+    ErrorClassificationResult,
     IdentityExtractionInput,
     IdentityExtractionResult,
     PageAnalysisInput,
     PageAnalysisResult,
     RegionMappingInput,
     RegionMappingResult,
+    RubricEvaluationInput,
+    RubricEvaluationResult,
     TranscriptionInput,
     TranscriptionResult,
 )
@@ -32,3 +36,17 @@ class StructureAIProvider(Protocol):
     async def transcribe_answer(
         self, request: TranscriptionInput
     ) -> TranscriptionResult: ...
+
+
+class EvaluationAIProvider(Protocol):
+    """Rubric evaluation + error taxonomy. Math verification is NOT on the provider."""
+
+    provider_name: str
+
+    async def evaluate_rubric(
+        self, request: RubricEvaluationInput
+    ) -> RubricEvaluationResult: ...
+
+    async def classify_error(
+        self, request: ErrorClassificationInput
+    ) -> ErrorClassificationResult: ...

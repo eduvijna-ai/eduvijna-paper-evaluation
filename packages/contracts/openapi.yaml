@@ -789,6 +789,129 @@ paths:
             image/png:
               schema: { type: string, format: binary }
         "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/evaluation/prepare:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: prepareEvaluation
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Evaluation run queued
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvaluationPrepareResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/evaluation:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getEvaluationWorkspace
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Evaluation review workspace
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvaluationWorkspace" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/evaluation/finalize:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: finalizeEvaluation
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Submission APPROVED (never PUBLISHED)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvaluationFinalizeResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/evaluation-runs/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getEvaluationRun
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Evaluation run with question ledger rows
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvaluationRunDetail" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/question-evaluations/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getQuestionEvaluation
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Question evaluation ledger row
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QuestionEvaluation" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/question-evaluations/{id}/accept:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: acceptQuestionEvaluation
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Accept proposed AI score
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QuestionEvaluation" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/question-evaluations/{id}/override:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: overrideQuestionEvaluation
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OverrideEvaluationInput" }
+      responses:
+        "200":
+          description: Override with human score
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QuestionEvaluation" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/question-evaluations/{id}/feedback:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: feedbackQuestionEvaluation
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FeedbackEvaluationInput" }
+      responses:
+        "200":
+          description: Edit feedback without score change
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QuestionEvaluation" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/question-evaluations/{id}/escalate:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: escalateQuestionEvaluation
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EscalateEvaluationInput" }
+      responses:
+        "200":
+          description: Escalate question evaluation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QuestionEvaluation" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /api/v1/submission-pages/{id}/answer-regions:
     parameters: [{ $ref: "#/components/parameters/Id" }]
     post:
@@ -1861,4 +1984,216 @@ components:
         metadata:
           type: object
           additionalProperties: { type: string }
+    EvaluationPrepareResult:
+      type: object
+      required: [submission_id, workflow_state, evaluation_run_id, run_status]
+      properties:
+        submission_id: { type: string, format: uuid }
+        workflow_state: { type: string }
+        evaluation_run_id: { type: string, format: uuid }
+        run_status: { type: string }
+        job_id: { type: [string, "null"], format: uuid }
+    EvaluationFinalizeResult:
+      type: object
+      required: [submission_id, workflow_state]
+      properties:
+        submission_id: { type: string, format: uuid }
+        workflow_state: { type: string, enum: [APPROVED] }
+        evaluation_run_id: { type: [string, "null"], format: uuid }
+        run_status: { type: [string, "null"], enum: [COMPLETED, null] }
+    EvaluationRun:
+      type: object
+      required: [id, submission_id, run_number, status, provider]
+      properties:
+        id: { type: string, format: uuid }
+        submission_id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        run_number: { type: integer }
+        status:
+          type: string
+          enum: [QUEUED, RUNNING, REVIEW_REQUIRED, COMPLETED, FAILED, SUPERSEDED]
+        provider: { type: string }
+        model: { type: [string, "null"] }
+        rules_engine_version: { type: [string, "null"] }
+        started_by: { type: [string, "null"], format: uuid }
+        started_at: { type: [string, "null"], format: date-time }
+        finished_at: { type: [string, "null"], format: date-time }
+        failure_code: { type: [string, "null"] }
+        failure_detail: { type: [string, "null"] }
+    CriterionDecision:
+      type: object
+      required: [rubric_criterion_id, criterion_label, max_marks, decision]
+      properties:
+        id: { type: string, format: uuid }
+        rubric_criterion_id: { type: string, format: uuid }
+        criterion_code: { type: string }
+        criterion_label: { type: string }
+        max_marks: { type: number }
+        proposed_marks: { type: [number, "null"] }
+        final_marks: { type: [number, "null"] }
+        decision:
+          type: string
+          enum: [AWARDED, PARTIAL, DEDUCTED, NOT_APPLICABLE, UNREADABLE]
+        error_code: { type: [string, "null"] }
+        deduction_reason: { type: [string, "null"] }
+        step_index: { type: [integer, "null"] }
+        ecf_source_criterion_id: { type: [string, "null"], format: uuid }
+    QuestionEvaluation:
+      type: object
+      required:
+        [
+          id,
+          evaluation_run_id,
+          submission_id,
+          assessment_version_id,
+          question_version_id,
+          max_mark,
+          proposed_ai_score,
+          workflow_state,
+          identity_confidence,
+          mapping_confidence,
+          evaluation_confidence,
+          math_verification_confidence,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        evaluation_run_id: { type: string, format: uuid }
+        submission_id: { type: string, format: uuid }
+        student_id: { type: [string, "null"], format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        question_id: { type: string, format: uuid }
+        question_version_id: { type: string, format: uuid }
+        rubric_version_id: { type: string, format: uuid }
+        answer_key_version_id: { type: string, format: uuid }
+        mapping_id: { type: [string, "null"], format: uuid }
+        answer_region_ids: { type: array, items: { type: string } }
+        transcription_refs: { type: array, items: { type: object } }
+        max_mark: { type: number }
+        proposed_ai_score: { type: [number, "null"] }
+        final_human_approved_score: { type: [number, "null"] }
+        first_divergence_step: { type: [integer, "null"] }
+        ecf_applied: { type: boolean }
+        ecf_chain: { type: object }
+        alternative_method_id: { type: [string, "null"] }
+        alternative_method_label: { type: [string, "null"] }
+        error_codes: { type: array, items: { type: string } }
+        deduction_reasons: { type: array, items: { type: object } }
+        criterion_snapshot: { type: array, items: { type: object } }
+        criterion_decisions:
+          type: array
+          items: { $ref: "#/components/schemas/CriterionDecision" }
+        identity_confidence: { type: [number, "null"], minimum: 0, maximum: 1 }
+        mapping_confidence: { type: [number, "null"], minimum: 0, maximum: 1 }
+        transcription_confidence: { type: [number, "null"], minimum: 0, maximum: 1 }
+        evaluation_confidence: { type: [number, "null"], minimum: 0, maximum: 1 }
+        math_verification_confidence: { type: [number, "null"], minimum: 0, maximum: 1 }
+        workflow_state:
+          type: string
+          enum: [PENDING, PROPOSED, REVIEW_REQUIRED, ACCEPTED, OVERRIDDEN, ESCALATED]
+        ledger_version: { type: integer }
+        reviewed_by: { type: [string, "null"], format: uuid }
+        reviewed_at: { type: [string, "null"], format: date-time }
+        reviewer_feedback: { type: [string, "null"] }
+        approved_snapshot_hash: { type: [string, "null"] }
+    EvaluationRunDetail:
+      allOf:
+        - { $ref: "#/components/schemas/EvaluationRun" }
+        - type: object
+          properties:
+            question_evaluations:
+              type: array
+              items: { $ref: "#/components/schemas/QuestionEvaluation" }
+    EvaluationWorkspace:
+      type: object
+      required:
+        [
+          submission_id,
+          workflow_state,
+          evaluation_run,
+          question_evaluations,
+          automated_evaluation_active,
+        ]
+      properties:
+        submission_id: { type: string, format: uuid }
+        workflow_state: { type: string }
+        student_match_state: { type: string }
+        transcription_state: { type: string }
+        assessment_version_id: { type: string, format: uuid }
+        evaluation_run:
+          anyOf:
+            - { $ref: "#/components/schemas/EvaluationRun" }
+            - { type: "null" }
+        question_evaluations:
+          type: array
+          items: { $ref: "#/components/schemas/QuestionEvaluation" }
+        automated_evaluation_active: { type: boolean }
+    OverrideEvaluationInput:
+      type: object
+      additionalProperties: false
+      required: [score, reason]
+      properties:
+        score: { type: number, minimum: 0 }
+        reason: { type: string, minLength: 1, maxLength: 4000 }
+        feedback: { type: [string, "null"], maxLength: 5000 }
+        valid_alternative: { type: boolean, default: false }
+        criterion_finals:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required: [rubric_criterion_id, final_marks]
+            properties:
+              rubric_criterion_id: { type: string, format: uuid }
+              final_marks: { type: number, minimum: 0 }
+    EvaluationOverrideInput:
+      $ref: "#/components/schemas/OverrideEvaluationInput"
+    EvaluationFeedbackInput:
+      $ref: "#/components/schemas/FeedbackEvaluationInput"
+    CriterionEvaluation:
+      $ref: "#/components/schemas/CriterionDecision"
+    ReviewAction:
+      type: object
+      required:
+        [
+          id,
+          tenant_id,
+          submission_id,
+          question_evaluation_id,
+          evaluation_run_id,
+          actor_user_id,
+          action_type,
+          created_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        submission_id: { type: string, format: uuid }
+        question_evaluation_id: { type: string, format: uuid }
+        evaluation_run_id: { type: string, format: uuid }
+        actor_user_id: { type: string, format: uuid }
+        action_type:
+          type: string
+          enum: [ACCEPT, OVERRIDE, EDIT_FEEDBACK, VALID_ALTERNATIVE, ESCALATE]
+        reason: { type: [string, "null"] }
+        before_snapshot: { type: object }
+        after_snapshot: { type: object }
+        previous_score: { type: [number, "null"] }
+        new_score: { type: [number, "null"] }
+        correlation_id: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+    FeedbackEvaluationInput:
+      type: object
+      additionalProperties: false
+      required: [feedback]
+      properties:
+        feedback: { type: string, minLength: 1, maxLength: 4000 }
+    EscalateEvaluationInput:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 4000 }
 

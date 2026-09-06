@@ -38,6 +38,7 @@ export const EVALUATION_WORKFLOW_STATES = [
   "REVIEW_REQUIRED",
   "ACCEPTED",
   "OVERRIDDEN",
+  "ESCALATED",
 ] as const;
 export type EvaluationWorkflowState = (typeof EVALUATION_WORKFLOW_STATES)[number];
 

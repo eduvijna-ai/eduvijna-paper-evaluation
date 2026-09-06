@@ -358,9 +358,9 @@ test.describe("B5 real AI structure + transcription", () => {
       timeout: 30_000,
     });
     await expect(page.getByTestId("submission-downstream-boundary")).toContainText(
-      /Evidence mapping and transcription are ready\. Live evaluation is not enabled yet\./i,
+      /Open evaluation to start scoring review|Evidence mapping and transcription are ready/i,
     );
-    await expect(page.getByTestId("link-evaluation")).toHaveCount(0);
+    await expect(page.getByTestId("link-evaluation")).toBeVisible();
 
     await page.reload();
     await expect(page.getByTestId("submission-downstream-boundary")).toContainText(

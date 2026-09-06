@@ -47,6 +47,25 @@ def redacted_transcription_response_summary(
     }
 
 
+def redacted_evaluation_response_summary(
+    *,
+    proposed_total: float | None,
+    evaluation_confidence: float | None,
+    criterion_count: int,
+    error_codes: list[str],
+    ecf_applied: bool,
+    workflow_hint: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "proposed_total": proposed_total,
+        "evaluation_confidence": evaluation_confidence,
+        "criterion_count": criterion_count,
+        "error_codes": error_codes[:20],
+        "ecf_applied": ecf_applied,
+        "workflow_hint": workflow_hint,
+    }
+
+
 async def record_ai_execution(
     db: AsyncSession,
     *,
@@ -58,6 +77,8 @@ async def record_ai_execution(
     response_summary: dict[str, Any],
     submission_id: uuid.UUID | None = None,
     answer_region_id: uuid.UUID | None = None,
+    evaluation_run_id: uuid.UUID | None = None,
+    question_evaluation_id: uuid.UUID | None = None,
     model: str | None = None,
     model_version: str | None = None,
     prompt_template_version: str | None = None,
@@ -78,6 +99,8 @@ async def record_ai_execution(
         response_summary=response_summary,
         submission_id=submission_id,
         answer_region_id=answer_region_id,
+        evaluation_run_id=evaluation_run_id,
+        question_evaluation_id=question_evaluation_id,
         model=model,
         model_version=model_version,
         prompt_template_version=prompt_template_version,
