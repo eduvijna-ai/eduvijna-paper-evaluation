@@ -465,10 +465,6 @@ function TranscriptionReview({ id }: { id: string }) {
   if (isLoading) return <LoadingState />;
   if (isError || !data) return <ErrorState onRetry={() => void refetch()} />;
 
-  const selectedRegion = data.items
-    .flatMap((item) => item.regions)
-    .find((r) => r.id === selectedRegionId);
-
   return (
     <div data-testid="transcription-review-page" data-transcription-mode={live ? "live" : "mock"}>
       <PageHeader

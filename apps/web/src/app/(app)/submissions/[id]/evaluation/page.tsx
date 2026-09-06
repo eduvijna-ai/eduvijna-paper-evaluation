@@ -70,10 +70,6 @@ export default function EvaluationWorkspacePage({
     enabled: !liveBlocked,
   });
 
-  if (liveBlocked) {
-    return <LoadingState />;
-  }
-
   const questionId = selectedQuestionId ?? data?.selected_question_id ?? "q-1b";
 
   const ledger = useMemo(
@@ -89,16 +85,6 @@ export default function EvaluationWorkspacePage({
     return map;
   }, [data]);
 
-  const relatedRegions =
-    data?.regions.filter(
-      (r) => r.question_id === questionId || r.question_id === questionId.split("-").slice(0, 2).join("-"),
-    ) ?? [];
-
-  const answerKey =
-    data?.answer_keys.filter((a) => a.question_id === questionId) ?? [];
-  const rubric =
-    data?.rubrics.filter((r) => r.question_id === questionId) ?? [];
-
   const actionMutation = useMutation({
     mutationFn: ({
       action,
@@ -113,6 +99,20 @@ export default function EvaluationWorkspacePage({
       void queryClient.invalidateQueries({ queryKey: ["evaluation", id] });
     },
   });
+
+  if (liveBlocked) {
+    return <LoadingState />;
+  }
+
+  const relatedRegions =
+    data?.regions.filter(
+      (r) => r.question_id === questionId || r.question_id === questionId.split("-").slice(0, 2).join("-"),
+    ) ?? [];
+
+  const answerKey =
+    data?.answer_keys.filter((a) => a.question_id === questionId) ?? [];
+  const rubric =
+    data?.rubrics.filter((r) => r.question_id === questionId) ?? [];
 
   if (isLoading) return <LoadingState />;
   if (isError || !data || !ledger)
