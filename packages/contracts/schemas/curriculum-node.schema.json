@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/curriculum-node.schema.json",
+  "title": "CurriculumNode",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "curriculum_id", "node_type", "code", "title", "sort_order"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "curriculum_id": { "type": "string", "format": "uuid" },
+    "parent_id": { "type": ["string", "null"], "format": "uuid" },
+    "node_type": {
+      "enum": [
+        "GRADE",
+        "SEMESTER",
+        "SUBJECT",
+        "UNIT",
+        "CHAPTER",
+        "TOPIC",
+        "SUBTOPIC",
+        "CONCEPT",
+        "SKILL",
+        "LEARNING_OUTCOME"
+      ]
+    },
+    "code": { "type": "string", "minLength": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "sort_order": { "type": "integer", "minimum": 0 },
+    "metadata": { "type": "object" }
+  }
+}

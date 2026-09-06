@@ -1,0 +1,25 @@
+"""Celery task package."""
+
+from app.tasks.celery_app import (
+    celery_app,
+    enqueue_identity_extraction,
+    enqueue_mapping_preparation,
+    enqueue_page_normalization,
+    enqueue_transcription,
+    identity_extraction_task,
+    normalize_pages_task,
+    prepare_mapping_task,
+    transcription_task,
+)
+
+__all__ = [
+    "celery_app",
+    "enqueue_identity_extraction",
+    "enqueue_mapping_preparation",
+    "enqueue_page_normalization",
+    "enqueue_transcription",
+    "identity_extraction_task",
+    "normalize_pages_task",
+    "prepare_mapping_task",
+    "transcription_task",
+]

@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/evaluation-ledger.schema.json",
+  "title": "EvaluationLedger",
+  "type": "object",
+  "required": [
+    "id",
+    "tenant_id",
+    "evaluation_run_id",
+    "submission_id",
+    "assessment_version_id",
+    "question_id",
+    "question_version_id",
+    "rubric_version_id",
+    "answer_key_version_id",
+    "max_mark",
+    "criterion_decisions",
+    "proposed_ai_score",
+    "ecf_applied",
+    "workflow_state",
+    "ledger_version"
+  ],
+  "properties": {
+    "id": { "$ref": "#/$defs/uuid" },
+    "tenant_id": { "$ref": "#/$defs/uuid" },
+    "evaluation_run_id": { "$ref": "#/$defs/uuid" },
+    "submission_id": { "$ref": "#/$defs/uuid" },
+    "student_id": { "anyOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] },
+    "assessment_id": { "$ref": "#/$defs/uuid" },
+    "assessment_version_id": { "$ref": "#/$defs/uuid" },
+    "question_id": { "$ref": "#/$defs/uuid" },
+    "question_version_id": { "$ref": "#/$defs/uuid" },
+    "rubric_version_id": { "$ref": "#/$defs/uuid" },
+    "answer_key_version_id": { "$ref": "#/$defs/uuid" },
+    "answer_region_ids": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/uuid" }
+    },
+    "evidence_refs": { "type": "object" },
+    "max_mark": { "type": "number", "minimum": 0 },
+    "criterion_decisions": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/criterionDecision" }
+    },
+    "proposed_ai_score": { "type": "number", "minimum": 0 },
+    "final_human_approved_score": { "type": ["number", "null"], "minimum": 0 },
+    "error_codes": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "ecf_applied": { "type": "boolean" },
+    "identity_confidence": { "$ref": "#/$defs/confidence" },
+    "mapping_confidence": { "$ref": "#/$defs/confidence" },
+    "transcription_confidence": { "$ref": "#/$defs/confidence" },
+    "evaluation_confidence": { "$ref": "#/$defs/confidence" },
+    "math_verification_confidence": {
+      "anyOf": [{ "$ref": "#/$defs/confidence" }, { "type": "null" }]
+    },
+    "workflow_state": {
+      "enum": ["PENDING", "PROPOSED", "REVIEW_REQUIRED", "ACCEPTED", "OVERRIDDEN"]
+    },
+    "ledger_version": { "type": "integer", "minimum": 1 },
+    "supersedes_ledger_id": {
+      "anyOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }]
+    }
+  },
+  "$defs": {
+    "uuid": { "type": "string", "format": "uuid" },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "criterionDecision": {
+      "type": "object",
+      "required": [
+        "rubric_criterion_id",
+        "criterion_label",
+        "max_marks",
+        "proposed_marks",
+        "decision"
+      ],
+      "properties": {
+        "rubric_criterion_id": { "$ref": "#/$defs/uuid" },
+        "criterion_label": { "type": "string" },
+        "max_marks": { "type": "number", "minimum": 0 },
+        "proposed_marks": { "type": "number", "minimum": 0 },
+        "final_marks": { "type": ["number", "null"], "minimum": 0 },
+        "decision": {
+          "enum": ["AWARDED", "PARTIAL", "DEDUCTED", "NOT_APPLICABLE", "UNREADABLE"]
+        },
+        "error_code": { "type": ["string", "null"] },
+        "deduction_reason": { "type": ["string", "null"] },
+        "step_index": { "type": ["integer", "null"], "minimum": 0 }
+      }
+    }
+  }
+}

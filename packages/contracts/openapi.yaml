@@ -1,0 +1,1864 @@
+openapi: 3.1.0
+info:
+  title: EduVijna Paper Evaluation API
+  version: 0.1.0
+paths:
+  /health:
+    get:
+      operationId: health
+      summary: Liveness check
+      responses:
+        "200":
+          description: API process is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+  /ready:
+    get:
+      operationId: ready
+      summary: Dependency readiness check
+      responses:
+        "200":
+          description: API dependencies are ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+        "503":
+          description: A required dependency is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /api/v1/system/version:
+    get:
+      operationId: systemVersion
+      summary: Build and API version
+      responses:
+        "200":
+          description: Current application version information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VersionResponse"
+  /api/v1/auth/login:
+    post:
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LoginRequest" }
+      responses:
+        "200":
+          description: Access token
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /api/v1/auth/me:
+    get:
+      operationId: currentUser
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Current user and authorization context
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+  /api/v1/institution:
+    get:
+      operationId: currentInstitution
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Tenant primary institution
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Institution" }
+  /api/v1/academic-years:
+    get:
+      operationId: listAcademicYears
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Academic years
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: "#/components/schemas/AcademicYear" } }
+    post:
+      operationId: createAcademicYear
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AcademicYearInput" }
+      responses:
+        "201":
+          description: Created academic year
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AcademicYear" }
+  /api/v1/academic-years/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getAcademicYear
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Academic year, content: { application/json: { schema: { $ref: "#/components/schemas/AcademicYear" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateAcademicYear
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AcademicYearPatch" } } } }
+      responses:
+        "200": { description: Updated academic year, content: { application/json: { schema: { $ref: "#/components/schemas/AcademicYear" } } } }
+  /api/v1/class-sections:
+    get:
+      operationId: listClassSections
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Class sections, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/ClassSection" } } } } }
+    post:
+      operationId: createClassSection
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ClassSectionInput" } } } }
+      responses:
+        "201": { description: Created class section, content: { application/json: { schema: { $ref: "#/components/schemas/ClassSection" } } } }
+  /api/v1/class-sections/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getClassSection
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Class section, content: { application/json: { schema: { $ref: "#/components/schemas/ClassSection" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateClassSection
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/ClassSectionPatch" } } } }
+      responses:
+        "200": { description: Updated class section, content: { application/json: { schema: { $ref: "#/components/schemas/ClassSection" } } } }
+  /api/v1/students:
+    get:
+      operationId: listStudents
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Students, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Student" } } } } }
+    post:
+      operationId: createStudent
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/StudentInput" } } } }
+      responses:
+        "201": { description: Created student, content: { application/json: { schema: { $ref: "#/components/schemas/Student" } } } }
+  /api/v1/students/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getStudent
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Student, content: { application/json: { schema: { $ref: "#/components/schemas/Student" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateStudent
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/StudentPatch" } } } }
+      responses:
+        "200": { description: Updated student, content: { application/json: { schema: { $ref: "#/components/schemas/Student" } } } }
+  /api/v1/students/import/validate:
+    post:
+      operationId: validateStudentImport
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties: { file: { type: string, format: binary } }
+      responses:
+        "200": { description: Per-row validation without student writes, content: { application/json: { schema: { $ref: "#/components/schemas/ImportValidation" } } } }
+  /api/v1/students/import/commit:
+    post:
+      operationId: commitStudentImport
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [import_session_id]
+              properties: { import_session_id: { type: string, format: uuid } }
+      responses:
+        "200":
+          description: Import commit result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportCommit"
+        "409":
+          description: Session expired/invalid or roster conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /api/v1/guardians:
+    get:
+      operationId: listGuardians
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Guardians, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Guardian" } } } } }
+    post:
+      operationId: createGuardian
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/GuardianInput" } } } }
+      responses:
+        "201": { description: Created guardian, content: { application/json: { schema: { $ref: "#/components/schemas/Guardian" } } } }
+  /api/v1/guardians/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getGuardian
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Guardian, content: { application/json: { schema: { $ref: "#/components/schemas/Guardian" } } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateGuardian
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/GuardianPatch" } } } }
+      responses:
+        "200": { description: Updated guardian, content: { application/json: { schema: { $ref: "#/components/schemas/Guardian" } } } }
+  /api/v1/students/{student_id}/guardians:
+    parameters:
+      - { name: student_id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: listStudentGuardians
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Guardians linked to the student
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StudentGuardianLink"
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/students/{student_id}/guardians/{guardian_id}:
+    parameters:
+      - { name: student_id, in: path, required: true, schema: { type: string, format: uuid } }
+      - { name: guardian_id, in: path, required: true, schema: { type: string, format: uuid } }
+    post:
+      operationId: linkStudentGuardian
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [relationship_type]
+              properties: { relationship_type: { type: string } }
+      responses:
+        "201": { description: Guardian linked }
+    delete:
+      operationId: unlinkStudentGuardian
+      security: [{ bearerAuth: [] }]
+      responses:
+        "204": { description: Guardian unlinked }
+  /api/v1/curricula:
+    get:
+      operationId: listCurricula
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Tenant curricula, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Curriculum" } } } } }
+    post:
+      operationId: createCurriculum
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CurriculumInput" } } } }
+      responses:
+        "201": { description: Curriculum created, content: { application/json: { schema: { $ref: "#/components/schemas/Curriculum" } } } }
+  /api/v1/curricula/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getCurriculum
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: Curriculum, content: { application/json: { schema: { $ref: "#/components/schemas/Curriculum" } } } }, "404": { $ref: "#/components/responses/NotFound" } }
+    patch:
+      operationId: updateCurriculum
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CurriculumPatch" } } } }
+      responses: { "200": { description: Curriculum updated } }
+  /api/v1/curricula/{id}/tree:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getCurriculumTree
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: Ordered curriculum tree, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/CurriculumNode" } } } } } }
+  /api/v1/curricula/{id}/nodes:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: createCurriculumNode
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CurriculumNodeInput" } } } }
+      responses: { "201": { description: Curriculum node created }, "409": { description: Duplicate or cyclic node } }
+  /api/v1/curriculum-nodes/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    patch:
+      operationId: updateCurriculumNode
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CurriculumNodePatch" } } } }
+      responses: { "200": { description: Curriculum node updated }, "409": { description: Parent cycle } }
+  /api/v1/curricula/{id}/prerequisites:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: createCurriculumPrerequisite
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/PrerequisiteInput" } } } }
+      responses: { "201": { description: Prerequisite created }, "409": { description: Prerequisite cycle } }
+  /api/v1/curriculum-prerequisites/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    delete:
+      operationId: deleteCurriculumPrerequisite
+      security: [{ bearerAuth: [] }]
+      responses: { "204": { description: Prerequisite deleted } }
+  /api/v1/assessments:
+    get:
+      operationId: listAssessments
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: Tenant assessments, content: { application/json: { schema: { type: array, items: { $ref: "#/components/schemas/Assessment" } } } } } }
+    post:
+      operationId: createAssessment
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AssessmentInput" } } } }
+      responses: { "201": { description: Assessment and initial version created } }
+  /api/v1/assessments/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getAssessment
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: Assessment, content: { application/json: { schema: { $ref: "#/components/schemas/Assessment" } } } } }
+    patch:
+      operationId: updateAssessment
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AssessmentPatch" } } } }
+      responses: { "200": { description: DRAFT assessment updated }, "409": { description: Assessment immutable in current state } }
+  /api/v1/assessments/{id}/versions:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: listAssessmentVersions
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: Assessment versions } }
+    post:
+      operationId: createAssessmentVersion
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AssessmentVersionInput" } } } }
+      responses: { "201": { description: Assessment version created } }
+  /api/v1/assessments/{id}/transition:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: transitionAssessment
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { type: object, required: [to_status], properties: { to_status: { type: string, enum: [DRAFT, RUBRIC_REVIEW, READY, ACTIVE, CLOSED, ARCHIVED] } } } } } }
+      responses: { "200": { description: Assessment transitioned }, "409": { description: Invalid transition or readiness failure } }
+  /api/v1/assessment-versions/{id}/questions:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getQuestionTree
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: Ordered question tree } }
+    post:
+      operationId: createQuestionVersion
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/QuestionInput" } } } }
+      responses: { "201": { description: Question version created } }
+  /api/v1/question-versions/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    patch:
+      operationId: updateQuestionVersion
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/QuestionVersionPatch" } } } }
+      responses: { "200": { description: Question version updated }, "409": { description: Not editable or cyclic } }
+    delete:
+      operationId: deleteQuestionVersion
+      security: [{ bearerAuth: [] }]
+      responses: { "204": { description: DRAFT question deleted }, "409": { description: Question not editable } }
+  /api/v1/assessment-versions/{id}/marks/reconcile:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: reconcileAssessmentMarks
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: Leaf-only mark reconciliation } }
+  /api/v1/assessments/{id}/answer-key-versions:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: listAnswerKeyVersions
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: Answer key versions } }
+    post:
+      operationId: createAnswerKeyVersion
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AnswerKeyVersionInput" } } } }
+      responses: { "201": { description: Answer key version created } }
+  /api/v1/answer-key-versions/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    patch:
+      operationId: updateAnswerKeyVersion
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AnswerKeyVersionPatch" } } } }
+      responses: { "200": { description: Draft answer key updated }, "409": { description: Approved version immutable } }
+  /api/v1/answer-key-versions/{id}/approve:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: approveAnswerKeyVersion
+      description: Requires assessment:approve.
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: Answer key approved }, "409": { description: Version cannot be approved } }
+  /api/v1/assessments/{id}/rubrics:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: listRubrics
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: Assessment rubrics } }
+    post:
+      operationId: createRubric
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RubricInput"
+      responses: { "201": { description: Rubric created } }
+  /api/v1/rubrics/{id}/versions:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: listRubricVersions
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Rubric versions ordered by version number
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RubricVersion"
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      operationId: createRubricVersion
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RubricVersionInput"
+      responses: { "201": { description: Rubric version created } }
+  /api/v1/rubric-versions/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    patch:
+      operationId: updateRubricVersion
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/RubricVersionPatch" } } } }
+      responses: { "200": { description: Draft rubric updated }, "409": { description: Approved version immutable } }
+  /api/v1/rubric-versions/{id}/criteria:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: listRubricCriteria
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: Rubric criteria } }
+    post:
+      operationId: createRubricCriterion
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/RubricCriterionInput" } } } }
+      responses: { "201": { description: Criterion created } }
+  /api/v1/rubric-versions/{id}/reconcile:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: reconcileRubric
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: Rubric mark reconciliation } }
+  /api/v1/rubric-criteria/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    patch:
+      operationId: updateRubricCriterion
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/RubricCriterionPatch" } } } }
+      responses: { "200": { description: Draft criterion updated }, "409": { description: Approved rubric immutable } }
+    delete:
+      operationId: deleteRubricCriterion
+      security: [{ bearerAuth: [] }]
+      responses: { "204": { description: Draft criterion deleted }, "409": { description: Approved rubric immutable } }
+  /api/v1/rubric-versions/{id}/approve:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: approveRubricVersion
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: Rubric approved }, "409": { description: Reconciliation failure } }
+  /api/v1/question-versions/{id}/curriculum-mappings:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: listQuestionCurriculumMappings
+      security: [{ bearerAuth: [] }]
+      responses: { "200": { description: Curriculum mappings } }
+    post:
+      operationId: createQuestionCurriculumMapping
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CurriculumMappingInput" } } } }
+      responses: { "201": { description: Mapping created } }
+  /api/v1/question-curriculum-mappings/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    delete:
+      operationId: deleteQuestionCurriculumMapping
+      security: [{ bearerAuth: [] }]
+      responses: { "204": { description: Mapping deleted } }
+  /api/v1/ai/proposals/answer-key:
+    post:
+      operationId: proposeAnswerKey
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AnswerKeyProposalRequest" } } } }
+      responses: { "503": { description: AI provider unavailable; no content fabricated } }
+  /api/v1/ai/proposals/rubric:
+    post:
+      operationId: proposeRubric
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/RubricProposalRequest" } } } }
+      responses: { "503": { description: AI provider unavailable; no content fabricated } }
+  /api/v1/ai/proposals/curriculum-mapping:
+    post:
+      operationId: suggestCurriculumMapping
+      security: [{ bearerAuth: [] }]
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CurriculumMappingProposalRequest" } } } }
+      responses: { "503": { description: AI provider unavailable; no content fabricated } }
+  /api/v1/submissions:
+    get:
+      operationId: listSubmissions
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: assessment_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Submissions for the authenticated tenant
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Submission"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      operationId: uploadSubmission
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/SubmissionUploadRequest"
+      responses:
+        "201":
+          description: Submission created and queued for page normalization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+        "400": { description: Invalid or unsupported upload }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { description: Duplicate source or assessment not ACTIVE }
+        "413": { description: File too large }
+  /api/v1/submissions/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getSubmission
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Submission detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/pages:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: listSubmissionPages
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Normalized submission pages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SubmissionPage"
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/source:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getSubmissionSource
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Immutable raw source bytes
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+            image/png:
+              schema: { type: string, format: binary }
+            image/jpeg:
+              schema: { type: string, format: binary }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submission-pages/{id}/image:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getSubmissionPageImage
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Normalized page PNG
+          content:
+            image/png:
+              schema: { type: string, format: binary }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/identity:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getIdentityReview
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Identity review payload with manual roster candidates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityReview"
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/identity/confirm:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: confirmIdentity
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdentityConfirmInput"
+      responses:
+        "200":
+          description: Identity confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/identity/unmatched:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: markIdentityUnmatched
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Identity marked unmatched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/mapping/prepare:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: prepareMappingReview
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Mapping preparation enqueued / completed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Submission" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/mapping:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getMappingWorkspace
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Live mapping workspace for the bound assessment version
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MappingWorkspace" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/mapping/finalize:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: finalizeMappingReview
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Mapping complete — READY_FOR_EVALUATION
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Submission" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/transcription/prepare:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: prepareTranscription
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Transcription prepare / retry
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TranscriptionPrepareResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/transcription:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getTranscriptionWorkspace
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Transcription review workspace
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TranscriptionWorkspace" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/transcription/finalize:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: finalizeTranscription
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Transcription READY — evaluation not enqueued
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TranscriptionFinalizeResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/answer-regions/{id}/transcription:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    put:
+      operationId: putAnswerRegionTranscription
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ManualTranscriptionInput" }
+      responses:
+        "200":
+          description: Human transcription version created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnswerRegionTranscription" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/answer-region-transcriptions/{id}/confirm:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: confirmAnswerRegionTranscription
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Transcription confirmed without rewriting AI confidence
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnswerRegionTranscription" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/answer-regions/{id}/crop:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getAnswerRegionCrop
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Derived PNG crop bytes
+          content:
+            image/png:
+              schema: { type: string, format: binary }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submission-pages/{id}/answer-regions:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: createAnswerRegion
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnswerRegionInput" }
+      responses:
+        "201":
+          description: Answer region created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnswerRegion" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/answer-regions/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    patch:
+      operationId: updateAnswerRegion
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnswerRegionPatch" }
+      responses:
+        "200":
+          description: Answer region updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnswerRegion" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      operationId: deleteAnswerRegion
+      security: [{ bearerAuth: [] }]
+      responses:
+        "204":
+          description: Answer region deleted
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submission-pages/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    patch:
+      operationId: updateSubmissionPage
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubmissionPagePatch" }
+      responses:
+        "200":
+          description: Submission page updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmissionPage" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/question-mappings/{questionVersionId}:
+    parameters:
+      - { $ref: "#/components/parameters/Id" }
+      - name: questionVersionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      operationId: upsertQuestionMapping
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/QuestionMappingInput" }
+      responses:
+        "200":
+          description: Question mapping upserted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QuestionAnswerMapping" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/question-mappings/{questionVersionId}/confirm:
+    parameters:
+      - { $ref: "#/components/parameters/Id" }
+      - name: questionVersionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: confirmQuestionMapping
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Question mapping confirmed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QuestionAnswerMapping" }
+        "404": { $ref: "#/components/responses/NotFound" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+  responses:
+    Unauthorized:
+      description: Authentication failed
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+    NotFound:
+      description: Resource not found, including cross-tenant access
+      content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  schemas:
+    StatusResponse:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          examples: [ok]
+    VersionResponse:
+      type: object
+      additionalProperties: false
+      required: [application, environment, git_sha, api_version]
+      properties:
+        application:
+          type: string
+        environment:
+          type: string
+        git_sha:
+          type: string
+        api_version:
+          type: string
+    ErrorEnvelope:
+      $ref: "./schemas/error.schema.json"
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string, format: password }
+        tenant_slug: { type: [string, "null"] }
+    TokenResponse:
+      type: object
+      required: [access_token, token_type, expires_in, user]
+      properties:
+        access_token: { type: string }
+        token_type: { type: string, const: bearer }
+        expires_in: { type: integer }
+        user: { $ref: "#/components/schemas/User" }
+    User:
+      type: object
+      required: [id, tenant_id, email, display_name, status]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        display_name: { type: string }
+        status: { type: string }
+        roles: { type: array, items: { type: string } }
+        permissions: { type: array, items: { type: string } }
+    Institution:
+      type: object
+      required: [id, tenant_id, code, name]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        code: { type: string }
+        name: { type: string }
+    AcademicYearInput:
+      type: object
+      required: [name, starts_on, ends_on]
+      properties:
+        name: { type: string }
+        starts_on: { type: string, format: date }
+        ends_on: { type: string, format: date }
+        is_current: { type: boolean, default: false }
+    AcademicYear:
+      allOf:
+        - { $ref: "#/components/schemas/AcademicYearInput" }
+        - { type: object, required: [id, tenant_id, institution_id], properties: { id: { type: string, format: uuid }, tenant_id: { type: string, format: uuid }, institution_id: { type: string, format: uuid } } }
+    ClassSectionInput:
+      type: object
+      required: [academic_year_id, name, grade_label]
+      properties:
+        academic_year_id: { type: string, format: uuid }
+        name: { type: string }
+        grade_label: { type: string }
+    ClassSection:
+      allOf:
+        - { $ref: "#/components/schemas/ClassSectionInput" }
+        - { type: object, required: [id, tenant_id], properties: { id: { type: string, format: uuid }, tenant_id: { type: string, format: uuid } } }
+    StudentInput:
+      type: object
+      required: [student_code, full_name]
+      properties:
+        student_code: { type: string }
+        admission_number: { type: [string, "null"] }
+        roll_number: { type: [string, "null"] }
+        full_name: { type: string }
+        class_section_id: { type: [string, "null"], format: uuid }
+        academic_year_id: { type: [string, "null"], format: uuid }
+        status: { type: string, default: active }
+    Student:
+      allOf:
+        - { $ref: "#/components/schemas/StudentInput" }
+        - { type: object, required: [id, tenant_id, created_at, updated_at], properties: { id: { type: string, format: uuid }, tenant_id: { type: string, format: uuid }, created_at: { type: string, format: date-time }, updated_at: { type: string, format: date-time } } }
+    GuardianInput:
+      type: object
+      required: [display_name]
+      properties:
+        display_name: { type: string }
+        email: { type: [string, "null"], format: email }
+        phone: { type: [string, "null"] }
+    Guardian:
+      allOf:
+        - { $ref: "#/components/schemas/GuardianInput" }
+        - { type: object, required: [id, tenant_id], properties: { id: { type: string, format: uuid }, tenant_id: { type: string, format: uuid } } }
+    ImportValidation:
+      type: object
+      required: [import_session_id, status, valid_row_count, row_results, expires_at]
+      properties:
+        import_session_id: { type: string, format: uuid }
+        status: { type: string, enum: [VALIDATED] }
+        valid_row_count: { type: integer }
+        row_results:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImportRowResult"
+        expires_at: { type: string, format: date-time }
+    ImportRowResult:
+      type: object
+      required: [row, outcome, data]
+      properties:
+        row: { type: integer }
+        outcome:
+          type: string
+          enum:
+            - VALID
+            - DUPLICATE_IN_FILE
+            - DUPLICATE_EXISTING
+            - INVALID
+            - UNKNOWN_CLASS
+            - MISSING_REQUIRED_FIELD
+        reason_code:
+          type: string
+          enum:
+            - STUDENT_CODE_DUPLICATE_EXISTING
+            - CLASS_ROLL_DUPLICATE_EXISTING
+            - STUDENT_CODE_DUPLICATE_IN_FILE
+            - CLASS_ROLL_DUPLICATE_IN_FILE
+        data:
+          type: object
+          additionalProperties: { type: string }
+        academic_year_id: { type: [string, "null"], format: uuid }
+        class_section_id: { type: [string, "null"], format: uuid }
+    ImportCommit:
+      type: object
+      required: [import_session_id, status, committed_count]
+      properties:
+        import_session_id: { type: string, format: uuid }
+        status: { type: string }
+        committed_count: { type: integer }
+    StudentGuardianLink:
+      type: object
+      required: [student_id, guardian_id, display_name, relationship_type]
+      properties:
+        student_id: { type: string, format: uuid }
+        guardian_id: { type: string, format: uuid }
+        display_name: { type: string }
+        email: { type: [string, "null"] }
+        phone: { type: [string, "null"] }
+        relationship_type: { type: string }
+    Money:
+      type: string
+      pattern: '^\d{1,8}(\.\d{1,2})?$'
+      examples: ["10.00"]
+    CurriculumInput:
+      type: object
+      required: [code, name, version_label]
+      properties:
+        code: { type: string }
+        name: { type: string }
+        description: { type: [string, "null"] }
+        academic_framework: { type: [string, "null"] }
+        version_label: { type: string }
+        status: { type: string, default: active }
+    Curriculum:
+      allOf:
+        - { $ref: "#/components/schemas/CurriculumInput" }
+        - { type: object, required: [id, tenant_id], properties: { id: { type: string, format: uuid }, tenant_id: { type: string, format: uuid } } }
+    CurriculumNodeInput:
+      type: object
+      required: [node_type, code, name]
+      properties:
+        parent_id: { type: [string, "null"], format: uuid }
+        node_type: { type: string }
+        code: { type: string }
+        name: { type: string }
+        description: { type: [string, "null"] }
+        sequence: { type: integer, default: 0 }
+        metadata: { type: object, additionalProperties: true }
+        status: { type: string, default: active }
+    CurriculumNode:
+      allOf:
+        - { $ref: "#/components/schemas/CurriculumNodeInput" }
+        - { type: object, required: [id, tenant_id, curriculum_id], properties: { id: { type: string, format: uuid }, tenant_id: { type: string, format: uuid }, curriculum_id: { type: string, format: uuid }, children: { type: array, items: { $ref: "#/components/schemas/CurriculumNode" } } } }
+    PrerequisiteInput:
+      type: object
+      required: [prerequisite_node_id, dependent_node_id, relationship_type]
+      properties:
+        prerequisite_node_id: { type: string, format: uuid }
+        dependent_node_id: { type: string, format: uuid }
+        relationship_type: { type: string, enum: [REQUIRED, RECOMMENDED] }
+    AssessmentInput:
+      type: object
+      required: [curriculum_id, code, title, assessment_type, max_marks]
+      properties:
+        curriculum_id: { type: string, format: uuid }
+        subject_node_id: { type: [string, "null"], format: uuid }
+        academic_year_id: { type: [string, "null"], format: uuid }
+        class_section_id: { type: [string, "null"], format: uuid }
+        code: { type: string }
+        title: { type: string }
+        description: { type: [string, "null"] }
+        assessment_type: { type: string }
+        max_marks: { $ref: "#/components/schemas/Money" }
+        duration_minutes: { type: [integer, "null"] }
+    Assessment:
+      allOf:
+        - { $ref: "#/components/schemas/AssessmentInput" }
+        - { type: object, required: [id, tenant_id, status], properties: { id: { type: string, format: uuid }, tenant_id: { type: string, format: uuid }, status: { type: string } } }
+    AssessmentVersionInput:
+      type: object
+      required: [title, max_marks]
+      properties:
+        title: { type: string }
+        instructions: { type: [string, "null"] }
+        max_marks: { $ref: "#/components/schemas/Money" }
+        question_paper_artifact_id: { type: [string, "null"], format: uuid }
+    QuestionInput:
+      type: object
+      required: [stable_code, display_label, sequence, prompt_text, max_marks, question_type, scoring_mode]
+      properties:
+        stable_code: { type: string }
+        parent_question_version_id: { type: [string, "null"], format: uuid }
+        display_label: { type: string }
+        sequence: { type: integer }
+        prompt_text: { type: string }
+        max_marks: { $ref: "#/components/schemas/Money" }
+        question_type: { type: string }
+        scoring_mode: { type: string, enum: [LEAF_SCORABLE, CONTAINER_DERIVED] }
+        instructions: { type: [string, "null"] }
+    AnswerKeyVersionInput:
+      type: object
+      required: [assessment_version_id, question_version_id, answer_text, source_type]
+      properties:
+        assessment_version_id: { type: string, format: uuid }
+        question_version_id: { type: string, format: uuid }
+        answer_text: { type: string }
+        structured_answer: { type: [object, "null"], additionalProperties: true }
+        source_type: { type: string, enum: [TEACHER, IMPORTED], description: AI_PROPOSED is server-assigned by proposal flow only }
+        status: { type: string, enum: [DRAFT, REVIEW_REQUIRED], default: DRAFT }
+    RubricInput:
+      type: object
+      required: [question_version_id, title]
+      properties:
+        question_version_id: { type: string, format: uuid }
+        title: { type: string }
+        provenance: { type: string, default: TEACHER }
+    RubricVersionInput:
+      type: object
+      required: [question_version_id]
+      properties:
+        question_version_id: { type: string, format: uuid }
+        source_type: { type: string, enum: [TEACHER, IMPORTED], default: TEACHER }
+        status: { type: string, enum: [DRAFT, REVIEW_REQUIRED], default: DRAFT }
+    RubricVersion:
+      type: object
+      required:
+        [
+          id,
+          tenant_id,
+          rubric_id,
+          question_version_id,
+          version_number,
+          status,
+          source_type,
+          created_by,
+          created_at,
+          updated_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        rubric_id: { type: string, format: uuid }
+        question_version_id: { type: string, format: uuid }
+        version_number: { type: integer }
+        status: { type: string, enum: [DRAFT, REVIEW_REQUIRED, APPROVED, SUPERSEDED] }
+        source_type: { type: string }
+        created_by: { type: string, format: uuid }
+        approved_by: { type: [string, "null"], format: uuid }
+        approved_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    RubricCriterionInput:
+      type: object
+      required: [criterion_code, description, max_marks, sequence, scoring_mode]
+      properties:
+        criterion_code: { type: string }
+        description: { type: string }
+        max_marks: { $ref: "#/components/schemas/Money" }
+        sequence: { type: integer }
+        scoring_mode: { type: string, enum: [ADDITIVE, DEDUCTIVE, ALL_OR_NOTHING] }
+        partial_credit_allowed: { type: boolean, default: false }
+        dependency_rule: { type: [object, "null"], additionalProperties: true }
+        ecf_policy: { type: string, enum: [NONE, ALLOW_METHOD_CREDIT, CUSTOM_REVIEW] }
+        unit_requirement: { type: [string, "null"] }
+        precision_requirement: { type: [string, "null"] }
+        required_reasoning: { type: [string, "null"] }
+        accepted_equivalents: { type: array, items: {} }
+        teacher_comment: { type: [string, "null"] }
+    CurriculumMappingInput:
+      type: object
+      required: [curriculum_node_id, mapping_type]
+      properties:
+        curriculum_node_id: { type: string, format: uuid }
+        mapping_type: { type: string, enum: [PRIMARY, SECONDARY, LEARNING_OUTCOME, SKILL] }
+        weight: { oneOf: [{ $ref: "#/components/schemas/Money" }, { type: "null" }] }
+    AnswerKeyVersionPatch:
+      type: object
+      properties:
+        answer_text: { type: string }
+        structured_answer: { type: [object, "null"], additionalProperties: true }
+        status: { type: string, enum: [DRAFT, REVIEW_REQUIRED] }
+    RubricCriterionPatch:
+      type: object
+      properties:
+        description: { type: string }
+        max_marks: { $ref: "#/components/schemas/Money" }
+        sequence: { type: integer }
+        scoring_mode: { type: string, enum: [ADDITIVE, DEDUCTIVE, ALL_OR_NOTHING] }
+        partial_credit_allowed: { type: boolean }
+        dependency_rule: { type: [object, "null"], additionalProperties: true }
+        ecf_policy: { type: string, enum: [NONE, ALLOW_METHOD_CREDIT, CUSTOM_REVIEW] }
+        unit_requirement: { type: [string, "null"] }
+        precision_requirement: { type: [string, "null"] }
+        required_reasoning: { type: [string, "null"] }
+        accepted_equivalents: { type: array, items: {} }
+        teacher_comment: { type: [string, "null"] }
+    RubricVersionPatch:
+      type: object
+      required: [question_version_id]
+      properties:
+        question_version_id: { type: string, format: uuid }
+        source_type: { type: string, enum: [TEACHER, IMPORTED] }
+        status: { type: string, enum: [DRAFT, REVIEW_REQUIRED], default: DRAFT }
+    AcademicYearPatch:
+      type: object
+      properties:
+        name: { type: string }
+        starts_on: { type: string, format: date }
+        ends_on: { type: string, format: date }
+        is_current: { type: boolean }
+    ClassSectionPatch:
+      type: object
+      properties:
+        academic_year_id: { type: string, format: uuid }
+        name: { type: string }
+        grade_label: { type: string }
+    StudentPatch:
+      type: object
+      properties:
+        student_code: { type: string }
+        admission_number: { type: [string, "null"] }
+        roll_number: { type: [string, "null"] }
+        full_name: { type: string }
+        class_section_id: { type: [string, "null"], format: uuid }
+        academic_year_id: { type: [string, "null"], format: uuid }
+        status: { type: string }
+    GuardianPatch:
+      type: object
+      properties:
+        display_name: { type: string }
+        email: { type: [string, "null"], format: email }
+        phone: { type: [string, "null"] }
+    CurriculumPatch:
+      type: object
+      properties:
+        name: { type: string }
+        description: { type: [string, "null"] }
+        academic_framework: { type: [string, "null"] }
+        version_label: { type: string }
+        status: { type: string }
+    CurriculumNodePatch:
+      type: object
+      properties:
+        parent_id: { type: [string, "null"], format: uuid }
+        node_type: { type: string }
+        name: { type: string }
+        description: { type: [string, "null"] }
+        sequence: { type: integer }
+        metadata: { type: object, additionalProperties: true }
+        status: { type: string }
+    AssessmentPatch:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: [string, "null"] }
+        assessment_type: { type: string }
+        max_marks: { $ref: "#/components/schemas/Money" }
+        duration_minutes: { type: [integer, "null"] }
+    QuestionVersionPatch:
+      type: object
+      properties:
+        parent_question_version_id: { type: [string, "null"], format: uuid }
+        display_label: { type: string }
+        sequence: { type: integer }
+        prompt_text: { type: string }
+        max_marks: { $ref: "#/components/schemas/Money" }
+        question_type: { type: string }
+        scoring_mode: { type: string, enum: [LEAF_SCORABLE, CONTAINER_DERIVED] }
+        instructions: { type: [string, "null"] }
+    AnswerKeyProposalRequest:
+      type: object
+      additionalProperties: false
+      required: [question_version_id]
+      properties:
+        question_version_id: { type: string, format: uuid }
+        assessment_version_id: { type: [string, "null"], format: uuid }
+        instructions: { type: [string, "null"], maxLength: 500 }
+        context:
+          type: object
+          additionalProperties: { type: string }
+          maxProperties: 20
+    RubricProposalRequest:
+      type: object
+      additionalProperties: false
+      required: [question_version_id]
+      properties:
+        question_version_id: { type: string, format: uuid }
+        assessment_version_id: { type: [string, "null"], format: uuid }
+        instructions: { type: [string, "null"], maxLength: 500 }
+        context:
+          type: object
+          additionalProperties: { type: string }
+          maxProperties: 20
+    CurriculumMappingProposalRequest:
+      type: object
+      additionalProperties: false
+      required: [question_version_id]
+      properties:
+        question_version_id: { type: string, format: uuid }
+        curriculum_id: { type: [string, "null"], format: uuid }
+        instructions: { type: [string, "null"], maxLength: 500 }
+        context:
+          type: object
+          additionalProperties: { type: string }
+          maxProperties: 20
+
+    SubmissionUploadRequest:
+      type: object
+      required: [assessment_id, file]
+      properties:
+        assessment_id: { type: string, format: uuid }
+        bundle_name: { type: [string, "null"] }
+        file: { type: string, format: binary }
+    Submission:
+      type: object
+      required:
+        [
+          id,
+          tenant_id,
+          assessment_id,
+          assessment_version_id,
+          workflow_state,
+          student_match_state,
+          identity_confidence,
+          mapping_confidence,
+          source_content_sha256,
+          original_filename,
+          mime_type,
+          byte_size,
+          storage_status,
+          page_count,
+          uploaded_at,
+          updated_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        assessment_title: { type: [string, "null"] }
+        student_id: { type: [string, "null"], format: uuid }
+        student_display_name: { type: [string, "null"] }
+        workflow_state:
+          type: string
+          enum:
+            [
+              UPLOADED,
+              PROCESSING,
+              IDENTITY_REVIEW,
+              MAPPING_REVIEW,
+              READY_FOR_EVALUATION,
+              EVALUATING,
+              EVALUATION_REVIEW,
+              APPROVED,
+              PUBLISHED,
+              FAILED,
+            ]
+        student_match_state:
+          type: string
+          enum: [UNMATCHED, REVIEW_REQUIRED, AUTO_MATCHED, CONFIRMED]
+        roll_number_detected: { type: [string, "null"] }
+        name_detected: { type: [string, "null"] }
+        identity_confidence: { type: number }
+        mapping_confidence: { type: number }
+        transcription_state:
+          type: string
+          enum:
+            [
+              NOT_STARTED,
+              QUEUED,
+              RUNNING,
+              REVIEW_REQUIRED,
+              READY,
+              FAILED,
+              UNAVAILABLE,
+            ]
+        source_storage_key: { type: string }
+        source_content_sha256: { type: string }
+        original_filename: { type: string }
+        mime_type: { type: string }
+        byte_size: { type: integer }
+        storage_status: { type: string, enum: [PENDING, AVAILABLE, FAILED] }
+        page_count: { type: integer }
+        bundle_name: { type: [string, "null"] }
+        uploaded_by: { type: string, format: uuid }
+        uploaded_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    SubmissionPage:
+      type: object
+      required: [id, tenant_id, submission_id, page_index, page_number, label, width, height]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        submission_id: { type: string, format: uuid }
+        page_index: { type: integer }
+        page_number: { type: integer }
+        label: { type: string }
+        width: { type: integer }
+        height: { type: integer }
+        is_continuation: { type: boolean }
+        created_at: { type: string, format: date-time }
+    StudentMatchCandidate:
+      type: object
+      required: [student_id, display_name, external_ref, confidence, match_reasons]
+      properties:
+        student_id: { type: string, format: uuid }
+        display_name: { type: string }
+        external_ref: { type: string }
+        grade: { type: string }
+        section: { type: string }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        source_type: { type: string, enum: [AI, HUMAN] }
+        match_reasons: { type: array, items: { type: string } }
+    IdentityDetectedFields:
+      type: object
+      properties:
+        name: { type: [string, "null"] }
+        roll: { type: [string, "null"] }
+        identity_confidence: { type: number, minimum: 0, maximum: 1 }
+    IdentityReview:
+      type: object
+      required: [submission, pages, candidates, automated_matching_active]
+      properties:
+        submission: { $ref: "#/components/schemas/Submission" }
+        pages:
+          type: array
+          items: { $ref: "#/components/schemas/SubmissionPage" }
+        detected: { $ref: "#/components/schemas/IdentityDetectedFields" }
+        candidates:
+          type: array
+          items: { $ref: "#/components/schemas/StudentMatchCandidate" }
+        automated_matching_active: { type: boolean }
+    IdentityConfirmInput:
+      type: object
+      required: [student_id]
+      properties:
+        student_id: { type: string, format: uuid }
+    NormalizedBBox:
+      type: object
+      additionalProperties: false
+      required: [x, y, width, height]
+      properties:
+        x: { type: number, minimum: 0, maximum: 1 }
+        y: { type: number, minimum: 0, maximum: 1 }
+        width: { type: number, exclusiveMinimum: 0, maximum: 1 }
+        height: { type: number, exclusiveMinimum: 0, maximum: 1 }
+    AnswerRegion:
+      type: object
+      required:
+        [
+          id,
+          tenant_id,
+          submission_page_id,
+          page_id,
+          label,
+          bbox,
+          region_type,
+          source_type,
+          detection_confidence,
+          crossed_out,
+          ignored,
+          is_continuation,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        submission_page_id: { type: string, format: uuid }
+        page_id: { type: string, format: uuid }
+        page_number: { type: integer }
+        label: { type: string }
+        bbox: { $ref: "#/components/schemas/NormalizedBBox" }
+        x: { type: number }
+        y: { type: number }
+        width: { type: number }
+        height: { type: number }
+        region_type:
+          type: string
+          enum: [ANSWER, SCRATCH, DIAGRAM, IDENTITY]
+        source_type: { type: string, enum: [HUMAN, AI] }
+        detection_confidence: { type: number }
+        confidence: { type: number }
+        crossed_out: { type: boolean }
+        ignored: { type: boolean }
+        is_continuation: { type: boolean }
+        transcription: { type: [string, "null"] }
+        transcription_confidence: { type: number }
+        question_id: { type: [string, "null"], format: uuid }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    AnswerRegionInput:
+      type: object
+      additionalProperties: false
+      required: [label, region_type, bbox]
+      properties:
+        label: { type: string, minLength: 1, maxLength: 255 }
+        region_type:
+          type: string
+          enum: [ANSWER, SCRATCH, DIAGRAM, IDENTITY]
+        bbox: { $ref: "#/components/schemas/NormalizedBBox" }
+    AnswerRegionPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        label: { type: string, minLength: 1, maxLength: 255 }
+        region_type:
+          type: string
+          enum: [ANSWER, SCRATCH, DIAGRAM, IDENTITY]
+        bbox: { $ref: "#/components/schemas/NormalizedBBox" }
+        crossed_out: { type: boolean }
+        ignored: { type: boolean }
+        is_continuation: { type: boolean }
+    SubmissionPagePatch:
+      type: object
+      additionalProperties: false
+      required: [is_continuation]
+      properties:
+        is_continuation: { type: boolean }
+    QuestionAnswerMapping:
+      type: object
+      required:
+        [
+          id,
+          submission_id,
+          question_id,
+          question_version_id,
+          disposition,
+          mapping_state,
+          mapped_by,
+          mapping_confidence,
+          region_ids,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        submission_id: { type: string, format: uuid }
+        question_id: { type: string, format: uuid }
+        question_version_id: { type: string, format: uuid }
+        question_code: { type: string }
+        disposition: { type: string, enum: [ANSWERED, BLANK] }
+        mapping_state:
+          type: string
+          enum: [PROPOSED, REVIEW_REQUIRED, CONFIRMED]
+        status:
+          type: string
+          enum: [PROPOSED, REVIEW_REQUIRED, CONFIRMED]
+        mapped_by: { type: string, enum: [HUMAN, AI] }
+        mapping_confidence: { type: number }
+        confidence: { type: number }
+        region_ids:
+          type: array
+          items: { type: string, format: uuid }
+        confirmed_by: { type: [string, "null"], format: uuid }
+        confirmed_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    QuestionMappingInput:
+      type: object
+      additionalProperties: false
+      required: [disposition]
+      properties:
+        disposition: { type: string, enum: [ANSWERED, BLANK] }
+        region_ids:
+          type: array
+          items: { type: string, format: uuid }
+    MappingCompletionSummary:
+      type: object
+      required: [leaf_total, confirmed_count, unresolved_question_codes]
+      properties:
+        leaf_total: { type: integer }
+        confirmed_count: { type: integer }
+        unresolved_question_codes:
+          type: array
+          items: { type: string }
+    MappingWorkspace:
+      type: object
+      required:
+        [
+          submission,
+          pages,
+          regions,
+          questions,
+          mappings,
+          completion,
+          assessment_version_id,
+          automated_region_detection_active,
+          automated_mapping_active,
+        ]
+      properties:
+        submission: { $ref: "#/components/schemas/Submission" }
+        pages:
+          type: array
+          items: { $ref: "#/components/schemas/SubmissionPage" }
+        regions:
+          type: array
+          items: { $ref: "#/components/schemas/AnswerRegion" }
+        questions:
+          type: array
+          items: { $ref: "#/components/schemas/MappingQuestionNode" }
+        mappings:
+          type: array
+          items: { $ref: "#/components/schemas/QuestionAnswerMapping" }
+        mapping:
+          type: array
+          items: { $ref: "#/components/schemas/MappingNodeCompat" }
+        completion: { $ref: "#/components/schemas/MappingCompletionSummary" }
+        assessment_version_id: { type: string, format: uuid }
+        automated_region_detection_active: { type: boolean }
+        automated_mapping_active: { type: boolean }
+    MappingQuestionNode:
+      type: object
+      required:
+        [
+          id,
+          question_version_id,
+          question_id,
+          code,
+          prompt,
+          max_mark,
+          sort_order,
+          scoring_mode,
+          is_leaf_scorable,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        question_version_id: { type: string, format: uuid }
+        question_id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        parent_id: { type: [string, "null"], format: uuid }
+        code: { type: string }
+        prompt: { type: string }
+        max_mark: { type: number }
+        sort_order: { type: integer }
+        scoring_mode: { type: string, enum: [LEAF_SCORABLE, CONTAINER_DERIVED] }
+        is_leaf_scorable: { type: boolean }
+        curriculum_node_ids:
+          type: array
+          items: { type: string }
+        children:
+          type: array
+          items: { $ref: "#/components/schemas/MappingQuestionNode" }
+    MappingNodeCompat:
+      type: object
+      required: [question_id, question_code, region_ids, confidence, status]
+      properties:
+        question_id: { type: string }
+        question_code: { type: string }
+        region_ids:
+          type: array
+          items: { type: string }
+        confidence: { type: number }
+        status:
+          type: string
+          enum: [PROPOSED, REVIEW_REQUIRED, CONFIRMED]
+    TranscriptionSegment:
+      type: object
+      additionalProperties: false
+      required: [text]
+      properties:
+        text: { type: string, maxLength: 2000 }
+        start: { type: [number, "null"] }
+        end: { type: [number, "null"] }
+    AnswerRegionTranscription:
+      type: object
+      required:
+        [
+          id,
+          answer_region_id,
+          version_number,
+          source_type,
+          status,
+          unreadable,
+          visual_only,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        answer_region_id: { type: string, format: uuid }
+        version_number: { type: integer }
+        source_type: { type: string, enum: [AI, HUMAN] }
+        text: { type: [string, "null"] }
+        latex: { type: [string, "null"] }
+        segments:
+          type: array
+          items: { $ref: "#/components/schemas/TranscriptionSegment" }
+        transcription_confidence:
+          type: [number, "null"]
+          minimum: 0
+          maximum: 1
+        unreadable: { type: boolean }
+        visual_only: { type: boolean }
+        status:
+          type: string
+          enum: [PROPOSED, REVIEW_REQUIRED, CONFIRMED, SUPERSEDED]
+        confirmed_by: { type: [string, "null"], format: uuid }
+        confirmed_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ManualTranscriptionInput:
+      type: object
+      additionalProperties: false
+      properties:
+        text: { type: [string, "null"], maxLength: 20000 }
+        latex: { type: [string, "null"], maxLength: 20000 }
+        unreadable: { type: boolean }
+        visual_only: { type: boolean }
+        outcome: { type: string, enum: [TRANSCRIBED, UNREADABLE, VISUAL_ONLY] }
+    TranscriptionProgress:
+      type: object
+      required: [reviewed, required, label]
+      properties:
+        reviewed: { type: integer }
+        required: { type: integer }
+        label: { type: string }
+    TranscriptionWorkspaceItem:
+      type: object
+      required: [question_version_id, disposition, regions, requires_transcription]
+      properties:
+        question_version_id: { type: string, format: uuid }
+        question_label: { type: string }
+        disposition: { type: string, enum: [ANSWERED, BLANK] }
+        mapping_state: { type: string }
+        requires_transcription: { type: boolean }
+        regions:
+          type: array
+          items:
+            type: object
+            required: [id, label, region_type, source_type]
+            properties:
+              id: { type: string, format: uuid }
+              label: { type: string }
+              region_type: { type: string }
+              source_type: { type: string, enum: [AI, HUMAN] }
+              detection_confidence: { type: number }
+              crop_url: { type: [string, "null"] }
+              page_image_url: { type: [string, "null"] }
+              latest_ai_proposal:
+                oneOf:
+                  - { $ref: "#/components/schemas/AnswerRegionTranscription" }
+                  - { type: "null" }
+              active_transcription:
+                oneOf:
+                  - { $ref: "#/components/schemas/AnswerRegionTranscription" }
+                  - { type: "null" }
+              requires_transcription: { type: boolean }
+    TranscriptionWorkspace:
+      type: object
+      required:
+        [
+          submission_id,
+          workflow_state,
+          transcription_state,
+          automated_transcription_active,
+          progress,
+          items,
+        ]
+      properties:
+        submission_id: { type: string, format: uuid }
+        workflow_state: { type: string }
+        transcription_state:
+          type: string
+          enum:
+            [
+              NOT_STARTED,
+              QUEUED,
+              RUNNING,
+              REVIEW_REQUIRED,
+              READY,
+              FAILED,
+              UNAVAILABLE,
+            ]
+        automated_transcription_active: { type: boolean }
+        progress: { $ref: "#/components/schemas/TranscriptionProgress" }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/TranscriptionWorkspaceItem" }
+    TranscriptionPrepareResult:
+      type: object
+      required: [submission_id, workflow_state, transcription_state]
+      properties:
+        submission_id: { type: string, format: uuid }
+        workflow_state: { type: string }
+        transcription_state: { type: string }
+        job_id: { type: [string, "null"], format: uuid }
+    TranscriptionFinalizeResult:
+      type: object
+      required: [submission_id, workflow_state, transcription_state, evaluation_enqueued]
+      properties:
+        submission_id: { type: string, format: uuid }
+        workflow_state: { type: string }
+        transcription_state: { type: string, enum: [READY] }
+        evaluation_enqueued: { type: boolean, enum: [false] }
+    PageAnalysisResult:
+      type: object
+      additionalProperties: false
+      properties:
+        proposed_zones:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            required: [label, region_type, bbox, confidence]
+            properties:
+              label: { type: string }
+              region_type: { type: string, enum: [ANSWER, SCRATCH, DIAGRAM, IDENTITY] }
+              bbox: { $ref: "#/components/schemas/NormalizedBBox" }
+              confidence: { type: number, minimum: 0, maximum: 1 }
+              is_continuation: { type: boolean }
+        printed_labels:
+          type: array
+          items: { type: string }
+        metadata:
+          type: object
+          additionalProperties: { type: string }
+

@@ -19,7 +19,7 @@ AI proposes; institution/teacher remains the final authority.
 | `ai` | Cursor A | AI provider abstractions |
 | `infra` | Cursor A | Docker & scripts |
 | `database/migrations` | Cursor A | Alembic migrations |
-| `apps/web` | Cursor B | Next.js frontend (placeholder) |
+| `apps/web` | Cursor B | Next.js frontend (CVB shell + mock API) |
 | `packages/ui` | Cursor B | Shared UI package (placeholder) |
 | `packages/contracts` | Shared | OpenAPI & JSON schemas |
 
