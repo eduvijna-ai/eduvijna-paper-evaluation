@@ -436,6 +436,12 @@ paths:
       responses: { "201": { description: Rubric created } }
   /api/v1/rubrics/{id}/versions:
     parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: listRubricVersions
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Rubric versions ordered by version number }
+        "404": { $ref: "#/components/responses/NotFound" }
     post:
       operationId: createRubricVersion
       security: [{ bearerAuth: [] }]
