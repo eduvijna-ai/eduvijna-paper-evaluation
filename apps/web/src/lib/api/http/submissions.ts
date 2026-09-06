@@ -108,6 +108,9 @@ export function paperPageApiToView(dto: B3PaperPageDto): PaperPage {
     label: dto.label ?? `Page ${pageNumber}`,
     width: asNumber(dto.width, 800),
     height: asNumber(dto.height, 1100),
+    ...(typeof dto.is_continuation === "boolean"
+      ? { is_continuation: dto.is_continuation }
+      : {}),
   };
 }
 
@@ -188,7 +191,7 @@ export interface UploadSubmissionInput {
 
 /**
  * Live B3 submission ingestion + identity review HTTP adapter.
- * Mapping / evaluation remain on the mock provider in hybrid mode.
+ * Mapping review is handled by MappingHttpApi (B4).
  */
 export const SubmissionHttpApi = {
   async listSubmissions(): Promise<Submission[]> {

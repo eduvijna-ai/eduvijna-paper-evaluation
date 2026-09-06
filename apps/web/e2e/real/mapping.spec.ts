@@ -12,7 +12,7 @@ function runId(): string {
 async function buildMultiPagePdf(): Promise<Buffer> {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
-  for (const label of ["Page 1 — B3", "Page 2 — B3"]) {
+  for (const label of ["Page 1 — B4", "Page 2 — B4"]) {
     const page = doc.addPage([400, 560]);
     page.drawText(label, { x: 48, y: 500, size: 18, font });
   }
@@ -27,7 +27,7 @@ async function loginApi(request: APIRequestContext, apiBase: string): Promise<st
   return ((await login.json()) as { access_token: string }).access_token;
 }
 
-async function createActiveAssessment(
+async function createTwoLeafAssessment(
   request: APIRequestContext,
   apiBase: string,
   token: string,
@@ -38,8 +38,8 @@ async function createActiveAssessment(
   const curriculum = await request.post(`${apiBase}/api/v1/curricula`, {
     headers,
     data: {
-      code: `B3-CUR-${suffix}`,
-      name: `B3 Curriculum ${suffix}`,
+      code: `B4-CUR-${suffix}`,
+      name: `B4 Curriculum ${suffix}`,
       version_label: "2026",
       status: "active",
     },
@@ -64,8 +64,8 @@ async function createActiveAssessment(
     headers,
     data: {
       curriculum_id: curriculumId,
-      code: `B3-ASM-${suffix}`,
-      title: `B3 Active Assessment ${suffix}`,
+      code: `B4-ASM-${suffix}`,
+      title: `B4 Mapping Assessment ${suffix}`,
       assessment_type: "EXAM",
       max_marks: "10.00",
     },
@@ -78,86 +78,97 @@ async function createActiveAssessment(
   const versionId = assessmentBody.initial_version_id;
   const assessmentId = assessmentBody.id;
 
-  const question = await request.post(
-    `${apiBase}/api/v1/assessment-versions/${versionId}/questions`,
-    {
-      headers,
-      data: {
-        stable_code: "Q1",
-        display_label: "1",
-        sequence: 1,
-        prompt_text: "2+2?",
-        max_marks: "10.00",
-        question_type: "SHORT",
-        scoring_mode: "LEAF_SCORABLE",
-      },
-    },
-  );
-  expect(question.status()).toBe(201);
-  const questionId = ((await question.json()) as { id: string }).id;
+  const leafSpecs = [
+    { code: "Q1", label: "1", prompt: "2+2?", marks: "5.00", answer: "4" },
+    { code: "Q2", label: "2", prompt: "3+3?", marks: "5.00", answer: "6" },
+  ];
 
-  const key = await request.post(
-    `${apiBase}/api/v1/assessments/${assessmentId}/answer-key-versions`,
-    {
+  for (const [index, leaf] of leafSpecs.entries()) {
+    const question = await request.post(
+      `${apiBase}/api/v1/assessment-versions/${versionId}/questions`,
+      {
+        headers,
+        data: {
+          stable_code: leaf.code,
+          display_label: leaf.label,
+          sequence: index + 1,
+          prompt_text: leaf.prompt,
+          max_marks: leaf.marks,
+          question_type: "SHORT",
+          scoring_mode: "LEAF_SCORABLE",
+        },
+      },
+    );
+    expect(question.status()).toBe(201);
+    const questionId = ((await question.json()) as { id: string }).id;
+
+    const key = await request.post(
+      `${apiBase}/api/v1/assessments/${assessmentId}/answer-key-versions`,
+      {
+        headers,
+        data: {
+          assessment_version_id: versionId,
+          question_version_id: questionId,
+          answer_text: leaf.answer,
+          source_type: "TEACHER",
+          status: "DRAFT",
+        },
+      },
+    );
+    expect(key.status()).toBe(201);
+    expect(
+      (
+        await request.post(
+          `${apiBase}/api/v1/answer-key-versions/${(await key.json()).id}/approve`,
+          { headers },
+        )
+      ).ok(),
+    ).toBeTruthy();
+
+    const rubric = await request.post(
+      `${apiBase}/api/v1/assessments/${assessmentId}/rubrics`,
+      {
+        headers,
+        data: {
+          question_version_id: questionId,
+          title: leaf.code,
+          provenance: "TEACHER",
+        },
+      },
+    );
+    expect(rubric.status()).toBe(201);
+    const rubricId = ((await rubric.json()) as { id: string }).id;
+    const rv = await request.post(`${apiBase}/api/v1/rubrics/${rubricId}/versions`, {
       headers,
       data: {
-        assessment_version_id: versionId,
         question_version_id: questionId,
-        answer_text: "4",
         source_type: "TEACHER",
         status: "DRAFT",
       },
-    },
-  );
-  expect(key.status()).toBe(201);
-  expect(
-    (
-      await request.post(
-        `${apiBase}/api/v1/answer-key-versions/${(await key.json()).id}/approve`,
-        { headers },
-      )
-    ).ok(),
-  ).toBeTruthy();
-
-  const rubric = await request.post(`${apiBase}/api/v1/assessments/${assessmentId}/rubrics`, {
-    headers,
-    data: {
-      question_version_id: questionId,
-      title: "Q1",
-      provenance: "TEACHER",
-    },
-  });
-  expect(rubric.status()).toBe(201);
-  const rubricId = ((await rubric.json()) as { id: string }).id;
-  const rv = await request.post(`${apiBase}/api/v1/rubrics/${rubricId}/versions`, {
-    headers,
-    data: {
-      question_version_id: questionId,
-      source_type: "TEACHER",
-      status: "DRAFT",
-    },
-  });
-  expect(rv.status()).toBe(201);
-  const rvId = ((await rv.json()) as { id: string }).id;
-  expect(
-    (
-      await request.post(`${apiBase}/api/v1/rubric-versions/${rvId}/criteria`, {
-        headers,
-        data: {
-          criterion_code: "C1",
-          description: "correct",
-          max_marks: "10.00",
-          sequence: 1,
-          scoring_mode: "ADDITIVE",
-          partial_credit_allowed: true,
-          ecf_policy: "NONE",
-        },
-      })
-    ).status(),
-  ).toBe(201);
-  expect(
-    (await request.post(`${apiBase}/api/v1/rubric-versions/${rvId}/approve`, { headers })).ok(),
-  ).toBeTruthy();
+    });
+    expect(rv.status()).toBe(201);
+    const rvId = ((await rv.json()) as { id: string }).id;
+    expect(
+      (
+        await request.post(`${apiBase}/api/v1/rubric-versions/${rvId}/criteria`, {
+          headers,
+          data: {
+            criterion_code: "C1",
+            description: "correct",
+            max_marks: leaf.marks,
+            sequence: 1,
+            scoring_mode: "ADDITIVE",
+            partial_credit_allowed: true,
+            ecf_policy: "NONE",
+          },
+        })
+      ).status(),
+    ).toBe(201);
+    expect(
+      (await request.post(`${apiBase}/api/v1/rubric-versions/${rvId}/approve`, { headers }))
+        .ok(),
+    ).toBeTruthy();
+  }
 
   expect(
     (
@@ -192,8 +203,8 @@ async function createActiveAssessment(
   const student = await request.post(`${apiBase}/api/v1/students`, {
     headers,
     data: {
-      student_code: `B3S-${suffix}`,
-      full_name: `B3 Student ${suffix}`,
+      student_code: `B4S-${suffix}`,
+      full_name: `B4 Student ${suffix}`,
       class_section_id: section!.id,
       academic_year_id: section!.academic_year_id,
       status: "active",
@@ -203,15 +214,15 @@ async function createActiveAssessment(
   return { assessmentId, studentId: ((await student.json()) as { id: string }).id };
 }
 
-test.describe("B3 real submission ingestion + identity", () => {
-  test("upload → normalize → identity confirm with live boundary", async ({
+test.describe("B4 real mapping review", () => {
+  test("identity → mapping → assign/blank/finalize with evaluation boundary", async ({
     page,
     request,
   }) => {
     const apiBase = process.env.API_UPSTREAM_URL ?? "http://127.0.0.1:18000";
     expect((await request.get(`${apiBase}/health`)).ok()).toBeTruthy();
     const token = await loginApi(request, apiBase);
-    const { assessmentId, studentId } = await createActiveAssessment(
+    const { assessmentId, studentId } = await createTwoLeafAssessment(
       request,
       apiBase,
       token,
@@ -228,15 +239,12 @@ test.describe("B3 real submission ingestion + identity", () => {
     await expect(page.getByTestId("submissions-upload-page")).toBeVisible({
       timeout: 20_000,
     });
-    await expect(page.getByTestId("raw-unmarked-banner")).toBeVisible();
     await page.getByTestId("upload-assessment").selectOption(assessmentId);
-    await page
-      .getByTestId("upload-file")
-      .setInputFiles({
-        name: "b3-sheet.pdf",
-        mimeType: "application/pdf",
-        buffer: pdf,
-      });
+    await page.getByTestId("upload-file").setInputFiles({
+      name: "b4-sheet.pdf",
+      mimeType: "application/pdf",
+      buffer: pdf,
+    });
     await page.getByTestId("upload-submit").click();
     await expect(page.getByTestId("submission-detail-page")).toBeVisible({
       timeout: 60_000,
@@ -252,29 +260,15 @@ test.describe("B3 real submission ingestion + identity", () => {
       )
       .toMatch(/identity review/i);
 
-    await expect(page.getByTestId("submission-page-count")).toHaveText("2");
-    await expect(page.getByTestId("submission-downstream-boundary")).toBeVisible();
-    await expect(page.getByTestId("link-mapping")).toHaveCount(0);
-    await expect(page.getByTestId("link-evaluation")).toHaveCount(0);
-
     await page.getByTestId("link-identity").click();
     await expect(page.getByTestId("identity-review-page")).toBeVisible({
       timeout: 20_000,
     });
-    await expect(page.getByTestId("paper-viewer-shell")).toBeVisible();
-    await expect(page.getByTestId("live-page-image")).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByTestId("identity-live-notice")).toBeVisible();
-    await expect(page.getByText(/manual|roster/i).first()).toBeVisible();
-
-    await expect(page.getByTestId(`match-candidate-${studentId}`)).toBeVisible();
     await page.getByTestId(`match-candidate-${studentId}`).click();
     await page.getByTestId("confirm-identity").click();
     await expect(page.getByTestId("submission-detail-page")).toBeVisible({
       timeout: 30_000,
     });
-    await expect(page.getByTestId("submission-identity-state")).toContainText(
-      /confirmed/i,
-    );
 
     await expect
       .poll(
@@ -286,11 +280,76 @@ test.describe("B3 real submission ingestion + identity", () => {
       )
       .toMatch(/mapping review/i);
 
-    await expect(page.getByTestId("submission-downstream-boundary")).toBeVisible();
+    await expect(page.getByTestId("link-mapping")).toBeVisible();
+    await expect(page.getByTestId("link-evaluation")).toHaveCount(0);
+    await page.getByTestId("link-mapping").click();
+
+    await expect(page.getByTestId("mapping-review-page")).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.getByTestId("mapping-review-page")).toHaveAttribute(
+      "data-mapping-mode",
+      "live",
+    );
+    await expect(page.getByTestId("mapping-manual-notice")).toBeVisible();
+    await expect(page.getByTestId("mapping-completion")).toContainText(
+      /0 of 2 scorable questions confirmed/i,
+    );
+    await expect(page.getByTestId("question-tree")).toBeVisible();
+    await expect(page.getByTestId("paper-viewer-shell")).toBeVisible();
+    await expect(page.getByTestId("live-page-image")).toBeVisible({ timeout: 30_000 });
+
+    // Leaf 1: create default region via testable button, assign, confirm
+    await page.getByTestId("add-answer-region").click();
+    await expect(page.getByTestId("mapping-status-message")).toContainText(
+      /created/i,
+      { timeout: 20_000 },
+    );
+    await page.getByTestId("assign-region").click();
+    await expect(page.getByTestId("mapping-status-message")).toContainText(
+      /assigned/i,
+      { timeout: 20_000 },
+    );
+    await page.getByTestId("confirm-mapping").click();
+    await expect(page.getByTestId("mapping-status-message")).toContainText(
+      /confirmed/i,
+      { timeout: 20_000 },
+    );
+    await expect(page.getByTestId("mapping-completion")).toContainText(
+      /1 of 2 scorable questions confirmed/i,
+    );
+
+    // Leaf 2: select second question, mark blank, confirm
+    await page.getByTestId("question-tree-item-2").click();
+    await page.getByTestId("mark-blank").click();
+    await expect(page.getByTestId("mapping-status-message")).toContainText(
+      /blank/i,
+      { timeout: 20_000 },
+    );
+    await page.getByTestId("confirm-mapping").click();
+    await expect(page.getByTestId("mapping-status-message")).toContainText(
+      /confirmed/i,
+      { timeout: 20_000 },
+    );
+    await expect(page.getByTestId("mapping-completion")).toContainText(
+      /2 of 2 scorable questions confirmed/i,
+    );
+
+    await page.getByTestId("finalize-mapping").click();
+    await expect(page.getByTestId("submission-detail-page")).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.getByTestId("submission-workflow-state")).toContainText(
+      /ready for evaluation/i,
+    );
     await expect(page.getByTestId("submission-downstream-boundary")).toContainText(
-      /mapping is live/i,
+      /Live evaluation is not enabled yet/i,
     );
     await expect(page.getByTestId("link-mapping")).toBeVisible();
     await expect(page.getByTestId("link-evaluation")).toHaveCount(0);
+    await expect(page.getByTestId("open-current-stage")).toHaveAttribute(
+      "href",
+      /\/submissions\/[^/]+$/,
+    );
   });
 });

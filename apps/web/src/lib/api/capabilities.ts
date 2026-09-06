@@ -36,7 +36,7 @@ export function getApiCapabilities(): ApiCapabilities {
       assessments: "live",
       submissions: "live",
       identityReview: "live",
-      mapping: "mock",
+      mapping: "live",
       evaluation: "mock",
       reports: "mock",
       analytics: "mock",

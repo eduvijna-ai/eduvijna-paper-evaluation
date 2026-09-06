@@ -30,7 +30,7 @@ from app.db.models import (
 from app.db.session import get_db_session
 from app.services.storage import ObjectStorage, StorageImmutabilityError, raw_object_key
 from app.services.upload_validation import validate_and_buffer_upload
-from app.tasks import enqueue_page_normalization
+from app.tasks import enqueue_mapping_preparation, enqueue_page_normalization
 
 router = APIRouter()
 Db = Annotated[AsyncSession, Depends(get_db_session)]
@@ -567,7 +567,18 @@ async def confirm_identity(
         "identity_confirmed",
         {"student_id": str(student.id), "actor": str(auth.user_id)},
     )
+    from app.api.v1.mapping import ensure_mapping_job_and_enqueue
+
+    job = await ensure_mapping_job_and_enqueue(db, auth=auth, submission=item)
     await db.commit()
+    task_id = await enqueue_mapping_preparation(
+        tenant_id=auth.tenant_id,
+        submission_id=item.id,
+        job_id=job.id,
+    )
+    if task_id:
+        job.celery_task_id = task_id
+        await db.commit()
     await db.refresh(item)
     return _dump_submission(
         item,

@@ -11,9 +11,12 @@ import type {
   EvaluationWorkspacePayload,
   IdentityReviewPayload,
   ImprovementAssessmentBlueprint,
+  EvidenceRegion,
   MappingReviewPayload,
+  PaperPage,
   ParentReport,
   Question,
+  QuestionAnswerMappingView,
   RubricCriterion,
   Student,
   StudentAnalytics,
@@ -135,6 +138,45 @@ export interface ApiClient {
     action: MappingAction,
     targetQuestionId?: string,
   ): Promise<{ ok: true; action: MappingAction }>;
+  /** B4 live mapping. Optional so the preserved B0 mock client remains source-compatible. */
+  prepareMappingReview?(submissionId: string): Promise<Submission>;
+  createAnswerRegion?(
+    pageId: string,
+    input: {
+      label: string;
+      region_type: "ANSWER" | "SCRATCH" | "DIAGRAM" | "IDENTITY";
+      bbox: { x: number; y: number; width: number; height: number };
+    },
+  ): Promise<EvidenceRegion>;
+  updateAnswerRegion?(
+    regionId: string,
+    input: {
+      label?: string;
+      region_type?: "ANSWER" | "SCRATCH" | "DIAGRAM" | "IDENTITY";
+      bbox?: { x: number; y: number; width: number; height: number };
+      crossed_out?: boolean;
+      ignored?: boolean;
+      is_continuation?: boolean;
+    },
+  ): Promise<EvidenceRegion>;
+  deleteAnswerRegion?(regionId: string): Promise<void>;
+  updateSubmissionPage?(
+    pageId: string,
+    input: { is_continuation: boolean },
+  ): Promise<PaperPage>;
+  upsertQuestionMapping?(
+    submissionId: string,
+    questionVersionId: string,
+    input: {
+      disposition: "ANSWERED" | "BLANK";
+      region_ids: string[];
+    },
+  ): Promise<QuestionAnswerMappingView>;
+  confirmQuestionMapping?(
+    submissionId: string,
+    questionVersionId: string,
+  ): Promise<QuestionAnswerMappingView>;
+  finalizeMappingReview?(submissionId: string): Promise<Submission>;
   getEvaluationWorkspace(
     submissionId: string,
     questionId?: string,

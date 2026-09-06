@@ -17,6 +17,11 @@ from app.db.models.curriculum_assessment import (
     RubricVersion,
 )
 from app.db.models.institution import Institution
+from app.db.models.mapping import (
+    AnswerRegion,
+    QuestionAnswerMapping,
+    QuestionAnswerMappingRegion,
+)
 from app.db.models.role import Permission, Role, RolePermission, UserRole
 from app.db.models.student import Guardian, ImportSession, Student, StudentGuardian
 from app.db.models.submission import PipelineJob, Submission, SubmissionPage
@@ -28,6 +33,7 @@ __all__ = [
     "AiExecutionRecord",
     "AnswerKey",
     "AnswerKeyVersion",
+    "AnswerRegion",
     "Assessment",
     "AssessmentVersion",
     "AuditEvent",
@@ -41,6 +47,8 @@ __all__ = [
     "Permission",
     "PipelineJob",
     "Question",
+    "QuestionAnswerMapping",
+    "QuestionAnswerMappingRegion",
     "QuestionCurriculumMapping",
     "QuestionVersion",
     "Role",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils/cn";
 import type {
   EvidenceRegion,
@@ -22,6 +22,33 @@ export function normalizedRectToPercentStyle(rect: Pick<
     top: `${rect.y * 100}%`,
     width: `${rect.width * 100}%`,
     height: `${rect.height * 100}%`,
+  };
+}
+
+/**
+ * Convert a client-space drag (pointer events) into a normalized 0–1 bbox
+ * relative to the unscaled page box. Prefer `getBoundingClientRect` of the
+ * page element so CSS zoom transforms are accounted for correctly.
+ */
+export function clientRectToNormalizedBBox(
+  pageEl: HTMLElement,
+  start: { x: number; y: number },
+  end: { x: number; y: number },
+): { x: number; y: number; width: number; height: number } {
+  const rect = pageEl.getBoundingClientRect();
+  const width = rect.width || 1;
+  const height = rect.height || 1;
+  const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+  const round6 = (v: number) => Math.round(v * 1e6) / 1e6;
+  const x1 = clamp01((Math.min(start.x, end.x) - rect.left) / width);
+  const y1 = clamp01((Math.min(start.y, end.y) - rect.top) / height);
+  const x2 = clamp01((Math.max(start.x, end.x) - rect.left) / width);
+  const y2 = clamp01((Math.max(start.y, end.y) - rect.top) / height);
+  return {
+    x: round6(x1),
+    y: round6(y1),
+    width: round6(Math.max(0, x2 - x1)),
+    height: round6(Math.max(0, y2 - y1)),
   };
 }
 
@@ -179,6 +206,8 @@ export function PaperViewerShell({
   showMarks = false,
   mode = "synthetic",
   pageImageUrl = null,
+  drawEnabled = false,
+  onRegionDrawn,
 }: {
   pages: PaperPage[];
   regions: EvidenceRegion[];
@@ -191,8 +220,25 @@ export function PaperViewerShell({
   /** Live B3 pages render a real PNG; synthetic keeps the fixture sketch. */
   mode?: "synthetic" | "live";
   pageImageUrl?: string | null;
+  /** When true, pointer drag draws a new normalized region on the page surface. */
+  drawEnabled?: boolean;
+  onRegionDrawn?: (bbox: {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }) => void;
 }) {
   const [zoom, setZoom] = useState(1);
+  const pageSurfaceRef = useRef<HTMLDivElement>(null);
+  const dragStartRef = useRef<{ x: number; y: number } | null>(null);
+  const [draftBBox, setDraftBBox] = useState<{
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  } | null>(null);
+
   const pageIndex = useMemo(
     () => pages.findIndex((p) => p.id === activePageId),
     [pages, activePageId],
@@ -217,6 +263,21 @@ export function PaperViewerShell({
     const fromEnd = idx === -1 ? 0 : ZOOM_STEPS.length - 1 - idx;
     const next = ZOOM_STEPS[Math.max(0, fromEnd - (ZOOM_STEPS[fromEnd] === zoom ? 1 : 0))];
     if (next) setZoom(next);
+  };
+
+  const finishDraw = (clientX: number, clientY: number) => {
+    const start = dragStartRef.current;
+    const pageEl = pageSurfaceRef.current;
+    dragStartRef.current = null;
+    setDraftBBox(null);
+    if (!start || !pageEl || !onRegionDrawn) return;
+    const bbox = clientRectToNormalizedBBox(
+      pageEl,
+      start,
+      { x: clientX, y: clientY },
+    );
+    if (bbox.width < 0.01 || bbox.height < 0.01) return;
+    onRegionDrawn(bbox);
   };
 
   return (
@@ -278,7 +339,11 @@ export function PaperViewerShell({
             </button>
           </div>
           <span className="text-xs text-slate-500">
-            {liveImage ? "Live page image" : "Synthetic · no PDFs"}
+            {drawEnabled
+              ? "Draw mode"
+              : liveImage
+                ? "Live page image"
+                : "Synthetic · no PDFs"}
           </span>
         </div>
       </div>
@@ -296,21 +361,55 @@ export function PaperViewerShell({
             maxWidth: 448,
           }}
         >
-          <div className="relative aspect-[8/11] w-full overflow-hidden rounded border border-slate-300 bg-[#f7f6f2] shadow-sm">
+          <div
+            ref={pageSurfaceRef}
+            data-testid="paper-page-surface"
+            className={cn(
+              "relative aspect-[8/11] w-full overflow-hidden rounded border border-slate-300 bg-[#f7f6f2] shadow-sm",
+              drawEnabled && "cursor-crosshair",
+            )}
+            onPointerDown={(e) => {
+              if (!drawEnabled) return;
+              e.currentTarget.setPointerCapture(e.pointerId);
+              dragStartRef.current = { x: e.clientX, y: e.clientY };
+              setDraftBBox({ x: 0, y: 0, width: 0, height: 0 });
+            }}
+            onPointerMove={(e) => {
+              if (!drawEnabled || !dragStartRef.current || !pageSurfaceRef.current) {
+                return;
+              }
+              setDraftBBox(
+                clientRectToNormalizedBBox(
+                  pageSurfaceRef.current,
+                  dragStartRef.current,
+                  { x: e.clientX, y: e.clientY },
+                ),
+              );
+            }}
+            onPointerUp={(e) => {
+              if (!drawEnabled) return;
+              finishDraw(e.clientX, e.clientY);
+            }}
+            onPointerCancel={() => {
+              dragStartRef.current = null;
+              setDraftBBox(null);
+            }}
+          >
             {liveImage ? (
               // eslint-disable-next-line @next/next/no-img-element -- blob URLs from authenticated fetch
               <img
                 data-testid="live-page-image"
                 src={pageImageUrl!}
                 alt={activePage?.label ?? "Submission page"}
-                className="absolute inset-0 h-full w-full object-contain bg-white"
+                className="pointer-events-none absolute inset-0 h-full w-full object-contain bg-white"
+                draggable={false}
               />
             ) : (
               <>
-                <div className="absolute inset-0 opacity-40">
+                <div className="pointer-events-none absolute inset-0 opacity-40">
                   <div className="h-full w-full bg-[repeating-linear-gradient(0deg,transparent,transparent_23px,#e2e8f0_24px)]" />
                 </div>
-                <div className="absolute left-6 right-6 top-8 space-y-3 text-[10px] leading-relaxed text-slate-400">
+                <div className="pointer-events-none absolute left-6 right-6 top-8 space-y-3 text-[10px] leading-relaxed text-slate-400">
                   <div className="h-3 w-1/3 rounded bg-slate-300/60" />
                   <div className="h-2 w-full rounded bg-slate-200/70" />
                   <div className="h-2 w-5/6 rounded bg-slate-200/70" />
@@ -324,9 +423,16 @@ export function PaperViewerShell({
             <EvidenceRegionOverlay
               regions={pageRegions}
               selectedRegionId={selectedRegionId}
-              onSelect={onRegionSelect}
+              onSelect={drawEnabled ? undefined : onRegionSelect}
               showMarks={showMarks}
             />
+            {draftBBox && draftBBox.width > 0 && draftBBox.height > 0 && (
+              <div
+                data-testid="draw-draft-region"
+                className="pointer-events-none absolute border-2 border-dashed border-teal-600 bg-teal-500/20"
+                style={normalizedRectToPercentStyle(draftBBox)}
+              />
+            )}
           </div>
         </div>
       </div>

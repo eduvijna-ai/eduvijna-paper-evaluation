@@ -2,8 +2,10 @@
 
 **Branch:** `b3/live-submission-ingestion-identity`  
 **Starting `develop` SHA:** `9f85b2a5ad9e224266fa4138eac29fafefdab49c` (merged B2)  
-**Migration:** `database/migrations/versions/20260906_0004_submission_ingestion.py`  
-**Project gate:** CI green + squash merge (final SHAs filled after merge)
+**Final feature SHA:** `57ca3a5e9514413c8d5b13d7373c6ba9fa802b3b`  
+**Squash merge SHA:** `a6134656f85b7785cbe145d0397e2a2892ce9c36`  
+**CI run:** `34039302994` (Infrastructure, Contracts, Backend, Frontend, Frontend E2E, Frontend E2E Real — all green)  
+**Migration:** `database/migrations/versions/20260906_0004_submission_ingestion.py`
 
 ## Scope
 
