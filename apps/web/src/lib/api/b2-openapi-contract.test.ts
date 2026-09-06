@@ -27,6 +27,10 @@ describe("B2 A2 OpenAPI contract", () => {
     }
   });
 
+  it("publishes rubric-version discovery used by the live adapter", () => {
+    expect(doc.paths["/api/v1/rubrics/{id}/versions"]?.get).toBeTruthy();
+  });
+
   it("keeps the A2 creation schemas required by the live adapter", () => {
     expect(doc.components.schemas.AssessmentInput).toBeTruthy();
     expect(doc.components.schemas.RubricInput).toBeTruthy();
