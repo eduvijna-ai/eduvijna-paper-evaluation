@@ -1,12 +1,14 @@
 import type { ApiClient, OperationalHealth } from "../types";
 import { MockEduVijnaApi } from "../mock/adapter";
 import { PlatformHttpApi, getHttpVersion } from "../http/platform";
+import { AuthoringHttpApi } from "../http/authoring";
 import { httpRequest } from "../http/client";
 
 /**
- * Hybrid domain routing (B1):
- * - Auth, Institution, Academic Years, Class Sections, Students, Import, Guardians → HTTP
- * - Curriculum, Assessment, Submissions, Evaluation, Analytics, Learning → MOCK
+ * Hybrid domain routing (B2):
+ * - Auth, Institution, Academic Years, Class Sections, Students, Import, Guardians → A1 HTTP
+ * - Curriculum and Assessment authoring → A2 HTTP
+ * - Submissions, Evaluation, Analytics, Reporting, Learning → MOCK until their backend phases land
  *
  * Components use `api` only — they must not inspect mock vs HTTP.
  */
@@ -69,18 +71,18 @@ export const HybridEduVijnaApi: ApiClient = {
     PlatformHttpApi.unlinkStudentGuardian(s, g),
 
   getDashboard: (...args) => MockEduVijnaApi.getDashboard(...args),
-  listCurricula: (...args) => MockEduVijnaApi.listCurricula(...args),
-  getCurriculum: (...args) => MockEduVijnaApi.getCurriculum(...args),
-  listAssessments: (...args) => MockEduVijnaApi.listAssessments(...args),
-  getAssessment: (...args) => MockEduVijnaApi.getAssessment(...args),
-  getAssessmentQuestions: (...args) =>
-    MockEduVijnaApi.getAssessmentQuestions(...args),
-  getAssessmentRubric: (...args) =>
-    MockEduVijnaApi.getAssessmentRubric(...args),
-  getAssessmentAnswerKey: (...args) =>
-    MockEduVijnaApi.getAssessmentAnswerKey(...args),
-  getAssessmentCurriculumMap: (...args) =>
-    MockEduVijnaApi.getAssessmentCurriculumMap(...args),
+
+  listCurricula: () => AuthoringHttpApi.listCurricula(),
+  getCurriculum: (id) => AuthoringHttpApi.getCurriculum(id),
+  listAssessments: () => AuthoringHttpApi.listAssessments(),
+  getAssessment: (id) => AuthoringHttpApi.getAssessment(id),
+  createAssessment: (form) => AuthoringHttpApi.createAssessment(form),
+  getAssessmentQuestions: (id) => AuthoringHttpApi.getAssessmentQuestions(id),
+  getAssessmentRubric: (id) => AuthoringHttpApi.getAssessmentRubric(id),
+  getAssessmentAnswerKey: (id) => AuthoringHttpApi.getAssessmentAnswerKey(id),
+  getAssessmentCurriculumMap: (id) =>
+    AuthoringHttpApi.getAssessmentCurriculumMap(id),
+
   listSubmissions: (...args) => MockEduVijnaApi.listSubmissions(...args),
   getSubmission: (...args) => MockEduVijnaApi.getSubmission(...args),
   getIdentityReview: (...args) => MockEduVijnaApi.getIdentityReview(...args),
