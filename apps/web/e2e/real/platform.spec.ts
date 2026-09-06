@@ -81,12 +81,45 @@ test.describe("B1 real A1 platform flows", () => {
     await expect(page.getByTestId("student-detail-page")).toBeVisible({
       timeout: 30_000,
     });
+    const assignedStudentUrl = page.url();
 
     await page.getByTestId("student-edit-toggle").click();
     await page.locator('input[name="fullName"]').fill("E2E Student Edited");
     await page.getByTestId("student-edit-submit").click();
     await expect(page.getByText("Student updated.")).toBeVisible({
       timeout: 15_000,
+    });
+
+    // Create without year/section, edit, then reload. Both-null is a supported state.
+    await page.goto("/students");
+    await expect(page.getByTestId("students-page")).toBeVisible({
+      timeout: 20_000,
+    });
+    await page.getByTestId("student-create-toggle").click();
+    const unassignedCode = `STU-UNASSIGNED-${runId}`;
+    await page.locator('input[name="studentCode"]').fill(unassignedCode);
+    await page.locator('input[name="fullName"]').fill("E2E Unassigned");
+    await page.getByTestId("student-create-submit").click();
+    await expect(page.getByTestId("student-detail-page")).toBeVisible({
+      timeout: 30_000,
+    });
+    await page.getByTestId("student-edit-toggle").click();
+    await page.locator('input[name="fullName"]').fill("E2E Unassigned Edited");
+    await page.getByTestId("student-edit-submit").click();
+    await expect(page.getByText("Student updated.")).toBeVisible({
+      timeout: 15_000,
+    });
+    await page.reload();
+    await expect(page.getByTestId("student-detail-page")).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByText("E2E Unassigned Edited")).toBeVisible({
+      timeout: 15_000,
+    });
+
+    await page.goto(assignedStudentUrl);
+    await expect(page.getByTestId("student-detail-page")).toBeVisible({
+      timeout: 20_000,
     });
 
     // Guardian create + link
