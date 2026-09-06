@@ -49,14 +49,20 @@ export default function CurriculumDetailPage({
     <div data-testid="curriculum-detail-page">
       <PageHeader
         title={data.curriculum.title}
-        description={`${data.curriculum.board} · ${data.curriculum.grade_label} · ${data.curriculum.subject}`}
+        description={`Framework ${data.curriculum.board} · Version ${data.curriculum.grade_label}`}
         breadcrumbs={[
           { label: "Curriculum", href: "/curriculum" },
           { label: data.curriculum.code },
         ]}
       />
       <div className="rounded-md border border-slate-200 bg-white p-4">
-        <NodeList nodes={data.tree} />
+        {data.tree.length > 0 ? (
+          <NodeList nodes={data.tree} />
+        ) : (
+          <p data-testid="curriculum-tree-empty" className="text-sm text-slate-500">
+            No curriculum nodes yet.
+          </p>
+        )}
       </div>
     </div>
   );
