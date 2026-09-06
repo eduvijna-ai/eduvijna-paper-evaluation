@@ -36,9 +36,23 @@ def _response(
 def register_error_handlers(app: FastAPI) -> None:
     @app.exception_handler(StarletteHTTPException)
     async def http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
-        message = exc.detail if isinstance(exc.detail, str) else "Request failed"
-        details = None if isinstance(exc.detail, str) else exc.detail
-        return _response(request, exc.status_code, f"http_{exc.status_code}", message, details)
+        # Structured detail: {code, message, ...} — promote code/message into envelope.
+        if isinstance(exc.detail, dict):
+            detail = exc.detail
+            code = detail.get("code")
+            message = detail.get("message")
+            if isinstance(code, str) and isinstance(message, str):
+                return _response(request, exc.status_code, code, message, detail)
+            return _response(
+                request, exc.status_code, f"http_{exc.status_code}", "Request failed", detail
+            )
+        if isinstance(exc.detail, str):
+            return _response(
+                request, exc.status_code, f"http_{exc.status_code}", exc.detail, None
+            )
+        return _response(
+            request, exc.status_code, f"http_{exc.status_code}", "Request failed", exc.detail
+        )
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, exc: RequestValidationError) -> JSONResponse:

@@ -168,6 +168,15 @@ class RelationshipIn(BaseModel):
     relationship_type: str = Field(min_length=1, max_length=64)
 
 
+class StudentGuardianLinkOut(BaseModel):
+    student_id: uuid.UUID
+    guardian_id: uuid.UUID
+    display_name: str
+    email: str | None = None
+    phone: str | None = None
+    relationship_type: str
+
+
 class CommitIn(BaseModel):
     import_session_id: uuid.UUID | None = None
     validation_token: uuid.UUID | None = None
@@ -503,20 +512,38 @@ async def validate_import(
             await db.execute(select(ClassSection).where(ClassSection.tenant_id == auth.tenant_id))
         ).scalars()
     }
-    existing = set(
+    existing_codes = set(
         (
             await db.execute(
-                select(Student.student_code).where(Student.tenant_id == auth.tenant_id)
+                select(Student.student_code).where(
+                    Student.tenant_id == auth.tenant_id,
+                    Student.institution_id == institution.id,
+                )
             )
         ).scalars()
     )
-    seen: set[str] = set()
+    existing_rolls = {
+        (class_section_id, roll_number)
+        for class_section_id, roll_number in (
+            await db.execute(
+                select(Student.class_section_id, Student.roll_number).where(
+                    Student.tenant_id == auth.tenant_id,
+                    Student.class_section_id.is_not(None),
+                    Student.roll_number.is_not(None),
+                )
+            )
+        ).all()
+    }
+    seen_codes: set[str] = set()
+    seen_rolls: set[tuple[uuid.UUID, str]] = set()
     results: list[dict[str, Any]] = []
     for number, raw in enumerate(rows, 2):
         row = {key: (value or "").strip() for key, value in raw.items()}
         outcome = "VALID"
+        reason_code: str | None = None
         year = years.get(row["academic_year"])
         section = sections.get((year.id, row["class_section"])) if year else None
+        roll = row["roll_number"]
         if (
             not row["student_code"]
             or not row["full_name"]
@@ -527,26 +554,38 @@ async def validate_import(
         elif (
             len(row["student_code"]) > 100
             or len(row["admission_number"]) > 100
-            or len(row["roll_number"]) > 100
+            or len(roll) > 100
             or len(row["full_name"]) > 255
         ):
             outcome = "INVALID"
-        elif row["student_code"] in seen:
+        elif row["student_code"] in seen_codes:
             outcome = "DUPLICATE_IN_FILE"
-        elif row["student_code"] in existing:
+            reason_code = "STUDENT_CODE_DUPLICATE_IN_FILE"
+        elif row["student_code"] in existing_codes:
             outcome = "DUPLICATE_EXISTING"
+            reason_code = "STUDENT_CODE_DUPLICATE_EXISTING"
         elif year is None or section is None:
             outcome = "UNKNOWN_CLASS"
-        seen.add(row["student_code"])
-        results.append(
-            {
-                "row": number,
-                "outcome": outcome,
-                "data": row,
-                "academic_year_id": str(year.id) if year else None,
-                "class_section_id": str(section.id) if section else None,
-            }
-        )
+        elif roll and (section.id, roll) in seen_rolls:
+            outcome = "DUPLICATE_IN_FILE"
+            reason_code = "CLASS_ROLL_DUPLICATE_IN_FILE"
+        elif roll and (section.id, roll) in existing_rolls:
+            outcome = "DUPLICATE_EXISTING"
+            reason_code = "CLASS_ROLL_DUPLICATE_EXISTING"
+        if row["student_code"]:
+            seen_codes.add(row["student_code"])
+        if outcome == "VALID" and section is not None and roll:
+            seen_rolls.add((section.id, roll))
+        entry: dict[str, Any] = {
+            "row": number,
+            "outcome": outcome,
+            "data": row,
+            "academic_year_id": str(year.id) if year else None,
+            "class_section_id": str(section.id) if section else None,
+        }
+        if reason_code is not None:
+            entry["reason_code"] = reason_code
+        results.append(entry)
     expires = datetime.now(UTC) + timedelta(minutes=30)
     session = ImportSession(
         tenant_id=auth.tenant_id,
@@ -589,11 +628,25 @@ async def commit_import(
             status=session.status,
             committed_count=session.valid_row_count,
         )
-    if session.status != "VALIDATED" or session.expires_at <= datetime.now(UTC):
-        if session.status == "VALIDATED":
-            session.status = "EXPIRED"
-            await db.commit()
-        raise HTTPException(409, "Import session is not available for commit")
+    now = datetime.now(UTC)
+    if session.status == "VALIDATED" and session.expires_at <= now:
+        session.status = "EXPIRED"
+        await db.commit()
+        raise HTTPException(
+            409,
+            {
+                "code": "IMPORT_SESSION_EXPIRED",
+                "message": "The validated import session has expired.",
+            },
+        )
+    if session.status != "VALIDATED":
+        raise HTTPException(
+            409,
+            {
+                "code": "IMPORT_SESSION_INVALID",
+                "message": "The import session is not available for commit.",
+            },
+        )
     for result in session.row_results:
         if result["outcome"] != "VALID":
             continue
@@ -612,9 +665,21 @@ async def commit_import(
             )
         )
     session.status = "COMMITTED"
-    session.committed_at = datetime.now(UTC)
+    session.committed_at = now
     await _audit(db, auth, session, "committed", {"valid_row_count": session.valid_row_count})
-    await _commit(db)
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            409,
+            {
+                "code": "STUDENT_IMPORT_CONFLICT",
+                "message": (
+                    "Roster data changed after validation. Revalidate the CSV before importing."
+                ),
+            },
+        ) from exc
     return ImportCommitOut(
         import_session_id=session.id, status=session.status, committed_count=session.valid_row_count
     )
@@ -726,6 +791,41 @@ async def patch_guardian(
     await _commit(db)
     await db.refresh(item)
     return item
+
+
+@router.get(
+    "/students/{student_id}/guardians",
+    response_model=list[StudentGuardianLinkOut],
+)
+async def list_student_guardians(
+    student_id: uuid.UUID,
+    db: Db,
+    auth: AuthContext = Depends(require_permissions("guardian:read")),
+) -> list[StudentGuardianLinkOut]:
+    await _scoped(db, Student, student_id, auth.tenant_id)
+    rows = (
+        await db.execute(
+            select(StudentGuardian, Guardian)
+            .join(Guardian, Guardian.id == StudentGuardian.guardian_id)
+            .where(
+                StudentGuardian.tenant_id == auth.tenant_id,
+                StudentGuardian.student_id == student_id,
+                Guardian.tenant_id == auth.tenant_id,
+            )
+            .order_by(Guardian.display_name)
+        )
+    ).all()
+    return [
+        StudentGuardianLinkOut(
+            student_id=link.student_id,
+            guardian_id=guardian.id,
+            display_name=guardian.display_name,
+            email=guardian.email,
+            phone=guardian.phone,
+            relationship_type=link.relationship_type,
+        )
+        for link, guardian in rows
+    ]
 
 
 @router.post("/students/{student_id}/guardians/{guardian_id}", status_code=201)
