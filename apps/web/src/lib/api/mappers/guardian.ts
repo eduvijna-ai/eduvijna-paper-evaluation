@@ -32,3 +32,31 @@ export function guardianFormToApi(form: GuardianFormValues): GuardianInput {
     phone: form.phone?.trim() || null,
   };
 }
+
+/** Persisted student↔guardian link from GET /students/{id}/guardians */
+export interface StudentGuardianLinkView {
+  studentId: string;
+  guardianId: string;
+  displayName: string;
+  email: string | null;
+  phone: string | null;
+  relationshipType: string;
+}
+
+export function studentGuardianLinkApiToView(api: {
+  student_id: string;
+  guardian_id: string;
+  display_name: string;
+  email?: string | null;
+  phone?: string | null;
+  relationship_type: string;
+}): StudentGuardianLinkView {
+  return {
+    studentId: api.student_id,
+    guardianId: api.guardian_id,
+    displayName: api.display_name,
+    email: api.email ?? null,
+    phone: api.phone ?? null,
+    relationshipType: api.relationship_type,
+  };
+}

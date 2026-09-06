@@ -59,6 +59,7 @@ export const HybridEduVijnaApi: ApiClient = {
   commitStudentImport: (id) => PlatformHttpApi.commitStudentImport(id),
 
   listGuardians: () => PlatformHttpApi.listGuardians(),
+  listStudentGuardians: (id) => PlatformHttpApi.listStudentGuardians(id),
   getGuardian: (id) => PlatformHttpApi.getGuardian(id),
   createGuardian: (form) => PlatformHttpApi.createGuardian(form),
   updateGuardian: (id, form) => PlatformHttpApi.updateGuardian(id, form),

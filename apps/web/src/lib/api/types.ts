@@ -32,6 +32,7 @@ import type {
 import type {
   GuardianFormValues,
   GuardianView,
+  StudentGuardianLinkView,
 } from "@/lib/api/mappers/guardian";
 import type { StudentFormValues } from "@/lib/api/mappers/student";
 import type {
@@ -82,6 +83,7 @@ export interface ApiClient {
   commitStudentImport(importSessionId: string): Promise<ImportCommitResult>;
 
   listGuardians(): Promise<GuardianView[]>;
+  listStudentGuardians(studentId: string): Promise<StudentGuardianLinkView[]>;
   getGuardian(id: string): Promise<GuardianView>;
   createGuardian(form: GuardianFormValues): Promise<GuardianView>;
   updateGuardian(

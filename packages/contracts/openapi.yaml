@@ -194,7 +194,18 @@ paths:
               required: [import_session_id]
               properties: { import_session_id: { type: string, format: uuid } }
       responses:
-        "200": { description: Import commit result, content: { application/json: { schema: { type: object, additionalProperties: true } } } }
+        "200":
+          description: Import commit result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportCommit"
+        "409":
+          description: Session expired/invalid or roster conflict
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /api/v1/guardians:
     get:
       operationId: listGuardians
@@ -221,6 +232,22 @@ paths:
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/GuardianPatch" } } } }
       responses:
         "200": { description: Updated guardian, content: { application/json: { schema: { $ref: "#/components/schemas/Guardian" } } } }
+  /api/v1/students/{student_id}/guardians:
+    parameters:
+      - { name: student_id, in: path, required: true, schema: { type: string, format: uuid } }
+    get:
+      operationId: listStudentGuardians
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Guardians linked to the student
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StudentGuardianLink"
+        "404": { $ref: "#/components/responses/NotFound" }
   /api/v1/students/{student_id}/guardians/{guardian_id}:
     parameters:
       - { name: student_id, in: path, required: true, schema: { type: string, format: uuid } }
@@ -400,12 +427,24 @@ paths:
     post:
       operationId: createRubric
       security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RubricInput"
       responses: { "201": { description: Rubric created } }
   /api/v1/rubrics/{id}/versions:
     parameters: [{ $ref: "#/components/parameters/Id" }]
     post:
       operationId: createRubricVersion
       security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RubricVersionInput"
       responses: { "201": { description: Rubric version created } }
   /api/v1/rubric-versions/{id}:
     parameters: [{ $ref: "#/components/parameters/Id" }]
@@ -619,9 +658,51 @@ components:
         row_results:
           type: array
           items:
-            type: object
-            additionalProperties: true
+            $ref: "#/components/schemas/ImportRowResult"
         expires_at: { type: string, format: date-time }
+    ImportRowResult:
+      type: object
+      required: [row, outcome, data]
+      properties:
+        row: { type: integer }
+        outcome:
+          type: string
+          enum:
+            - VALID
+            - DUPLICATE_IN_FILE
+            - DUPLICATE_EXISTING
+            - INVALID
+            - UNKNOWN_CLASS
+            - MISSING_REQUIRED_FIELD
+        reason_code:
+          type: string
+          enum:
+            - STUDENT_CODE_DUPLICATE_EXISTING
+            - CLASS_ROLL_DUPLICATE_EXISTING
+            - STUDENT_CODE_DUPLICATE_IN_FILE
+            - CLASS_ROLL_DUPLICATE_IN_FILE
+        data:
+          type: object
+          additionalProperties: { type: string }
+        academic_year_id: { type: [string, "null"], format: uuid }
+        class_section_id: { type: [string, "null"], format: uuid }
+    ImportCommit:
+      type: object
+      required: [import_session_id, status, committed_count]
+      properties:
+        import_session_id: { type: string, format: uuid }
+        status: { type: string }
+        committed_count: { type: integer }
+    StudentGuardianLink:
+      type: object
+      required: [student_id, guardian_id, display_name, relationship_type]
+      properties:
+        student_id: { type: string, format: uuid }
+        guardian_id: { type: string, format: uuid }
+        display_name: { type: string }
+        email: { type: [string, "null"] }
+        phone: { type: [string, "null"] }
+        relationship_type: { type: string }
     Money:
       type: string
       pattern: '^\d{1,8}(\.\d{1,2})?$'
@@ -711,6 +792,20 @@ components:
         answer_text: { type: string }
         structured_answer: { type: [object, "null"], additionalProperties: true }
         source_type: { type: string, enum: [TEACHER, IMPORTED], description: AI_PROPOSED is server-assigned by proposal flow only }
+        status: { type: string, enum: [DRAFT, REVIEW_REQUIRED], default: DRAFT }
+    RubricInput:
+      type: object
+      required: [question_version_id, title]
+      properties:
+        question_version_id: { type: string, format: uuid }
+        title: { type: string }
+        provenance: { type: string, default: TEACHER }
+    RubricVersionInput:
+      type: object
+      required: [question_version_id]
+      properties:
+        question_version_id: { type: string, format: uuid }
+        source_type: { type: string, enum: [TEACHER, IMPORTED], default: TEACHER }
         status: { type: string, enum: [DRAFT, REVIEW_REQUIRED], default: DRAFT }
     RubricCriterionInput:
       type: object

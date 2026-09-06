@@ -29,11 +29,38 @@ describe("A1 OpenAPI contract (B1)", () => {
       "/api/v1/students/import/validate",
       "/api/v1/students/import/commit",
       "/api/v1/guardians",
+      "/api/v1/students/{student_id}/guardians",
       "/api/v1/students/{student_id}/guardians/{guardian_id}",
     ];
     for (const path of required) {
       expect(doc.paths[path], path).toBeTruthy();
     }
+  });
+
+  it("documents ImportCommit committed_count and rubric POST bodies", () => {
+    const commit = doc.components.schemas.ImportCommit;
+    expect(commit.required).toEqual(
+      expect.arrayContaining([
+        "import_session_id",
+        "status",
+        "committed_count",
+      ]),
+    );
+    expect(doc.components.schemas.RubricInput).toBeTruthy();
+    expect(doc.components.schemas.RubricVersionInput).toBeTruthy();
+    expect(doc.components.schemas.StudentGuardianLink).toBeTruthy();
+    const createRubric = (
+      doc.paths["/api/v1/assessments/{id}/rubrics"] as {
+        post?: { requestBody?: unknown };
+      }
+    )?.post;
+    const createVersion = (
+      doc.paths["/api/v1/rubrics/{id}/versions"] as {
+        post?: { requestBody?: unknown };
+      }
+    )?.post;
+    expect(createRubric?.requestBody).toBeTruthy();
+    expect(createVersion?.requestBody).toBeTruthy();
   });
 
   it("keeps Student transport fields expected by adapters", () => {
