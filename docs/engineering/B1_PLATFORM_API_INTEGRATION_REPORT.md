@@ -2,9 +2,9 @@
 
 **Product:** EduVijna Paper Evaluation (CVB)  
 **Author:** Implementation Engineer B  
-**Date:** 2026-09-05  
+**Date:** 2026-09-06 (B1 corrective gate)  
 **Branch:** `cursor-b/platform-api-integration`  
-**Base:** `origin/develop` (includes A2 merge)
+**Base:** `origin/develop`
 
 ## Summary
 
@@ -15,7 +15,16 @@ B1 replaces B0 mock-only platform behavior with **hybrid domain routing**:
 | Auth, Institution, Academic years, Class sections, Students, Student CSV import, Guardians | **HTTP (A1)** |
 | Curriculum, Assessment, Answer key, Rubric, Submissions, Evaluation, Analytics, Learning | **MOCK** (until later phases) |
 
-Components call `api.*` only. They do not branch on mock vs HTTP.
+Ordinary feature components call `api.*` and `getApiCapabilities()` — they do not branch on transport mode via `getApiMode()`.
+
+## Corrective gate (2026-09-06)
+
+- Import validation aligns with DB uniqueness (`student_code` + class/roll), structured reason codes, structured session/conflict errors.
+- Frontend normalizes nested import `data` rows and maps `committed_count` → `committedCount`.
+- Mock identity lookups fail closed (no `students[0]` substitution).
+- `GET /api/v1/students/{id}/guardians` + UI refetch after link/unlink/reload.
+- OpenAPI: guardian list, ImportCommit, RubricInput / RubricVersionInput (Issue #6 acceptance).
+- Real E2E uses collision-resistant run IDs; suite run twice against same DB.
 
 ## API mode
 
@@ -24,40 +33,37 @@ Components call `api.*` only. They do not branch on mock vs HTTP.
 - `mock` — full mock (Playwright B0 suite)
 - `hybrid` (or alias `http`) — platform HTTP + CVB mock
 
-`NEXT_PUBLIC_API_BASE_URL` — default local compose publish port `http://localhost:18000` (maps to container `:8000`)
+Same-origin Next rewrite preferred (`NEXT_PUBLIC_API_BASE_URL` empty / same-origin).
 
 ## Auth
 
 - Login: `POST /api/v1/auth/login` with email/password
 - Session: `GET /api/v1/auth/me`
 - Access token held in memory (`token-store`) and mirrored to **sessionStorage** for CVB page-refresh survival
-- **CVB technical debt:** A1 returns bearer JWT without HttpOnly cookie sessions. Prefer cookie sessions when backend supports them. Never store passwords. Never log tokens.
+- **CVB technical debt:** bearer JWT without HttpOnly cookie sessions (accepted for CVB)
 - 401 clears session and redirects to `/login`
-- Expired `expiresAt` forces re-login
 - Mock mode retains demo role buttons for B0 E2E
 
 ## DTO mapping
 
-UI view-models stay camelCase / CVB-friendly. Transport stays A1 OpenAPI snake_case.
+UI view-models stay camelCase. Transport stays OpenAPI snake_case.
 
-- `studentApiToViewModel` / `studentFormToApi`
-- `guardianApiToViewModel` / `guardianFormToApi`
-- Academic year / class section mappers
-- Import validation summarizer
-
-Known intentional difference: UI `Student.display_name` maps from A1 `full_name`; `external_ref` prefers `roll_number` then `student_code`.
+- Student / guardian / academic structure mappers
+- `importRowApiToView` / `importValidationApiToView` / `importCommitApiToView`
+- `studentGuardianLinkApiToView`
 
 ## Student import
 
-1. Download client-generated CSV template (headers match backend)
-2. `POST /students/import/validate` — show outcomes
-3. `POST /students/import/commit` only after validation (VALID rows only)
-4. Summary with created count when returned
+1. Download CSV template
+2. Validate — outcomes + normalized row fields
+3. Commit VALID rows
+4. Success: `Imported N student(s).` from `committedCount`
+5. Structured 409 codes mapped to specific UX (expired / invalid / roster conflict)
 
 ## Guardians
 
-Create/update/list + link/unlink on student detail.  
-**Limitation:** A1 has no “list guardians for student” endpoint; linked state after create is session-optimistic. See `B1_BACKEND_CHANGE_REQUESTS.md`.
+List linked guardians via `GET /students/{id}/guardians`.  
+Create/link/unlink invalidate query cache; links survive browser reload.
 
 ## E2E
 

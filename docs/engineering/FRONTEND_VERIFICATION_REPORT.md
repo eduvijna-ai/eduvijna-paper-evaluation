@@ -1,8 +1,8 @@
 # Frontend verification report — B1 platform API integration
 
 **Product:** EduVijna Paper Evaluation (CVB)  
-**Scope:** B1 real A1 API integration (hybrid)  
-**Date:** 2026-09-05
+**Scope:** B1 real A1 API integration (hybrid) + corrective gate  
+**Date:** 2026-09-06
 
 ## Environment
 
@@ -17,13 +17,23 @@
 
 ## Domains
 
-**HTTP:** Auth, Institution, Academic years, Class sections, Students, Import, Guardians  
+**HTTP:** Auth, Institution, Academic years, Class sections, Students, Import, Guardians (incl. student-scoped GET)  
 **MOCK:** Curriculum, Assessment, Submissions, Evaluation, Analytics, Learning
 
 ## Auth debt
 
-Bearer JWT mirrored in sessionStorage + memory. Not production-safe cookie architecture. See B1 report.  
-Login uses `/auth/me` for permissions (TokenResponse.user may omit them).
+Bearer JWT mirrored in sessionStorage + memory. Accepted CVB debt.  
+Login uses `/auth/me` for permissions.
+
+## Corrective fixes verified
+
+- Nested import row → `ImportRowView`
+- `committed_count` → `committedCount`
+- Structured import 409 codes → specific UX
+- Mock identity fail-closed
+- Guardian GET + reload persistence
+- Real E2E unique IDs; suite twice on same DB
+- Next rewrite proven via browser login/`/auth/*`
 
 ## Quality
 
@@ -31,13 +41,17 @@ Login uses `/auth/me` for permissions (TokenResponse.user may omit them).
 |------|--------|
 | lint | PASS |
 | typecheck | PASS |
-| unit tests | PASS (38) |
+| unit tests | PASS (55) |
 | build | PASS |
 | Playwright mock | PASS (15) |
-| Playwright real | PASS (2) |
+| Playwright real #1 | PASS (2) |
+| Playwright real #2 | PASS (2) |
+| Backend pytest | PASS (52 collected) |
+| Ruff / mypy / OpenAPI / contracts / compose | PASS |
+| Migration | NONE |
 
 ## Docs
 
 - `docs/engineering/B1_PLATFORM_API_INTEGRATION_REPORT.md`
 - `docs/engineering/B1_BACKEND_CHANGE_REQUESTS.md`
-- FCR-001 (A1), FCR-010, FCR-011 → IMPLEMENTED_IN_FRONTEND
+- FCR-001 (A1), FCR-010, FCR-011 → IMPLEMENTED_IN_FRONTEND (guardian GET resolved)

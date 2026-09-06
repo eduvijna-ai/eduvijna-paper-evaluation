@@ -48,7 +48,7 @@ B should map mock/http adapters to these **canonical** paths (no duplicate alias
 | **FCR-008** | P2 | Answer key / curriculum map | **RESOLVED_BY_A2** | Answer-key versions + approve; question curriculum mappings; rubrics/criteria | B adapter wiring |
 | **FCR-009** | P2 | Raw upload | **OPEN_FOR_INGESTION** | — | Multipart / pre-signed upload |
 | **FCR-010** | P0 | Auth (B1) | **IMPLEMENTED_IN_FRONTEND** | Live `login`/`me` + hybrid session | Cookie sessions preferred (BCR) |
-| **FCR-011** | P1 | Guardians / import | **IMPLEMENTED_IN_FRONTEND** | Live guardians + CSV validate/commit | GET student guardians (BCR) |
+| **FCR-011** | P1 | Guardians / import | **IMPLEMENTED_IN_FRONTEND** | Live guardians + CSV validate/commit + GET student guardians | — |
 
 ---
 
