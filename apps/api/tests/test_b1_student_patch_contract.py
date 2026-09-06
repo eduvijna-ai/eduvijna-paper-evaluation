@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import date
-from collections.abc import AsyncIterator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
