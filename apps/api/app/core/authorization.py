@@ -39,6 +39,9 @@ PERMISSION_CODES: Final = (
     "rubric:read",
     "rubric:manage",
     "rubric:approve",
+    "submission:read",
+    "submission:upload",
+    "submission:review",
 )
 
 ROLE_PERMISSION_MAP: Final = {
@@ -59,6 +62,9 @@ ROLE_PERMISSION_MAP: Final = {
             "rubric:read",
             "rubric:manage",
             "rubric:approve",
+            "submission:read",
+            "submission:upload",
+            "submission:review",
         }
     ),
     "EVALUATOR": frozenset(
@@ -70,6 +76,8 @@ ROLE_PERMISSION_MAP: Final = {
             "curriculum:read",
             "assessment:read",
             "rubric:read",
+            "submission:read",
+            "submission:review",
         }
     ),
     "STUDENT": frozenset(),

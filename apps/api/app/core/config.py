@@ -55,6 +55,50 @@ class Settings(BaseSettings):
         default=5_000,
         validation_alias=AliasChoices("STUDENT_IMPORT_MAX_ROWS", "student_import_max_rows"),
     )
+    s3_endpoint_url: str = Field(
+        default="http://127.0.0.1:19000",
+        validation_alias=AliasChoices("S3_ENDPOINT_URL", "s3_endpoint_url"),
+    )
+    s3_access_key: str = Field(
+        default="eduvijna_minio",
+        validation_alias=AliasChoices("S3_ACCESS_KEY", "s3_access_key"),
+    )
+    s3_secret_key: str = Field(
+        default="eduvijna_minio_dev_only",
+        validation_alias=AliasChoices("S3_SECRET_KEY", "s3_secret_key"),
+    )
+    s3_bucket: str = Field(
+        default="eduvijna-papers",
+        validation_alias=AliasChoices("S3_BUCKET", "s3_bucket"),
+    )
+    s3_region: str = Field(
+        default="us-east-1",
+        validation_alias=AliasChoices("S3_REGION", "s3_region"),
+    )
+    submission_upload_max_bytes: int = Field(
+        default=52_428_800,
+        validation_alias=AliasChoices(
+            "SUBMISSION_UPLOAD_MAX_BYTES", "submission_upload_max_bytes"
+        ),
+    )
+    submission_max_pages: int = Field(
+        default=100,
+        validation_alias=AliasChoices("SUBMISSION_MAX_PAGES", "submission_max_pages"),
+    )
+    celery_broker_url: str = Field(
+        default="redis://127.0.0.1:16379/0",
+        validation_alias=AliasChoices("CELERY_BROKER_URL", "celery_broker_url"),
+    )
+    celery_result_backend: str = Field(
+        default="redis://127.0.0.1:16379/1",
+        validation_alias=AliasChoices("CELERY_RESULT_BACKEND", "celery_result_backend"),
+    )
+    celery_task_always_eager: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "CELERY_TASK_ALWAYS_EAGER", "celery_task_always_eager"
+        ),
+    )
 
     @model_validator(mode="after")
     def require_auth_secret(self) -> "Settings":

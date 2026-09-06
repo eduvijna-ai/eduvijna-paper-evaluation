@@ -2,14 +2,18 @@ import type { ApiClient, OperationalHealth } from "../types";
 import { MockEduVijnaApi } from "../mock/adapter";
 import { PlatformHttpApi, getHttpVersion } from "../http/platform";
 import { AuthoringHttpApi } from "../http/authoring";
+import { SubmissionHttpApi } from "../http/submissions";
 import { httpRequest } from "../http/client";
 
 /**
- * Hybrid domain routing (B2):
+ * Hybrid domain routing (B3):
  * - Auth, Institution, Academic Years, Class Sections, Students, Import, Guardians → A1 HTTP
  * - Curriculum and Assessment authoring → A2 HTTP
- * - Submissions, Evaluation, Analytics, Reporting, Learning → MOCK until their backend phases land
+ * - Submissions + identity review → B3 HTTP
+ * - Mapping, Evaluation, Analytics, Reporting, Learning → MOCK until their backend phases land
  *
+ * Mapping/evaluation methods stay on MockEduVijnaApi. Live submission UUIDs are not linked
+ * from the UI into those mock routes; callers must not assume mock mapping works for live ids.
  * Components use `api` only — they must not inspect mock vs HTTP.
  */
 export const HybridEduVijnaApi: ApiClient = {
@@ -83,12 +87,17 @@ export const HybridEduVijnaApi: ApiClient = {
   getAssessmentCurriculumMap: (id) =>
     AuthoringHttpApi.getAssessmentCurriculumMap(id),
 
-  listSubmissions: (...args) => MockEduVijnaApi.listSubmissions(...args),
-  getSubmission: (...args) => MockEduVijnaApi.getSubmission(...args),
-  getIdentityReview: (...args) => MockEduVijnaApi.getIdentityReview(...args),
-  confirmIdentity: (...args) => MockEduVijnaApi.confirmIdentity(...args),
-  markIdentityUnmatched: (...args) =>
-    MockEduVijnaApi.markIdentityUnmatched(...args),
+  listSubmissions: () => SubmissionHttpApi.listSubmissions(),
+  getSubmission: (id) => SubmissionHttpApi.getSubmission(id),
+  uploadSubmission: (input) => SubmissionHttpApi.uploadSubmission(input),
+  getSubmissionPageImageBlob: (pageId) =>
+    SubmissionHttpApi.getSubmissionPageImageBlob(pageId),
+  getIdentityReview: (id) => SubmissionHttpApi.getIdentityReview(id),
+  confirmIdentity: (id, studentId) =>
+    SubmissionHttpApi.confirmIdentity(id, studentId),
+  markIdentityUnmatched: (id) => SubmissionHttpApi.markIdentityUnmatched(id),
+
+  // Mapping / evaluation / reports stay mock — UI hides these for live submissions.
   getMappingReview: (...args) => MockEduVijnaApi.getMappingReview(...args),
   applyMappingAction: (...args) =>
     MockEduVijnaApi.applyMappingAction(...args),

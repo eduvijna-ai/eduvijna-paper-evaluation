@@ -270,6 +270,13 @@ export interface Submission {
   page_count: number;
   uploaded_at: string;
   updated_at: string;
+  /** Present on live B3 ingestion payloads */
+  original_filename?: string | null;
+  source_content_sha256?: string | null;
+  bundle_name?: string | null;
+  mime_type?: string | null;
+  byte_size?: number | null;
+  storage_status?: string | null;
 }
 
 export interface IdentityReviewPayload {

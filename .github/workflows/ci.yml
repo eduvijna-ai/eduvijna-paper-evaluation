@@ -145,7 +145,7 @@ jobs:
       - name: Prepare local defaults
         run: cp .env.example .env
       - name: Start real backend stack
-        run: docker compose up -d --build postgres redis minio api
+        run: docker compose up -d --build postgres redis minio api worker
       - name: Migrate real backend database
         run: docker compose exec -T api python -m alembic -c alembic.ini upgrade head
       - name: Seed deterministic demo data
@@ -180,7 +180,7 @@ jobs:
           API_UPSTREAM_URL: http://127.0.0.1:18000
       - name: Show backend logs on failure
         if: failure()
-        run: docker compose logs --no-color api postgres redis minio
+        run: docker compose logs --no-color api worker postgres redis minio
       - name: Stop real backend stack
         if: always()
         run: docker compose down -v --remove-orphans
