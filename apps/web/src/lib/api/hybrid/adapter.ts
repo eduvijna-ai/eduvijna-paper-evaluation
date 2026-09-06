@@ -4,8 +4,17 @@ import { PlatformHttpApi, getHttpVersion } from "../http/platform";
 import { AuthoringHttpApi } from "../http/authoring";
 import { SubmissionHttpApi } from "../http/submissions";
 import { MappingHttpApi } from "../http/mapping";
+import { TranscriptionHttpApi } from "../http/transcription";
 import { ApiError } from "../http/errors";
 import { httpRequest } from "../http/client";
+import { getApiCapabilities } from "../capabilities";
+
+const LIVE_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isLiveSubmissionId(id: string): boolean {
+  return LIVE_UUID_RE.test(id) && !id.toLowerCase().includes("demo");
+}
 
 /**
  * Hybrid domain routing (B4):
@@ -13,6 +22,7 @@ import { httpRequest } from "../http/client";
  * - Curriculum and Assessment authoring → A2 HTTP
  * - Submissions + identity review → B3 HTTP
  * - Mapping review → B4 HTTP
+ * - Transcription review → B5 HTTP
  * - Evaluation, Analytics, Reporting, Learning → MOCK until their backend phases land
  *
  * Components use `api` only — they must not inspect mock vs HTTP.
@@ -126,10 +136,45 @@ export const HybridEduVijnaApi: ApiClient = {
     MappingHttpApi.confirmQuestionMapping(submissionId, questionVersionId),
   finalizeMappingReview: (id) => MappingHttpApi.finalizeMappingReview(id),
 
-  getEvaluationWorkspace: (...args) =>
-    MockEduVijnaApi.getEvaluationWorkspace(...args),
-  applyTeacherAction: (...args) =>
-    MockEduVijnaApi.applyTeacherAction(...args),
+  prepareTranscription: (id) => TranscriptionHttpApi.prepareTranscription(id),
+  getTranscriptionWorkspace: (id) =>
+    TranscriptionHttpApi.getTranscriptionWorkspace(id),
+  putRegionTranscription: (regionId, payload) =>
+    TranscriptionHttpApi.putRegionTranscription(regionId, payload),
+  confirmTranscription: (transcriptionId) =>
+    TranscriptionHttpApi.confirmTranscription(transcriptionId),
+  finalizeTranscription: (id) => TranscriptionHttpApi.finalizeTranscription(id),
+  getRegionCropBlob: (regionId) => TranscriptionHttpApi.getRegionCropBlob(regionId),
+
+  getEvaluationWorkspace: async (submissionId, ...args) => {
+    if (
+      getApiCapabilities().submissions === "live" &&
+      isLiveSubmissionId(submissionId)
+    ) {
+      throw new ApiError({
+        message:
+          "Live evaluation is not enabled for this submission. Complete transcription review first.",
+        status: 404,
+        kind: "not_found",
+        code: "EVALUATION_NOT_LIVE",
+      });
+    }
+    return MockEduVijnaApi.getEvaluationWorkspace(submissionId, ...args);
+  },
+  applyTeacherAction: async (submissionId, ...args) => {
+    if (
+      getApiCapabilities().submissions === "live" &&
+      isLiveSubmissionId(submissionId)
+    ) {
+      throw new ApiError({
+        message: "Live evaluation actions are not enabled for this submission.",
+        status: 404,
+        kind: "not_found",
+        code: "EVALUATION_NOT_LIVE",
+      });
+    }
+    return MockEduVijnaApi.applyTeacherAction(submissionId, ...args);
+  },
   getStudentReport: (...args) => MockEduVijnaApi.getStudentReport(...args),
   getParentReport: (...args) => MockEduVijnaApi.getParentReport(...args),
   getAssessmentAnalytics: (...args) =>

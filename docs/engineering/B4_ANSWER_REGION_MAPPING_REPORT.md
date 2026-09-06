@@ -2,8 +2,10 @@
 
 **Branch:** `b4/live-answer-region-question-mapping`  
 **Starting `develop` SHA:** `a6134656f85b7785cbe145d0397e2a2892ce9c36` (merged B3)  
-**Migration:** `database/migrations/versions/20260906_0005_answer_region_mapping.py`  
-**Project gate:** CI green + squash merge (final SHAs filled after merge)
+**Final feature SHA:** `89c104816c7db6666cac30f3516901ea0ac08377`  
+**Squash merge SHA:** `653f7240ab605b9617f0d16ab0ce0a6d745cbfc1`  
+**CI run:** `34042197269` (Infrastructure, Contracts, Backend, Frontend, Frontend E2E, Frontend E2E Real — all green)  
+**Migration:** `database/migrations/versions/20260906_0005_answer_region_mapping.py`
 
 ## Scope
 

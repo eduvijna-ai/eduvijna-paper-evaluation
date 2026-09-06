@@ -140,6 +140,16 @@ async def run_mapping_preparation(
             submission.workflow_state = "MAPPING_REVIEW"
         submission.mapping_confidence = Decimal("0.0000")
 
+        from app.services.mapping_ai import apply_ai_mapping_proposals
+
+        ai_meta = await apply_ai_mapping_proposals(
+            db,
+            tenant_id=tenant_id,
+            submission=submission,
+            pages=pages,
+            leaves=leaves,
+        )
+
         db.add(
             AuditEvent(
                 tenant_id=tenant_id,
@@ -152,8 +162,12 @@ async def run_mapping_preparation(
                     "leaf_count": len(leaves),
                     "page_count": len(pages),
                     "assessment_version_id": str(version.id),
-                    "automated_region_detection_active": False,
-                    "automated_mapping_active": False,
+                    "automated_region_detection_active": ai_meta[
+                        "automated_region_detection_active"
+                    ],
+                    "automated_mapping_active": ai_meta["automated_mapping_active"],
+                    "ai_region_count": ai_meta["ai_region_count"],
+                    "ai_mapping_count": ai_meta["ai_mapping_count"],
                 },
             )
         )

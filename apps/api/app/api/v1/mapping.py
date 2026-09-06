@@ -545,8 +545,10 @@ async def get_mapping_workspace(
             "unresolved_question_codes": unresolved,
         },
         "assessment_version_id": str(item.assessment_version_id),
-        "automated_region_detection_active": False,
-        "automated_mapping_active": False,
+        "automated_region_detection_active": any(
+            r.source_type == "AI" for r in regions
+        ),
+        "automated_mapping_active": any(m.mapped_by == "AI" for m in mappings),
     }
 
 
@@ -1041,6 +1043,12 @@ async def finalize_mapping(
 
     item.workflow_state = "READY_FOR_EVALUATION"
     item.mapping_confidence = Decimal("0.0000")
+    from app.services.transcription import ensure_transcription_job_and_state
+    from app.tasks.celery_app import enqueue_transcription
+
+    tx_job = await ensure_transcription_job_and_state(
+        db, tenant_id=auth.tenant_id, submission=item
+    )
     await _audit(
         db,
         auth,
@@ -1050,9 +1058,20 @@ async def finalize_mapping(
             "leaf_total": len(leaves),
             "workflow_state": "READY_FOR_EVALUATION",
             "evaluation_enqueued": False,
+            "transcription_state": item.transcription_state,
+            "transcription_job_id": str(tx_job.id) if tx_job else None,
         },
     )
     await db.commit()
+    if tx_job is not None:
+        task_id = await enqueue_transcription(
+            tenant_id=auth.tenant_id,
+            submission_id=item.id,
+            job_id=tx_job.id,
+        )
+        if task_id:
+            tx_job.celery_task_id = task_id
+            await db.commit()
     await db.refresh(item)
     return _dump_submission(
         item,

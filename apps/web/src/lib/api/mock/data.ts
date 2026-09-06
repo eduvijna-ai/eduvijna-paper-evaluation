@@ -21,6 +21,7 @@ import type {
   StudentAnalytics,
   StudentReport,
   Submission,
+  TranscriptionWorkspacePayload,
 } from "@/lib/types/domain";
 
 export const TENANT_ID = "tenant-demo-001";
@@ -427,6 +428,7 @@ export const submissions: Submission[] = [
     student_match_state: "CONFIRMED",
     identity_confidence: 0.94,
     mapping_confidence: 0.88,
+    transcription_state: "READY",
     page_count: 2,
     uploaded_at: "2026-08-16T10:15:00Z",
     updated_at: "2026-08-16T11:40:00Z",
@@ -444,6 +446,7 @@ export const submissions: Submission[] = [
     student_match_state: "REVIEW_REQUIRED",
     identity_confidence: 0.48,
     mapping_confidence: 0.0,
+    transcription_state: "NOT_STARTED",
     page_count: 2,
     uploaded_at: "2026-08-16T10:20:00Z",
     updated_at: "2026-08-16T10:35:00Z",
@@ -461,6 +464,7 @@ export const submissions: Submission[] = [
     student_match_state: "AUTO_MATCHED",
     identity_confidence: 0.9,
     mapping_confidence: 0.52,
+    transcription_state: "NOT_STARTED",
     page_count: 2,
     uploaded_at: "2026-08-16T10:25:00Z",
     updated_at: "2026-08-16T10:50:00Z",
@@ -729,6 +733,105 @@ export function getMappingReview(submissionId: string): MappingReviewPayload {
       },
     ],
     questions: questions.filter((q) => q.parent_id === null),
+  };
+}
+
+export function getTranscriptionWorkspace(
+  submissionId: string,
+): TranscriptionWorkspacePayload {
+  const submission = submissions.find((s) => s.id === submissionId);
+  if (!submission) {
+    throw new MockNotFoundError("Submission not found");
+  }
+  const aiProposal = {
+    id: "tx-ai-1",
+    answer_region_id: "reg-2",
+    version_number: 1,
+    source_type: "AI" as const,
+    text: "x = 4",
+    latex: null,
+    transcription_confidence: 0.78,
+    unreadable: false,
+    visual_only: false,
+    status: "PROPOSED",
+    confirmed_by: null,
+    confirmed_at: null,
+  };
+  const humanCorrected = {
+    id: "tx-human-1",
+    answer_region_id: "reg-3",
+    version_number: 2,
+    source_type: "HUMAN" as const,
+    text: "x = 5 (corrected)",
+    latex: null,
+    transcription_confidence: null,
+    unreadable: false,
+    visual_only: false,
+    status: "CONFIRMED",
+    confirmed_by: "user-teacher-001",
+    confirmed_at: "2026-08-16T11:00:00Z",
+  };
+  return {
+    submission_id: submission.id,
+    workflow_state: submission.workflow_state,
+    transcription_state: submission.transcription_state ?? "REVIEW_REQUIRED",
+    automated_transcription_active: true,
+    progress: {
+      reviewed: 1,
+      required: 2,
+      label: "1 of 2 evidence regions reviewed",
+    },
+    items: [
+      {
+        question_version_id: "q-1",
+        question_label: "Q1",
+        disposition: "ANSWERED",
+        mapping_state: "CONFIRMED",
+        requires_transcription: true,
+        regions: [
+          {
+            id: "reg-2",
+            label: "Q1 answer",
+            region_type: "ANSWER",
+            source_type: "AI",
+            detection_confidence: 0.91,
+            bbox: { x: 0.1, y: 0.2, width: 0.3, height: 0.15 },
+            crop_url: null,
+            page_index: 0,
+            latest_ai_proposal: aiProposal,
+            active_transcription: aiProposal,
+            requires_transcription: true,
+          },
+        ],
+      },
+      {
+        question_version_id: "q-2",
+        question_label: "Q2",
+        disposition: "ANSWERED",
+        mapping_state: "CONFIRMED",
+        requires_transcription: true,
+        regions: [
+          {
+            id: "reg-3",
+            label: "Q2 answer",
+            region_type: "ANSWER",
+            source_type: "HUMAN",
+            detection_confidence: 0.88,
+            bbox: { x: 0.15, y: 0.35, width: 0.35, height: 0.12 },
+            crop_url: null,
+            page_index: 0,
+            latest_ai_proposal: {
+              ...aiProposal,
+              id: "tx-ai-2",
+              answer_region_id: "reg-3",
+              text: "x = 5",
+            },
+            active_transcription: humanCorrected,
+            requires_transcription: true,
+          },
+        ],
+      },
+    ],
   };
 }
 

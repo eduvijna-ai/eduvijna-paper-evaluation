@@ -1,8 +1,10 @@
 "use client";
 
-import { use, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { getApiCapabilities } from "@/lib/api/capabilities";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PaperViewerShell } from "@/components/paper/PaperViewerShell";
 import { QuestionTree } from "@/components/evaluation/QuestionTree";
@@ -11,6 +13,15 @@ import { ErrorState, LoadingState } from "@/components/ui/FeedbackStates";
 import type { TeacherReviewAction } from "@/lib/types/enums";
 import type { EvaluationWorkflowState } from "@/lib/types/enums";
 import type { Question } from "@/lib/types/domain";
+
+const LIVE_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function isLiveSubmissionContext(id: string): boolean {
+  const caps = getApiCapabilities();
+  if (caps.submissions === "live") return true;
+  return LIVE_UUID_RE.test(id) && !id.toLowerCase().includes("demo");
+}
 
 function findQuestion(
   nodes: Question[],
@@ -32,6 +43,16 @@ export default function EvaluationWorkspacePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
+  const liveBlocked =
+    getApiCapabilities().evaluation === "mock" && isLiveSubmissionContext(id);
+
+  useEffect(() => {
+    if (liveBlocked) {
+      router.replace(`/submissions/${id}`);
+    }
+  }, [liveBlocked, id, router]);
+
   const queryClient = useQueryClient();
   const [activePageId, setActivePageId] = useState("page-1");
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(
@@ -46,7 +67,12 @@ export default function EvaluationWorkspacePage({
     queryKey: ["evaluation", id, selectedQuestionId],
     queryFn: () =>
       api.getEvaluationWorkspace(id, selectedQuestionId ?? undefined),
+    enabled: !liveBlocked,
   });
+
+  if (liveBlocked) {
+    return <LoadingState />;
+  }
 
   const questionId = selectedQuestionId ?? data?.selected_question_id ?? "q-1b";
 

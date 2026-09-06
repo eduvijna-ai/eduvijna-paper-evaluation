@@ -25,6 +25,7 @@ dependencies = [
   "sqlalchemy[asyncio]>=2.0,<3",
   "structlog>=24,<26",
   "uvicorn[standard]>=0.30,<1",
+  "openai>=1.40,<2",
 ]
 
 [project.optional-dependencies]
@@ -61,5 +62,5 @@ plugins = ["pydantic.mypy", "sqlalchemy.ext.mypy.plugin"]
 exclude = ["database/migrations"]
 
 [[tool.mypy.overrides]]
-module = ["celery.*", "fitz.*", "boto3.*", "botocore.*"]
+module = ["celery.*", "fitz.*", "boto3.*", "botocore.*", "openai.*"]
 ignore_missing_imports = true

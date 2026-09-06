@@ -99,6 +99,40 @@ class Settings(BaseSettings):
             "CELERY_TASK_ALWAYS_EAGER", "celery_task_always_eager"
         ),
     )
+    ai_provider_vision: str = Field(
+        default="none",
+        validation_alias=AliasChoices("AI_PROVIDER_VISION", "ai_provider_vision"),
+    )
+    ai_model_identity: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices("AI_MODEL_IDENTITY", "ai_model_identity"),
+    )
+    ai_model_page_analysis: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices(
+            "AI_MODEL_PAGE_ANALYSIS", "ai_model_page_analysis"
+        ),
+    )
+    ai_model_mapping: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices("AI_MODEL_MAPPING", "ai_model_mapping"),
+    )
+    ai_model_transcription: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices(
+            "AI_MODEL_TRANSCRIPTION", "ai_model_transcription"
+        ),
+    )
+    ai_request_timeout_seconds: int = Field(
+        default=60,
+        validation_alias=AliasChoices(
+            "AI_REQUEST_TIMEOUT_SECONDS", "ai_request_timeout_seconds"
+        ),
+    )
+    openai_api_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("OPENAI_API_KEY", "openai_api_key"),
+    )
 
     @model_validator(mode="after")
     def require_auth_secret(self) -> "Settings":

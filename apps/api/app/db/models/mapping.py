@@ -65,6 +65,8 @@ class AnswerRegion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     transcription_confidence: Mapped[Decimal] = mapped_column(
         Numeric(5, 4), default=Decimal("0.0000"), server_default="0.0000"
     )
+    crop_storage_key: Mapped[str | None] = mapped_column(String(512), nullable=True)
+    crop_content_sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
 
 

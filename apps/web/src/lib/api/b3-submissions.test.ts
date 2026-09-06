@@ -100,6 +100,7 @@ describe("B3 API capabilities", () => {
     expect(caps.submissions).toBe("live");
     expect(caps.identityReview).toBe("live");
     expect(caps.mapping).toBe("live");
+    expect(caps.transcription).toBe("live");
     expect(caps.evaluation).toBe("mock");
     expect(caps.reports).toBe("mock");
     expect(caps.analytics).toBe("mock");

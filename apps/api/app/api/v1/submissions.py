@@ -83,6 +83,7 @@ def _dump_submission(
         "name_detected": item.name_detected,
         "identity_confidence": float(item.identity_confidence),
         "mapping_confidence": float(item.mapping_confidence),
+        "transcription_state": item.transcription_state,
         "source_storage_key": item.source_storage_key,
         "source_content_sha256": item.source_content_sha256,
         "original_filename": item.original_filename,
@@ -495,20 +496,74 @@ async def get_identity_review(
         )
     ).all()
 
-    candidates = [
-        {
-            "student_id": str(student.id),
-            "display_name": student.full_name,
-            "external_ref": student.student_code,
-            "grade": "",
-            "section": "",
-            "confidence": 0.0,
-            "match_reasons": [
-                "Manual roster selection — automated identity extraction is not active in B3"
-            ],
-        }
-        for student in students
-    ]
+    from app.ai.registry import structure_provider_active
+    from app.db.models import SubmissionIdentityCandidate
+
+    ai_active = structure_provider_active()
+    ai_rows = list(
+        (
+            await db.scalars(
+                select(SubmissionIdentityCandidate)
+                .where(
+                    SubmissionIdentityCandidate.tenant_id == auth.tenant_id,
+                    SubmissionIdentityCandidate.submission_id == item.id,
+                )
+                .order_by(
+                    SubmissionIdentityCandidate.rank_order.asc(),
+                    SubmissionIdentityCandidate.confidence.desc(),
+                )
+            )
+        ).all()
+    )
+    ai_by_student = {row.student_id: row for row in ai_rows}
+
+    candidates = []
+    for student in students:
+        ai_row = ai_by_student.get(student.id)
+        if ai_row is not None:
+            candidates.append(
+                {
+                    "student_id": str(student.id),
+                    "display_name": student.full_name,
+                    "external_ref": student.student_code,
+                    "grade": "",
+                    "section": "",
+                    "confidence": float(ai_row.confidence),
+                    "source_type": ai_row.source_type,
+                    "match_reasons": [
+                        ai_row.reason
+                        or "AI-assisted suggestion — human confirmation required"
+                    ],
+                }
+            )
+        else:
+            candidates.append(
+                {
+                    "student_id": str(student.id),
+                    "display_name": student.full_name,
+                    "external_ref": student.student_code,
+                    "grade": "",
+                    "section": "",
+                    "confidence": 0.0,
+                    "source_type": "HUMAN",
+                    "match_reasons": [
+                        (
+                            "Manual roster selection — automated identity extraction is not active"
+                            if not ai_active
+                            else "Manual roster selection"
+                        )
+                    ],
+                }
+            )
+    # Prefer AI candidates first when present.
+    def _candidate_sort_key(c: dict[str, Any]) -> tuple[int, float, str]:
+        conf = c.get("confidence")
+        conf_f = float(conf) if isinstance(conf, (int, float)) else 0.0
+        name = c.get("display_name")
+        name_s = name if isinstance(name, str) else ""
+        return (0 if c.get("source_type") == "AI" else 1, -conf_f, name_s)
+
+    candidates.sort(key=_candidate_sort_key)
     return {
         "submission": _dump_submission(
             item,
@@ -516,8 +571,13 @@ async def get_identity_review(
             student_display_name=await _student_name(db, item.student_id),
         ),
         "pages": [_dump_page(page) for page in pages],
+        "detected": {
+            "name": item.name_detected,
+            "roll": item.roll_number_detected,
+            "identity_confidence": float(item.identity_confidence),
+        },
         "candidates": candidates,
-        "automated_matching_active": False,
+        "automated_matching_active": ai_active,
     }
 
 

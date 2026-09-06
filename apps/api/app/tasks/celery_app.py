@@ -135,3 +135,105 @@ async def enqueue_mapping_preparation(
     result = prepare_mapping_task.delay(str(tenant_id), str(submission_id), str(job_id))
     task_id = getattr(result, "id", None)
     return str(task_id) if task_id is not None else None
+
+
+async def _identity_async(
+    tenant_id: uuid.UUID, submission_id: uuid.UUID, job_id: uuid.UUID
+) -> None:
+    from app.db.session import async_session_factory, engine
+    from app.services.identity_ai import run_identity_extraction
+
+    await engine.dispose()
+    async with async_session_factory() as db:
+        await run_identity_extraction(
+            db,
+            tenant_id=tenant_id,
+            submission_id=submission_id,
+            job_id=job_id,
+        )
+
+
+def _identity_impl(tenant_id: str, submission_id: str, job_id: str) -> dict[str, str]:
+    asyncio.run(
+        _identity_async(
+            uuid.UUID(tenant_id),
+            uuid.UUID(submission_id),
+            uuid.UUID(job_id),
+        )
+    )
+    return {
+        "tenant_id": tenant_id,
+        "submission_id": submission_id,
+        "job_id": job_id,
+        "status": "ok",
+    }
+
+
+identity_extraction_task = cast(
+    Any, celery_app.task(name="submissions.extract_identity")(_identity_impl)
+)
+
+
+async def enqueue_identity_extraction(
+    *, tenant_id: uuid.UUID, submission_id: uuid.UUID, job_id: uuid.UUID
+) -> str | None:
+    settings = get_settings()
+    if settings.celery_task_always_eager:
+        await _identity_async(tenant_id, submission_id, job_id)
+        return f"eager:{job_id}"
+
+    result = identity_extraction_task.delay(
+        str(tenant_id), str(submission_id), str(job_id)
+    )
+    task_id = getattr(result, "id", None)
+    return str(task_id) if task_id is not None else None
+
+
+async def _transcription_async(
+    tenant_id: uuid.UUID, submission_id: uuid.UUID, job_id: uuid.UUID
+) -> None:
+    from app.db.session import async_session_factory, engine
+    from app.services.transcription import run_transcription_pipeline
+
+    await engine.dispose()
+    async with async_session_factory() as db:
+        await run_transcription_pipeline(
+            db,
+            tenant_id=tenant_id,
+            submission_id=submission_id,
+            job_id=job_id,
+        )
+
+
+def _transcription_impl(tenant_id: str, submission_id: str, job_id: str) -> dict[str, str]:
+    asyncio.run(
+        _transcription_async(
+            uuid.UUID(tenant_id),
+            uuid.UUID(submission_id),
+            uuid.UUID(job_id),
+        )
+    )
+    return {
+        "tenant_id": tenant_id,
+        "submission_id": submission_id,
+        "job_id": job_id,
+        "status": "ok",
+    }
+
+
+transcription_task = cast(
+    Any, celery_app.task(name="submissions.run_transcription")(_transcription_impl)
+)
+
+
+async def enqueue_transcription(
+    *, tenant_id: uuid.UUID, submission_id: uuid.UUID, job_id: uuid.UUID
+) -> str | None:
+    settings = get_settings()
+    if settings.celery_task_always_eager:
+        await _transcription_async(tenant_id, submission_id, job_id)
+        return f"eager:{job_id}"
+
+    result = transcription_task.delay(str(tenant_id), str(submission_id), str(job_id))
+    task_id = getattr(result, "id", None)
+    return str(task_id) if task_id is not None else None

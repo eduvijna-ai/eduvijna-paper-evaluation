@@ -153,3 +153,14 @@ export const IMPROVEMENT_BLUEPRINT_STATES = [
 ] as const;
 export type ImprovementBlueprintState =
   (typeof IMPROVEMENT_BLUEPRINT_STATES)[number];
+
+export const TRANSCRIPTION_STATES = [
+  "NOT_STARTED",
+  "QUEUED",
+  "RUNNING",
+  "REVIEW_REQUIRED",
+  "READY",
+  "FAILED",
+  "UNAVAILABLE",
+] as const;
+export type TranscriptionState = (typeof TRANSCRIPTION_STATES)[number];

@@ -49,6 +49,12 @@ class Submission(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "storage_status IN ('PENDING','AVAILABLE','FAILED')",
             name="ck_submissions_storage_status",
         ),
+        CheckConstraint(
+            "transcription_state IN ("
+            "'NOT_STARTED','QUEUED','RUNNING','REVIEW_REQUIRED',"
+            "'READY','FAILED','UNAVAILABLE')",
+            name="ck_submissions_transcription_state",
+        ),
         Index(
             "ix_submissions_tenant_assessment_workflow",
             "tenant_id",
@@ -77,6 +83,9 @@ class Submission(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     mapping_confidence: Mapped[Decimal] = mapped_column(
         Numeric(5, 4), default=Decimal("0.0000"), server_default="0.0000"
+    )
+    transcription_state: Mapped[str] = mapped_column(
+        String(32), default="NOT_STARTED", server_default="NOT_STARTED"
     )
     source_storage_key: Mapped[str] = mapped_column(String(512))
     source_content_sha256: Mapped[str] = mapped_column(String(64))
@@ -125,7 +134,7 @@ class PipelineJob(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="uq_pipeline_jobs_tenant_idempotency",
         ),
         CheckConstraint(
-            "stage IN ('PAGE_NORMALIZATION','IDENTITY','MAPPING','EVALUATION')",
+            "stage IN ('PAGE_NORMALIZATION','IDENTITY','MAPPING','TRANSCRIPTION','EVALUATION')",
             name="ck_pipeline_jobs_stage",
         ),
         CheckConstraint(

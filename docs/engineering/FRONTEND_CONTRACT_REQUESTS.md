@@ -40,11 +40,11 @@ B should map mock/http adapters to these **canonical** paths (no duplicate alias
 |------------|----------|-----------|-------------------|----------------------|--------------------|
 | **FCR-001** | P0 | Domain CRUD | **IMPLEMENTED_IN_FRONTEND** (A1/B1/B2); submissions list/detail **RESOLVED_BY_B3** | A1 students/institution/years/sections; A2 curricula/assessments; B3 submissions | Mapping/evaluation later |
 | **FCR-002** | P0 | Identity review | **RESOLVED_BY_B3** | `GET …/identity`, confirm, unmatched | — |
-| **FCR-003** | P0 | Question mapping | **RESOLVED_BY_B4** | Mapping workspace + region CRUD + confirm/finalize | Automated detection/OCR not in B4 |
+| **FCR-003** | P0 | Question mapping | **RESOLVED_BY_B4**; B5 adds AI-assisted region/mapping proposals (human confirm still mandatory) | Mapping workspace + region CRUD + confirm/finalize | — |
 | **FCR-004** | P0 | Evaluation | **OPEN_FOR_EVALUATION** | Ledger schema exists as JSON Schema; no HTTP paths yet | Evaluation workspace + teacher actions |
 | **FCR-005** | P1 | Reports / Analytics | **OPEN_FOR_REPORTING** | — | Report & analytics DTOs |
 | **FCR-006** | P1 | Adaptive learning | **OPEN_FOR_LEARNING** | — | Learning + improvement blueprint |
-| **FCR-007** | P1 | Paper viewer | **RESOLVED_BY_B4** for manual geometry/review overlays; automated detection/transcription still open | Page images + answer-region overlays | OCR / auto-detect later |
+| **FCR-007** | P1 | Paper viewer / structure AI | **RESOLVED_BY_B5** for CVB structure pipeline (page analysis, crops, transcription review) | Page images + overlays + transcription workspace | Evaluation remains mock |
 | **FCR-008** | P2 | Answer key / curriculum map | **RESOLVED_BY_A2** | Answer-key versions + approve; question curriculum mappings; rubrics/criteria | — |
 | **FCR-009** | P2 | Raw upload | **RESOLVED_BY_B3** | Multipart `POST /api/v1/submissions` + immutable MinIO storage | — |
 | **FCR-010** | P0 | Auth (B1) | **IMPLEMENTED_IN_FRONTEND** | Live `login`/`me` + hybrid session | Cookie sessions preferred (BCR) |

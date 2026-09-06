@@ -121,7 +121,6 @@ async def run_page_normalization(
             await db.delete(page)
 
         submission.page_count = len(pages)
-        submission.workflow_state = "IDENTITY_REVIEW"
         submission.student_match_state = "REVIEW_REQUIRED"
         submission.roll_number_detected = None
         submission.name_detected = None
@@ -141,7 +140,50 @@ async def run_page_normalization(
                 payload_json={"page_count": len(pages), "job_id": str(job.id)},
             )
         )
-        await db.commit()
+
+        from app.ai.registry import structure_provider_active
+
+        if structure_provider_active(settings):
+            # Stay in PROCESSING until the IDENTITY job finishes.
+            submission.workflow_state = "PROCESSING"
+            identity_key = f"identity:{submission.id}:v1"
+            identity_job = await db.scalar(
+                select(PipelineJob).where(
+                    PipelineJob.tenant_id == tenant_id,
+                    PipelineJob.idempotency_key == identity_key,
+                )
+            )
+            if identity_job is None:
+                identity_job = PipelineJob(
+                    tenant_id=tenant_id,
+                    submission_id=submission.id,
+                    stage="IDENTITY",
+                    status="QUEUED",
+                    attempt=1,
+                    idempotency_key=identity_key,
+                )
+                db.add(identity_job)
+            elif identity_job.status in {"FAILED", "SUCCEEDED"}:
+                identity_job.status = "QUEUED"
+                identity_job.attempt = identity_job.attempt + 1
+                identity_job.error_code = None
+                identity_job.error_detail = None
+                identity_job.started_at = None
+                identity_job.finished_at = None
+            await db.commit()
+            from app.tasks.celery_app import enqueue_identity_extraction
+
+            task_id = await enqueue_identity_extraction(
+                tenant_id=tenant_id,
+                submission_id=submission.id,
+                job_id=identity_job.id,
+            )
+            if task_id:
+                identity_job.celery_task_id = task_id
+                await db.commit()
+        else:
+            submission.workflow_state = "IDENTITY_REVIEW"
+            await db.commit()
     except Exception as exc:
         await db.rollback()
         job = await db.scalar(select(PipelineJob).where(PipelineJob.id == job_id))

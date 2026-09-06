@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import AiExecutionRecord
 from app.services.academic_freeze import SERVER_AI_PROPOSED_SOURCE
+from app.services.ai_context_bounds import BoundedAiContext
 
 
 class AnswerKeyProposalRequest(BaseModel):
@@ -15,7 +16,7 @@ class AnswerKeyProposalRequest(BaseModel):
     question_version_id: uuid.UUID
     assessment_version_id: uuid.UUID | None = None
     instructions: str | None = Field(default=None, max_length=500)
-    context: dict[str, str] = Field(default_factory=dict, max_length=20)
+    context: BoundedAiContext = Field(default_factory=dict)
 
 
 class RubricProposalRequest(BaseModel):
@@ -24,7 +25,7 @@ class RubricProposalRequest(BaseModel):
     question_version_id: uuid.UUID
     assessment_version_id: uuid.UUID | None = None
     instructions: str | None = Field(default=None, max_length=500)
-    context: dict[str, str] = Field(default_factory=dict, max_length=20)
+    context: BoundedAiContext = Field(default_factory=dict)
 
 
 class CurriculumMappingProposalRequest(BaseModel):
@@ -33,7 +34,7 @@ class CurriculumMappingProposalRequest(BaseModel):
     question_version_id: uuid.UUID
     curriculum_id: uuid.UUID | None = None
     instructions: str | None = Field(default=None, max_length=500)
-    context: dict[str, str] = Field(default_factory=dict, max_length=20)
+    context: BoundedAiContext = Field(default_factory=dict)
 
 
 class AiProposalProvider(Protocol):

@@ -5,6 +5,7 @@ import type {
   StudentMatchCandidate,
   Submission,
   SubmissionState,
+  TranscriptionState,
 } from "@/lib/types/domain";
 import { ApiError } from "./errors";
 import { getApiBaseUrl, httpRequest } from "./client";
@@ -35,6 +36,7 @@ export interface B3SubmissionDto {
   uploaded_at?: string | null;
   updated_at?: string | null;
   created_at?: string | null;
+  transcription_state?: string | null;
 }
 
 export interface B3PaperPageDto {
@@ -55,6 +57,13 @@ export interface B3StudentMatchCandidateDto {
   section?: string | null;
   confidence?: number | string | null;
   match_reasons?: string[];
+  source_type?: string;
+}
+
+export interface B3IdentityDetectedDto {
+  name?: string | null;
+  roll?: string | null;
+  identity_confidence?: number | string | null;
 }
 
 export interface B3IdentityReviewDto {
@@ -62,6 +71,7 @@ export interface B3IdentityReviewDto {
   pages?: B3PaperPageDto[];
   candidates?: B3StudentMatchCandidateDto[];
   automated_matching_active?: boolean;
+  detected?: B3IdentityDetectedDto;
 }
 
 function asNumber(value: number | string | null | undefined, fallback = 0): number {
@@ -94,6 +104,8 @@ export function submissionApiToView(dto: B3SubmissionDto): Submission {
     mime_type: dto.mime_type ?? null,
     byte_size: dto.byte_size ?? null,
     storage_status: dto.storage_status ?? null,
+    transcription_state: (dto.transcription_state ??
+      "NOT_STARTED") as TranscriptionState,
   };
 }
 
@@ -123,15 +135,25 @@ function candidateApiToView(dto: B3StudentMatchCandidateDto): StudentMatchCandid
     section: dto.section ?? "",
     confidence: asNumber(dto.confidence),
     match_reasons: dto.match_reasons ?? [],
+    source_type: dto.source_type,
   };
 }
 
 /** Map B3 identity payload → domain. Exported for unit tests. */
 export function identityReviewApiToView(dto: B3IdentityReviewDto): IdentityReviewPayload {
+  const detected = dto.detected;
   return {
     submission: submissionApiToView(dto.submission),
     pages: (dto.pages ?? []).map(paperPageApiToView),
     candidates: (dto.candidates ?? []).map(candidateApiToView),
+    automated_matching_active: dto.automated_matching_active,
+    detected: detected
+      ? {
+          name: detected.name ?? null,
+          roll: detected.roll ?? null,
+          identity_confidence: asNumber(detected.identity_confidence),
+        }
+      : undefined,
   };
 }
 

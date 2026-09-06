@@ -1,4 +1,9 @@
 from app.db.models.academic import AcademicYear, ClassSection
+from app.db.models.ai_structure import (
+    AnswerRegionTranscription,
+    SubmissionIdentityCandidate,
+    SubmissionPageAnalysis,
+)
 from app.db.models.audit import AuditEvent
 from app.db.models.curriculum_assessment import (
     AiExecutionRecord,
@@ -34,6 +39,7 @@ __all__ = [
     "AnswerKey",
     "AnswerKeyVersion",
     "AnswerRegion",
+    "AnswerRegionTranscription",
     "Assessment",
     "AssessmentVersion",
     "AuditEvent",
@@ -59,7 +65,9 @@ __all__ = [
     "Student",
     "StudentGuardian",
     "Submission",
+    "SubmissionIdentityCandidate",
     "SubmissionPage",
+    "SubmissionPageAnalysis",
     "Tenant",
     "User",
     "UserRole",

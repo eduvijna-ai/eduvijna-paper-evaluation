@@ -22,6 +22,8 @@ import type {
   StudentAnalytics,
   StudentReport,
   Submission,
+  TranscriptionWorkspacePayload,
+  RegionTranscriptionView,
 } from "@/lib/types/domain";
 import type { MappingAction, TeacherReviewAction } from "@/lib/types/enums";
 import type { TeacherActionResult } from "@/lib/helpers/teacher-actions";
@@ -177,6 +179,24 @@ export interface ApiClient {
     questionVersionId: string,
   ): Promise<QuestionAnswerMappingView>;
   finalizeMappingReview?(submissionId: string): Promise<Submission>;
+  /** B5 live transcription. Optional so the preserved B0 mock client remains source-compatible. */
+  prepareTranscription?(submissionId: string): Promise<Submission>;
+  getTranscriptionWorkspace?(
+    submissionId: string,
+  ): Promise<TranscriptionWorkspacePayload>;
+  putRegionTranscription?(
+    regionId: string,
+    payload: {
+      text?: string | null;
+      latex?: string | null;
+      unreadable?: boolean;
+      visual_only?: boolean;
+      outcome?: "TRANSCRIBED" | "UNREADABLE" | "VISUAL_ONLY";
+    },
+  ): Promise<RegionTranscriptionView>;
+  confirmTranscription?(transcriptionId: string): Promise<RegionTranscriptionView>;
+  finalizeTranscription?(submissionId: string): Promise<Submission>;
+  getRegionCropBlob?(regionId: string): Promise<Blob>;
   getEvaluationWorkspace(
     submissionId: string,
     questionId?: string,

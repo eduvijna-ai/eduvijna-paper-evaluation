@@ -16,6 +16,7 @@ export interface ApiCapabilities {
   submissions: DomainCapability;
   identityReview: DomainCapability;
   mapping: DomainCapability;
+  transcription: DomainCapability;
   evaluation: DomainCapability;
   reports: DomainCapability;
   analytics: DomainCapability;
@@ -37,6 +38,7 @@ export function getApiCapabilities(): ApiCapabilities {
       submissions: "live",
       identityReview: "live",
       mapping: "live",
+      transcription: "live",
       evaluation: "mock",
       reports: "mock",
       analytics: "mock",
@@ -54,6 +56,7 @@ export function getApiCapabilities(): ApiCapabilities {
     submissions: "mock",
     identityReview: "mock",
     mapping: "mock",
+    transcription: "mock",
     evaluation: "mock",
     reports: "mock",
     analytics: "mock",

@@ -23,7 +23,12 @@ function isLiveSubmissionContext(id: string): boolean {
   return UUID_RE.test(id) && !id.toLowerCase().includes("demo");
 }
 
-function stageHref(id: string, state: string, live: boolean): string {
+function stageHref(
+  id: string,
+  state: string,
+  live: boolean,
+  transcriptionState?: string,
+): string {
   if (live) {
     if (state === "IDENTITY_REVIEW" || state === "UPLOADED" || state === "PROCESSING") {
       return `/submissions/${id}/identity`;
@@ -31,7 +36,9 @@ function stageHref(id: string, state: string, live: boolean): string {
     if (state === "MAPPING_REVIEW") {
       return `/submissions/${id}/mapping`;
     }
-    // READY_FOR_EVALUATION stays on detail — live evaluation is not enabled yet.
+    if (state === "READY_FOR_EVALUATION" && transcriptionState !== "READY") {
+      return `/submissions/${id}/transcription`;
+    }
     return `/submissions/${id}`;
   }
   switch (state) {
@@ -58,6 +65,7 @@ export default function SubmissionDetailPage({
   const { id } = use(params);
   const live = isLiveSubmissionContext(id);
   const mappingLive = getApiCapabilities().mapping === "live";
+  const transcriptionLive = getApiCapabilities().transcription === "live";
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["submission", id],
     queryFn: () => api.getSubmission(id),
@@ -108,6 +116,16 @@ export default function SubmissionDetailPage({
       testId: "link-mapping",
     });
   }
+  if (
+    transcriptionLive &&
+    data.workflow_state === "READY_FOR_EVALUATION"
+  ) {
+    liveLinks.push({
+      href: `/submissions/${id}/transcription`,
+      label: "Transcription",
+      testId: "link-transcription",
+    });
+  }
   const links = live ? liveLinks : mockLinks;
   const identityConfirmedProcessing =
     live &&
@@ -118,11 +136,14 @@ export default function SubmissionDetailPage({
     live &&
     (data.workflow_state === "MAPPING_REVIEW"
       ? "Question mapping is live for this submission. Evaluation, annotated paper, and review hub remain mock."
-      : data.workflow_state === "READY_FOR_EVALUATION"
-        ? "Question mapping is complete. Live evaluation is not enabled yet."
-        : mappingLive
-          ? "Identity review and mapping are available when ready. Evaluation, annotated paper, and review hub remain mock."
-          : "Mapping, evaluation, annotated paper, and review hub are not live for B3 ingestion. Identity review is available; downstream stages remain on the mock provider.");
+      : data.workflow_state === "READY_FOR_EVALUATION" &&
+          data.transcription_state === "READY"
+        ? "Evidence mapping and transcription are ready. Live evaluation is not enabled yet."
+        : data.workflow_state === "READY_FOR_EVALUATION"
+          ? "Mapping is complete. Open transcription review to confirm evidence text before evaluation."
+          : mappingLive
+            ? "Identity review and mapping are available when ready. Evaluation, annotated paper, and review hub remain mock."
+            : "Mapping, evaluation, annotated paper, and review hub are not live for B3 ingestion. Identity review is available; downstream stages remain on the mock provider.");
 
   return (
     <div data-testid="submission-detail-page">
@@ -135,7 +156,12 @@ export default function SubmissionDetailPage({
         ]}
         actions={
           <Link
-            href={stageHref(id, data.workflow_state, live)}
+            href={stageHref(
+              id,
+              data.workflow_state,
+              live,
+              data.transcription_state,
+            )}
             data-testid="open-current-stage"
             className="rounded-md bg-teal-800 px-3 py-2 text-sm font-medium text-white hover:bg-teal-900"
           >

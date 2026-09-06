@@ -1,8 +1,8 @@
 # AI Provider Contract
 
 **Product:** EduVijna Paper Evaluation (CVB v0.1)  
-**Package:** `ai/` (Cursor A)  
-**Last updated:** 2026-09-04  
+**Package:** `apps/api/app/ai/` (runtime); architecture stub under `ai/`  
+**Last updated:** 2026-09-06  
 **Related:** [ADR-007](adrs/ADR-007-ai-provider-abstraction.md), [EVALUATION_LEDGER.md](./EVALUATION_LEDGER.md), [SECURITY_BASELINE.md](./SECURITY_BASELINE.md)
 
 ---
@@ -38,7 +38,25 @@ Every invocation produces an **`AiExecutionRecord`** in PostgreSQL for traceabil
 
 ## 3. Operation Interfaces
 
-Each operation defines input/output dataclasses in `ai/types.py` with JSON Schema mirrors in `packages/contracts/schemas/ai/`.
+Each B5 operation defines typed Pydantic models in `apps/api/app/ai/types.py`.
+
+### Implemented in B5
+
+* `extract_student_identity`
+* `analyze_page`
+* `map_answer_regions`
+* `transcribe_answer`
+
+Provider modes: `none` | `fixed` (test/dev only) | `openai` (optional).
+
+### Deferred to B6+
+
+* `evaluate_rubric`
+* `verify_math`
+* `classify_error`
+* reporting / learning operations
+
+The B5 provider must never publish or mutate marks.
 
 ### 3.1 `extract_student_identity`
 

@@ -343,13 +343,13 @@ test.describe("B4 real mapping review", () => {
       /ready for evaluation/i,
     );
     await expect(page.getByTestId("submission-downstream-boundary")).toContainText(
-      /Live evaluation is not enabled yet/i,
+      /transcription review|Live evaluation is not enabled yet/i,
     );
     await expect(page.getByTestId("link-mapping")).toBeVisible();
     await expect(page.getByTestId("link-evaluation")).toHaveCount(0);
     await expect(page.getByTestId("open-current-stage")).toHaveAttribute(
       "href",
-      /\/submissions\/[^/]+$/,
+      /\/submissions\/[^/]+(\/transcription)?$/,
     );
   });
 });

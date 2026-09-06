@@ -365,4 +365,21 @@ class AiExecutionRecord(UUIDPrimaryKeyMixin, Base):
     status: Mapped[str] = mapped_column(String(32))
     request_summary: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
     response_summary: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    submission_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("submissions.id", ondelete="SET NULL"), nullable=True
+    )
+    answer_region_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("answer_regions.id", ondelete="SET NULL"), nullable=True
+    )
+    evaluation_run_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    model: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    model_version: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    prompt_template_version: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    input_refs: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
+    input_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    latency_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    token_usage: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
+    error_class: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -32,6 +32,7 @@ import {
   getIdentityReview,
   getImprovementBlueprint,
   getMappingReview,
+  getTranscriptionWorkspace,
   getParentReport,
   getStudentAnalytics,
   getStudentReport,
@@ -438,6 +439,58 @@ export const MockEduVijnaApi: ApiClient = {
   },
   async getMappingReview(submissionId) {
     return mockCall(() => getMappingReview(submissionId));
+  },
+  async prepareTranscription(submissionId) {
+    const submission = submissions.find((s) => s.id === submissionId);
+    if (!submission) throw new Error(`Submission not found: ${submissionId}`);
+    submission.transcription_state = "REVIEW_REQUIRED";
+    return delay({ ...submission });
+  },
+  async getTranscriptionWorkspace(submissionId) {
+    return mockCall(() => getTranscriptionWorkspace(submissionId));
+  },
+  async putRegionTranscription(regionId, payload) {
+    void regionId;
+    return delay({
+      id: "tx-human-new",
+      answer_region_id: regionId,
+      version_number: 1,
+      source_type: "HUMAN",
+      text: payload.text ?? null,
+      latex: payload.latex ?? null,
+      transcription_confidence: null,
+      unreadable: Boolean(payload.unreadable),
+      visual_only: Boolean(payload.visual_only),
+      status: "REVIEW_REQUIRED",
+      confirmed_by: null,
+      confirmed_at: null,
+    });
+  },
+  async confirmTranscription(transcriptionId) {
+    return delay({
+      id: transcriptionId,
+      answer_region_id: "reg-2",
+      version_number: 1,
+      source_type: "HUMAN",
+      text: "confirmed text",
+      latex: null,
+      transcription_confidence: 0.9,
+      unreadable: false,
+      visual_only: false,
+      status: "CONFIRMED",
+      confirmed_by: "user-teacher-001",
+      confirmed_at: new Date().toISOString(),
+    });
+  },
+  async finalizeTranscription(submissionId) {
+    const submission = submissions.find((s) => s.id === submissionId);
+    if (!submission) throw new Error(`Submission not found: ${submissionId}`);
+    submission.transcription_state = "READY";
+    return delay({ ...submission });
+  },
+  async getRegionCropBlob(regionId) {
+    void regionId;
+    throw new Error("Region crops are not available in mock mode");
   },
   async applyMappingAction(submissionId, regionId, action: MappingAction) {
     void submissionId;

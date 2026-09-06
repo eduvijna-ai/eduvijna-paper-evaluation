@@ -80,11 +80,15 @@ export function StudentMatchCandidate({
   candidate,
   selected,
   onSelect,
+  showSourceType,
 }: {
   candidate: Candidate;
   selected?: boolean;
   onSelect?: () => void;
+  /** When true, distinguish AI-assisted suggestions from manual roster rows */
+  showSourceType?: boolean;
 }) {
+  const isAiSuggestion = candidate.source_type === "AI";
   return (
     <button
       type="button"
@@ -106,6 +110,19 @@ export function StudentMatchCandidate({
             Roll {candidate.external_ref} · Grade {candidate.grade}
             {candidate.section}
           </div>
+          {showSourceType && (
+            <span
+              data-testid={`candidate-source-${candidate.student_id}`}
+              className={cn(
+                "mt-1 inline-flex rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset",
+                isAiSuggestion
+                  ? "bg-violet-50 text-violet-800 ring-violet-200"
+                  : "bg-slate-50 text-slate-700 ring-slate-200",
+              )}
+            >
+              {isAiSuggestion ? "AI-assisted suggestion" : "Manual roster selection"}
+            </span>
+          )}
         </div>
       </div>
       <div className="mt-2">

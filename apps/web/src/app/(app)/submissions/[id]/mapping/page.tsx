@@ -362,6 +362,9 @@ function LiveMappingReview({ id }: { id: string }) {
     (m) => m.question_id === selectedQuestionId,
   );
   const activePage = data.pages.find((p) => p.id === activePageId);
+  const selectedRegion = selectedRegionId
+    ? data.regions.find((r) => r.id === selectedRegionId)
+    : null;
   const completion = data.completion;
   const busy =
     createRegionMutation.isPending ||
@@ -387,7 +390,9 @@ function LiveMappingReview({ id }: { id: string }) {
         data-testid="mapping-manual-notice"
         className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-950"
       >
-        Manual mapping — automated mapping not active.
+        {data.automated_region_detection_active || data.automated_mapping_active
+          ? "Automated mapping assistance is active — review AI proposals before confirming."
+          : "Manual mapping — automated mapping not active."}
       </p>
 
       {completion && (
@@ -451,6 +456,34 @@ function LiveMappingReview({ id }: { id: string }) {
         </div>
 
         <div className="flex min-h-[420px] flex-col gap-4 rounded-md border border-slate-200 bg-white p-4">
+          {selectedRegion && (
+            <div
+              data-testid="mapping-selected-region"
+              className="rounded-md border border-slate-200 bg-slate-50 p-3"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium text-slate-900">
+                  {selectedRegion.label}
+                </span>
+                {selectedRegion.source_type === "AI" && (
+                  <span
+                    data-testid="region-ai-proposal-badge"
+                    className="inline-flex rounded-md bg-violet-50 px-2 py-0.5 text-xs font-medium text-violet-800 ring-1 ring-violet-200"
+                  >
+                    AI proposal
+                  </span>
+                )}
+              </div>
+              {selectedRegion.source_type === "AI" && (
+                <div className="mt-2">
+                  <ConfidenceIndicator
+                    value={selectedRegion.confidence}
+                    label="Detection confidence"
+                  />
+                </div>
+              )}
+            </div>
+          )}
           {(selectedLiveMapping || selectedLegacy) && (
             <div
               data-testid="mapping-selected-detail"
@@ -472,16 +505,37 @@ function LiveMappingReview({ id }: { id: string }) {
               {selectedLiveMapping && (
                 <p className="mt-1 text-xs text-slate-500">
                   Disposition: {selectedLiveMapping.disposition}
+                  {selectedLiveMapping.mapped_by === "AI" ? (
+                    <span
+                      data-testid="mapping-ai-badge"
+                      className="ml-2 inline-flex rounded-md bg-violet-50 px-2 py-0.5 font-medium text-violet-800 ring-1 ring-violet-200"
+                    >
+                      mapped_by=AI
+                    </span>
+                  ) : (
+                    <span
+                      data-testid="mapping-human-badge"
+                      className="ml-2 inline-flex rounded-md bg-slate-50 px-2 py-0.5 font-medium text-slate-700 ring-1 ring-slate-200"
+                    >
+                      mapped_by=HUMAN
+                    </span>
+                  )}
                 </p>
               )}
               <div className="mt-2">
                 <ConfidenceIndicator
                   value={
-                    selectedLiveMapping?.mapping_confidence ??
-                    selectedLegacy?.confidence ??
-                    0
+                    selectedLiveMapping?.mapped_by === "AI"
+                      ? selectedLiveMapping.mapping_confidence
+                      : selectedLiveMapping?.mapped_by === "HUMAN"
+                        ? selectedLiveMapping.mapping_confidence
+                        : selectedLegacy?.confidence ?? 0
                   }
-                  label="Mapping confidence"
+                  label={
+                    selectedLiveMapping?.mapped_by === "AI"
+                      ? "AI mapping confidence"
+                      : "Mapping confidence"
+                  }
                 />
               </div>
             </div>

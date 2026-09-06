@@ -44,6 +44,8 @@ PERMISSION_CODES: Final = (
     "submission:review",
     "mapping:read",
     "mapping:review",
+    "transcription:read",
+    "transcription:review",
 )
 
 ROLE_PERMISSION_MAP: Final = {
@@ -69,6 +71,8 @@ ROLE_PERMISSION_MAP: Final = {
             "submission:review",
             "mapping:read",
             "mapping:review",
+            "transcription:read",
+            "transcription:review",
         }
     ),
     "EVALUATOR": frozenset(
@@ -84,6 +88,8 @@ ROLE_PERMISSION_MAP: Final = {
             "submission:review",
             "mapping:read",
             "mapping:review",
+            "transcription:read",
+            "transcription:review",
         }
     ),
     "STUDENT": frozenset(),

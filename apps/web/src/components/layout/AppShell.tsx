@@ -43,6 +43,71 @@ const navItems = [
   { href: "/admin", label: "Admin", icon: Settings, testId: "nav-admin" },
 ];
 
+const SUBMISSION_ROUTE_RE =
+  /^\/submissions\/([^/]+)(?:\/(identity|mapping|transcription|evaluation|review|annotated-paper))?/;
+
+function SubmissionWorkflowNav() {
+  const pathname = usePathname();
+  const caps = getApiCapabilities();
+  const match = pathname.match(SUBMISSION_ROUTE_RE);
+  if (!match) return null;
+
+  const submissionId = match[1];
+  const stageLinks: Array<{ href: string; label: string; testId: string }> = [
+    {
+      href: `/submissions/${submissionId}`,
+      label: "Detail",
+      testId: "submission-nav-detail",
+    },
+    {
+      href: `/submissions/${submissionId}/identity`,
+      label: "Identity",
+      testId: "submission-nav-identity",
+    },
+  ];
+
+  if (caps.mapping === "live") {
+    stageLinks.push({
+      href: `/submissions/${submissionId}/mapping`,
+      label: "Mapping",
+      testId: "submission-nav-mapping",
+    });
+  }
+  if (caps.transcription === "live") {
+    stageLinks.push({
+      href: `/submissions/${submissionId}/transcription`,
+      label: "Transcription",
+      testId: "submission-nav-transcription",
+    });
+  }
+
+  return (
+    <nav
+      data-testid="submission-workflow-nav"
+      className="flex flex-wrap gap-2 border-b border-slate-200 bg-white px-4 py-2 sm:px-6"
+    >
+      {stageLinks.map((link) => {
+        const active = pathname === link.href;
+        return (
+          <Link
+            key={link.href}
+            href={link.href}
+            data-testid={link.testId}
+            className={cn(
+              "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+              active
+                ? "bg-teal-50 text-teal-900 ring-1 ring-teal-200"
+                : "text-slate-600 hover:bg-slate-50 hover:text-slate-900",
+            )}
+          >
+            {link.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
+}
+
 export function Sidebar() {
   const pathname = usePathname();
 
@@ -167,6 +232,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
+        <SubmissionWorkflowNav />
         <main className="flex-1 overflow-auto p-4 sm:p-6">{children}</main>
       </div>
     </div>

@@ -165,9 +165,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Prepare local defaults
-        run: cp .env.example .env
+        run: |
+          cp .env.example .env
+          echo "AI_PROVIDER_VISION=fixed" >> .env
       - name: Start real backend stack
         run: docker compose up -d --build postgres redis minio api worker
+        env:
+          AI_PROVIDER_VISION: fixed
       - name: Migrate real backend database
         run: docker compose exec -T api python -m alembic -c alembic.ini upgrade head
       - name: Seed deterministic demo data

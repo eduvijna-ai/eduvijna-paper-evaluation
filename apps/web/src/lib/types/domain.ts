@@ -9,6 +9,7 @@ import type {
   LearningPathStepKind,
   MappingNodeState,
   SubmissionState,
+  TranscriptionState,
   UserRole,
 } from "./enums";
 
@@ -23,6 +24,7 @@ export type {
   LearningPathStepKind,
   MappingNodeState,
   SubmissionState,
+  TranscriptionState,
   UserRole,
 };
 export type Confidence = number;
@@ -263,6 +265,14 @@ export interface StudentMatchCandidate {
   section: string;
   confidence: Confidence;
   match_reasons: string[];
+  /** Live B3/B5 — AI-assisted suggestion vs manual roster row */
+  source_type?: "HUMAN" | "AI" | string;
+}
+
+export interface IdentityDetectedFields {
+  name: string | null;
+  roll: string | null;
+  identity_confidence: Confidence;
 }
 
 export interface Submission {
@@ -288,12 +298,70 @@ export interface Submission {
   mime_type?: string | null;
   byte_size?: number | null;
   storage_status?: string | null;
+  /** Live B5 — transcription pipeline state */
+  transcription_state?: TranscriptionState;
 }
 
 export interface IdentityReviewPayload {
   submission: Submission;
   candidates: StudentMatchCandidate[];
   pages: PaperPage[];
+  /** Live B3 — OCR/extraction summary when automated matching is active */
+  detected?: IdentityDetectedFields;
+  automated_matching_active?: boolean;
+}
+
+export interface RegionTranscriptionView {
+  id: string;
+  answer_region_id: string;
+  version_number: number;
+  source_type: "HUMAN" | "AI" | string;
+  text: string | null;
+  latex: string | null;
+  transcription_confidence: Confidence | null;
+  unreadable: boolean;
+  visual_only: boolean;
+  status: string;
+  confirmed_by?: string | null;
+  confirmed_at?: string | null;
+}
+
+export interface TranscriptionRegionView {
+  id: string;
+  label: string;
+  region_type?: string;
+  source_type?: string;
+  detection_confidence: Confidence;
+  bbox: { x: number; y: number; width: number; height: number };
+  /** Authenticated API path for region crop PNG */
+  crop_url: string | null;
+  page_image_url?: string | null;
+  page_index?: number | null;
+  latest_ai_proposal: RegionTranscriptionView | null;
+  active_transcription: RegionTranscriptionView | null;
+  requires_transcription: boolean;
+}
+
+export interface TranscriptionQuestionItem {
+  question_version_id: string;
+  question_label: string;
+  disposition: "ANSWERED" | "BLANK";
+  mapping_state: string;
+  regions: TranscriptionRegionView[];
+  requires_transcription: boolean;
+}
+
+export interface TranscriptionWorkspacePayload {
+  submission_id: string;
+  workflow_state: SubmissionState;
+  transcription_state: TranscriptionState;
+  automated_transcription_active: boolean;
+  progress: {
+    reviewed: number;
+    required: number;
+    label: string;
+  };
+  items: TranscriptionQuestionItem[];
 }
 
 export interface MappingCompletionSummary {

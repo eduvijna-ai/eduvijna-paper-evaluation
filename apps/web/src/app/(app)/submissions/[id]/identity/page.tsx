@@ -161,7 +161,7 @@ export default function IdentityReviewPage({
           teacher confirms a roster student.
         </div>
       )}
-      {live && (
+      {live && !data.automated_matching_active && (
         <p
           data-testid="identity-live-notice"
           className="mb-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"
@@ -191,11 +191,27 @@ export default function IdentityReviewPage({
         />
         <div className="space-y-4">
           <StudentIdentityCard
-            rollDetected={data.submission.roll_number_detected}
-            nameDetected={data.submission.name_detected}
+            rollDetected={
+              data.detected?.roll ?? data.submission.roll_number_detected
+            }
+            nameDetected={
+              data.detected?.name ?? data.submission.name_detected
+            }
             matchState={data.submission.student_match_state}
-            confidence={data.submission.identity_confidence}
+            confidence={
+              data.detected?.identity_confidence ??
+              data.submission.identity_confidence
+            }
           />
+          {data.automated_matching_active && (
+            <p
+              data-testid="identity-automated-notice"
+              className="rounded-md border border-violet-200 bg-violet-50 px-3 py-2 text-xs text-violet-950"
+            >
+              Automated identity matching is active — AI suggestions require human
+              confirmation. Detected roll/name and confidence reflect OCR extraction.
+            </p>
+          )}
           <div>
             <h2 className="mb-2 text-sm font-semibold text-slate-800">
               Roster candidates
@@ -206,6 +222,7 @@ export default function IdentityReviewPage({
                   key={c.student_id}
                   candidate={c}
                   selected={selectedStudentId === c.student_id}
+                  showSourceType={data.automated_matching_active}
                   onSelect={() => {
                     if (!actionsEnabled) return;
                     setSelectedStudentId(c.student_id);
