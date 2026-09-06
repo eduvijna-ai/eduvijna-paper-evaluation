@@ -19,6 +19,7 @@ from app.db.models.curriculum_assessment import (
 from app.db.models.institution import Institution
 from app.db.models.role import Permission, Role, RolePermission, UserRole
 from app.db.models.student import Guardian, ImportSession, Student, StudentGuardian
+from app.db.models.submission import PipelineJob, Submission, SubmissionPage
 from app.db.models.tenant import Tenant
 from app.db.models.user import User
 
@@ -38,6 +39,7 @@ __all__ = [
     "Institution",
     "ImportSession",
     "Permission",
+    "PipelineJob",
     "Question",
     "QuestionCurriculumMapping",
     "QuestionVersion",
@@ -48,6 +50,8 @@ __all__ = [
     "RubricVersion",
     "Student",
     "StudentGuardian",
+    "Submission",
+    "SubmissionPage",
     "Tenant",
     "User",
     "UserRole",

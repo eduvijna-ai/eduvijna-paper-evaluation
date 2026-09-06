@@ -33,8 +33,30 @@ jobs:
       DATABASE_URL: postgresql+asyncpg://eduvijna:eduvijna_local_dev_only@localhost:5432/eduvijna
       AUTH_TOKEN_SECRET: ci-only-secret-not-for-production
       APP_ENV: test
+      S3_ENDPOINT_URL: http://127.0.0.1:19000
+      S3_ACCESS_KEY: eduvijna_minio
+      S3_SECRET_KEY: eduvijna_minio_dev_only
+      S3_BUCKET: eduvijna-papers
+      S3_REGION: us-east-1
+      CELERY_TASK_ALWAYS_EAGER: "true"
     steps:
       - uses: actions/checkout@v4
+      - name: Start MinIO for B3 storage tests
+        working-directory: .
+        run: |
+          docker run -d --name minio-b3 \
+            -p 19000:9000 \
+            -e MINIO_ROOT_USER=eduvijna_minio \
+            -e MINIO_ROOT_PASSWORD=eduvijna_minio_dev_only \
+            minio/minio:latest server /data
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:19000/minio/health/live >/dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs minio-b3
+          exit 1
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -145,7 +167,7 @@ jobs:
       - name: Prepare local defaults
         run: cp .env.example .env
       - name: Start real backend stack
-        run: docker compose up -d --build postgres redis minio api
+        run: docker compose up -d --build postgres redis minio api worker
       - name: Migrate real backend database
         run: docker compose exec -T api python -m alembic -c alembic.ini upgrade head
       - name: Seed deterministic demo data
@@ -180,7 +202,7 @@ jobs:
           API_UPSTREAM_URL: http://127.0.0.1:18000
       - name: Show backend logs on failure
         if: failure()
-        run: docker compose logs --no-color api postgres redis minio
+        run: docker compose logs --no-color api worker postgres redis minio
       - name: Stop real backend stack
         if: always()
         run: docker compose down -v --remove-orphans

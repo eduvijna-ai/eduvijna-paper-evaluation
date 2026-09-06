@@ -114,6 +114,14 @@ export interface ApiClient {
   getAssessmentCurriculumMap(id: string): Promise<CurriculumMapEntry[]>;
   listSubmissions(): Promise<Submission[]>;
   getSubmission(id: string): Promise<Submission>;
+  /** B3 live upload. Optional so the preserved B0 mock client remains source-compatible. */
+  uploadSubmission?(input: {
+    assessmentId: string;
+    bundleName?: string;
+    file: File;
+  }): Promise<Submission>;
+  /** B3 live page PNG. Optional — only wired in hybrid/live. */
+  getSubmissionPageImageBlob?(pageId: string): Promise<Blob>;
   getIdentityReview(submissionId: string): Promise<IdentityReviewPayload>;
   confirmIdentity(
     submissionId: string,

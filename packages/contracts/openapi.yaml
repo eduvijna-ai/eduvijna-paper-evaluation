@@ -535,6 +535,147 @@ paths:
       security: [{ bearerAuth: [] }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CurriculumMappingProposalRequest" } } } }
       responses: { "503": { description: AI provider unavailable; no content fabricated } }
+  /api/v1/submissions:
+    get:
+      operationId: listSubmissions
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: assessment_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Submissions for the authenticated tenant
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Submission"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      operationId: uploadSubmission
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/SubmissionUploadRequest"
+      responses:
+        "201":
+          description: Submission created and queued for page normalization
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+        "400": { description: Invalid or unsupported upload }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { description: Duplicate source or assessment not ACTIVE }
+        "413": { description: File too large }
+  /api/v1/submissions/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getSubmission
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Submission detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/pages:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: listSubmissionPages
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Normalized submission pages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SubmissionPage"
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/source:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getSubmissionSource
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Immutable raw source bytes
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+            image/png:
+              schema: { type: string, format: binary }
+            image/jpeg:
+              schema: { type: string, format: binary }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submission-pages/{id}/image:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getSubmissionPageImage
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Normalized page PNG
+          content:
+            image/png:
+              schema: { type: string, format: binary }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/identity:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getIdentityReview
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Identity review payload with manual roster candidates
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IdentityReview"
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/identity/confirm:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: confirmIdentity
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IdentityConfirmInput"
+      responses:
+        "200":
+          description: Identity confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/identity/unmatched:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: markIdentityUnmatched
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Identity marked unmatched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+        "404": { $ref: "#/components/responses/NotFound" }
 components:
   securitySchemes:
     bearerAuth:
@@ -1002,3 +1143,116 @@ components:
           type: object
           additionalProperties: { type: string }
           maxProperties: 20
+
+    SubmissionUploadRequest:
+      type: object
+      required: [assessment_id, file]
+      properties:
+        assessment_id: { type: string, format: uuid }
+        bundle_name: { type: [string, "null"] }
+        file: { type: string, format: binary }
+    Submission:
+      type: object
+      required:
+        [
+          id,
+          tenant_id,
+          assessment_id,
+          assessment_version_id,
+          workflow_state,
+          student_match_state,
+          identity_confidence,
+          mapping_confidence,
+          source_content_sha256,
+          original_filename,
+          mime_type,
+          byte_size,
+          storage_status,
+          page_count,
+          uploaded_at,
+          updated_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        assessment_title: { type: [string, "null"] }
+        student_id: { type: [string, "null"], format: uuid }
+        student_display_name: { type: [string, "null"] }
+        workflow_state:
+          type: string
+          enum:
+            [
+              UPLOADED,
+              PROCESSING,
+              IDENTITY_REVIEW,
+              MAPPING_REVIEW,
+              READY_FOR_EVALUATION,
+              EVALUATING,
+              EVALUATION_REVIEW,
+              APPROVED,
+              PUBLISHED,
+              FAILED,
+            ]
+        student_match_state:
+          type: string
+          enum: [UNMATCHED, REVIEW_REQUIRED, AUTO_MATCHED, CONFIRMED]
+        roll_number_detected: { type: [string, "null"] }
+        name_detected: { type: [string, "null"] }
+        identity_confidence: { type: number }
+        mapping_confidence: { type: number }
+        source_storage_key: { type: string }
+        source_content_sha256: { type: string }
+        original_filename: { type: string }
+        mime_type: { type: string }
+        byte_size: { type: integer }
+        storage_status: { type: string, enum: [PENDING, AVAILABLE, FAILED] }
+        page_count: { type: integer }
+        bundle_name: { type: [string, "null"] }
+        uploaded_by: { type: string, format: uuid }
+        uploaded_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    SubmissionPage:
+      type: object
+      required: [id, tenant_id, submission_id, page_index, page_number, label, width, height]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        submission_id: { type: string, format: uuid }
+        page_index: { type: integer }
+        page_number: { type: integer }
+        label: { type: string }
+        width: { type: integer }
+        height: { type: integer }
+        is_continuation: { type: boolean }
+        created_at: { type: string, format: date-time }
+    StudentMatchCandidate:
+      type: object
+      required: [student_id, display_name, external_ref, confidence, match_reasons]
+      properties:
+        student_id: { type: string, format: uuid }
+        display_name: { type: string }
+        external_ref: { type: string }
+        grade: { type: string }
+        section: { type: string }
+        confidence: { type: number }
+        match_reasons: { type: array, items: { type: string } }
+    IdentityReview:
+      type: object
+      required: [submission, pages, candidates, automated_matching_active]
+      properties:
+        submission: { $ref: "#/components/schemas/Submission" }
+        pages:
+          type: array
+          items: { $ref: "#/components/schemas/SubmissionPage" }
+        candidates:
+          type: array
+          items: { $ref: "#/components/schemas/StudentMatchCandidate" }
+        automated_matching_active: { type: boolean }
+    IdentityConfirmInput:
+      type: object
+      required: [student_id]
+      properties:
+        student_id: { type: string, format: uuid }

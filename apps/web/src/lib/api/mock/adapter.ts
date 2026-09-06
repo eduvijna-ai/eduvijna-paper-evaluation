@@ -401,6 +401,17 @@ export const MockEduVijnaApi: ApiClient = {
     if (!submission) throw new Error(`Submission not found: ${id}`);
     return delay(submission);
   },
+  async uploadSubmission(input) {
+    void input;
+    // B0 demo upload UI does not call this — it navigates to sub-demo-002 directly.
+    const demo = submissions.find((s) => s.id === "sub-demo-002") ?? submissions[0];
+    if (!demo) throw new Error("No demo submissions available");
+    return delay({ ...demo });
+  },
+  async getSubmissionPageImageBlob(pageId) {
+    void pageId;
+    throw new Error("Page images are not available in mock mode");
+  },
   async getIdentityReview(submissionId) {
     return mockCall(() => getIdentityReview(submissionId));
   },

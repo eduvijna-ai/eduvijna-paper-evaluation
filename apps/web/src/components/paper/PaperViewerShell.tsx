@@ -177,6 +177,8 @@ export function PaperViewerShell({
   onRegionSelect,
   title = "Answer paper",
   showMarks = false,
+  mode = "synthetic",
+  pageImageUrl = null,
 }: {
   pages: PaperPage[];
   regions: EvidenceRegion[];
@@ -186,6 +188,9 @@ export function PaperViewerShell({
   onRegionSelect?: (regionId: string) => void;
   title?: string;
   showMarks?: boolean;
+  /** Live B3 pages render a real PNG; synthetic keeps the fixture sketch. */
+  mode?: "synthetic" | "live";
+  pageImageUrl?: string | null;
 }) {
   const [zoom, setZoom] = useState(1);
   const pageIndex = useMemo(
@@ -195,6 +200,7 @@ export function PaperViewerShell({
   const pageRegions = regions.filter((r) => r.page_id === activePageId);
   const selected = regions.find((r) => r.id === selectedRegionId);
   const activePage = pages[pageIndex] ?? pages[0];
+  const liveImage = mode === "live" && Boolean(pageImageUrl);
 
   const goPage = (delta: number) => {
     const next = pages[pageIndex + delta];
@@ -271,7 +277,9 @@ export function PaperViewerShell({
               +
             </button>
           </div>
-          <span className="text-xs text-slate-500">Synthetic · no PDFs</span>
+          <span className="text-xs text-slate-500">
+            {liveImage ? "Live page image" : "Synthetic · no PDFs"}
+          </span>
         </div>
       </div>
       <PageThumbnailStrip
@@ -289,18 +297,30 @@ export function PaperViewerShell({
           }}
         >
           <div className="relative aspect-[8/11] w-full overflow-hidden rounded border border-slate-300 bg-[#f7f6f2] shadow-sm">
-            <div className="absolute inset-0 opacity-40">
-              <div className="h-full w-full bg-[repeating-linear-gradient(0deg,transparent,transparent_23px,#e2e8f0_24px)]" />
-            </div>
-            <div className="absolute left-6 right-6 top-8 space-y-3 text-[10px] leading-relaxed text-slate-400">
-              <div className="h-3 w-1/3 rounded bg-slate-300/60" />
-              <div className="h-2 w-full rounded bg-slate-200/70" />
-              <div className="h-2 w-5/6 rounded bg-slate-200/70" />
-              <div className="h-2 w-4/5 rounded bg-slate-200/70" />
-              <div className="mt-8 h-2 w-full rounded bg-slate-200/70" />
-              <div className="h-2 w-11/12 rounded bg-slate-200/70" />
-              <div className="h-2 w-3/4 rounded bg-slate-200/70" />
-            </div>
+            {liveImage ? (
+              // eslint-disable-next-line @next/next/no-img-element -- blob URLs from authenticated fetch
+              <img
+                data-testid="live-page-image"
+                src={pageImageUrl!}
+                alt={activePage?.label ?? "Submission page"}
+                className="absolute inset-0 h-full w-full object-contain bg-white"
+              />
+            ) : (
+              <>
+                <div className="absolute inset-0 opacity-40">
+                  <div className="h-full w-full bg-[repeating-linear-gradient(0deg,transparent,transparent_23px,#e2e8f0_24px)]" />
+                </div>
+                <div className="absolute left-6 right-6 top-8 space-y-3 text-[10px] leading-relaxed text-slate-400">
+                  <div className="h-3 w-1/3 rounded bg-slate-300/60" />
+                  <div className="h-2 w-full rounded bg-slate-200/70" />
+                  <div className="h-2 w-5/6 rounded bg-slate-200/70" />
+                  <div className="h-2 w-4/5 rounded bg-slate-200/70" />
+                  <div className="mt-8 h-2 w-full rounded bg-slate-200/70" />
+                  <div className="h-2 w-11/12 rounded bg-slate-200/70" />
+                  <div className="h-2 w-3/4 rounded bg-slate-200/70" />
+                </div>
+              </>
+            )}
             <EvidenceRegionOverlay
               regions={pageRegions}
               selectedRegionId={selectedRegionId}

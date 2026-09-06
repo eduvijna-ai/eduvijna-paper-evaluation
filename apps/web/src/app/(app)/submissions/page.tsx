@@ -4,15 +4,27 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { getApiCapabilities } from "@/lib/api/capabilities";
 import { PageHeader, StatusBadge } from "@/components/layout/PageHeader";
 import { DataTable } from "@/components/ui/DataTable";
 import { ErrorState, LoadingState } from "@/components/ui/FeedbackStates";
 
+const POLL_STATES = new Set(["UPLOADED", "PROCESSING"]);
+
 export default function SubmissionsPage() {
   const router = useRouter();
+  const live = getApiCapabilities().submissions === "live";
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["submissions"],
     queryFn: () => api.listSubmissions(),
+    refetchInterval: (query) => {
+      if (!live) return false;
+      const rows = query.state.data;
+      if (!rows?.some((row) => POLL_STATES.has(row.workflow_state))) {
+        return false;
+      }
+      return 2000;
+    },
   });
 
   if (isLoading) return <LoadingState />;

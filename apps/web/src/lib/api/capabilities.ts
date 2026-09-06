@@ -14,6 +14,9 @@ export interface ApiCapabilities {
   curriculum: DomainCapability;
   assessments: DomainCapability;
   submissions: DomainCapability;
+  identityReview: DomainCapability;
+  mapping: DomainCapability;
+  evaluation: DomainCapability;
   reports: DomainCapability;
   analytics: DomainCapability;
   learning: DomainCapability;
@@ -31,7 +34,10 @@ export function getApiCapabilities(): ApiCapabilities {
       institution: "live",
       curriculum: "live",
       assessments: "live",
-      submissions: "mock",
+      submissions: "live",
+      identityReview: "live",
+      mapping: "mock",
+      evaluation: "mock",
       reports: "mock",
       analytics: "mock",
       learning: "mock",
@@ -46,6 +52,9 @@ export function getApiCapabilities(): ApiCapabilities {
     curriculum: "mock",
     assessments: "mock",
     submissions: "mock",
+    identityReview: "mock",
+    mapping: "mock",
+    evaluation: "mock",
     reports: "mock",
     analytics: "mock",
     learning: "mock",

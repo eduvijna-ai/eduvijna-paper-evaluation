@@ -123,7 +123,9 @@ export function TopBar() {
         <span className="mx-2 text-slate-300">·</span>
         <span data-testid="api-mode-badge">
           {caps.institution === "live"
-            ? "Platform API + mock CVB"
+            ? caps.submissions === "live"
+              ? "Platform + authoring + submissions live"
+              : "Platform API + mock CVB"
             : "Mock API"}
         </span>
       </div>

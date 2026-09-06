@@ -2,15 +2,15 @@
 
 **Product:** EduVijna Paper Evaluation (CVB)  
 **Author:** Implementation Engineer B (registry); A2 backend reconciliation by Implementation Engineer A  
-**Updated:** 2026-09-05 (A2 rebase onto develop `42bf99e`)  
-**Status:** A1 + A2 backend contracts published for platform + curriculum/assessment authoring; ingestion/evaluation/reporting/learning remain open
+**Updated:** 2026-09-06 (B3 submission ingestion + identity)  
+**Status:** A1+A2+B1+B2 live for platform/authoring; B3 live for submission ingestion + identity; mapping/evaluation/reporting/learning remain open
 
 ## Context
 
 Adapters (`NEXT_PUBLIC_API_MODE`):
 
 - `mock` — all domains mock + demo role login (Playwright B0)
-- `hybrid` (alias `http`) — **B1**: Auth/Institution/Years/Sections/Students/Import/Guardians via HTTP; Curriculum/Assessment/Submissions/Evaluation/Analytics/Learning remain mock
+- `hybrid` (alias `http`) — Auth/Institution/Years/Sections/Students/Import/Guardians (B1), Curriculum/Assessments (B2), Submissions/Identity (B3) via HTTP; Mapping/Evaluation/Analytics/Learning remain mock
 
 A1 (PR #4) published OpenAPI for auth, institution, academic years, class sections, students, student import, and guardians.  
 A2 (PR #5) publishes curriculum trees, prerequisites, assessments/versions, question trees, mark reconciliation, answer keys, rubrics/criteria, curriculum mappings, readiness transitions, and controlled AI-proposal unavailability.
@@ -38,15 +38,15 @@ B should map mock/http adapters to these **canonical** paths (no duplicate alias
 
 | Request ID | Priority | Screen(s) | Resolution status | Resolved API / schema | Next backend phase |
 |------------|----------|-----------|-------------------|----------------------|--------------------|
-| **FCR-001** | P0 | Domain CRUD | **IMPLEMENTED_IN_FRONTEND** (A1 platform portion); submissions still open | A1 students/institution/years/sections wired in B1 hybrid | Submissions → **OPEN_FOR_INGESTION**; A2 authoring → later B |
-| **FCR-002** | P0 | Identity review | **OPEN_FOR_INGESTION** | — (roster candidates can use A1 students in B1) | Submission identity endpoints |
-| **FCR-003** | P0 | Question mapping | **OPEN_FOR_INGESTION** | — (A2 curriculum↔question authoring map ≠ ingestion paper mapping) | Mapping GET + actions |
+| **FCR-001** | P0 | Domain CRUD | **IMPLEMENTED_IN_FRONTEND** (A1/B1/B2); submissions list/detail **RESOLVED_BY_B3** | A1 students/institution/years/sections; A2 curricula/assessments; B3 submissions | Mapping/evaluation later |
+| **FCR-002** | P0 | Identity review | **RESOLVED_BY_B3** | `GET …/identity`, confirm, unmatched | — |
+| **FCR-003** | P0 | Question mapping | **OPEN_FOR_INGESTION** | — (A2 curriculum↔question authoring map ≠ ingestion paper mapping) | Mapping GET + actions (B4+) |
 | **FCR-004** | P0 | Evaluation | **OPEN_FOR_EVALUATION** | Ledger schema exists as JSON Schema; no HTTP paths yet | Evaluation workspace + teacher actions |
 | **FCR-005** | P1 | Reports / Analytics | **OPEN_FOR_REPORTING** | — | Report & analytics DTOs |
 | **FCR-006** | P1 | Adaptive learning | **OPEN_FOR_LEARNING** | — | Learning + improvement blueprint |
-| **FCR-007** | P1 | Paper viewer | **OPEN_FOR_INGESTION** | — | Evidence region / page schema |
-| **FCR-008** | P2 | Answer key / curriculum map | **RESOLVED_BY_A2** | Answer-key versions + approve; question curriculum mappings; rubrics/criteria | B adapter wiring |
-| **FCR-009** | P2 | Raw upload | **OPEN_FOR_INGESTION** | — | Multipart / pre-signed upload |
+| **FCR-007** | P1 | Paper viewer | **PARTIAL_B3** — live page images resolved; evidence-region overlay still B4 | Page image proxy + `SubmissionPage` | Answer-region overlays |
+| **FCR-008** | P2 | Answer key / curriculum map | **RESOLVED_BY_A2** | Answer-key versions + approve; question curriculum mappings; rubrics/criteria | — |
+| **FCR-009** | P2 | Raw upload | **RESOLVED_BY_B3** | Multipart `POST /api/v1/submissions` + immutable MinIO storage | — |
 | **FCR-010** | P0 | Auth (B1) | **IMPLEMENTED_IN_FRONTEND** | Live `login`/`me` + hybrid session | Cookie sessions preferred (BCR) |
 | **FCR-011** | P1 | Guardians / import | **IMPLEMENTED_IN_FRONTEND** | Live guardians + CSV validate/commit + GET student guardians | — |
 
@@ -67,18 +67,19 @@ B should map mock/http adapters to these **canonical** paths (no duplicate alias
 - Assessments: `GET/POST /api/v1/assessments`, `GET/PATCH /api/v1/assessments/{id}`, versions + `POST …/transition` — schemas `Assessment`, `AssessmentInput`, `AssessmentVersionInput`
 - Questions: `GET/POST /api/v1/assessment-versions/{id}/questions`, `PATCH/DELETE /api/v1/question-versions/{id}` — schema `QuestionInput` / question tree payload
 
-**Still open:** submissions list/detail → **OPEN_FOR_INGESTION**.
+**Still open for later phases:** ingestion paper/region mapping and evaluation (not B3).
 
 **B1 note:** UI `Student` DTO (`display_name`, `external_ref`, …) differs from A1 `full_name` / `student_code` — map at HTTP adapter boundary; do not rename OpenAPI fields.  
-**B2 note:** Assessment create returns `initial_version_id`; list/get assessment does not embed `current_version` — clients should use `GET …/versions` or create response.
+**B2 note:** Assessment create returns `initial_version_id`; list/get assessment does not embed `current_version` — clients should use `GET …/versions` or create response.  
+**B3 note:** Submissions list/detail/upload + identity review are live in hybrid mode.
 
 ---
 
 ## FCR-002 — Identity matching (P0)
 
-**Resolution:** OPEN_FOR_INGESTION  
+**Resolution:** RESOLVED_BY_B3  
 
-Roster candidates can eventually load from A1 students. Submission identity GET/confirm/unmatched paths still required.
+Live `GET /api/v1/submissions/{id}/identity`, confirm, and unmatched with manual roster candidates (confidence 0.0; no automated extraction).
 
 ---
 
@@ -87,7 +88,7 @@ Roster candidates can eventually load from A1 students. Submission identity GET/
 **Resolution:** OPEN_FOR_INGESTION  
 
 A2 provides **authoring-time** question↔curriculum-node mappings (`QuestionCurriculumMapping`, types PRIMARY/SECONDARY/LEARNING_OUTCOME/SKILL).  
-Ingestion-time paper/region question mapping remains a later phase.
+Ingestion-time paper/region question mapping remains a later phase (B4+).
 
 ---
 
@@ -113,7 +114,9 @@ JSON Schema `evaluation-ledger.schema.json` exists; HTTP workspace + action endp
 
 ## FCR-007 — Paper / evidence geometry (P1)
 
-**Resolution:** OPEN_FOR_INGESTION  
+**Resolution:** PARTIAL_B3  
+
+Live normalized page images are available via authenticated proxy. Evidence-region overlays remain B4.
 
 ---
 
@@ -136,9 +139,9 @@ JSON Schema `evaluation-ledger.schema.json` exists; HTTP workspace + action endp
 
 ## FCR-009 — Raw upload (P2)
 
-**Resolution:** OPEN_FOR_INGESTION  
+**Resolution:** RESOLVED_BY_B3  
 
----
+Multipart `POST /api/v1/submissions` with immutable MinIO raw storage and page-normalization worker.
 
 ## FCR-010 — Auth (added at A1 merge gate)
 
