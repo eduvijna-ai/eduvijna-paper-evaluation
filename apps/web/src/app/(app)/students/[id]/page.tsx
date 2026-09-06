@@ -9,6 +9,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { api, getApiCapabilities, isApiError } from "@/lib/api";
 import { A1_PERMISSIONS } from "@/lib/api/a1-types";
 import { getSession, hasPermission } from "@/lib/auth/session";
+import {
+  getGuardianPanelState,
+  shouldLoadStudentGuardians,
+} from "@/lib/students/guardian-panel-state";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ErrorState, LoadingState } from "@/components/ui/FeedbackStates";
 import { ConceptMasteryBar } from "@/components/learning/LearningComponents";
@@ -39,6 +43,7 @@ export default function StudentDetailPage({
   const queryClient = useQueryClient();
   const session = useMemo(() => getSession(), []);
   const canWrite = hasPermission(session, A1_PERMISSIONS.studentWrite);
+  const canGuardianRead = hasPermission(session, A1_PERMISSIONS.guardianRead);
   const canGuardianWrite = hasPermission(session, A1_PERMISSIONS.guardianWrite);
   const caps = useMemo(() => getApiCapabilities(), []);
   const [editing, setEditing] = useState(false);
@@ -56,6 +61,7 @@ export default function StudentDetailPage({
   const linkedGuardiansQuery = useQuery({
     queryKey: ["student-guardians", id],
     queryFn: () => api.listStudentGuardians(id),
+    enabled: shouldLoadStudentGuardians(canGuardianRead),
   });
 
   const editForm = useForm<EditValues>({
@@ -78,8 +84,8 @@ export default function StudentDetailPage({
         fullName: values.fullName,
         rollNumber: values.rollNumber,
         admissionNumber: values.admissionNumber,
-        academicYearId: studentQuery.data?.academic_year_id,
-        classSectionId: studentQuery.data?.class_section_id || null,
+        academicYearId: studentQuery.data?.academic_year_id ?? null,
+        classSectionId: studentQuery.data?.class_section_id ?? null,
       }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["student", id] });
@@ -150,6 +156,12 @@ export default function StudentDetailPage({
   const student = studentQuery.data;
   const analytics = analyticsQuery.data;
   const linkedGuardians = linkedGuardiansQuery.data ?? [];
+  const guardianPanelState = getGuardianPanelState({
+    canRead: canGuardianRead,
+    isLoading: linkedGuardiansQuery.isLoading,
+    isError: linkedGuardiansQuery.isError,
+    guardianCount: linkedGuardians.length,
+  });
 
   return (
     <div data-testid="student-detail-page">
@@ -277,9 +289,29 @@ export default function StudentDetailPage({
           <p className="text-xs text-slate-500">
             Linked guardians persist after reload.
           </p>
-          {linkedGuardiansQuery.isLoading ? (
+          {guardianPanelState === "restricted" ? (
+            <p
+              className="text-sm text-slate-500"
+              data-testid="guardians-restricted"
+            >
+              Guardian information is not available for your role.
+            </p>
+          ) : guardianPanelState === "loading" ? (
             <LoadingState label="Loading guardians…" />
-          ) : linkedGuardians.length === 0 ? (
+          ) : guardianPanelState === "error" ? (
+            <div className="space-y-2" data-testid="guardians-error">
+              <p className="text-sm text-rose-700">
+                Unable to load guardian information.
+              </p>
+              <button
+                type="button"
+                className="text-xs font-medium text-teal-800"
+                onClick={() => void linkedGuardiansQuery.refetch()}
+              >
+                Retry
+              </button>
+            </div>
+          ) : guardianPanelState === "empty" ? (
             <p className="text-sm text-slate-500" data-testid="guardians-empty">
               No guardians linked.
             </p>
