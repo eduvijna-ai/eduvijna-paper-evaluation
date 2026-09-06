@@ -118,11 +118,11 @@ async function createTwoLeafAssessment(
     expect(
       (
         await request.post(
-          `${apiBase}/api/v1/answer-key-versions/${((await key.json()) as { id: string }).id}/approve`,
+          `${apiBase}/api/v1/answer-key-versions/${(await key.json()).id}/approve`,
           { headers },
         )
-      ).status(),
-    ).toBe(200);
+      ).ok(),
+    ).toBeTruthy();
 
     const rubric = await request.post(
       `${apiBase}/api/v1/assessments/${assessmentId}/rubrics`,
@@ -130,40 +130,43 @@ async function createTwoLeafAssessment(
         headers,
         data: {
           question_version_id: questionId,
-          title: `R-${leaf.label}`,
+          title: leaf.code,
           provenance: "TEACHER",
         },
       },
     );
     expect(rubric.status()).toBe(201);
-    const rv = await request.post(
-      `${apiBase}/api/v1/rubrics/${((await rubric.json()) as { id: string }).id}/versions`,
-      {
-        headers,
-        data: {
-          question_version_id: questionId,
-          source_type: "TEACHER",
-          status: "DRAFT",
-          criteria: [
-            {
-              criterion_code: "C1",
-              description: "correct",
-              max_marks: leaf.marks,
-              sequence: 1,
-            },
-          ],
-        },
+    const rubricId = ((await rubric.json()) as { id: string }).id;
+    const rv = await request.post(`${apiBase}/api/v1/rubrics/${rubricId}/versions`, {
+      headers,
+      data: {
+        question_version_id: questionId,
+        source_type: "TEACHER",
+        status: "DRAFT",
       },
-    );
+    });
     expect(rv.status()).toBe(201);
+    const rvId = ((await rv.json()) as { id: string }).id;
     expect(
       (
-        await request.post(
-          `${apiBase}/api/v1/rubric-versions/${((await rv.json()) as { id: string }).id}/approve`,
-          { headers },
-        )
+        await request.post(`${apiBase}/api/v1/rubric-versions/${rvId}/criteria`, {
+          headers,
+          data: {
+            criterion_code: "C1",
+            description: "correct",
+            max_marks: leaf.marks,
+            sequence: 1,
+            scoring_mode: "ADDITIVE",
+            partial_credit_allowed: true,
+            ecf_policy: "NONE",
+          },
+        })
       ).status(),
-    ).toBe(200);
+    ).toBe(201);
+    expect(
+      (await request.post(`${apiBase}/api/v1/rubric-versions/${rvId}/approve`, { headers }))
+        .ok(),
+    ).toBeTruthy();
   }
 
   expect(

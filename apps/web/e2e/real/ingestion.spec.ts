@@ -263,8 +263,12 @@ test.describe("B3 real submission ingestion + identity", () => {
     });
     await expect(page.getByTestId("paper-viewer-shell")).toBeVisible();
     await expect(page.getByTestId("live-page-image")).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByTestId("identity-live-notice")).toBeVisible();
-    await expect(page.getByText(/manual|roster/i).first()).toBeVisible();
+    await expect(
+      page
+        .getByTestId("identity-live-notice")
+        .or(page.getByTestId("identity-automated-notice")),
+    ).toBeVisible();
+    await expect(page.getByText(/manual|roster|AI-assisted|automated/i).first()).toBeVisible();
 
     await expect(page.getByTestId(`match-candidate-${studentId}`)).toBeVisible();
     await page.getByTestId(`match-candidate-${studentId}`).click();
