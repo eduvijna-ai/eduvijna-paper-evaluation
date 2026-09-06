@@ -5,7 +5,7 @@ import { HybridEduVijnaApi } from "./hybrid/adapter";
 /**
  * API mode:
  * - mock (default for Playwright B0): all domains mock + demo auth
- * - hybrid (B3 default for local real APIs): A1/A2/B3 HTTP + mapping/eval/analytics mock
+ * - hybrid (B4 default for local real APIs): A1/A2/B3/B4 HTTP + eval/analytics/reports mock
  *
  * Do not use a single boolean for all domains — hybrid routes by capability.
  */

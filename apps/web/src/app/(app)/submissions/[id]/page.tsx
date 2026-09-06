@@ -9,6 +9,11 @@ import { PageHeader, StatusBadge } from "@/components/layout/PageHeader";
 import { ConfidenceIndicator, ErrorState, LoadingState } from "@/components/ui/FeedbackStates";
 
 const POLL_STATES = new Set(["UPLOADED", "PROCESSING"]);
+const TERMINAL_AFTER_IDENTITY = new Set([
+  "MAPPING_REVIEW",
+  "READY_FOR_EVALUATION",
+  "FAILED",
+]);
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -23,6 +28,10 @@ function stageHref(id: string, state: string, live: boolean): string {
     if (state === "IDENTITY_REVIEW" || state === "UPLOADED" || state === "PROCESSING") {
       return `/submissions/${id}/identity`;
     }
+    if (state === "MAPPING_REVIEW") {
+      return `/submissions/${id}/mapping`;
+    }
+    // READY_FOR_EVALUATION stays on detail — live evaluation is not enabled yet.
     return `/submissions/${id}`;
   }
   switch (state) {
@@ -48,6 +57,7 @@ export default function SubmissionDetailPage({
 }) {
   const { id } = use(params);
   const live = isLiveSubmissionContext(id);
+  const mappingLive = getApiCapabilities().mapping === "live";
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["submission", id],
     queryFn: () => api.getSubmission(id),
@@ -55,11 +65,16 @@ export default function SubmissionDetailPage({
       if (!live) return false;
       const submission = query.state.data;
       if (!submission) return false;
-      // After B3 identity confirm the state is PROCESSING but mapping is not live —
-      // stop polling once identity is finalized or the job failed/reached review.
-      if (submission.student_match_state === "CONFIRMED") return false;
-      if (submission.workflow_state === "IDENTITY_REVIEW") return false;
       if (submission.workflow_state === "FAILED") return false;
+      if (TERMINAL_AFTER_IDENTITY.has(submission.workflow_state)) return false;
+      // After identity confirm, keep polling PROCESSING until mapping prepare lands.
+      if (
+        submission.student_match_state === "CONFIRMED" &&
+        POLL_STATES.has(submission.workflow_state)
+      ) {
+        return 2000;
+      }
+      if (submission.workflow_state === "IDENTITY_REVIEW") return false;
       if (!POLL_STATES.has(submission.workflow_state)) return false;
       return 2000;
     },
@@ -82,11 +97,32 @@ export default function SubmissionDetailPage({
   const liveLinks = [
     { href: `/submissions/${id}/identity`, label: "Identity", testId: "link-identity" },
   ];
+  if (
+    mappingLive &&
+    (data.workflow_state === "MAPPING_REVIEW" ||
+      data.workflow_state === "READY_FOR_EVALUATION")
+  ) {
+    liveLinks.push({
+      href: `/submissions/${id}/mapping`,
+      label: "Mapping",
+      testId: "link-mapping",
+    });
+  }
   const links = live ? liveLinks : mockLinks;
   const identityConfirmedProcessing =
     live &&
     data.student_match_state === "CONFIRMED" &&
     POLL_STATES.has(data.workflow_state);
+
+  const downstreamBoundary =
+    live &&
+    (data.workflow_state === "MAPPING_REVIEW"
+      ? "Question mapping is live for this submission. Evaluation, annotated paper, and review hub remain mock."
+      : data.workflow_state === "READY_FOR_EVALUATION"
+        ? "Question mapping is complete. Live evaluation is not enabled yet."
+        : mappingLive
+          ? "Identity review and mapping are available when ready. Evaluation, annotated paper, and review hub remain mock."
+          : "Mapping, evaluation, annotated paper, and review hub are not live for B3 ingestion. Identity review is available; downstream stages remain on the mock provider.");
 
   return (
     <div data-testid="submission-detail-page">
@@ -122,9 +158,7 @@ export default function SubmissionDetailPage({
           data-testid="submission-downstream-boundary"
           className="mb-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"
         >
-          Mapping, evaluation, annotated paper, and review hub are not live for
-          B3 ingestion. Identity review is available; downstream stages remain on
-          the mock provider.
+          {downstreamBoundary}
         </p>
       )}
 
@@ -133,8 +167,8 @@ export default function SubmissionDetailPage({
           data-testid="identity-confirmed-boundary"
           className="mb-4 rounded-md border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-950"
         >
-          Identity confirmed. Further processing is in progress — mapping and
-          evaluation are not live yet for this submission.
+          Identity confirmed. Preparing mapping review — this page will update
+          when the submission reaches mapping review.
         </p>
       )}
 
@@ -197,7 +231,7 @@ export default function SubmissionDetailPage({
             label="Identity confidence"
           />
         </div>
-        {!live && (
+        {(!live || mappingLive) && (
           <div className="rounded-md border border-slate-200 bg-white p-4">
             <ConfidenceIndicator
               value={data.mapping_confidence}

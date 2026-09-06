@@ -676,6 +676,139 @@ paths:
               schema:
                 $ref: "#/components/schemas/Submission"
         "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/mapping/prepare:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: prepareMappingReview
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Mapping preparation enqueued / completed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Submission" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/mapping:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getMappingWorkspace
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Live mapping workspace for the bound assessment version
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MappingWorkspace" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/mapping/finalize:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: finalizeMappingReview
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Mapping complete — READY_FOR_EVALUATION
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Submission" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submission-pages/{id}/answer-regions:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: createAnswerRegion
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnswerRegionInput" }
+      responses:
+        "201":
+          description: Answer region created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnswerRegion" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/answer-regions/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    patch:
+      operationId: updateAnswerRegion
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnswerRegionPatch" }
+      responses:
+        "200":
+          description: Answer region updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnswerRegion" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      operationId: deleteAnswerRegion
+      security: [{ bearerAuth: [] }]
+      responses:
+        "204":
+          description: Answer region deleted
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submission-pages/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    patch:
+      operationId: updateSubmissionPage
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubmissionPagePatch" }
+      responses:
+        "200":
+          description: Submission page updated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SubmissionPage" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/question-mappings/{questionVersionId}:
+    parameters:
+      - { $ref: "#/components/parameters/Id" }
+      - name: questionVersionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    put:
+      operationId: upsertQuestionMapping
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/QuestionMappingInput" }
+      responses:
+        "200":
+          description: Question mapping upserted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QuestionAnswerMapping" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/question-mappings/{questionVersionId}/confirm:
+    parameters:
+      - { $ref: "#/components/parameters/Id" }
+      - name: questionVersionId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: confirmQuestionMapping
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Question mapping confirmed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QuestionAnswerMapping" }
+        "404": { $ref: "#/components/responses/NotFound" }
 components:
   securitySchemes:
     bearerAuth:
@@ -1256,3 +1389,220 @@ components:
       required: [student_id]
       properties:
         student_id: { type: string, format: uuid }
+    NormalizedBBox:
+      type: object
+      additionalProperties: false
+      required: [x, y, width, height]
+      properties:
+        x: { type: number, minimum: 0, maximum: 1 }
+        y: { type: number, minimum: 0, maximum: 1 }
+        width: { type: number, exclusiveMinimum: 0, maximum: 1 }
+        height: { type: number, exclusiveMinimum: 0, maximum: 1 }
+    AnswerRegion:
+      type: object
+      required:
+        [
+          id,
+          tenant_id,
+          submission_page_id,
+          page_id,
+          label,
+          bbox,
+          region_type,
+          source_type,
+          detection_confidence,
+          crossed_out,
+          ignored,
+          is_continuation,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        submission_page_id: { type: string, format: uuid }
+        page_id: { type: string, format: uuid }
+        page_number: { type: integer }
+        label: { type: string }
+        bbox: { $ref: "#/components/schemas/NormalizedBBox" }
+        x: { type: number }
+        y: { type: number }
+        width: { type: number }
+        height: { type: number }
+        region_type:
+          type: string
+          enum: [ANSWER, SCRATCH, DIAGRAM, IDENTITY]
+        source_type: { type: string, enum: [HUMAN, AI] }
+        detection_confidence: { type: number }
+        confidence: { type: number }
+        crossed_out: { type: boolean }
+        ignored: { type: boolean }
+        is_continuation: { type: boolean }
+        transcription: { type: [string, "null"] }
+        transcription_confidence: { type: number }
+        question_id: { type: [string, "null"], format: uuid }
+        created_by: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    AnswerRegionInput:
+      type: object
+      additionalProperties: false
+      required: [label, region_type, bbox]
+      properties:
+        label: { type: string, minLength: 1, maxLength: 255 }
+        region_type:
+          type: string
+          enum: [ANSWER, SCRATCH, DIAGRAM, IDENTITY]
+        bbox: { $ref: "#/components/schemas/NormalizedBBox" }
+    AnswerRegionPatch:
+      type: object
+      additionalProperties: false
+      properties:
+        label: { type: string, minLength: 1, maxLength: 255 }
+        region_type:
+          type: string
+          enum: [ANSWER, SCRATCH, DIAGRAM, IDENTITY]
+        bbox: { $ref: "#/components/schemas/NormalizedBBox" }
+        crossed_out: { type: boolean }
+        ignored: { type: boolean }
+        is_continuation: { type: boolean }
+    SubmissionPagePatch:
+      type: object
+      additionalProperties: false
+      required: [is_continuation]
+      properties:
+        is_continuation: { type: boolean }
+    QuestionAnswerMapping:
+      type: object
+      required:
+        [
+          id,
+          submission_id,
+          question_id,
+          question_version_id,
+          disposition,
+          mapping_state,
+          mapped_by,
+          mapping_confidence,
+          region_ids,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        submission_id: { type: string, format: uuid }
+        question_id: { type: string, format: uuid }
+        question_version_id: { type: string, format: uuid }
+        question_code: { type: string }
+        disposition: { type: string, enum: [ANSWERED, BLANK] }
+        mapping_state:
+          type: string
+          enum: [PROPOSED, REVIEW_REQUIRED, CONFIRMED]
+        status:
+          type: string
+          enum: [PROPOSED, REVIEW_REQUIRED, CONFIRMED]
+        mapped_by: { type: string, enum: [HUMAN, AI] }
+        mapping_confidence: { type: number }
+        confidence: { type: number }
+        region_ids:
+          type: array
+          items: { type: string, format: uuid }
+        confirmed_by: { type: [string, "null"], format: uuid }
+        confirmed_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    QuestionMappingInput:
+      type: object
+      additionalProperties: false
+      required: [disposition]
+      properties:
+        disposition: { type: string, enum: [ANSWERED, BLANK] }
+        region_ids:
+          type: array
+          items: { type: string, format: uuid }
+    MappingCompletionSummary:
+      type: object
+      required: [leaf_total, confirmed_count, unresolved_question_codes]
+      properties:
+        leaf_total: { type: integer }
+        confirmed_count: { type: integer }
+        unresolved_question_codes:
+          type: array
+          items: { type: string }
+    MappingWorkspace:
+      type: object
+      required:
+        [
+          submission,
+          pages,
+          regions,
+          questions,
+          mappings,
+          completion,
+          assessment_version_id,
+          automated_region_detection_active,
+          automated_mapping_active,
+        ]
+      properties:
+        submission: { $ref: "#/components/schemas/Submission" }
+        pages:
+          type: array
+          items: { $ref: "#/components/schemas/SubmissionPage" }
+        regions:
+          type: array
+          items: { $ref: "#/components/schemas/AnswerRegion" }
+        questions:
+          type: array
+          items: { $ref: "#/components/schemas/MappingQuestionNode" }
+        mappings:
+          type: array
+          items: { $ref: "#/components/schemas/QuestionAnswerMapping" }
+        mapping:
+          type: array
+          items: { $ref: "#/components/schemas/MappingNodeCompat" }
+        completion: { $ref: "#/components/schemas/MappingCompletionSummary" }
+        assessment_version_id: { type: string, format: uuid }
+        automated_region_detection_active: { type: boolean }
+        automated_mapping_active: { type: boolean }
+    MappingQuestionNode:
+      type: object
+      required:
+        [
+          id,
+          question_version_id,
+          question_id,
+          code,
+          prompt,
+          max_mark,
+          sort_order,
+          scoring_mode,
+          is_leaf_scorable,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        question_version_id: { type: string, format: uuid }
+        question_id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        parent_id: { type: [string, "null"], format: uuid }
+        code: { type: string }
+        prompt: { type: string }
+        max_mark: { type: number }
+        sort_order: { type: integer }
+        scoring_mode: { type: string, enum: [LEAF_SCORABLE, CONTAINER_DERIVED] }
+        is_leaf_scorable: { type: boolean }
+        curriculum_node_ids:
+          type: array
+          items: { type: string }
+        children:
+          type: array
+          items: { $ref: "#/components/schemas/MappingQuestionNode" }
+    MappingNodeCompat:
+      type: object
+      required: [question_id, question_code, region_ids, confidence, status]
+      properties:
+        question_id: { type: string }
+        question_code: { type: string }
+        region_ids:
+          type: array
+          items: { type: string }
+        confidence: { type: number }
+        status:
+          type: string
+          enum: [PROPOSED, REVIEW_REQUIRED, CONFIRMED]
+

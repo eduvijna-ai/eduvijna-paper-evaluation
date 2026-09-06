@@ -1,4 +1,4 @@
-"""Celery application and B3 page-normalization task."""
+"""Celery application and pipeline tasks (B3 + B4)."""
 
 from __future__ import annotations
 
@@ -33,9 +33,11 @@ celery_app = create_celery_app()
 async def _normalize_async(
     tenant_id: uuid.UUID, submission_id: uuid.UUID, job_id: uuid.UUID
 ) -> None:
-    from app.db.session import async_session_factory
+    from app.db.session import async_session_factory, engine
     from app.services.page_normalization import run_page_normalization
 
+    # Celery uses a fresh asyncio loop per task; dispose pooled connections first.
+    await engine.dispose()
     async with async_session_factory() as db:
         await run_page_normalization(
             db,
@@ -81,5 +83,55 @@ async def enqueue_page_normalization(
         return f"eager:{job_id}"
 
     result = normalize_pages_task.delay(str(tenant_id), str(submission_id), str(job_id))
+    task_id = getattr(result, "id", None)
+    return str(task_id) if task_id is not None else None
+
+
+async def _mapping_prepare_async(
+    tenant_id: uuid.UUID, submission_id: uuid.UUID, job_id: uuid.UUID
+) -> None:
+    from app.db.session import async_session_factory, engine
+    from app.services.mapping_prepare import run_mapping_preparation
+
+    await engine.dispose()
+    async with async_session_factory() as db:
+        await run_mapping_preparation(
+            db,
+            tenant_id=tenant_id,
+            submission_id=submission_id,
+            job_id=job_id,
+        )
+
+
+def _prepare_mapping_impl(tenant_id: str, submission_id: str, job_id: str) -> dict[str, str]:
+    asyncio.run(
+        _mapping_prepare_async(
+            uuid.UUID(tenant_id),
+            uuid.UUID(submission_id),
+            uuid.UUID(job_id),
+        )
+    )
+    return {
+        "tenant_id": tenant_id,
+        "submission_id": submission_id,
+        "job_id": job_id,
+        "status": "ok",
+    }
+
+
+prepare_mapping_task = cast(
+    Any, celery_app.task(name="submissions.prepare_mapping")(_prepare_mapping_impl)
+)
+
+
+async def enqueue_mapping_preparation(
+    *, tenant_id: uuid.UUID, submission_id: uuid.UUID, job_id: uuid.UUID
+) -> str | None:
+    settings = get_settings()
+    if settings.celery_task_always_eager:
+        await _mapping_prepare_async(tenant_id, submission_id, job_id)
+        return f"eager:{job_id}"
+
+    result = prepare_mapping_task.delay(str(tenant_id), str(submission_id), str(job_id))
     task_id = getattr(result, "id", None)
     return str(task_id) if task_id is not None else None

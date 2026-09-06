@@ -126,6 +126,10 @@ export interface Question {
   sort_order: number;
   curriculum_node_ids: string[];
   children?: Question[];
+  /** Live B4 question-version id (often equal to `id` in the mapping tree). */
+  question_version_id?: string;
+  scoring_mode?: string;
+  is_leaf_scorable?: boolean;
 }
 
 export interface RubricCriterion {
@@ -194,6 +198,8 @@ export interface PaperPage {
   label: string;
   width: number;
   height: number;
+  /** Live B4 — page continues an answer from a prior page. */
+  is_continuation?: boolean;
 }
 
 /** Normalized rect relative to a page: all values in [0, 1]. */
@@ -227,6 +233,11 @@ export interface EvidenceRegion {
   question_id: string | null;
   crossed_out: boolean;
   annotation_kind?: "FULL" | "PARTIAL" | "DEDUCTION" | "NEUTRAL";
+  /** Live B4 answer-region metadata */
+  region_type?: "ANSWER" | "SCRATCH" | "DIAGRAM" | "IDENTITY" | string;
+  source_type?: "HUMAN" | "AI" | string;
+  ignored?: boolean;
+  is_continuation?: boolean;
 }
 
 export interface MappingNode {
@@ -285,12 +296,39 @@ export interface IdentityReviewPayload {
   pages: PaperPage[];
 }
 
+export interface MappingCompletionSummary {
+  leaf_total: number;
+  confirmed_count: number;
+  unresolved_question_codes: string[];
+}
+
+export interface QuestionAnswerMappingView {
+  id: string;
+  question_id: string;
+  question_version_id: string;
+  question_code: string;
+  disposition: "ANSWERED" | "BLANK";
+  mapping_state: "PROPOSED" | "REVIEW_REQUIRED" | "CONFIRMED";
+  mapped_by: "HUMAN" | "AI";
+  mapping_confidence: number;
+  region_ids: string[];
+  confirmed_by: string | null;
+  confirmed_at: string | null;
+}
+
 export interface MappingReviewPayload {
   submission: Submission;
   pages: PaperPage[];
   regions: EvidenceRegion[];
+  /** Legacy mock + live compatibility array (question_id may be version id). */
   mapping: MappingNode[];
   questions: Question[];
+  /** Live B4 question↔region mappings */
+  mappings?: QuestionAnswerMappingView[];
+  completion?: MappingCompletionSummary;
+  assessment_version_id?: string;
+  automated_region_detection_active?: boolean;
+  automated_mapping_active?: boolean;
 }
 
 export interface EvaluationWorkspacePayload {

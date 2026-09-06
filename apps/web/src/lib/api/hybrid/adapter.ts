@@ -3,17 +3,18 @@ import { MockEduVijnaApi } from "../mock/adapter";
 import { PlatformHttpApi, getHttpVersion } from "../http/platform";
 import { AuthoringHttpApi } from "../http/authoring";
 import { SubmissionHttpApi } from "../http/submissions";
+import { MappingHttpApi } from "../http/mapping";
+import { ApiError } from "../http/errors";
 import { httpRequest } from "../http/client";
 
 /**
- * Hybrid domain routing (B3):
+ * Hybrid domain routing (B4):
  * - Auth, Institution, Academic Years, Class Sections, Students, Import, Guardians → A1 HTTP
  * - Curriculum and Assessment authoring → A2 HTTP
  * - Submissions + identity review → B3 HTTP
- * - Mapping, Evaluation, Analytics, Reporting, Learning → MOCK until their backend phases land
+ * - Mapping review → B4 HTTP
+ * - Evaluation, Analytics, Reporting, Learning → MOCK until their backend phases land
  *
- * Mapping/evaluation methods stay on MockEduVijnaApi. Live submission UUIDs are not linked
- * from the UI into those mock routes; callers must not assume mock mapping works for live ids.
  * Components use `api` only — they must not inspect mock vs HTTP.
  */
 export const HybridEduVijnaApi: ApiClient = {
@@ -97,10 +98,34 @@ export const HybridEduVijnaApi: ApiClient = {
     SubmissionHttpApi.confirmIdentity(id, studentId),
   markIdentityUnmatched: (id) => SubmissionHttpApi.markIdentityUnmatched(id),
 
-  // Mapping / evaluation / reports stay mock — UI hides these for live submissions.
-  getMappingReview: (...args) => MockEduVijnaApi.getMappingReview(...args),
-  applyMappingAction: (...args) =>
-    MockEduVijnaApi.applyMappingAction(...args),
+  getMappingReview: (id) => MappingHttpApi.getMappingReview(id),
+  applyMappingAction: async () => {
+    throw new ApiError({
+      message:
+        "Legacy applyMappingAction is not available for live mapping. Use explicit B4 mapping methods.",
+      status: 400,
+      kind: "validation",
+      code: "MAPPING_USE_B4_METHODS",
+    });
+  },
+  prepareMappingReview: (id) => MappingHttpApi.prepareMappingReview(id),
+  createAnswerRegion: (pageId, input) =>
+    MappingHttpApi.createAnswerRegion(pageId, input),
+  updateAnswerRegion: (regionId, input) =>
+    MappingHttpApi.updateAnswerRegion(regionId, input),
+  deleteAnswerRegion: (regionId) => MappingHttpApi.deleteAnswerRegion(regionId),
+  updateSubmissionPage: (pageId, input) =>
+    MappingHttpApi.updateSubmissionPage(pageId, input),
+  upsertQuestionMapping: (submissionId, questionVersionId, input) =>
+    MappingHttpApi.upsertQuestionMapping(
+      submissionId,
+      questionVersionId,
+      input,
+    ),
+  confirmQuestionMapping: (submissionId, questionVersionId) =>
+    MappingHttpApi.confirmQuestionMapping(submissionId, questionVersionId),
+  finalizeMappingReview: (id) => MappingHttpApi.finalizeMappingReview(id),
+
   getEvaluationWorkspace: (...args) =>
     MockEduVijnaApi.getEvaluationWorkspace(...args),
   applyTeacherAction: (...args) =>

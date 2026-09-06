@@ -397,8 +397,9 @@ async def test_identity_confirm_unmatched_and_permissions() -> None:
         )
         assert confirmed.status_code == 200, confirmed.text
         assert confirmed.json()["student_match_state"] == "CONFIRMED"
-        assert confirmed.json()["workflow_state"] == "PROCESSING"
+        assert confirmed.json()["workflow_state"] == "MAPPING_REVIEW"
         assert confirmed.json()["student_id"] == student_id
+        assert confirmed.json()["mapping_confidence"] == 0.0
 
         unmatched = await client.post(
             f"/api/v1/submissions/{submission_id}/identity/unmatched",

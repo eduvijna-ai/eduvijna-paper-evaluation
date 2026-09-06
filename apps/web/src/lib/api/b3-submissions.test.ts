@@ -94,12 +94,12 @@ describe("B3 API capabilities", () => {
     vi.unstubAllEnvs();
   });
 
-  it("marks submissions and identityReview live in hybrid while mapping stays mock", () => {
+  it("marks submissions, identityReview, and mapping live in hybrid", () => {
     vi.stubEnv("NEXT_PUBLIC_API_MODE", "hybrid");
     const caps = getApiCapabilities();
     expect(caps.submissions).toBe("live");
     expect(caps.identityReview).toBe("live");
-    expect(caps.mapping).toBe("mock");
+    expect(caps.mapping).toBe("live");
     expect(caps.evaluation).toBe("mock");
     expect(caps.reports).toBe("mock");
     expect(caps.analytics).toBe("mock");
