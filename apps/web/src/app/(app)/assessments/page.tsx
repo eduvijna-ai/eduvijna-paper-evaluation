@@ -2,15 +2,26 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, isApiError } from "@/lib/api";
+import { A2_PERMISSIONS } from "@/lib/api/a2-types";
+import { getApiCapabilities } from "@/lib/api/capabilities";
+import { getSession, hasPermission } from "@/lib/auth/session";
 import { PageHeader, StatusBadge } from "@/components/layout/PageHeader";
 import { DataTable } from "@/components/ui/DataTable";
 import { ErrorState, LoadingState } from "@/components/ui/FeedbackStates";
 
 export default function AssessmentsPage() {
   const router = useRouter();
-  const { data, isLoading, isError, refetch } = useQuery({
+  const capabilities = getApiCapabilities();
+  const initialSession = useMemo(() => getSession(), []);
+  const [session, setSession] = useState(initialSession);
+  useEffect(() => setSession(getSession()), []);
+  const canManage = hasPermission(session, A2_PERMISSIONS.assessmentManage);
+  const canCreate = capabilities.assessments === "mock" || canManage;
+
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["assessments"],
     queryFn: () => api.listAssessments(),
   });
@@ -23,6 +34,16 @@ export default function AssessmentsPage() {
     );
   }
   if (isError || !data) {
+    if (isApiError(error) && error.kind === "forbidden") {
+      return (
+        <div data-testid="assessments-page">
+          <ErrorState
+            title="Permission denied"
+            message="You do not have assessment:read permission."
+          />
+        </div>
+      );
+    }
     return (
       <div data-testid="assessments-page">
         <ErrorState onRetry={() => void refetch()} />
@@ -37,13 +58,15 @@ export default function AssessmentsPage() {
         description="Create, review rubrics, and manage assessment lifecycle."
         breadcrumbs={[{ label: "Assessments" }]}
         actions={
-          <Link
-            href="/assessments/new"
-            data-testid="new-assessment-link"
-            className="rounded-md bg-teal-800 px-3 py-2 text-sm font-medium text-white hover:bg-teal-900"
-          >
-            New assessment
-          </Link>
+          canCreate ? (
+            <Link
+              href="/assessments/new"
+              data-testid="new-assessment-link"
+              className="rounded-md bg-teal-800 px-3 py-2 text-sm font-medium text-white hover:bg-teal-900"
+            >
+              New assessment
+            </Link>
+          ) : undefined
         }
       />
       <DataTable
@@ -53,7 +76,7 @@ export default function AssessmentsPage() {
         columns={[
           { key: "code", header: "Code", cell: (r) => r.code },
           { key: "title", header: "Title", cell: (r) => r.title },
-          { key: "subject", header: "Subject", cell: (r) => r.subject },
+          { key: "curriculum", header: "Curriculum", cell: (r) => r.subject },
           {
             key: "state",
             header: "State",

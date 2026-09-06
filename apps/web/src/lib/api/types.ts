@@ -35,6 +35,7 @@ import type {
   StudentGuardianLinkView,
 } from "@/lib/api/mappers/guardian";
 import type { StudentFormValues } from "@/lib/api/mappers/student";
+import type { AssessmentFormValues } from "@/lib/api/mappers/authoring";
 import type {
   ImportCommitResult,
   ImportValidationView,
@@ -105,6 +106,8 @@ export interface ApiClient {
   }>;
   listAssessments(): Promise<Assessment[]>;
   getAssessment(id: string): Promise<Assessment>;
+  /** B2 live authoring. Optional so the preserved B0 mock client remains source-compatible. */
+  createAssessment?(form: AssessmentFormValues): Promise<Assessment>;
   getAssessmentQuestions(id: string): Promise<Question[]>;
   getAssessmentRubric(id: string): Promise<RubricCriterion[]>;
   getAssessmentAnswerKey(id: string): Promise<AnswerKeyStep[]>;
