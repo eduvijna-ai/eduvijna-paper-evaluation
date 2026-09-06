@@ -20,7 +20,10 @@ test.describe("B1 real A1 platform flows", () => {
     const healthBase =
       process.env.API_UPSTREAM_URL ?? "http://127.0.0.1:18000";
     const health = await request.get(`${healthBase}/health`);
-    test.skip(!health.ok(), `API not reachable at ${healthBase}`);
+    expect(
+      health.ok(),
+      `Real A1 backend must be reachable at ${healthBase}`,
+    ).toBeTruthy();
 
     const runId = uniqueRunId();
 
