@@ -4,6 +4,7 @@ import Link from "next/link";
 import { use } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { getApiCapabilities } from "@/lib/api/capabilities";
 import { PageHeader, StatusBadge } from "@/components/layout/PageHeader";
 import { ErrorState, LoadingState } from "@/components/ui/FeedbackStates";
 
@@ -13,6 +14,7 @@ export default function AssessmentDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const capabilities = getApiCapabilities();
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["assessment", id],
     queryFn: () => api.getAssessment(id),
@@ -42,19 +44,15 @@ export default function AssessmentDetailPage({
       label: "Curriculum map",
       testId: "link-curriculum-map",
     },
-    {
-      href: `/analytics/assessments/${id}`,
-      label: "Analytics",
-      testId: "link-analytics",
-      primary: true,
-    },
   ];
+  const analyticsIsCompatible =
+    capabilities.assessments === "mock" || capabilities.analytics === "live";
 
   return (
     <div data-testid="assessment-detail-page">
       <PageHeader
         title={data.title}
-        description={`${data.code} · ${data.subject} · Grade ${data.grade}`}
+        description={`${data.code} · ${data.subject} · Version ${data.grade}`}
         breadcrumbs={[
           { label: "Assessments", href: "/assessments" },
           { label: data.code },
@@ -67,15 +65,20 @@ export default function AssessmentDetailPage({
                 key={link.href}
                 href={link.href}
                 data-testid={link.testId}
-                className={
-                  link.primary
-                    ? "rounded-md bg-teal-800 px-3 py-2 text-sm font-medium text-white hover:bg-teal-900"
-                    : "rounded-md border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50"
-                }
+                className="rounded-md border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50"
               >
                 {link.label}
               </Link>
             ))}
+            {analyticsIsCompatible && (
+              <Link
+                href={`/analytics/assessments/${id}`}
+                data-testid="link-analytics"
+                className="rounded-md bg-teal-800 px-3 py-2 text-sm font-medium text-white hover:bg-teal-900"
+              >
+                Analytics
+              </Link>
+            )}
           </div>
         }
       />
@@ -93,27 +96,36 @@ export default function AssessmentDetailPage({
         <div>
           <dt className="text-slate-500">Submissions</dt>
           <dd className="mt-1 font-semibold tabular-nums">
-            {data.submission_count}
+            {capabilities.assessments === "live" && capabilities.submissions === "mock"
+              ? "Not live yet"
+              : data.submission_count}
           </dd>
         </div>
       </dl>
+
+      {capabilities.assessments === "live" && capabilities.analytics === "mock" && (
+        <p
+          data-testid="assessment-downstream-boundary"
+          className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"
+        >
+          Analytics and submission workflows remain on the mock provider and are hidden for live A2 assessment identities.
+        </p>
+      )}
 
       <nav
         data-testid="assessment-subnav"
         className="mt-4 flex flex-wrap gap-2 border-t border-slate-200 pt-4"
         aria-label="Assessment sections"
       >
-        {navLinks
-          .filter((l) => !l.primary)
-          .map((link) => (
-            <Link
-              key={`subnav-${link.href}`}
-              href={link.href}
-              className="rounded-md bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-200"
-            >
-              {link.label}
-            </Link>
-          ))}
+        {navLinks.map((link) => (
+          <Link
+            key={`subnav-${link.href}`}
+            href={link.href}
+            className="rounded-md bg-slate-100 px-3 py-1.5 text-xs font-medium text-slate-800 hover:bg-slate-200"
+          >
+            {link.label}
+          </Link>
+        ))}
       </nav>
     </div>
   );
