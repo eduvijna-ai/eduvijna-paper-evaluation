@@ -36,6 +36,14 @@ export const SUBMISSION_ID_2 = "sub-demo-002";
 export const SUBMISSION_ID_3 = "sub-demo-003";
 export const CLASS_SECTION_ID = "class-demo-10a";
 
+/** Thrown when a mock lookup would otherwise substitute another person's data. */
+export class MockNotFoundError extends Error {
+  constructor(message = "Data unavailable until this domain is connected") {
+    super(message);
+    this.name = "MockNotFoundError";
+  }
+}
+
 export const students: Student[] = [
   {
     id: STUDENT_ID,
@@ -642,8 +650,10 @@ export function getDashboardSummary(): DashboardSummary {
 }
 
 export function getIdentityReview(submissionId: string): IdentityReviewPayload {
-  const submission =
-    submissions.find((s) => s.id === submissionId) ?? submissions[1];
+  const submission = submissions.find((s) => s.id === submissionId);
+  if (!submission) {
+    throw new MockNotFoundError("Submission not found");
+  }
   return {
     submission,
     candidates: [
@@ -680,8 +690,10 @@ export function getIdentityReview(submissionId: string): IdentityReviewPayload {
 }
 
 export function getMappingReview(submissionId: string): MappingReviewPayload {
-  const submission =
-    submissions.find((s) => s.id === submissionId) ?? submissions[2];
+  const submission = submissions.find((s) => s.id === submissionId);
+  if (!submission) {
+    throw new MockNotFoundError("Submission not found");
+  }
   return {
     submission,
     pages: paperPages,
@@ -724,11 +736,14 @@ export function getEvaluationWorkspace(
   submissionId: string,
   questionId?: string,
 ): EvaluationWorkspacePayload {
-  const submission =
-    submissions.find((s) => s.id === submissionId) ?? submissions[0];
-  const assessment =
-    assessments.find((a) => a.id === submission.assessment_id) ??
-    assessments[0];
+  const submission = submissions.find((s) => s.id === submissionId);
+  if (!submission) {
+    throw new MockNotFoundError("Submission not found");
+  }
+  const assessment = assessments.find((a) => a.id === submission.assessment_id);
+  if (!assessment) {
+    throw new MockNotFoundError("Assessment not found");
+  }
   const student =
     students.find((s) => s.id === (submission.student_id ?? "")) ?? null;
   const selected =
@@ -755,9 +770,18 @@ export function getStudentReport(
   studentId: string,
   assessmentId: string,
 ): StudentReport {
-  const student = students.find((s) => s.id === studentId) ?? students[0];
-  const assessment =
-    assessments.find((a) => a.id === assessmentId) ?? assessments[0];
+  const student = students.find((s) => s.id === studentId);
+  if (!student) {
+    throw new MockNotFoundError(
+      "Data unavailable until this domain is connected",
+    );
+  }
+  const assessment = assessments.find((a) => a.id === assessmentId);
+  if (!assessment) {
+    throw new MockNotFoundError(
+      "Data unavailable until this domain is connected",
+    );
+  }
   return {
     student,
     assessment,
@@ -861,9 +885,18 @@ export function getParentReport(
   studentId: string,
   assessmentId: string,
 ): ParentReport {
-  const student = students.find((s) => s.id === studentId) ?? students[0];
-  const assessment =
-    assessments.find((a) => a.id === assessmentId) ?? assessments[0];
+  const student = students.find((s) => s.id === studentId);
+  if (!student) {
+    throw new MockNotFoundError(
+      "Data unavailable until this domain is connected",
+    );
+  }
+  const assessment = assessments.find((a) => a.id === assessmentId);
+  if (!assessment) {
+    throw new MockNotFoundError(
+      "Data unavailable until this domain is connected",
+    );
+  }
   return {
     student_display_name: student.display_name,
     assessment_title: assessment.title,
@@ -888,8 +921,12 @@ export function getParentReport(
 export function getAssessmentAnalytics(
   assessmentId: string,
 ): AssessmentAnalytics {
-  const assessment =
-    assessments.find((a) => a.id === assessmentId) ?? assessments[0];
+  const assessment = assessments.find((a) => a.id === assessmentId);
+  if (!assessment) {
+    throw new MockNotFoundError(
+      "Data unavailable until this domain is connected",
+    );
+  }
   return {
     assessment,
     mean_score: 26.4,
@@ -937,26 +974,9 @@ export function getStudentAnalytics(studentId: string): StudentAnalytics {
   const student = students.find((s) => s.id === studentId);
   // Do not substitute a different student — avoids hybrid HTTP/mock identity mixups.
   if (!student) {
-    return {
-      student: {
-        id: studentId,
-        tenant_id: "",
-        institution_id: "",
-        class_section_id: "",
-        external_ref: "—",
-        first_name: "",
-        last_name: "",
-        display_name: "Analytics unavailable",
-        grade: "—",
-        section: "—",
-        status: "ACTIVE",
-      },
-      assessments_taken: 0,
-      average_percentage: 0,
-      trend: [],
-      concept_mastery: [],
-      recurring_errors: [],
-    };
+    throw new MockNotFoundError(
+      "Data unavailable until this domain is connected",
+    );
   }
   return {
     student,
@@ -983,7 +1003,12 @@ export function getStudentAnalytics(studentId: string): StudentAnalytics {
 }
 
 export function getAdaptiveLearning(studentId: string): AdaptiveLearningPlan {
-  const student = students.find((s) => s.id === studentId) ?? students[0];
+  const student = students.find((s) => s.id === studentId);
+  if (!student) {
+    throw new MockNotFoundError(
+      "Data unavailable until this domain is connected",
+    );
+  }
   return {
     student,
     priorities: [

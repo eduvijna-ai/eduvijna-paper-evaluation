@@ -3,6 +3,7 @@ import type { MappingAction, TeacherReviewAction } from "@/lib/types/enums";
 import type { ApiClient } from "../types";
 import type { AuthSession, Student } from "@/lib/types/domain";
 import { clearSession, getSession, loginAs } from "@/lib/auth/session";
+import { ApiError } from "../http/errors";
 import type {
   AcademicYearFormValues,
   AcademicYearView,
@@ -34,6 +35,7 @@ import {
   getParentReport,
   getStudentAnalytics,
   getStudentReport,
+  MockNotFoundError,
   rubrics,
   students,
   submissions,
@@ -46,6 +48,22 @@ function delay<T>(value: T, ms = 120): Promise<T> {
   return new Promise((resolve) => {
     setTimeout(() => resolve(value), ms);
   });
+}
+
+async function mockCall<T>(fn: () => T): Promise<T> {
+  try {
+    return await delay(fn());
+  } catch (err) {
+    if (err instanceof MockNotFoundError) {
+      throw new ApiError({
+        message: err.message,
+        status: 404,
+        kind: "not_found",
+        code: "MOCK_NOT_FOUND",
+      });
+    }
+    throw err;
+  }
 }
 
 const mockYears: AcademicYearView[] = [
@@ -253,27 +271,56 @@ export const MockEduVijnaApi: ApiClient = {
       expiresAt: new Date(Date.now() + 3600_000).toISOString(),
       rowResults: [
         {
-          row_number: 2,
+          rowNumber: 2,
           outcome: "VALID",
-          student_code: "STU-MOCK-1",
-          full_name: "Mock Student",
+          studentCode: "STU-MOCK-1",
+          admissionNumber: "",
+          rollNumber: "1",
+          fullName: "Mock Student",
+          academicYear: "2026-27",
+          classSection: "A",
         },
         {
-          row_number: 3,
+          rowNumber: 3,
           outcome: "MISSING_REQUIRED_FIELD",
-          student_code: "",
-          full_name: "",
+          studentCode: "",
+          admissionNumber: "",
+          rollNumber: "",
+          fullName: "",
+          academicYear: "",
+          classSection: "",
         },
       ],
     } satisfies ImportValidationView);
   },
   async commitStudentImport(_id): Promise<ImportCommitResult> {
     void _id;
-    return delay({ created_count: 1 });
+    return delay({
+      importSessionId: "00000000-0000-4000-8000-000000000099",
+      status: "COMMITTED",
+      committedCount: 1,
+    });
   },
 
   async listGuardians() {
     return delay([...mockGuardians]);
+  },
+  async listStudentGuardians(studentId) {
+    const links = [...mockLinks]
+      .filter((key) => key.startsWith(`${studentId}:`))
+      .map((key) => {
+        const guardianId = key.slice(studentId.length + 1);
+        const g = mockGuardians.find((x) => x.id === guardianId);
+        return {
+          studentId,
+          guardianId,
+          displayName: g?.displayName ?? "Unknown",
+          email: g?.email ?? null,
+          phone: g?.phone ?? null,
+          relationshipType: "PARENT",
+        };
+      });
+    return delay(links);
   },
   async getGuardian(id) {
     const g = mockGuardians.find((x) => x.id === id);
@@ -355,7 +402,7 @@ export const MockEduVijnaApi: ApiClient = {
     return delay(submission);
   },
   async getIdentityReview(submissionId) {
-    return delay(getIdentityReview(submissionId));
+    return mockCall(() => getIdentityReview(submissionId));
   },
   async confirmIdentity(submissionId, studentId) {
     const submission = submissions.find((s) => s.id === submissionId);
@@ -379,7 +426,7 @@ export const MockEduVijnaApi: ApiClient = {
     return delay({ ...submission });
   },
   async getMappingReview(submissionId) {
-    return delay(getMappingReview(submissionId));
+    return mockCall(() => getMappingReview(submissionId));
   },
   async applyMappingAction(submissionId, regionId, action: MappingAction) {
     void submissionId;
@@ -387,7 +434,7 @@ export const MockEduVijnaApi: ApiClient = {
     return delay({ ok: true as const, action });
   },
   async getEvaluationWorkspace(submissionId, questionId) {
-    return delay(getEvaluationWorkspace(submissionId, questionId));
+    return mockCall(() => getEvaluationWorkspace(submissionId, questionId));
   },
   async applyTeacherAction(
     submissionId,
@@ -396,7 +443,7 @@ export const MockEduVijnaApi: ApiClient = {
     payload,
   ) {
     void ledgerId;
-    const workspace = getEvaluationWorkspace(submissionId);
+    const workspace = await mockCall(() => getEvaluationWorkspace(submissionId));
     const ledger = workspace.ledgers.find((l) => l.id === ledgerId);
     if (!ledger) throw new Error(`Ledger not found: ${ledgerId}`);
     return delay(
@@ -410,22 +457,22 @@ export const MockEduVijnaApi: ApiClient = {
     );
   },
   async getStudentReport(studentId, assessmentId) {
-    return delay(getStudentReport(studentId, assessmentId));
+    return mockCall(() => getStudentReport(studentId, assessmentId));
   },
   async getParentReport(studentId, assessmentId) {
-    return delay(getParentReport(studentId, assessmentId));
+    return mockCall(() => getParentReport(studentId, assessmentId));
   },
   async getAssessmentAnalytics(assessmentId) {
-    return delay(getAssessmentAnalytics(assessmentId));
+    return mockCall(() => getAssessmentAnalytics(assessmentId));
   },
   async getStudentAnalytics(studentId) {
-    return delay(getStudentAnalytics(studentId));
+    return mockCall(() => getStudentAnalytics(studentId));
   },
   async getAdaptiveLearning(studentId) {
-    return delay(getAdaptiveLearning(studentId));
+    return mockCall(() => getAdaptiveLearning(studentId));
   },
   async getImprovementBlueprint(studentId) {
-    return delay(getImprovementBlueprint(studentId));
+    return mockCall(() => getImprovementBlueprint(studentId));
   },
   async approveImprovementBlueprint(blueprintId) {
     const blueprint = getImprovementBlueprint("student-demo-001");

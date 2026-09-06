@@ -18,7 +18,7 @@ import { clearSession, getSession } from "@/lib/auth/session";
 import { cn } from "@/lib/utils/cn";
 import { useEffect, useState } from "react";
 import type { AuthSession } from "@/lib/types/domain";
-import { api, getApiMode } from "@/lib/api";
+import { api, getApiCapabilities } from "@/lib/api";
 import { useQuery } from "@tanstack/react-query";
 
 const navItems = [
@@ -92,11 +92,11 @@ export function Sidebar() {
 export function TopBar() {
   const router = useRouter();
   const [session, setSessionState] = useState<AuthSession | null>(null);
-  const mode = getApiMode();
+  const caps = getApiCapabilities();
   const institutionQuery = useQuery({
     queryKey: ["institution"],
     queryFn: () => api.getInstitution(),
-    enabled: mode === "hybrid",
+    enabled: caps.institution === "live",
     retry: false,
   });
 
@@ -107,7 +107,7 @@ export function TopBar() {
   const institutionLabel =
     institutionQuery.data?.name ??
     session?.institutionName ??
-    (mode === "mock" ? "Demo Institution" : null);
+    (caps.institution === "mock" ? "Demo Institution" : null);
 
   return (
     <header
@@ -122,7 +122,9 @@ export function TopBar() {
         )}
         <span className="mx-2 text-slate-300">·</span>
         <span data-testid="api-mode-badge">
-          {mode === "hybrid" ? "Platform API + mock CVB" : "Mock API"}
+          {caps.institution === "live"
+            ? "Platform API + mock CVB"
+            : "Mock API"}
         </span>
       </div>
       <div className="flex items-center gap-3">

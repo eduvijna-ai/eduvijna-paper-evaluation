@@ -6,13 +6,12 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { api, isApiError } from "@/lib/api";
+import { api, getApiCapabilities, isApiError } from "@/lib/api";
 import { A1_PERMISSIONS } from "@/lib/api/a1-types";
 import { getSession, hasPermission } from "@/lib/auth/session";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ErrorState, LoadingState } from "@/components/ui/FeedbackStates";
 import { ConceptMasteryBar } from "@/components/learning/LearningComponents";
-import { getApiMode } from "@/lib/api";
 
 const editSchema = z.object({
   studentCode: z.string().min(1),
@@ -41,10 +40,9 @@ export default function StudentDetailPage({
   const session = useMemo(() => getSession(), []);
   const canWrite = hasPermission(session, A1_PERMISSIONS.studentWrite);
   const canGuardianWrite = hasPermission(session, A1_PERMISSIONS.guardianWrite);
-  const mode = getApiMode();
+  const caps = useMemo(() => getApiCapabilities(), []);
   const [editing, setEditing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [linkedGuardianIds, setLinkedGuardianIds] = useState<string[]>([]);
 
   const studentQuery = useQuery({
     queryKey: ["student", id],
@@ -53,11 +51,11 @@ export default function StudentDetailPage({
   const analyticsQuery = useQuery({
     queryKey: ["student-analytics", id],
     queryFn: () => api.getStudentAnalytics(id),
-    enabled: mode === "mock",
+    enabled: caps.analytics === "mock" && caps.students === "mock",
   });
-  const guardiansQuery = useQuery({
-    queryKey: ["guardians"],
-    queryFn: () => api.listGuardians(),
+  const linkedGuardiansQuery = useQuery({
+    queryKey: ["student-guardians", id],
+    queryFn: () => api.listStudentGuardians(id),
   });
 
   const editForm = useForm<EditValues>({
@@ -104,9 +102,11 @@ export default function StudentDetailPage({
       await api.linkStudentGuardian(id, guardian.id, values.relationshipType);
       return guardian;
     },
-    onSuccess: async (guardian) => {
-      setLinkedGuardianIds((prev) => [...prev, guardian.id]);
+    onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["guardians"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["student-guardians", id],
+      });
       guardianForm.reset({
         displayName: "",
         email: "",
@@ -117,6 +117,20 @@ export default function StudentDetailPage({
     },
     onError: (err) => {
       setMessage(isApiError(err) ? err.userMessage() : "Guardian action failed");
+    },
+  });
+
+  const unlinkMutation = useMutation({
+    mutationFn: (guardianId: string) =>
+      api.unlinkStudentGuardian(id, guardianId),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["student-guardians", id],
+      });
+      setMessage("Guardian unlinked.");
+    },
+    onError: (err) => {
+      setMessage(isApiError(err) ? err.userMessage() : "Unlink failed");
     },
   });
 
@@ -135,6 +149,7 @@ export default function StudentDetailPage({
 
   const student = studentQuery.data;
   const analytics = analyticsQuery.data;
+  const linkedGuardians = linkedGuardiansQuery.data ?? [];
 
   return (
     <div data-testid="student-detail-page">
@@ -166,7 +181,7 @@ export default function StudentDetailPage({
                 Edit
               </button>
             )}
-            {mode === "mock" && (
+            {caps.reports === "mock" && caps.students === "mock" && (
               <>
                 <Link
                   href={`/reports/student/${student.id}/assessment/assess-demo-001`}
@@ -201,7 +216,7 @@ export default function StudentDetailPage({
           )}
         >
           <label className="text-sm">
-            Student code
+            Code
             <input
               className="mt-1 w-full rounded-md border px-3 py-2"
               {...editForm.register("studentCode")}
@@ -260,34 +275,44 @@ export default function StudentDetailPage({
         >
           <h2 className="text-sm font-semibold text-slate-800">Guardians</h2>
           <p className="text-xs text-slate-500">
-            A1 has no list-links endpoint; newly linked guardians in this
-            session are shown below. Tenant guardian directory:
+            Linked guardians persist after reload.
           </p>
-          <ul className="space-y-1 text-sm">
-            {(guardiansQuery.data ?? []).map((g) => (
-              <li key={g.id} className="flex justify-between gap-2">
-                <span>
-                  {g.displayName}
-                  {linkedGuardianIds.includes(g.id) ? " · linked" : ""}
-                </span>
-                {canGuardianWrite && linkedGuardianIds.includes(g.id) && (
-                  <button
-                    type="button"
-                    className="text-xs text-rose-700"
-                    onClick={() => {
-                      void api.unlinkStudentGuardian(id, g.id).then(() => {
-                        setLinkedGuardianIds((prev) =>
-                          prev.filter((x) => x !== g.id),
-                        );
-                      });
-                    }}
-                  >
-                    Unlink
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
+          {linkedGuardiansQuery.isLoading ? (
+            <LoadingState label="Loading guardians…" />
+          ) : linkedGuardians.length === 0 ? (
+            <p className="text-sm text-slate-500" data-testid="guardians-empty">
+              No guardians linked.
+            </p>
+          ) : (
+            <ul className="space-y-1 text-sm" data-testid="guardians-linked-list">
+              {linkedGuardians.map((g) => (
+                <li
+                  key={g.guardianId}
+                  className="flex justify-between gap-2"
+                  data-testid={`guardian-link-${g.guardianId}`}
+                >
+                  <span>
+                    {g.displayName}
+                    <span className="text-slate-500">
+                      {" "}
+                      · {g.relationshipType}
+                    </span>
+                  </span>
+                  {canGuardianWrite && (
+                    <button
+                      type="button"
+                      data-testid={`guardian-unlink-${g.guardianId}`}
+                      className="text-xs text-rose-700"
+                      disabled={unlinkMutation.isPending}
+                      onClick={() => unlinkMutation.mutate(g.guardianId)}
+                    >
+                      Unlink
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
           {canGuardianWrite && (
             <form
               data-testid="guardian-create-form"
@@ -323,7 +348,7 @@ export default function StudentDetailPage({
           )}
         </div>
 
-        {mode === "mock" && (
+        {caps.analytics === "mock" && caps.students === "mock" && (
           <div className="rounded-md border border-slate-200 bg-white p-4 space-y-3 lg:col-span-2">
             <h2 className="text-sm font-semibold text-slate-800">
               Concept mastery (mock domain)
