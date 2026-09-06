@@ -8,6 +8,8 @@ import { A1_PERMISSIONS } from "@/lib/api/a1-types";
 import { getSession, hasPermission } from "@/lib/auth/session";
 import {
   downloadCsvTemplate,
+  importCommitErrorMessage,
+  type ImportCommitResult,
   type ImportValidationView,
 } from "@/lib/api/mappers/import";
 import { ErrorState, LoadingState } from "@/components/ui/FeedbackStates";
@@ -25,10 +27,9 @@ export default function StudentsImportPage() {
     null,
   );
   const [error, setError] = useState<string | null>(null);
-  const [commitResult, setCommitResult] = useState<Record<
-    string,
-    unknown
-  > | null>(null);
+  const [commitResult, setCommitResult] = useState<ImportCommitResult | null>(
+    null,
+  );
 
   const validateMutation = useMutation({
     mutationFn: (f: File) => api.validateStudentImport(f),
@@ -50,12 +51,10 @@ export default function StudentsImportPage() {
       await queryClient.invalidateQueries({ queryKey: ["students"] });
     },
     onError: (err) => {
-      if (isApiError(err) && (err.status === 409 || err.status === 422)) {
-        setError(
-          "Import session expired or invalid. Re-validate the CSV and try again.",
-        );
+      if (isApiError(err)) {
+        setError(importCommitErrorMessage(err));
       } else {
-        setError(isApiError(err) ? err.userMessage() : "Commit failed");
+        setError("Commit failed");
       }
     },
   });
@@ -149,12 +148,12 @@ export default function StudentsImportPage() {
               <tbody>
                 {validation.rowResults.map((row, idx) => (
                   <tr key={idx} className="border-t border-slate-100">
-                    <td className="px-3 py-2">{row.row_number ?? idx + 2}</td>
-                    <td className="px-3 py-2">{String(row.student_code ?? "")}</td>
-                    <td className="px-3 py-2">{String(row.full_name ?? "")}</td>
+                    <td className="px-3 py-2">{row.rowNumber}</td>
+                    <td className="px-3 py-2">{row.studentCode}</td>
+                    <td className="px-3 py-2">{row.fullName}</td>
                     <td className="px-3 py-2">
                       <span data-testid={`import-outcome-${idx}`}>
-                        {String(row.outcome)}
+                        {row.outcome}
                       </span>
                     </td>
                   </tr>
@@ -198,10 +197,9 @@ export default function StudentsImportPage() {
           data-testid="import-success"
           className="rounded-md bg-teal-50 px-4 py-3 text-sm text-teal-900 ring-1 ring-teal-200"
         >
-          Import committed.
-          {commitResult?.created_count != null && (
-            <> Created {String(commitResult.created_count)} student(s).</>
-          )}
+          {commitResult != null
+            ? `Imported ${commitResult.committedCount} student(s).`
+            : "Import committed."}
         </div>
       )}
     </div>

@@ -1,12 +1,19 @@
 import { test, expect } from "@playwright/test";
+import { randomUUID } from "node:crypto";
 
 const ADMIN_EMAIL = "admin@demo.eduvijna.local";
 const ADMIN_PASSWORD = "DemoAdmin!2026";
 
+function uniqueRunId(): string {
+  const ts = Date.now().toString(36);
+  const frag = randomUUID().replace(/-/g, "").slice(0, 10);
+  return `${ts}${frag}`;
+}
+
 test.describe("B1 real A1 platform flows", () => {
   test.describe.configure({ mode: "serial" });
 
-  test("login → dashboard → students → create → import → guardian → logout", async ({
+  test("login → CRUD → import → guardian → logout", async ({
     page,
     request,
   }) => {
@@ -15,11 +22,22 @@ test.describe("B1 real A1 platform flows", () => {
     const health = await request.get(`${healthBase}/health`);
     test.skip(!health.ok(), `API not reachable at ${healthBase}`);
 
+    const runId = uniqueRunId();
+
+    // Prove Next same-origin rewrite → backend (login via browser, not direct API).
     await page.goto("/login");
     await expect(page.getByTestId("login-page")).toBeVisible();
+    const meViaRewrite = page.waitForResponse(
+      (res) =>
+        res.url().includes("/api/v1/auth/") &&
+        (res.request().method() === "POST" || res.url().includes("/me")),
+      { timeout: 30_000 },
+    );
     await page.getByTestId("login-email").fill(ADMIN_EMAIL);
     await page.getByTestId("login-password").fill(ADMIN_PASSWORD);
     await page.getByTestId("login-submit").click();
+    const authResponse = await meViaRewrite;
+    expect(authResponse.ok()).toBeTruthy();
     await expect(page.getByTestId("app-shell")).toBeVisible({ timeout: 30_000 });
     await expect(page.getByTestId("dashboard-page")).toBeVisible({
       timeout: 20_000,
@@ -30,10 +48,9 @@ test.describe("B1 real A1 platform flows", () => {
       timeout: 20_000,
     });
     await page.getByTestId("student-create-toggle").click();
-    const code = `STU-E2E-${Date.now().toString().slice(-6)}`;
+    const code = `STU-E2E-${runId}`;
     await page.locator('input[name="studentCode"]').fill(code);
     await page.locator('input[name="fullName"]').fill("E2E Student");
-    // Resolve a matching year/section pair from the API (Playwright request, no CORS).
     const login = await request.post(`${healthBase}/api/v1/auth/login`, {
       data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD },
     });
@@ -73,7 +90,8 @@ test.describe("B1 real A1 platform flows", () => {
     });
 
     // Guardian create + link
-    await page.locator('input[placeholder="Display name"]').fill("E2E Guardian");
+    const guardianName = `E2E Guardian ${runId}`;
+    await page.locator('input[placeholder="Display name"]').fill(guardianName);
     await page
       .locator('input[placeholder="Relationship (e.g. PARENT)"]')
       .fill("PARENT");
@@ -81,6 +99,20 @@ test.describe("B1 real A1 platform flows", () => {
     await expect(page.getByText(/Guardian created/i)).toBeVisible({
       timeout: 15_000,
     });
+    await expect(page.getByTestId("guardians-linked-list")).toContainText(
+      guardianName,
+      { timeout: 15_000 },
+    );
+
+    // Reload — guardian link must persist
+    await page.reload();
+    await expect(page.getByTestId("student-detail-page")).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByTestId("guardians-linked-list")).toContainText(
+      guardianName,
+      { timeout: 15_000 },
+    );
 
     // CSV import validate + commit
     await page.goto("/students/import");
@@ -88,10 +120,12 @@ test.describe("B1 real A1 platform flows", () => {
 
     const yearName = year!.name;
     const sectionName = section!.name;
-    const importCode = `STU-IMP-${Date.now().toString().slice(-6)}`;
+    const importCode = `STU-IMP-${runId}`;
+    const importRoll = `R${runId.slice(0, 12)}`;
+    const importAdmission = `ADM-${runId.slice(0, 12)}`;
     const csv = [
       "student_code,admission_number,roll_number,full_name,academic_year,class_section",
-      `${importCode},ADM-X,99,Import Student,${yearName},${sectionName}`,
+      `${importCode},${importAdmission},${importRoll},Import Student,${yearName},${sectionName}`,
     ].join("\n");
 
     await page.getByTestId("import-file").setInputFiles({
@@ -104,10 +138,33 @@ test.describe("B1 real A1 platform flows", () => {
       timeout: 20_000,
     });
     await expect(page.getByTestId("import-outcome-0")).toContainText("VALID");
+    await expect(page.getByTestId("import-validation-panel")).toContainText(
+      importCode,
+    );
     await page.getByTestId("import-commit").click();
     await expect(page.getByTestId("import-success")).toBeVisible({
       timeout: 20_000,
     });
+    await expect(page.getByTestId("import-success")).toContainText(
+      "Imported 1 student",
+    );
+
+    // Imported student must exist (authenticated backend GET)
+    const studentsAfter = (await (
+      await request.get(`${healthBase}/api/v1/students`, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    ).json()) as Array<{ student_code: string; full_name: string }>;
+    expect(
+      studentsAfter.some((s) => s.student_code === importCode),
+    ).toBeTruthy();
+
+    // Also visible in frontend list
+    await page.goto("/students");
+    await expect(page.getByTestId("students-page")).toBeVisible({
+      timeout: 20_000,
+    });
+    await expect(page.getByText(importCode)).toBeVisible({ timeout: 20_000 });
 
     await page.getByTestId("logout-button").click();
     await expect(page.getByTestId("login-page")).toBeVisible({

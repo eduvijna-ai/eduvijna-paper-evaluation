@@ -21,9 +21,11 @@ import {
   type AcademicYearFormValues,
   type ClassSectionFormValues,
 } from "../mappers/platform";
+import { importCommitApiToView, importValidationApiToView } from "../mappers/import";
 import {
   guardianApiToViewModel,
   guardianFormToApi,
+  studentGuardianLinkApiToView,
   type GuardianFormValues,
 } from "../mappers/guardian";
 import {
@@ -31,7 +33,6 @@ import {
   studentFormToApi,
   type StudentFormValues,
 } from "../mappers/student";
-import { importValidationApiToView } from "../mappers/import";
 import type { AuthSession } from "@/lib/types/domain";
 import { clearSession, getSession, setBearerSession } from "@/lib/auth/session";
 import type { UserRole } from "@/lib/types/enums";
@@ -248,18 +249,34 @@ export const PlatformHttpApi = {
   },
 
   async commitStudentImport(importSessionId: string) {
-    return httpRequest<Record<string, unknown>>(
-      "/api/v1/students/import/commit",
-      {
-        method: "POST",
-        body: { import_session_id: importSessionId },
-      },
-    );
+    const result = await httpRequest<{
+      import_session_id: string;
+      status: string;
+      committed_count: number;
+    }>("/api/v1/students/import/commit", {
+      method: "POST",
+      body: { import_session_id: importSessionId },
+    });
+    return importCommitApiToView(result);
   },
 
   async listGuardians() {
     const rows = await httpRequest<Guardian[]>("/api/v1/guardians");
     return rows.map(guardianApiToViewModel);
+  },
+
+  async listStudentGuardians(studentId: string) {
+    const rows = await httpRequest<
+      Array<{
+        student_id: string;
+        guardian_id: string;
+        display_name: string;
+        email?: string | null;
+        phone?: string | null;
+        relationship_type: string;
+      }>
+    >(`/api/v1/students/${studentId}/guardians`);
+    return rows.map(studentGuardianLinkApiToView);
   },
 
   async getGuardian(id: string) {

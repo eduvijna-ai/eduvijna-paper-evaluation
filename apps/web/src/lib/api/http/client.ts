@@ -44,23 +44,58 @@ function parseEnvelope(payload: unknown): {
   const error = root.error;
   if (error && typeof error === "object") {
     const e = error as Record<string, unknown>;
+    const nestedDetails =
+      e.details && typeof e.details === "object"
+        ? (e.details as Record<string, unknown>)
+        : undefined;
+    const genericHttpCode =
+      typeof e.code === "string" && /^http_\d+$/.test(e.code);
+    const code =
+      typeof e.code === "string" && !genericHttpCode
+        ? e.code
+        : typeof nestedDetails?.code === "string"
+          ? nestedDetails.code
+          : typeof e.code === "string"
+            ? e.code
+            : undefined;
     const message =
-      typeof e.message === "string"
-        ? e.message
-        : typeof e.detail === "string"
-          ? e.detail
-          : "Request failed";
-    const code = typeof e.code === "string" ? e.code : undefined;
+      genericHttpCode && typeof nestedDetails?.message === "string"
+        ? nestedDetails.message
+        : typeof e.message === "string"
+          ? e.message
+          : typeof e.detail === "string"
+            ? e.detail
+            : typeof nestedDetails?.message === "string"
+              ? nestedDetails.message
+              : "Request failed";
     return { message, code, details: e.details ?? e };
+  }
+  // FastAPI-style detail object: { code, message }
+  if (root.detail && typeof root.detail === "object") {
+    const d = root.detail as Record<string, unknown>;
+    const message =
+      typeof d.message === "string"
+        ? d.message
+        : typeof d.msg === "string"
+          ? d.msg
+          : "Request failed";
+    const code = typeof d.code === "string" ? d.code : undefined;
+    return { message, code, details: d };
   }
   if (typeof root.detail === "string") {
     return { message: root.detail };
   }
   if (typeof root.message === "string") {
-    return { message: root.message };
+    return {
+      message: root.message,
+      code: typeof root.code === "string" ? root.code : undefined,
+    };
   }
   return { message: "Request failed" };
 }
+
+/** Exported for unit tests */
+export const __test__ = { parseEnvelope };
 
 export async function httpRequest<T>(
   path: string,

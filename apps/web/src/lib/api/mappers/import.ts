@@ -13,21 +13,27 @@ export const IMPORT_OUTCOMES = [
 
 export type ImportOutcome = (typeof IMPORT_OUTCOMES)[number];
 
-export interface ImportRowResult {
-  row_number?: number;
+/** Normalized UI row — never expose nested backend transport shape to components. */
+export interface ImportRowView {
+  rowNumber: number;
   outcome: ImportOutcome | string;
-  student_code?: string;
-  full_name?: string;
-  academic_year?: string;
-  class_section?: string;
-  [key: string]: unknown;
+  studentCode: string;
+  admissionNumber: string;
+  rollNumber: string;
+  fullName: string;
+  academicYear: string;
+  classSection: string;
+  reasonCode?: string;
 }
+
+/** @deprecated Prefer ImportRowView — kept for transitional typing only */
+export type ImportRowResult = ImportRowView;
 
 export interface ImportValidationView {
   importSessionId: string;
   status: "VALIDATED";
   validRowCount: number;
-  rowResults: ImportRowResult[];
+  rowResults: ImportRowView[];
   expiresAt: string;
   totalRows: number;
   invalidCount: number;
@@ -35,8 +41,9 @@ export interface ImportValidationView {
 }
 
 export interface ImportCommitResult {
-  created_count?: number;
-  [key: string]: unknown;
+  importSessionId: string;
+  status: string;
+  committedCount: number;
 }
 
 export const CSV_TEMPLATE_HEADERS = [
@@ -77,6 +84,78 @@ export function downloadCsvTemplate(filename = "student-import-template.csv"): v
   URL.revokeObjectURL(url);
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function asString(value: unknown): string {
+  return typeof value === "string" ? value : value == null ? "" : String(value);
+}
+
+/** Normalize one backend import row (nested `data` or legacy flat). */
+export function importRowApiToView(
+  raw: Record<string, unknown>,
+  index: number,
+): ImportRowView {
+  const data = asRecord(raw.data);
+  const rowNumber =
+    typeof raw.row === "number"
+      ? raw.row
+      : typeof raw.row_number === "number"
+        ? raw.row_number
+        : index + 2;
+  return {
+    rowNumber,
+    outcome: asString(raw.outcome) || "INVALID",
+    studentCode: asString(data.student_code ?? raw.student_code),
+    admissionNumber: asString(data.admission_number ?? raw.admission_number),
+    rollNumber: asString(data.roll_number ?? raw.roll_number),
+    fullName: asString(data.full_name ?? raw.full_name),
+    academicYear: asString(data.academic_year ?? raw.academic_year),
+    classSection: asString(data.class_section ?? raw.class_section),
+    reasonCode:
+      typeof raw.reason_code === "string" ? raw.reason_code : undefined,
+  };
+}
+
+export function importCommitApiToView(api: {
+  import_session_id: string;
+  status: string;
+  committed_count: number;
+}): ImportCommitResult {
+  return {
+    importSessionId: api.import_session_id,
+    status: api.status,
+    committedCount: api.committed_count,
+  };
+}
+
+export function importCommitErrorMessage(err: {
+  code?: string;
+  status: number;
+  userMessage: () => string;
+}): string {
+  switch (err.code) {
+    case "IMPORT_SESSION_EXPIRED":
+      return "The validated import session has expired. Validate the CSV again.";
+    case "IMPORT_SESSION_INVALID":
+      return "This import session is no longer valid. Validate the CSV again.";
+    case "STUDENT_IMPORT_CONFLICT":
+      return "Roster data changed after validation. Revalidate the CSV before importing.";
+    default:
+      break;
+  }
+  if (err.status === 409) {
+    return "This change conflicts with an existing record.";
+  }
+  if (err.status === 422) {
+    return "The import request failed validation. Check the CSV and try again.";
+  }
+  return err.userMessage();
+}
+
 export function importValidationApiToView(api: {
   import_session_id: string;
   status: "VALIDATED";
@@ -84,7 +163,9 @@ export function importValidationApiToView(api: {
   row_results: Array<Record<string, unknown>>;
   expires_at: string;
 }): ImportValidationView {
-  const rowResults = api.row_results as ImportRowResult[];
+  const rowResults = api.row_results.map((row, index) =>
+    importRowApiToView(row, index),
+  );
   const duplicateCount = rowResults.filter((r) =>
     String(r.outcome).startsWith("DUPLICATE"),
   ).length;
