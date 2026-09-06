@@ -1,8 +1,8 @@
 """B2 integration coverage for authoring read seams needed by the live web adapter."""
 
+import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-import uuid
 
 import pytest
 from httpx import ASGITransport, AsyncClient
