@@ -2,7 +2,7 @@
 
 **Branch:** `b2/live-authoring-integration`  
 **Base:** `develop` at `74fd4902478642d0f93fee9aa154c5669430569b`  
-**Final feature SHA (pre-merge):** see commit on branch after conditional-pass fixes  
+**Completion-pass commit:** `2b941e10213cb0b22bba00deef16946ce41cbeb7`  
 **Project gate:** `CONDITIONAL PASS — required fixes completed and all CI green`
 
 ## Scope
