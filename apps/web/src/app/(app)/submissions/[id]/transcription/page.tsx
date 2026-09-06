@@ -157,6 +157,7 @@ function RegionReviewPanel({
 }) {
   const active = region.active_transcription;
   const ai = region.latest_ai_proposal;
+  const confirmable = active ?? ai;
   const draftSeed =
     active?.source_type === "HUMAN"
       ? active.text ?? ""
@@ -233,7 +234,7 @@ function RegionReviewPanel({
             <Button
               size="sm"
               data-testid="confirm-transcription"
-              disabled={busy || confirmed || !active}
+              disabled={busy || confirmed || !confirmable}
               onClick={onConfirm}
             >
               {confirmed ? "Confirmed" : "Accept / confirm"}
@@ -564,7 +565,9 @@ function TranscriptionReview({ id }: { id: string }) {
                           saveMutation.mutate({ regionId: region.id, text })
                         }
                         onConfirm={() => {
-                          const txId = region.active_transcription?.id;
+                          const txId =
+                            region.active_transcription?.id ??
+                            region.latest_ai_proposal?.id;
                           if (txId) confirmMutation.mutate(txId);
                         }}
                         onMarkUnreadable={() => unreadableMutation.mutate(region.id)}

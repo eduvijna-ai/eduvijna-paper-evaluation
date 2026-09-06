@@ -338,12 +338,19 @@ test.describe("B5 real AI structure + transcription", () => {
     const textInput = page.getByTestId("transcription-text-input").first();
     await textInput.fill("Human-corrected transcription");
     await page.getByTestId("save-transcription").first().click();
+    await expect(page.getByTestId("transcription-human-copy").first()).toBeVisible({
+      timeout: 20_000,
+    });
     await page.getByTestId("confirm-transcription").first().click();
 
-    // Confirm any remaining regions.
-    while ((await page.getByTestId("confirm-transcription").count()) > 0) {
-      await page.getByTestId("confirm-transcription").first().click();
-      await page.waitForTimeout(500);
+    // Confirm any remaining enabled proposals.
+    for (let i = 0; i < 10; i += 1) {
+      const enabled = page.locator(
+        '[data-testid="confirm-transcription"]:not([disabled])',
+      );
+      if ((await enabled.count()) === 0) break;
+      await enabled.first().click();
+      await page.waitForTimeout(400);
     }
 
     await page.getByTestId("finalize-transcription").click();
