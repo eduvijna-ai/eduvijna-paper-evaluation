@@ -11,6 +11,7 @@ export interface ApiCapabilities {
   guardians: DomainCapability;
   academicStructure: DomainCapability;
   institution: DomainCapability;
+  curriculum: DomainCapability;
   assessments: DomainCapability;
   submissions: DomainCapability;
   reports: DomainCapability;
@@ -28,7 +29,8 @@ export function getApiCapabilities(): ApiCapabilities {
       guardians: "live",
       academicStructure: "live",
       institution: "live",
-      assessments: "mock",
+      curriculum: "live",
+      assessments: "live",
       submissions: "mock",
       reports: "mock",
       analytics: "mock",
@@ -41,6 +43,7 @@ export function getApiCapabilities(): ApiCapabilities {
     guardians: "mock",
     academicStructure: "mock",
     institution: "mock",
+    curriculum: "mock",
     assessments: "mock",
     submissions: "mock",
     reports: "mock",
