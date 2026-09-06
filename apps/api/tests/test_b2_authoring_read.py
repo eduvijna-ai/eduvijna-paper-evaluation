@@ -8,7 +8,11 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.cli.seed_dev import ADMIN_EMAIL, ADMIN_PASSWORD, seed
+from app.core.authorization import AuthContext
 from app.core.config import get_settings
+from app.core.security import JwtAuthProvider, hash_password
+from app.db.models import Tenant, User
+from app.db.session import async_session_factory
 from app.main import create_app
 
 
@@ -111,3 +115,48 @@ async def test_list_rubric_versions_is_authenticated_and_scoped() -> None:
         assert (await client.get(f"/api/v1/rubrics/{rubric_id}/versions")).status_code == 401
         missing = await client.get(f"/api/v1/rubrics/{uuid.uuid4()}/versions", headers=headers)
         assert missing.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_list_rubric_versions_rejects_foreign_tenant() -> None:
+    """Cross-tenant rubric-version discovery must 404 without leaking content."""
+    async with api_client() as client:
+        tenant_a_headers = await _headers(client)
+        rubric_id, version_id = await _rubric(client, tenant_a_headers)
+
+        suffix = uuid.uuid4().hex[:8]
+        async with async_session_factory() as db:
+            tenant_b = Tenant(slug=f"b2-foreign-{suffix}", name="B2 Foreign Tenant")
+            db.add(tenant_b)
+            await db.flush()
+            tenant_b_user = User(
+                tenant_id=tenant_b.id,
+                email=f"admin@{suffix}.eduvijna.local",
+                display_name="Foreign Admin",
+                password_hash=hash_password(ADMIN_PASSWORD),
+            )
+            db.add(tenant_b_user)
+            await db.commit()
+            tenant_b_id = tenant_b.id
+            tenant_b_user_id = tenant_b_user.id
+
+        tenant_b_token, _ = JwtAuthProvider(get_settings()).issue_access_token(
+            AuthContext(
+                user_id=tenant_b_user_id,
+                tenant_id=tenant_b_id,
+                roles=frozenset({"INSTITUTION_ADMIN"}),
+                permissions=frozenset({"rubric:read"}),
+            )
+        )
+        tenant_b_headers = {"Authorization": f"Bearer {tenant_b_token}"}
+
+        response = await client.get(
+            f"/api/v1/rubrics/{rubric_id}/versions",
+            headers=tenant_b_headers,
+        )
+        assert response.status_code == 404
+        body = response.text
+        assert str(rubric_id) not in body
+        assert str(version_id) not in body
+        assert "DRAFT" not in body
+        assert "version_number" not in body

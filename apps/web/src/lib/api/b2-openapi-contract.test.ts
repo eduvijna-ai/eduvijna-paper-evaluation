@@ -5,10 +5,22 @@ import yaml from "yaml";
 
 const openapiPath = resolve(process.cwd(), "../../packages/contracts/openapi.yaml");
 
+type OpenApiSchema = {
+  type?: string;
+  required?: string[];
+  properties?: Record<string, unknown>;
+  items?: { $ref?: string };
+  content?: {
+    "application/json"?: {
+      schema?: { type?: string; items?: { $ref?: string } };
+    };
+  };
+};
+
 describe("B2 A2 OpenAPI contract", () => {
   const doc = yaml.parse(readFileSync(openapiPath, "utf8")) as {
-    paths: Record<string, { get?: unknown; post?: unknown }>;
-    components: { schemas: Record<string, unknown> };
+    paths: Record<string, { get?: OpenApiSchema; post?: unknown }>;
+    components: { schemas: Record<string, OpenApiSchema> };
   };
 
   it("publishes curriculum and assessment authoring paths", () => {
@@ -27,8 +39,33 @@ describe("B2 A2 OpenAPI contract", () => {
     }
   });
 
-  it("publishes rubric-version discovery used by the live adapter", () => {
-    expect(doc.paths["/api/v1/rubrics/{id}/versions"]?.get).toBeTruthy();
+  it("publishes typed rubric-version discovery used by the live adapter", () => {
+    const get = doc.paths["/api/v1/rubrics/{id}/versions"]?.get as
+      | { responses?: Record<string, OpenApiSchema> }
+      | undefined;
+    expect(get).toBeTruthy();
+
+    const ok = get?.responses?.["200"];
+    expect(ok).toBeTruthy();
+    const schema = ok?.content?.["application/json"]?.schema;
+    expect(schema?.type).toBe("array");
+    expect(schema?.items?.$ref).toBe("#/components/schemas/RubricVersion");
+
+    const rubricVersion = doc.components.schemas.RubricVersion;
+    expect(rubricVersion).toBeTruthy();
+    for (const field of [
+      "id",
+      "tenant_id",
+      "rubric_id",
+      "question_version_id",
+      "version_number",
+      "status",
+      "source_type",
+      "approved_by",
+      "approved_at",
+    ]) {
+      expect(rubricVersion.properties, field).toHaveProperty(field);
+    }
   });
 
   it("keeps the A2 creation schemas required by the live adapter", () => {

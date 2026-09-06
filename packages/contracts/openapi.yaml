@@ -440,7 +440,14 @@ paths:
       operationId: listRubricVersions
       security: [{ bearerAuth: [] }]
       responses:
-        "200": { description: Rubric versions ordered by version number }
+        "200":
+          description: Rubric versions ordered by version number
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RubricVersion"
         "404": { $ref: "#/components/responses/NotFound" }
     post:
       operationId: createRubricVersion
@@ -813,6 +820,34 @@ components:
         question_version_id: { type: string, format: uuid }
         source_type: { type: string, enum: [TEACHER, IMPORTED], default: TEACHER }
         status: { type: string, enum: [DRAFT, REVIEW_REQUIRED], default: DRAFT }
+    RubricVersion:
+      type: object
+      required:
+        [
+          id,
+          tenant_id,
+          rubric_id,
+          question_version_id,
+          version_number,
+          status,
+          source_type,
+          created_by,
+          created_at,
+          updated_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        rubric_id: { type: string, format: uuid }
+        question_version_id: { type: string, format: uuid }
+        version_number: { type: integer }
+        status: { type: string, enum: [DRAFT, REVIEW_REQUIRED, APPROVED, SUPERSEDED] }
+        source_type: { type: string }
+        created_by: { type: string, format: uuid }
+        approved_by: { type: [string, "null"], format: uuid }
+        approved_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
     RubricCriterionInput:
       type: object
       required: [criterion_code, description, max_marks, sequence, scoring_mode]

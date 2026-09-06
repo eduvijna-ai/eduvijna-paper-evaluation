@@ -63,10 +63,13 @@ test.describe("B2 real A2 authoring flows", () => {
 
     await page.goto("/curriculum");
     await expect(page.getByTestId("curriculum-list-page")).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText(curriculum.code)).toBeVisible({ timeout: 20_000 });
-    await page.getByText(curriculum.code).click();
+    await expect(page.getByText(curriculum.code, { exact: true })).toBeVisible({
+      timeout: 20_000,
+    });
+    await page.getByText(curriculum.code, { exact: true }).click();
     await expect(page.getByTestId("curriculum-detail-page")).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText(node.name)).toBeVisible();
+    // exact:true avoids matching the page heading when it contains the node name as a substring
+    await expect(page.getByText(node.name, { exact: true })).toBeVisible();
 
     await page.goto("/assessments/new");
     await expect(page.getByTestId("assessment-new-page")).toBeVisible({ timeout: 20_000 });
@@ -80,7 +83,7 @@ test.describe("B2 real A2 authoring flows", () => {
     await page.getByTestId("assessment-field-maxMarks").fill("10");
     await page.getByTestId("assessment-create-submit").click();
     await expect(page.getByTestId("assessment-detail-page")).toBeVisible({ timeout: 30_000 });
-    await expect(page.getByText(assessmentCode)).toBeVisible();
+    await expect(page.getByText(assessmentCode, { exact: true })).toBeVisible();
     await expect(page.getByTestId("assessment-downstream-boundary")).toBeVisible();
     await expect(page.getByTestId("link-analytics")).toHaveCount(0);
 
@@ -187,15 +190,17 @@ test.describe("B2 real A2 authoring flows", () => {
 
     await page.goto(`/assessments/${assessmentId}/questions`);
     await expect(page.getByTestId("assessment-questions-page")).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText(`What is 2 + 2? ${suffix}`)).toBeVisible();
+    await expect(page.getByText(`What is 2 + 2? ${suffix}`, { exact: true })).toBeVisible();
 
     await page.goto(`/assessments/${assessmentId}/answer-key`);
     await expect(page.getByTestId("assessment-answer-key-page")).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText(`4 — B2 answer ${suffix}`)).toBeVisible();
+    await expect(page.getByText(`4 — B2 answer ${suffix}`, { exact: true })).toBeVisible();
 
     await page.goto(`/assessments/${assessmentId}/rubric`);
     await expect(page.getByTestId("assessment-rubric-page")).toBeVisible({ timeout: 20_000 });
-    await expect(page.getByText(`Correct answer criterion ${suffix}`)).toBeVisible();
+    await expect(
+      page.getByText(`Correct answer criterion ${suffix}`, { exact: true }),
+    ).toBeVisible();
 
     await page.goto(`/assessments/${assessmentId}/curriculum-map`);
     await expect(page.getByTestId("assessment-curriculum-map-page")).toBeVisible({ timeout: 20_000 });
