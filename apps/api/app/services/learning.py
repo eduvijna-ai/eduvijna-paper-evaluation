@@ -634,6 +634,7 @@ def _serialize_recommendation(
     return {
         "id": str(rec.id),
         "target_node_id": str(rec.target_node_id),
+        "curriculum_node_id": str(rec.target_node_id),
         "recommendation_kind": rec.recommendation_kind,
         "priority": rec.priority,
         "rationale": rec.rationale,
@@ -647,9 +648,15 @@ def _serialize_recommendation(
             else None
         ),
         "status": rec.status,
+        "code": rec.target_node_code_snapshot,
+        "title": rec.target_node_title_snapshot,
+        "node_type": rec.target_node_type_snapshot,
         "target_node_code": rec.target_node_code_snapshot,
         "target_node_title": rec.target_node_title_snapshot,
         "target_node_type": rec.target_node_type_snapshot,
+        "target_node_code_snapshot": rec.target_node_code_snapshot,
+        "target_node_title_snapshot": rec.target_node_title_snapshot,
+        "target_node_type_snapshot": rec.target_node_type_snapshot,
         "prerequisites": [
             {
                 "curriculum_node_id": str(p.curriculum_node_id),
@@ -696,6 +703,19 @@ async def _serialize_plan_run(
             )
         ).all()
     )
+    node_ids = {s.curriculum_node_id for s in steps}
+    nodes_by_id: dict[uuid.UUID, CurriculumNode] = {}
+    if node_ids:
+        for curriculum_node in (
+            await db.scalars(
+                select(CurriculumNode).where(
+                    CurriculumNode.tenant_id == tenant_id,
+                    CurriculumNode.id.in_(node_ids),
+                )
+            )
+        ).all():
+            nodes_by_id[curriculum_node.id] = curriculum_node
+
     serialized_recs = []
     for rec in recs:
         prereqs = list(
@@ -722,8 +742,32 @@ async def _serialize_plan_run(
             _serialize_recommendation(rec, prereqs, [e.mastery_evidence_id for e in ev])
         )
 
+    serialized_path = []
+    for step in steps:
+        path_node = nodes_by_id.get(step.curriculum_node_id)
+        serialized_path.append(
+            {
+                "id": str(step.id),
+                "curriculum_node_id": str(step.curriculum_node_id),
+                "learning_recommendation_id": (
+                    str(step.learning_recommendation_id)
+                    if step.learning_recommendation_id
+                    else None
+                ),
+                "kind": step.kind,
+                "sequence": step.sequence,
+                "title": step.title,
+                "description": step.description,
+                "evidence_basis": step.evidence_basis,
+                "relationship_type": step.relationship_type,
+                "node_code": path_node.code if path_node is not None else None,
+                "node_title": path_node.name if path_node is not None else None,
+            }
+        )
+
     return {
         "id": str(run.id),
+        "run_id": str(run.id),
         "student_id": str(run.student_id),
         "curriculum_id": str(run.curriculum_id),
         "version_number": run.version_number,
@@ -742,24 +786,8 @@ async def _serialize_plan_run(
         "started_at": run.started_at.isoformat() if run.started_at else None,
         "finished_at": run.finished_at.isoformat() if run.finished_at else None,
         "recommendations": serialized_recs,
-        "learning_path": [
-            {
-                "id": str(s.id),
-                "curriculum_node_id": str(s.curriculum_node_id),
-                "learning_recommendation_id": (
-                    str(s.learning_recommendation_id)
-                    if s.learning_recommendation_id
-                    else None
-                ),
-                "kind": s.kind,
-                "sequence": s.sequence,
-                "title": s.title,
-                "description": s.description,
-                "evidence_basis": s.evidence_basis,
-                "relationship_type": s.relationship_type,
-            }
-            for s in steps
-        ],
+        "learning_path": serialized_path,
+        "path": serialized_path,
         "no_gap_message": (
             "No evidence-backed learning gaps were identified from currently "
             "published results."

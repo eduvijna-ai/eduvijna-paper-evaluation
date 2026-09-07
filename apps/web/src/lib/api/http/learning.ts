@@ -78,6 +78,7 @@ export interface B9PlanRunDto {
   is_stale?: boolean;
   recommendations?: B9RecommendationDto[];
   path?: B9PathStepDto[];
+  learning_path?: B9PathStepDto[];
   materialization_status?: string | null;
   evidence_coverage?: {
     curriculum_node_count?: number;
@@ -92,6 +93,9 @@ export interface B9RecommendationDto {
   code?: string;
   title?: string;
   node_type?: string;
+  target_node_code?: string;
+  target_node_title?: string;
+  target_node_type?: string;
   target_node_code_snapshot?: string;
   target_node_title_snapshot?: string;
   target_node_type_snapshot?: string;
@@ -128,7 +132,8 @@ export interface B9PathStepDto {
 }
 
 export interface B9LearningPlanDto {
-  run_id: string;
+  run_id?: string;
+  id?: string;
   version_number: number;
   status: string;
   generation_source?: string | null;
@@ -139,6 +144,7 @@ export interface B9LearningPlanDto {
   is_stale?: boolean;
   recommendations?: B9RecommendationDto[];
   path?: B9PathStepDto[];
+  learning_path?: B9PathStepDto[];
   materialization_status?: string | null;
   evidence_coverage?: {
     curriculum_node_count?: number;
@@ -223,9 +229,11 @@ function mapRecommendation(
   return {
     id: row.id,
     curriculum_node_id: row.curriculum_node_id || row.target_node_id || "",
-    code: row.code ?? row.target_node_code_snapshot ?? "",
-    title: row.title ?? row.target_node_title_snapshot ?? "",
-    node_type: row.node_type ?? row.target_node_type_snapshot ?? "",
+    code: row.code ?? row.target_node_code_snapshot ?? row.target_node_code ?? "",
+    title:
+      row.title ?? row.target_node_title_snapshot ?? row.target_node_title ?? "",
+    node_type:
+      row.node_type ?? row.target_node_type_snapshot ?? row.target_node_type ?? "",
     recommendation_kind: row.recommendation_kind,
     priority,
     rationale: row.rationale ?? "",
@@ -276,8 +284,9 @@ function mapPlanRunSummary(dto: B9PlanRunDto): LiveLearningPlanRunSummary {
 }
 
 export function learningPlanApiToView(dto: B9LearningPlanDto): LiveLearningPlan {
+  const pathRows = dto.path ?? dto.learning_path ?? [];
   return {
-    run_id: dto.run_id,
+    run_id: dto.run_id ?? dto.id ?? "",
     version_number: dto.version_number,
     status: dto.status,
     generation_source: dto.generation_source ?? null,
@@ -287,7 +296,7 @@ export function learningPlanApiToView(dto: B9LearningPlanDto): LiveLearningPlan 
     input_hash: dto.input_hash ?? "",
     is_stale: Boolean(dto.is_stale),
     recommendations: (dto.recommendations ?? []).map(mapRecommendation),
-    path: (dto.path ?? [])
+    path: pathRows
       .slice()
       .sort((a, b) => a.sequence - b.sequence)
       .map(mapPathStep),
@@ -303,6 +312,7 @@ export function learningPlanApiToView(dto: B9LearningPlanDto): LiveLearningPlan 
 function planFromRunDto(dto: B9PlanRunDto): LiveLearningPlan {
   return learningPlanApiToView({
     run_id: dto.id,
+    id: dto.id,
     version_number: dto.version_number,
     status: dto.status,
     generation_source: dto.generation_source,
@@ -313,6 +323,7 @@ function planFromRunDto(dto: B9PlanRunDto): LiveLearningPlan {
     is_stale: dto.is_stale,
     recommendations: dto.recommendations,
     path: dto.path,
+    learning_path: dto.learning_path,
     materialization_status: dto.materialization_status,
     evidence_coverage: dto.evidence_coverage,
   });

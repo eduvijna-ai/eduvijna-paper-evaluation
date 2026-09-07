@@ -439,7 +439,15 @@ async function publishWeakAttempt(
   const textInputs = page.getByTestId("transcription-text-input");
   const count = await textInputs.count();
   for (let i = 0; i < count; i += 1) {
-    await textInputs.nth(i).fill(i === 0 ? "wrong-a" : "wrong-b");
+    // Fixed provider: EXERCISE:DEDUCT → CALCULATION (execution WEAK);
+    // CONCEPT in text → CONCEPT taxonomy for concept WEAK.
+    await textInputs
+      .nth(i)
+      .fill(
+        i === 0
+          ? "EXERCISE:DEDUCT CONCEPT gap on linear equations"
+          : "EXERCISE:DEDUCT CONCEPT gap on quadratics",
+      );
     await page.getByTestId("save-transcription").nth(i).click();
     await page.waitForTimeout(400);
   }
@@ -649,9 +657,15 @@ test.describe("B9 live learning + improvement blueprint (real API)", () => {
           const body = (await run.json()) as {
             status?: string;
             path?: Array<{ node_code?: string; sequence?: number }>;
+            learning_path?: Array<{ node_code?: string; sequence?: number }>;
             recommendations?: unknown[];
           };
           if (body.status !== "READY") return body.status ?? "pending";
+          const path = body.path ?? body.learning_path ?? [];
+          const recs = body.recommendations ?? [];
+          if (recs.length === 0 || path.length === 0) {
+            return `empty:recs=${recs.length}:path=${path.length}`;
+          }
           return "READY";
         },
         { timeout: 180_000 },
@@ -664,9 +678,29 @@ test.describe("B9 live learning + improvement blueprint (real API)", () => {
     });
 
     const pathText = (await page.getByTestId("live-learning-path").textContent()) ?? "";
-    expect(pathText).toContain(nodeACode);
-    expect(pathText).toContain(nodeBCode);
-    expect(pathText.indexOf(nodeACode)).toBeLessThan(pathText.indexOf(nodeBCode));
+    await expect(page.locator(`[data-node-code="${nodeACode}"]`).first()).toBeVisible();
+    await expect(page.locator(`[data-node-code="${nodeBCode}"]`).first()).toBeVisible();
+    const aPos = await page
+      .locator(`[data-node-code="${nodeACode}"]`)
+      .first()
+      .evaluate((el) => {
+        const steps = [
+          ...document.querySelectorAll("[data-testid^='live-learning-path-step-']"),
+        ];
+        return steps.findIndex((s) => s.contains(el));
+      });
+    const bPos = await page
+      .locator(`[data-node-code="${nodeBCode}"]`)
+      .first()
+      .evaluate((el) => {
+        const steps = [
+          ...document.querySelectorAll("[data-testid^='live-learning-path-step-']"),
+        ];
+        return steps.findIndex((s) => s.contains(el));
+      });
+    expect(aPos).toBeGreaterThanOrEqual(0);
+    expect(bPos).toBeGreaterThanOrEqual(0);
+    expect(aPos).toBeLessThan(bPos);
     expect(pathText).not.toMatch(/https?:\/\//i);
     expect(pathText).not.toMatch(/\bwww\./i);
     await expect(page.getByText(/% mastery/i)).toHaveCount(0);
