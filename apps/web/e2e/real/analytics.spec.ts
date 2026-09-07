@@ -249,39 +249,33 @@ async function publishOne(
   pdf: Buffer,
   overrideScore: number,
 ): Promise<string> {
+  const headers = { Authorization: `Bearer ${token}` };
+
+  // API upload avoids react-hook-form select flakiness; UI covers analytics screens below.
+  const upload = await request.post(`${apiBase}/api/v1/submissions`, {
+    headers,
+    multipart: {
+      assessment_id: assessmentId,
+      file: {
+        name: "b8-sheet.pdf",
+        mimeType: "application/pdf",
+        buffer: pdf,
+      },
+    },
+  });
+  expect(upload.ok()).toBeTruthy();
+  const submissionId = ((await upload.json()) as { id: string }).id;
+
   await page.goto("/login");
   await page.getByTestId("login-email").fill(ADMIN_EMAIL);
   await page.getByTestId("login-password").fill(ADMIN_PASSWORD);
   await page.getByTestId("login-submit").click();
   await expect(page.getByTestId("app-shell")).toBeVisible({ timeout: 30_000 });
 
-  await page.goto("/submissions/upload");
-  await expect(page.getByTestId("upload-assessment")).toBeVisible({
+  await page.goto(`/submissions/${submissionId}`);
+  await expect(page.getByTestId("submission-detail-page")).toBeVisible({
     timeout: 30_000,
   });
-  await expect
-    .poll(
-      async () =>
-        page
-          .getByTestId("upload-assessment")
-          .locator(`option[value="${assessmentId}"]`)
-          .count(),
-      { timeout: 60_000 },
-    )
-    .toBeGreaterThan(0);
-  await page.getByTestId("upload-assessment").selectOption(assessmentId);
-  await page.getByTestId("upload-file").setInputFiles({
-    name: "b8-sheet.pdf",
-    mimeType: "application/pdf",
-    buffer: pdf,
-  });
-  await page.getByTestId("upload-submit").click();
-  await expect(page.getByTestId("submission-detail-page")).toBeVisible({
-    timeout: 90_000,
-  });
-  const submissionUrl = page.url();
-  const submissionId = submissionUrl.split("/submissions/")[1]?.split(/[/?#]/)[0] ?? "";
-  expect(submissionId).toBeTruthy();
 
   await expect
     .poll(
@@ -396,7 +390,6 @@ async function publishOne(
   await expect(page.getByTestId("link-evaluation")).toBeVisible();
 
   // Drive evaluation to APPROVED via API; first leaf uses overrideScore for distinct attempts.
-  const headers = { Authorization: `Bearer ${token}` };
   await expect
     .poll(
       async () => {
