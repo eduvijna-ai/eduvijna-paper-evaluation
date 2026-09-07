@@ -25,6 +25,7 @@ from app.ai.types import (
     TranscriptionInput,
     TranscriptionResult,
     TranscriptionSegment,
+    TranscriptionTable,
 )
 
 
@@ -155,10 +156,33 @@ class FixedStructureProvider:
         self._guard()
         short = str(request.answer_region_id).replace("-", "")[:8]
         text = f"Fixed transcription for {short}"
+        # Deterministic mixed structure for PEV-013 (TEXT + MATH + TABLE).
+        segments = [
+            TranscriptionSegment(kind="TEXT", text=text, step_index=0),
+            TranscriptionSegment(
+                kind="MATH",
+                latex=rf"x_{{{short[:2]}}}^2 + 1",
+                text=None,
+                step_index=1,
+                confidence=Decimal("0.8000"),
+            ),
+            TranscriptionSegment(
+                kind="TABLE",
+                table=TranscriptionTable(
+                    rows=[
+                        ["step", "value"],
+                        ["1", short[:4]],
+                        ["2", short[4:8]],
+                    ]
+                ),
+                step_index=2,
+                confidence=Decimal("0.7500"),
+            ),
+        ]
         return TranscriptionResult(
             text=text,
-            latex=None,
-            segments=[TranscriptionSegment(text=text)],
+            latex=rf"x_{{{short[:2]}}}^2 + 1",
+            segments=segments,
             transcription_confidence=Decimal("0.7700"),
             unreadable=False,
         )

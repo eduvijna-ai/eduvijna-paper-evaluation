@@ -21,7 +21,6 @@ from app.core.config import Settings, get_settings
 from app.db.models import (
     AnswerRegion,
     AnswerRegionTranscription,
-    AuditEvent,
     PipelineJob,
     QuestionAnswerMapping,
     QuestionAnswerMappingRegion,
@@ -29,6 +28,7 @@ from app.db.models import (
     Submission,
     SubmissionPage,
 )
+from app.services.audit import add_audit_event
 from app.services.crop_generation import ensure_region_crop
 from app.services.storage import ObjectStorage
 
@@ -73,15 +73,14 @@ async def ensure_transcription_job_and_state(
 
     if not structure_provider_active(settings):
         submission.transcription_state = "REVIEW_REQUIRED"
-        db.add(
-            AuditEvent(
-                tenant_id=tenant_id,
-                actor_user_id=None,
-                entity_type="Submission",
-                entity_id=submission.id,
-                action="transcription_manual_required",
-                payload_json={"reason": "provider_none"},
-            )
+        await add_audit_event(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=None,
+            entity_type="Submission",
+            entity_id=submission.id,
+            action="transcription_manual_required",
+            after={"reason": "provider_none"},
         )
         await db.flush()
         return None
@@ -376,15 +375,14 @@ async def run_transcription_pipeline(
         job.finished_at = datetime.now(UTC)
         job.error_code = None
         job.error_detail = None
-        db.add(
-            AuditEvent(
-                tenant_id=tenant_id,
-                actor_user_id=None,
-                entity_type="Submission",
-                entity_id=submission.id,
-                action="transcription_pipeline_succeeded",
-                payload_json={"job_id": str(job.id)},
-            )
+        await add_audit_event(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=None,
+            entity_type="Submission",
+            entity_id=submission.id,
+            action="transcription_pipeline_succeeded",
+            after={"job_id": str(job.id)},
         )
         await db.commit()
     except Exception as exc:
@@ -771,19 +769,18 @@ async def finalize_transcription(
                     )
 
     submission.transcription_state = "READY"
-    db.add(
-        AuditEvent(
-            tenant_id=tenant_id,
-            actor_user_id=None,
-            entity_type="Submission",
-            entity_id=submission.id,
-            action="transcription_finalized",
-            payload_json={
-                "transcription_state": "READY",
-                "workflow_state": submission.workflow_state,
-                "evaluation_enqueued": False,
-            },
-        )
+    await add_audit_event(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=None,
+        entity_type="Submission",
+        entity_id=submission.id,
+        action="transcription_finalized",
+        after={
+            "transcription_state": "READY",
+            "workflow_state": submission.workflow_state,
+            "evaluation_enqueued": False,
+        },
     )
     await db.flush()
     return submission

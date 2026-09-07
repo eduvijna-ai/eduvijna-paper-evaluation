@@ -25,7 +25,6 @@ from app.ai.types import (
 )
 from app.db.models import (
     Assessment,
-    AuditEvent,
     Curriculum,
     CurriculumNode,
     CurriculumPrerequisite,
@@ -40,6 +39,7 @@ from app.db.models import (
     Student,
 )
 from app.services.analytics import materialization_status_for_student
+from app.services.audit import add_audit_event
 from app.services.learning_algorithm import (
     ALGORITHM_VERSION,
     EvidenceFact,
@@ -1500,15 +1500,14 @@ async def approve_blueprint(
     bp.approved_by = actor_user_id
     bp.approved_at = _utcnow()
     bp.updated_at = _utcnow()
-    db.add(
-        AuditEvent(
-            tenant_id=tenant_id,
-            actor_user_id=actor_user_id,
-            entity_type="ImprovementAssessment",
-            entity_id=bp.id,
-            action="APPROVE_BLUEPRINT",
-            payload_json={"status": "APPROVED"},
-        )
+    await add_audit_event(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=actor_user_id,
+        entity_type="ImprovementAssessment",
+        entity_id=bp.id,
+        action="APPROVE_BLUEPRINT",
+        after={"status": "APPROVED"},
     )
     # Explicitly do NOT create Assessment / Question / etc.
     await db.flush()
@@ -1549,15 +1548,14 @@ async def reject_blueprint(
     bp.rejected_at = _utcnow()
     bp.rejection_reason = reason
     bp.updated_at = _utcnow()
-    db.add(
-        AuditEvent(
-            tenant_id=tenant_id,
-            actor_user_id=actor_user_id,
-            entity_type="ImprovementAssessment",
-            entity_id=bp.id,
-            action="REJECT_BLUEPRINT",
-            payload_json={"reason": reason[:200]},
-        )
+    await add_audit_event(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=actor_user_id,
+        entity_type="ImprovementAssessment",
+        entity_id=bp.id,
+        action="REJECT_BLUEPRINT",
+        after={"reason": reason[:200]},
     )
     await db.flush()
     return await get_improvement_assessment(

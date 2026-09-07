@@ -1,10 +1,14 @@
-"""Structure-, evaluation-, and narrative-stage AI provider protocols."""
+"""Structure-, evaluation-, narrative-, learning-, and authoring-stage AI protocols."""
 
 from __future__ import annotations
 
 from typing import Protocol
 
 from app.ai.types import (
+    AnswerKeyProposalInput,
+    AnswerKeyProposalResult,
+    CurriculumMappingProposalInput,
+    CurriculumMappingProposalResult,
     ErrorClassificationInput,
     ErrorClassificationResult,
     IdentityExtractionInput,
@@ -17,10 +21,14 @@ from app.ai.types import (
     PageAnalysisResult,
     ParentNarrativeInput,
     ParentNarrativeResult,
+    QuestionPaperParseInput,
+    QuestionPaperParseResult,
     RegionMappingInput,
     RegionMappingResult,
     RubricEvaluationInput,
     RubricEvaluationResult,
+    RubricProposalInput,
+    RubricProposalResult,
     StudentNarrativeInput,
     StudentNarrativeResult,
     TranscriptionInput,
@@ -86,3 +94,25 @@ class LearningAIProvider(Protocol):
     async def generate_improvement_blueprint(
         self, request: ImprovementBlueprintAIInput
     ) -> ImprovementBlueprintAIResult: ...
+
+
+class AuthoringAIProvider(Protocol):
+    """B10 authoring proposals. Server validates / applies; provider never mutates DB."""
+
+    provider_name: str
+
+    async def parse_question_paper(
+        self, request: QuestionPaperParseInput
+    ) -> QuestionPaperParseResult: ...
+
+    async def propose_answer_key(
+        self, request: AnswerKeyProposalInput
+    ) -> AnswerKeyProposalResult: ...
+
+    async def propose_rubric(
+        self, request: RubricProposalInput
+    ) -> RubricProposalResult: ...
+
+    async def suggest_curriculum_mapping(
+        self, request: CurriculumMappingProposalInput
+    ) -> CurriculumMappingProposalResult: ...

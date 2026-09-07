@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Annotated, Any, cast
 
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import func, inspect, select
 from sqlalchemy.exc import IntegrityError
@@ -17,7 +17,6 @@ from app.db.models import (
     AnswerKeyVersion,
     Assessment,
     AssessmentVersion,
-    AuditEvent,
     ClassSection,
     Curriculum,
     CurriculumNode,
@@ -36,13 +35,8 @@ from app.services.academic_freeze import (
     rubric_criterion_audit_payload,
     rubric_version_audit_payload,
 )
-from app.services.ai_proposals import (
-    AnswerKeyProposalRequest,
-    CurriculumMappingProposalRequest,
-    RubricProposalRequest,
-    unavailable,
-)
 from app.services.assessment_transitions import validate_transition
+from app.services.audit import add_audit_event
 from app.services.curriculum import (
     build_tree,
     ensure_parent_acyclic,
@@ -250,15 +244,14 @@ async def _scoped[ModelT](
 async def _audit(
     db: AsyncSession, auth: AuthContext, entity: Any, action: str, payload: dict[str, Any]
 ) -> None:
-    db.add(
-        AuditEvent(
-            tenant_id=auth.tenant_id,
-            actor_user_id=auth.user_id,
-            entity_type=entity.__class__.__name__,
-            entity_id=entity.id,
-            action=action,
-            payload_json=payload,
-        )
+    await add_audit_event(
+        db,
+        tenant_id=auth.tenant_id,
+        actor_user_id=auth.user_id,
+        entity_type=entity.__class__.__name__,
+        entity_id=entity.id,
+        action=action,
+        after=payload,
     )
 
 
@@ -1235,51 +1228,3 @@ async def delete_mapping(
     )
     await db.delete(item)
     await _commit(db)
-
-
-@router.post("/ai/proposals/answer-key")
-async def propose_answer_key(
-    payload: AnswerKeyProposalRequest,
-    db: Db,
-    auth: AuthContext = Depends(require_permissions("assessment:manage")),
-) -> Response:
-    await unavailable(
-        db,
-        tenant_id=auth.tenant_id,
-        operation="propose_answer_key",
-        request=payload,
-        requested_by=auth.user_id,
-    )
-    raise AssertionError("unreachable")
-
-
-@router.post("/ai/proposals/rubric")
-async def propose_rubric(
-    payload: RubricProposalRequest,
-    db: Db,
-    auth: AuthContext = Depends(require_permissions("rubric:manage")),
-) -> Response:
-    await unavailable(
-        db,
-        tenant_id=auth.tenant_id,
-        operation="propose_rubric",
-        request=payload,
-        requested_by=auth.user_id,
-    )
-    raise AssertionError("unreachable")
-
-
-@router.post("/ai/proposals/curriculum-mapping")
-async def suggest_curriculum_mapping(
-    payload: CurriculumMappingProposalRequest,
-    db: Db,
-    auth: AuthContext = Depends(require_permissions("curriculum:manage")),
-) -> Response:
-    await unavailable(
-        db,
-        tenant_id=auth.tenant_id,
-        operation="suggest_curriculum_mapping",
-        request=payload,
-        requested_by=auth.user_id,
-    )
-    raise AssertionError("unreachable")

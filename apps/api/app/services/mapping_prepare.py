@@ -11,12 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import (
     AssessmentVersion,
-    AuditEvent,
     PipelineJob,
     QuestionVersion,
     Submission,
     SubmissionPage,
 )
+from app.services.audit import add_audit_event
 
 
 class MappingPrepareError(RuntimeError):
@@ -150,26 +150,25 @@ async def run_mapping_preparation(
             leaves=leaves,
         )
 
-        db.add(
-            AuditEvent(
-                tenant_id=tenant_id,
-                actor_user_id=None,
-                entity_type="Submission",
-                entity_id=submission.id,
-                action="mapping_prepare_succeeded",
-                payload_json={
-                    "job_id": str(job.id),
-                    "leaf_count": len(leaves),
-                    "page_count": len(pages),
-                    "assessment_version_id": str(version.id),
-                    "automated_region_detection_active": ai_meta[
-                        "automated_region_detection_active"
-                    ],
-                    "automated_mapping_active": ai_meta["automated_mapping_active"],
-                    "ai_region_count": ai_meta["ai_region_count"],
-                    "ai_mapping_count": ai_meta["ai_mapping_count"],
-                },
-            )
+        await add_audit_event(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=None,
+            entity_type="Submission",
+            entity_id=submission.id,
+            action="mapping_prepare_succeeded",
+            after={
+                "job_id": str(job.id),
+                "leaf_count": len(leaves),
+                "page_count": len(pages),
+                "assessment_version_id": str(version.id),
+                "automated_region_detection_active": ai_meta[
+                    "automated_region_detection_active"
+                ],
+                "automated_mapping_active": ai_meta["automated_mapping_active"],
+                "ai_region_count": ai_meta["ai_region_count"],
+                "ai_mapping_count": ai_meta["ai_mapping_count"],
+            },
         )
         job.status = "SUCCEEDED"
         job.finished_at = datetime.now(UTC)
@@ -181,15 +180,14 @@ async def run_mapping_preparation(
         job.finished_at = datetime.now(UTC)
         job.error_code = exc.code
         job.error_detail = exc.message
-        db.add(
-            AuditEvent(
-                tenant_id=tenant_id,
-                actor_user_id=None,
-                entity_type="Submission",
-                entity_id=submission_id,
-                action="mapping_prepare_failed",
-                payload_json={"code": exc.code, "message": exc.message},
-            )
+        await add_audit_event(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=None,
+            entity_type="Submission",
+            entity_id=submission_id,
+            action="mapping_prepare_failed",
+            after={"code": exc.code, "message": exc.message},
         )
         await db.commit()
         raise

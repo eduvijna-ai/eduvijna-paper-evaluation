@@ -60,6 +60,12 @@ import type {
   ImportCommitResult,
   ImportValidationView,
 } from "@/lib/api/mappers/import";
+import type { A2AssessmentVersion, A2AnswerKeyVersion, A2Rubric, A2RubricCriterion, A2RubricVersion } from "@/lib/api/a2-types";
+import type {
+  AssessmentArtifact,
+  AuthoringAiRun,
+  ProposedQuestionNode,
+} from "@/lib/types/domain";
 
 export interface OperationalHealth {
   status: "ok" | "degraded" | "error" | string;
@@ -132,6 +138,70 @@ export interface ApiClient {
   getAssessmentRubric(id: string): Promise<RubricCriterion[]>;
   getAssessmentAnswerKey(id: string): Promise<AnswerKeyStep[]>;
   getAssessmentCurriculumMap(id: string): Promise<CurriculumMapEntry[]>;
+  /** B10 live authoring. Optional so the preserved B0 mock client remains source-compatible. */
+  getLatestAssessmentVersion?(assessmentId: string): Promise<A2AssessmentVersion>;
+  uploadQuestionPaper?(
+    versionId: string,
+    file: File,
+  ): Promise<AssessmentArtifact>;
+  prepareQuestionPaperParse?(versionId: string): Promise<AuthoringAiRun>;
+  getAuthoringAiRun?(runId: string): Promise<AuthoringAiRun>;
+  updateQuestionTreeProposal?(
+    runId: string,
+    tree: { roots: ProposedQuestionNode[]; notes?: string | null },
+  ): Promise<AuthoringAiRun>;
+  applyQuestionTreeProposal?(runId: string): Promise<AuthoringAiRun>;
+  createTeacherAnswerKey?(input: {
+    assessmentId: string;
+    assessmentVersionId: string;
+    questionVersionId: string;
+    answerText: string;
+  }): Promise<A2AnswerKeyVersion>;
+  updateAnswerKey?(
+    answerKeyVersionId: string,
+    patch: { answerText?: string; status?: "DRAFT" | "REVIEW_REQUIRED" },
+  ): Promise<A2AnswerKeyVersion>;
+  approveAnswerKey?(answerKeyVersionId: string): Promise<A2AnswerKeyVersion>;
+  prepareAiAnswerKeyProposal?(input: {
+    questionVersionId: string;
+    assessmentVersionId?: string;
+    instructions?: string;
+  }): Promise<AuthoringAiRun>;
+  createTeacherRubric?(input: {
+    assessmentId: string;
+    questionVersionId: string;
+    title: string;
+    criteria: Array<{
+      criterionCode: string;
+      description: string;
+      maxMarks: number | string;
+      sequence: number;
+      scoringMode?: "ADDITIVE" | "DEDUCTIVE" | "ALL_OR_NOTHING";
+      partialCreditAllowed?: boolean;
+    }>;
+  }): Promise<{
+    rubric: A2Rubric;
+    version: A2RubricVersion;
+    criteria: A2RubricCriterion[];
+  }>;
+  updateRubric?(
+    rubricVersionId: string,
+    patch: {
+      questionVersionId: string;
+      status?: "DRAFT" | "REVIEW_REQUIRED";
+      sourceType?: "TEACHER" | "IMPORTED";
+    },
+  ): Promise<A2RubricVersion>;
+  approveRubric?(rubricVersionId: string): Promise<A2RubricVersion>;
+  prepareAiRubricProposal?(input: {
+    questionVersionId: string;
+    assessmentVersionId?: string;
+    instructions?: string;
+  }): Promise<AuthoringAiRun>;
+  transitionAssessment?(
+    assessmentId: string,
+    toStatus: string,
+  ): Promise<Assessment>;
   listSubmissions(): Promise<Submission[]>;
   getSubmission(id: string): Promise<Submission>;
   /** B3 live upload. Optional so the preserved B0 mock client remains source-compatible. */

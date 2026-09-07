@@ -31,7 +31,6 @@ from app.core.config import Settings, get_settings
 from app.db.models import (
     AnswerKeyVersion,
     AnswerRegionTranscription,
-    AuditEvent,
     CriterionEvaluation,
     EvaluationRun,
     PipelineJob,
@@ -44,6 +43,7 @@ from app.db.models import (
     RubricVersion,
     Submission,
 )
+from app.services.audit import add_audit_event
 from app.services.math_verification import verify_math
 
 RULES_ENGINE_VERSION = "b6.0.0"
@@ -387,19 +387,18 @@ async def prepare_evaluation(
     )
     db.add(job)
     submission.workflow_state = "EVALUATING"
-    db.add(
-        AuditEvent(
-            tenant_id=tenant_id,
-            actor_user_id=actor_user_id,
-            entity_type="Submission",
-            entity_id=submission.id,
-            action="evaluation_prepared",
-            payload_json={
-                "evaluation_run_id": str(run.id),
-                "run_number": run_number,
-                "provider": provider_name,
-            },
-        )
+    await add_audit_event(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=actor_user_id,
+        entity_type="Submission",
+        entity_id=submission.id,
+        action="evaluation_prepared",
+        after={
+            "evaluation_run_id": str(run.id),
+            "run_number": run_number,
+            "provider": provider_name,
+        },
     )
     await db.flush()
     return run, job
@@ -1011,15 +1010,14 @@ async def run_evaluation_pipeline(
         run.finished_at = datetime.now(UTC)
         job.status = "SUCCEEDED"
         job.finished_at = datetime.now(UTC)
-        db.add(
-            AuditEvent(
-                tenant_id=tenant_id,
-                actor_user_id=run.started_by,
-                entity_type="EvaluationRun",
-                entity_id=run.id,
-                action="evaluation_pipeline_succeeded",
-                payload_json={"submission_id": str(submission.id)},
-            )
+        await add_audit_event(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=run.started_by,
+            entity_type="EvaluationRun",
+            entity_id=run.id,
+            action="evaluation_pipeline_succeeded",
+            after={"submission_id": str(submission.id)},
         )
         await db.commit()
     except Exception as exc:
@@ -1540,18 +1538,17 @@ async def finalize_evaluation(
     submission.workflow_state = "APPROVED"
     run.status = "COMPLETED"
     run.finished_at = datetime.now(UTC)
-    db.add(
-        AuditEvent(
-            tenant_id=tenant_id,
-            actor_user_id=actor_user_id,
-            entity_type="Submission",
-            entity_id=submission.id,
-            action="evaluation_finalized",
-            payload_json={
-                "workflow_state": "APPROVED",
-                "evaluation_run_id": str(run.id),
-            },
-        )
+    await add_audit_event(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=actor_user_id,
+        entity_type="Submission",
+        entity_id=submission.id,
+        action="evaluation_finalized",
+        after={
+            "workflow_state": "APPROVED",
+            "evaluation_run_id": str(run.id),
+        },
     )
     await db.flush()
     return submission

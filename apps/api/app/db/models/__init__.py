@@ -5,6 +5,7 @@ from app.db.models.ai_structure import (
     SubmissionPageAnalysis,
 )
 from app.db.models.audit import AuditEvent
+from app.db.models.authoring import AssessmentArtifact, AuthoringAiRun
 from app.db.models.curriculum_assessment import (
     AiExecutionRecord,
     AnswerKey,
@@ -59,8 +60,10 @@ __all__ = [
     "AnswerRegion",
     "AnswerRegionTranscription",
     "Assessment",
+    "AssessmentArtifact",
     "AssessmentVersion",
     "AuditEvent",
+    "AuthoringAiRun",
     "ClassSection",
     "CriterionEvaluation",
     "Curriculum",

@@ -7,6 +7,10 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from app.ai.types import (
+    AnswerKeyProposalInput,
+    AnswerKeyProposalResult,
+    CurriculumMappingProposalInput,
+    CurriculumMappingProposalResult,
     ErrorClassificationInput,
     ErrorClassificationResult,
     IdentityExtractionInput,
@@ -20,10 +24,14 @@ from app.ai.types import (
     ParentNarrativeInput,
     ParentNarrativeResult,
     ProviderUnavailable,
+    QuestionPaperParseInput,
+    QuestionPaperParseResult,
     RegionMappingInput,
     RegionMappingResult,
     RubricEvaluationInput,
     RubricEvaluationResult,
+    RubricProposalInput,
+    RubricProposalResult,
     StudentNarrativeInput,
     StudentNarrativeResult,
     TranscriptionInput,
@@ -51,6 +59,10 @@ class OpenAIStructureProvider:
         model_parent_report: str | None = None,
         model_learning_plan: str | None = None,
         model_improvement_blueprint: str | None = None,
+        model_question_paper_parse: str | None = None,
+        model_answer_key_proposal: str | None = None,
+        model_rubric_proposal: str | None = None,
+        model_curriculum_mapping_proposal: str | None = None,
         timeout_seconds: int = 60,
         caller: JsonCaller | None = None,
     ) -> None:
@@ -67,6 +79,12 @@ class OpenAIStructureProvider:
             "generate_learning_plan": model_learning_plan or model_transcription,
             "generate_improvement_blueprint": (
                 model_improvement_blueprint or model_transcription
+            ),
+            "parse_question_paper": model_question_paper_parse or model_transcription,
+            "propose_answer_key": model_answer_key_proposal or model_transcription,
+            "propose_rubric": model_rubric_proposal or model_transcription,
+            "suggest_curriculum_mapping": (
+                model_curriculum_mapping_proposal or model_transcription
             ),
         }
         self._timeout = timeout_seconds
@@ -123,6 +141,15 @@ class OpenAIStructureProvider:
         self, request: TranscriptionInput
     ) -> TranscriptionResult:
         raw = await self._complete("transcription", request.model_dump(mode="json"))
+        segments = raw.get("segments")
+        if isinstance(segments, list):
+            normalized: list[Any] = []
+            for seg in segments:
+                if isinstance(seg, str):
+                    normalized.append({"kind": "TEXT", "text": seg})
+                elif isinstance(seg, dict):
+                    normalized.append(seg)
+            raw = {**raw, "segments": normalized}
         return TranscriptionResult.model_validate(raw)
 
     async def evaluate_rubric(
@@ -169,8 +196,39 @@ class OpenAIStructureProvider:
         )
         return ImprovementBlueprintAIResult.model_validate(raw)
 
+    async def parse_question_paper(
+        self, request: QuestionPaperParseInput
+    ) -> QuestionPaperParseResult:
+        raw = await self._complete(
+            "parse_question_paper", request.model_dump(mode="json")
+        )
+        return QuestionPaperParseResult.model_validate(raw)
+
+    async def propose_answer_key(
+        self, request: AnswerKeyProposalInput
+    ) -> AnswerKeyProposalResult:
+        raw = await self._complete(
+            "propose_answer_key", request.model_dump(mode="json")
+        )
+        return AnswerKeyProposalResult.model_validate(raw)
+
+    async def propose_rubric(
+        self, request: RubricProposalInput
+    ) -> RubricProposalResult:
+        raw = await self._complete("propose_rubric", request.model_dump(mode="json"))
+        return RubricProposalResult.model_validate(raw)
+
+    async def suggest_curriculum_mapping(
+        self, request: CurriculumMappingProposalInput
+    ) -> CurriculumMappingProposalResult:
+        raw = await self._complete(
+            "suggest_curriculum_mapping", request.model_dump(mode="json")
+        )
+        return CurriculumMappingProposalResult.model_validate(raw)
+
 
 # Alias for clarity in evaluation-focused call sites / tests.
 OpenAIEvaluationProvider = OpenAIStructureProvider
 OpenAINarrativeProvider = OpenAIStructureProvider
 OpenAILearningProvider = OpenAIStructureProvider
+OpenAIAuthoringProvider = OpenAIStructureProvider

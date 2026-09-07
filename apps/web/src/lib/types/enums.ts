@@ -203,3 +203,55 @@ export const TRANSCRIPTION_STATES = [
   "UNAVAILABLE",
 ] as const;
 export type TranscriptionState = (typeof TRANSCRIPTION_STATES)[number];
+
+/** B10 authoring AI durable run statuses. */
+export const AUTHORING_AI_RUN_STATUSES = [
+  "QUEUED",
+  "RUNNING",
+  "REVIEW_REQUIRED",
+  "SUCCEEDED",
+  "FAILED",
+  "UNAVAILABLE",
+] as const;
+export type AuthoringAiRunStatus = (typeof AUTHORING_AI_RUN_STATUSES)[number];
+
+export const AUTHORING_AI_OPERATIONS = [
+  "PARSE_QUESTION_PAPER",
+  "PROPOSE_ANSWER_KEY",
+  "PROPOSE_RUBRIC",
+  "SUGGEST_CURRICULUM_MAPPING",
+] as const;
+export type AuthoringAiOperation = (typeof AUTHORING_AI_OPERATIONS)[number];
+
+/** B10 assessment artifact security scan statuses. */
+export const ASSESSMENT_ARTIFACT_SCAN_STATUSES = [
+  "NOT_CONFIGURED",
+  "CLEAN",
+  "REJECTED",
+  "ERROR",
+] as const;
+export type AssessmentArtifactScanStatus =
+  (typeof ASSESSMENT_ARTIFACT_SCAN_STATUSES)[number];
+
+export const AUTHORING_SOURCE_TYPES = [
+  "TEACHER",
+  "AI_PROPOSED",
+  "IMPORTED",
+] as const;
+export type AuthoringSourceType = (typeof AUTHORING_SOURCE_TYPES)[number];
+
+export const AUTHORING_MATERIAL_STATUSES = [
+  "DRAFT",
+  "REVIEW_REQUIRED",
+  "APPROVED",
+  "SUPERSEDED",
+] as const;
+export type AuthoringMaterialStatus =
+  (typeof AUTHORING_MATERIAL_STATUSES)[number];
+
+export const PROPOSED_QUESTION_SCORING_MODES = [
+  "LEAF_SCORABLE",
+  "CONTAINER_DERIVED",
+] as const;
+export type ProposedQuestionScoringMode =
+  (typeof PROPOSED_QUESTION_SCORING_MODES)[number];

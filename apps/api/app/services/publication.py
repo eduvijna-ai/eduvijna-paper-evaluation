@@ -27,7 +27,6 @@ from app.db.models import (
     Annotation,
     AnswerRegion,
     Assessment,
-    AuditEvent,
     CriterionEvaluation,
     EvaluationRun,
     PipelineJob,
@@ -39,6 +38,7 @@ from app.db.models import (
     Submission,
     SubmissionPage,
 )
+from app.services.audit import add_audit_event
 from app.services.pdf_renderers import (
     render_evaluated_paper,
     render_parent_report_pdf,
@@ -421,19 +421,18 @@ async def prepare_publication(
         idempotency_key=f"publication:{submission.id}:v{version_number}",
     )
     db.add(job)
-    db.add(
-        AuditEvent(
-            tenant_id=tenant_id,
-            actor_user_id=actor_user_id,
-            entity_type="PublishedResult",
-            entity_id=result.id,
-            action="publication_prepared",
-            payload_json={
-                "submission_id": str(submission.id),
-                "version_number": version_number,
-                "ledger_snapshot_hash": snapshot_hash,
-            },
-        )
+    await add_audit_event(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=actor_user_id,
+        entity_type="PublishedResult",
+        entity_id=result.id,
+        action="publication_prepared",
+        after={
+            "submission_id": str(submission.id),
+            "version_number": version_number,
+            "ledger_snapshot_hash": snapshot_hash,
+        },
     )
     # Submission stays APPROVED until explicit publish.
     await db.flush()
@@ -1238,18 +1237,17 @@ async def regenerate_publication(
         idempotency_key=f"publication:{submission.id}:v{version_number}",
     )
     db.add(job)
-    db.add(
-        AuditEvent(
-            tenant_id=tenant_id,
-            actor_user_id=actor_user_id,
-            entity_type="PublishedResult",
-            entity_id=result.id,
-            action="publication_regenerated",
-            payload_json={
-                "supersedes_result_id": str(current.id),
-                "version_number": version_number,
-            },
-        )
+    await add_audit_event(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=actor_user_id,
+        entity_type="PublishedResult",
+        entity_id=result.id,
+        action="publication_regenerated",
+        after={
+            "supersedes_result_id": str(current.id),
+            "version_number": version_number,
+        },
     )
     await db.flush()
     return result, job
@@ -1337,18 +1335,17 @@ async def publish_result(
         setattr(published, attr, payload)
 
     submission.workflow_state = "PUBLISHED"
-    db.add(
-        AuditEvent(
-            tenant_id=tenant_id,
-            actor_user_id=actor_user_id,
-            entity_type="PublishedResult",
-            entity_id=published.id,
-            action="publication_published",
-            payload_json={
-                "submission_id": str(submission.id),
-                "ledger_snapshot_hash": published.ledger_snapshot_hash,
-            },
-        )
+    await add_audit_event(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=actor_user_id,
+        entity_type="PublishedResult",
+        entity_id=published.id,
+        action="publication_published",
+        after={
+            "submission_id": str(submission.id),
+            "ledger_snapshot_hash": published.ledger_snapshot_hash,
+        },
     )
     # Ensure ANALYTICS PipelineJob in the same transaction (B8).
     from app.services.analytics import ensure_analytics_job
@@ -1434,18 +1431,17 @@ async def add_manual_annotation(
     )
     db.add(ann)
     await db.flush()
-    db.add(
-        AuditEvent(
-            tenant_id=tenant_id,
-            actor_user_id=actor_user_id,
-            entity_type="Annotation",
-            entity_id=ann.id,
-            action="manual_annotation_added",
-            payload_json={
-                "published_result_id": str(published.id),
-                "annotation_type": annotation_type,
-            },
-        )
+    await add_audit_event(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=actor_user_id,
+        entity_type="Annotation",
+        entity_id=ann.id,
+        action="manual_annotation_added",
+        after={
+            "published_result_id": str(published.id),
+            "annotation_type": annotation_type,
+        },
     )
     await db.flush()
     return ann

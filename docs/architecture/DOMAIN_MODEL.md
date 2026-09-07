@@ -2,7 +2,7 @@
 
 **Product:** EduVijna Paper Evaluation (CVB v0.1)  
 **Status:** Architecture contract — Day 1 approved  
-**Last updated:** 2026-09-04  
+**Last updated:** 2026-09-07  
 **Related:** [ADR-005](adrs/ADR-005-tenant-aware-data-model.md), [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md), [EVALUATION_LEDGER.md](./EVALUATION_LEDGER.md)
 
 ---
@@ -351,6 +351,53 @@ Immutable snapshot of question paper structure once published for evaluation.
 | `created_at` | timestamptz | |
 
 **Unique:** `(tenant_id, assessment_id, version_number)`
+
+---
+
+### 6.2a AssessmentArtifact `T` — **B10 live**
+
+Immutable uploaded assessment source (question paper). Scan runs before storage write.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | UUID | PK |
+| `tenant_id` | UUID | |
+| `assessment_id` | UUID | FK → `assessments.id` |
+| `artifact_type` | enum | `QUESTION_PAPER` (CVB) |
+| `original_filename` | string | |
+| `mime_type` | string | |
+| `byte_size` | bigint | |
+| `content_sha256` | string | Content-addressed |
+| `storage_key` | string | Write-once object key |
+| `security_scan_status` | enum | `NOT_CONFIGURED`, `CLEAN`, `REJECTED`, `ERROR` |
+| `uploaded_by` | UUID | Optional FK → `users.id` |
+| `uploaded_at` | timestamptz | |
+| `created_at` | timestamptz | |
+
+**Unique:** `storage_key`
+
+---
+
+### 6.2b AuthoringAiRun `T` — **B10 live**
+
+Durable authoring AI job. Proposals are not evaluation marks.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | UUID | PK |
+| `tenant_id` | UUID | |
+| `assessment_id` / `assessment_version_id` | UUID | Required |
+| `question_version_id` | UUID | Optional (propose flows) |
+| `assessment_artifact_id` | UUID | Optional parse input |
+| `operation` | enum | `PARSE_QUESTION_PAPER`, `PROPOSE_ANSWER_KEY`, `PROPOSE_RUBRIC`, `SUGGEST_CURRICULUM_MAPPING` |
+| `status` | enum | `QUEUED`, `RUNNING`, `REVIEW_REQUIRED`, `SUCCEEDED`, `FAILED`, `UNAVAILABLE` |
+| `input_hash` | string | Idempotency / staleness |
+| `proposal_payload` | JSONB | Bounded tree / answer / rubric / mappings |
+| `requested_by` / `requested_at` | UUID / timestamptz | |
+| `celery_task_id` | string | Optional |
+| `answer_key_version_id` / `rubric_version_id` | UUID | Optional created drafts |
+| `correlation_id` | string | Request/worker trace (PEV-072) |
+| `failure_code` / `failure_detail` | string | Optional |
 
 ---
 
@@ -767,16 +814,16 @@ Append-only audit log for significant actions.
 | Field | Type | Notes |
 |-------|------|-------|
 | `id` | UUID | PK |
-| `tenant_id` | UUID | |
-| `actor_id` | UUID | Optional (system jobs) |
-| `actor_type` | enum | `USER`, `SYSTEM`, `WORKER` |
-| `event_type` | string | e.g. `submission.uploaded`, `ledger.override` |
-| `resource_type` | string | Entity name |
-| `resource_id` | UUID | |
-| `correlation_id` | UUID | Request trace |
-| `payload` | JSONB | Before/after, metadata |
-| `ip_address` | inet | Optional |
+| `tenant_id` | UUID | Nullable only for rare system events |
+| `actor_user_id` | UUID | Optional (system jobs) |
+| `entity_type` | string | Entity name |
+| `entity_id` | UUID | |
+| `action` | string | e.g. `created`, `updated`, `uploaded` |
+| `payload_json` | JSONB | Before/after, metadata |
+| `correlation_id` | string | Request trace (`X-Correlation-ID`, max 100) — **B10 enforced via `add_audit_event`** |
 | `created_at` | timestamptz | Immutable |
+
+**B10 note:** Prefer `apps/api/app/services/audit.py` (`add_audit_event`) so correlation IDs attach automatically. Direct `AuditEvent(` construction is restricted by test allowlist.
 
 ---
 
