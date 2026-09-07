@@ -233,7 +233,8 @@ async def get_latest_authoring_run_for_version(
     if operation is not None:
         stmt = stmt.where(AuthoringAiRun.operation == operation)
     stmt = stmt.order_by(AuthoringAiRun.created_at.desc()).limit(1)
-    return await db.scalar(stmt)
+    run = await db.scalar(stmt)
+    return run if isinstance(run, AuthoringAiRun) else None
 
 
 async def _get_question_version(

@@ -2011,6 +2011,15 @@ components:
           maxItems: 200
           items: { $ref: "#/components/schemas/ProposedQuestionNode" }
         notes: { type: [string, "null"], maxLength: 2000 }
+    AuthoringAiOperation:
+      type: string
+      enum:
+        [
+          PARSE_QUESTION_PAPER,
+          PROPOSE_ANSWER_KEY,
+          PROPOSE_RUBRIC,
+          SUGGEST_CURRICULUM_MAPPING,
+        ]
     AuthoringAiRun:
       type: object
       description: Durable B10 authoring AI job (PEV-002 / PEV-004)
@@ -2034,14 +2043,7 @@ components:
         question_version_id: { type: [string, "null"], format: uuid }
         assessment_artifact_id: { type: [string, "null"], format: uuid }
         operation:
-          type: string
-          enum:
-            [
-              PARSE_QUESTION_PAPER,
-              PROPOSE_ANSWER_KEY,
-              PROPOSE_RUBRIC,
-              SUGGEST_CURRICULUM_MAPPING,
-            ]
+          $ref: "#/components/schemas/AuthoringAiOperation"
         status:
           type: string
           enum:
