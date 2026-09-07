@@ -136,8 +136,58 @@ test.describe("B10 real authoring AI flows", () => {
     await expect(page.getByTestId("artifact-scan-status")).toBeVisible();
 
     await page.getByTestId("parse-question-paper").click();
+
+    await expect
+      .poll(
+        async () => {
+          const versionsResponse = await request.get(
+            `${apiBase}/api/v1/assessments/${assessmentId}/versions`,
+            { headers },
+          );
+          if (!versionsResponse.ok()) return `versions:${versionsResponse.status()}`;
+          const versions = (await versionsResponse.json()) as Array<{
+            id: string;
+            version_number: number;
+          }>;
+          const versionId = [...versions].sort(
+            (a, b) => b.version_number - a.version_number,
+          )[0]!.id;
+          const prep = await request.post(
+            `${apiBase}/api/v1/assessment-versions/${versionId}/question-paper/parse`,
+            { headers },
+          );
+          if (![200, 409].includes(prep.status())) {
+            return `parse:${prep.status()}:${await prep.text()}`;
+          }
+          const body = (await prep.json()) as {
+            id?: string;
+            run_id?: string;
+            status?: string;
+          };
+          const runId = body.run_id ?? body.id;
+          if (!runId) return "no-run";
+          const run = await request.get(
+            `${apiBase}/api/v1/authoring-ai-runs/${runId}`,
+            { headers },
+          );
+          if (!run.ok()) return `run:${run.status()}`;
+          const runBody = (await run.json()) as {
+            status?: string;
+            failure_code?: string | null;
+          };
+          if (runBody.status === "REVIEW_REQUIRED") return "REVIEW_REQUIRED";
+          if (runBody.status === "FAILED" || runBody.status === "UNAVAILABLE") {
+            return `${runBody.status}:${runBody.failure_code ?? ""}`;
+          }
+          return runBody.status ?? "pending";
+        },
+        { timeout: 120_000 },
+      )
+      .toBe("REVIEW_REQUIRED");
+
+    await page.reload();
     await expect(page.getByTestId("question-tree-proposal")).toBeVisible({
-      timeout: 60_000,
+      timeout: 30_000,
     });
     await expect(page.getByTestId("artifact-parse-status")).toContainText(
       "REVIEW_REQUIRED",
