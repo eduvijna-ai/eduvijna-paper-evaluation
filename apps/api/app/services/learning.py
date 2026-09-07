@@ -260,6 +260,7 @@ async def _available_curricula(
     )
     return [
         {
+            "id": str(cid),
             "curriculum_id": str(cid),
             "code": code,
             "name": name,
@@ -812,7 +813,7 @@ async def get_learning_workspace(
     if selected_id is not None:
         await _get_curriculum(db, tenant_id=tenant_id, curriculum_id=selected_id)
     elif len(available) == 1:
-        selected_id = uuid.UUID(available[0]["curriculum_id"])
+        selected_id = uuid.UUID(str(available[0]["id"]))
     else:
         selected_id = None
 
@@ -820,18 +821,46 @@ async def get_learning_workspace(
     latest_plan = None
     is_stale = False
     latest_blueprint = None
-    evidence_coverage = {"evidence_count": 0, "node_count": 0}
+    evidence_coverage = {
+        "evidence_count": 0,
+        "node_count": 0,
+        "evidence_row_count": 0,
+        "curriculum_node_count": 0,
+    }
+    selected_curriculum: dict[str, Any] | None = None
 
     if selected_id is not None:
+        match = next(
+            (row for row in available if str(row["id"]) == str(selected_id)),
+            None,
+        )
+        if match is not None:
+            selected_curriculum = {
+                "id": str(match["id"]),
+                "code": match["code"],
+                "name": match["name"],
+            }
+        else:
+            curriculum = await _get_curriculum(
+                db, tenant_id=tenant_id, curriculum_id=selected_id
+            )
+            selected_curriculum = {
+                "id": str(curriculum.id),
+                "code": curriculum.code,
+                "name": curriculum.name,
+            }
         facts = await _load_evidence_facts(
             db,
             tenant_id=tenant_id,
             student_id=student_id,
             curriculum_id=selected_id,
         )
+        node_count = len({f.curriculum_node_id for f in facts})
         evidence_coverage = {
             "evidence_count": len(facts),
-            "node_count": len({f.curriculum_node_id for f in facts}),
+            "node_count": node_count,
+            "evidence_row_count": len(facts),
+            "curriculum_node_count": node_count,
         }
         run = await db.scalar(
             select(LearningPlanRun)
@@ -888,6 +917,7 @@ async def get_learning_workspace(
         "student": {"id": str(student.id), "display_name": display},
         "available_curricula": available,
         "selected_curriculum_id": str(selected_id) if selected_id else None,
+        "selected_curriculum": selected_curriculum,
         "materialization_status": mat.get("materialization_status"),
         "materialization": mat,
         "evidence_coverage": evidence_coverage,

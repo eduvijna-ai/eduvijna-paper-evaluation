@@ -426,7 +426,7 @@ async function reachApproved(
 }
 
 test.describe("B7 publication + reports (real API)", () => {
-  test("generate package, consumer 404 before publish, success after; analytics/learning refuse live UUID", async ({
+  test("generate package, consumer 404 before publish, success after; analytics live and learning workspace for student", async ({
     page,
     request,
   }) => {
@@ -536,7 +536,7 @@ test.describe("B7 publication + reports (real API)", () => {
     await expect(page.getByTestId("download-evaluated-pdf")).toBeVisible();
     await expect(page.getByTestId("annotation-score-chip")).toBeVisible();
 
-    // Analytics is live in B8 for published assessments; learning remains mock.
+    // Analytics + learning are live in B9 for published students.
     await page.goto(`/analytics/assessments/${assessmentId}`);
     await expect(page.getByTestId("assessment-analytics-page")).toBeVisible({
       timeout: 30_000,
@@ -546,8 +546,12 @@ test.describe("B7 publication + reports (real API)", () => {
     );
 
     await page.goto(`/learning/${studentId}`);
-    await expect(
-      page.getByTestId("error-state").or(page.getByText(/not live|unavailable|failed/i)),
-    ).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId("adaptive-learning-page")).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.getByTestId("adaptive-learning-page")).toHaveAttribute(
+      "data-learning-mode",
+      "live",
+    );
   });
 });

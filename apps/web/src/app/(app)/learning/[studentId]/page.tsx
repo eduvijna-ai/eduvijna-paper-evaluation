@@ -17,7 +17,8 @@ import { ErrorState, LoadingState } from "@/components/ui/FeedbackStates";
 import type { LiveLearningWorkspace } from "@/lib/types/domain";
 
 function evidenceReady(status: string): boolean {
-  return status === "READY" || status === "PARTIAL";
+  // B9 gate: only READY unlocks generation (PARTIAL/QUEUED/FAILED block).
+  return status === "READY";
 }
 
 function LiveAdaptiveLearningPage({ studentId }: { studentId: string }) {

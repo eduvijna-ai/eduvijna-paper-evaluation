@@ -2919,11 +2919,31 @@ components:
             display_name: { type: string }
         available_curricula:
           type: array
-          items: { type: object, additionalProperties: true }
+          items:
+            type: object
+            required: [id, code, name]
+            properties:
+              id: { type: string, format: uuid }
+              curriculum_id: { type: string, format: uuid }
+              code: { type: string }
+              name: { type: string }
+              evidence_count: { type: integer }
         selected_curriculum_id: { type: [string, "null"], format: uuid }
+        selected_curriculum:
+          type: [object, "null"]
+          properties:
+            id: { type: string, format: uuid }
+            code: { type: string }
+            name: { type: string }
         materialization_status: { type: string }
         materialization: { type: object, additionalProperties: true }
-        evidence_coverage: { type: object, additionalProperties: true }
+        evidence_coverage:
+          type: object
+          properties:
+            evidence_count: { type: integer }
+            node_count: { type: integer }
+            evidence_row_count: { type: integer }
+            curriculum_node_count: { type: integer }
         latest_run: { type: [object, "null"], additionalProperties: true }
         latest_plan: { type: [object, "null"], additionalProperties: true }
         is_stale: { type: boolean }

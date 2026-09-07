@@ -458,10 +458,10 @@ test.describe("B6 real evaluation ledger review", () => {
       /Evaluation approved\./i,
       { timeout: 30_000 },
     );
-    // B8: publication + analytics live after APPROVED; learning remains mock.
+    // B9: publication + analytics + learning live after APPROVED (learning after publish).
     await expect(page.getByTestId("link-publication-from-evaluation")).toBeVisible();
-    await expect(page.getByTestId("evaluation-downstream-mock-boundary")).toContainText(
-      /Adaptive learning remains mock/i,
+    await expect(page.getByTestId("evaluation-learning-live-notice")).toContainText(
+      /adaptive learning are live/i,
     );
 
     await page.goto(`/submissions/${submissionId}`);
@@ -473,14 +473,14 @@ test.describe("B6 real evaluation ledger review", () => {
       /published/i,
     );
 
-    // Live analytics is available (published_attempt_count may be 0); learning is not.
+    // Live analytics is available; a non-student UUID must not open a learning plan.
     await page.goto(`/analytics/assessments/${assessmentId}`);
     await expect(page.getByTestId("assessment-analytics-page")).toBeVisible({
       timeout: 30_000,
     });
     await page.goto(`/learning/${assessmentId}`);
     await expect(
-      page.getByTestId("error-state").or(page.getByText(/not live|unavailable|failed/i)),
+      page.getByTestId("error-state").or(page.getByText(/not found|unavailable|failed/i)),
     ).toBeVisible({ timeout: 20_000 });
   });
 });

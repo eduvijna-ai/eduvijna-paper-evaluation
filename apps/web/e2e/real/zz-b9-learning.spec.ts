@@ -558,7 +558,7 @@ async function publishWeakAttempt(
       },
       { timeout: 120_000 },
     )
-    .toMatch(/READY|PARTIAL/);
+    .toBe("READY");
 }
 
 test.describe("B9 live learning + improvement blueprint (real API)", () => {
@@ -608,18 +608,21 @@ test.describe("B9 live learning + improvement blueprint (real API)", () => {
 
     await expect
       .poll(
-        async () =>
-          (await page.getByTestId("learning-materialization-status").textContent()) ??
-          "",
-        { timeout: 30_000 },
+        async () => {
+          const text =
+            (await page.getByTestId("learning-materialization-status").textContent()) ??
+            "";
+          const match = text.match(/\b(READY|PARTIAL|QUEUED|RUNNING|FAILED|NOT_STARTED)\b/);
+          return match?.[1] ?? text;
+        },
+        { timeout: 120_000 },
       )
-      .toMatch(/READY|PARTIAL/);
+      .toBe("READY");
 
     const generate = page.getByTestId("generate-learning-plan");
-    if (await generate.count()) {
-      await expect(generate).toBeEnabled({ timeout: 10_000 });
-      await generate.click();
-    }
+    await expect(generate).toBeVisible({ timeout: 30_000 });
+    await expect(generate).toBeEnabled({ timeout: 30_000 });
+    await generate.click();
 
     await expect
       .poll(

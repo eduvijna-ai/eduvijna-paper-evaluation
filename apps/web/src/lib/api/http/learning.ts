@@ -36,7 +36,8 @@ export interface B9LearningWorkspaceDto {
     external_ref?: string | null;
   };
   available_curricula?: Array<{
-    id: string;
+    id?: string;
+    curriculum_id?: string;
     code: string;
     name: string;
   }>;
@@ -45,10 +46,13 @@ export interface B9LearningWorkspaceDto {
     code: string;
     name: string;
   } | null;
+  selected_curriculum_id?: string | null;
   materialization_status: string;
   evidence_coverage?: {
     curriculum_node_count?: number;
     evidence_row_count?: number;
+    node_count?: number;
+    evidence_count?: number;
   };
   latest_run?: B9PlanRunDto | null;
   latest_plan?: B9LearningPlanDto | null;
@@ -182,9 +186,18 @@ export interface B9ImprovementAssessmentDto {
 }
 
 function mapCurriculum(
-  row: { id: string; code: string; name: string },
+  row: {
+    id?: string;
+    curriculum_id?: string;
+    code: string;
+    name: string;
+  },
 ): LiveLearningCurriculumOption {
-  return { id: row.id, code: row.code, name: row.name };
+  return {
+    id: row.id ?? row.curriculum_id ?? "",
+    code: row.code,
+    name: row.name,
+  };
 }
 
 function mapPrerequisite(
@@ -365,6 +378,21 @@ export function learningWorkspaceApiToView(
       ? planFromRunDto(dto.latest_run)
       : null;
 
+  const available = (dto.available_curricula ?? [])
+    .map(mapCurriculum)
+    .filter((c) => Boolean(c.id));
+
+  let selected = dto.selected_curriculum
+    ? mapCurriculum(dto.selected_curriculum)
+    : null;
+  if (!selected && dto.selected_curriculum_id) {
+    selected =
+      available.find((c) => c.id === dto.selected_curriculum_id) ?? null;
+  }
+  if (!selected && available.length === 1) {
+    selected = available[0] ?? null;
+  }
+
   return {
     student: {
       id: dto.student.id,
@@ -372,15 +400,18 @@ export function learningWorkspaceApiToView(
       student_code: dto.student.student_code ?? null,
       external_ref: dto.student.external_ref ?? null,
     },
-    available_curricula: (dto.available_curricula ?? []).map(mapCurriculum),
-    selected_curriculum: dto.selected_curriculum
-      ? mapCurriculum(dto.selected_curriculum)
-      : null,
+    available_curricula: available,
+    selected_curriculum: selected,
     materialization_status: dto.materialization_status,
     evidence_coverage: {
       curriculum_node_count:
-        dto.evidence_coverage?.curriculum_node_count ?? 0,
-      evidence_row_count: dto.evidence_coverage?.evidence_row_count ?? 0,
+        dto.evidence_coverage?.curriculum_node_count ??
+        dto.evidence_coverage?.node_count ??
+        0,
+      evidence_row_count:
+        dto.evidence_coverage?.evidence_row_count ??
+        dto.evidence_coverage?.evidence_count ??
+        0,
     },
     latest_run: dto.latest_run ? mapPlanRunSummary(dto.latest_run) : null,
     latest_plan: latestPlan,
