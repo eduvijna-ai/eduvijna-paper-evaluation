@@ -337,13 +337,28 @@ export default function EvaluationWorkspacePage({
       {liveMode &&
         approved &&
         getApiCapabilities().publication === "live" &&
-        getApiCapabilities().analytics === "live" && (
+        getApiCapabilities().analytics === "live" &&
+        getApiCapabilities().learning !== "live" && (
         <p
           data-testid="evaluation-downstream-mock-boundary"
           className="mx-2 mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 sm:mx-3"
         >
           Adaptive learning remains mock and is not linked for this live
           submission.
+        </p>
+      )}
+
+      {liveMode &&
+        approved &&
+        getApiCapabilities().publication === "live" &&
+        getApiCapabilities().analytics === "live" &&
+        getApiCapabilities().learning === "live" && (
+        <p
+          data-testid="evaluation-learning-live-notice"
+          className="mx-2 mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 sm:mx-3"
+        >
+          Analytics and adaptive learning are live after publication and
+          mastery materialization.
         </p>
       )}
 

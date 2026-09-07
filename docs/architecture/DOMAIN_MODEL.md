@@ -645,12 +645,14 @@ Released outputs after approval.
 
 ## 9. Learning Analytics
 
-### 9.1 MasteryEvidence `T` — **B8 live**
+### 9.1 MasteryEvidence `T` — **B8 live (B9 source)**
 
 Evidence row linking a **PUBLISHED** evaluation to a curriculum mastery signal.
 Algorithm version `B8_V1`. Derived deterministically from final human-approved ledger
 scores + taxonomy + A2 `QuestionCurriculumMapping` (exact `question_version_id`).
 No AI inference. See migration `20260907_0009`.
+
+**B9 role:** sole evidence **source** for learning plans (`source_evidence_hash`). B9 never invents mastery from unpublished ledgers or AI.
 
 | Field | Type | Notes |
 |-------|------|-------|
@@ -668,12 +670,13 @@ No AI inference. See migration `20260907_0009`.
 
 ---
 
-### 9.2 MasteryState `T` — **AFTER_CLIENT_APPROVAL (not in B8)**
+### 9.2 MasteryState `T` — **AFTER_CLIENT_APPROVAL (deferred; not in B8/B9)**
 
 Aggregated longitudinal mastery per student × curriculum node.
 
-**B8 deliberately does not create or update this table.** Current evidence profiles are
-API projections over immutable `MasteryEvidence` rows only (PEV-037 deferred).
+**B8/B9 deliberately do not create or update this table.** Current evidence profiles are
+API projections over immutable `MasteryEvidence` rows only (PEV-035/036/037/038 deferred).
+Logical entity retained for future longitudinal product work.
 
 | Field | Type | Notes |
 |-------|------|-------|
@@ -691,32 +694,67 @@ API projections over immutable `MasteryEvidence` rows only (PEV-037 deferred).
 
 ---
 
-### 9.3 LearningRecommendation `T`
+### 9.3 LearningPlanRun `T` — **B9 live**
 
-Curriculum-constrained remediation suggestion.
+Versioned, hashed generation of a curriculum-scoped learning plan (algorithm `B9_V1`).
+Statuses: `QUEUED`, `RUNNING`, `READY`, `FAILED`, `SUPERSEDED`.
+Does **not** reuse `PipelineJob`.
 
 | Field | Type | Notes |
 |-------|------|-------|
 | `id` | UUID | PK |
 | `tenant_id` | UUID | |
 | `student_id` | UUID | |
-| `curriculum_id` | UUID | Must stay within curriculum |
-| `target_node_id` | UUID | Topic/concept to study |
-| `prerequisite_node_ids` | UUID[] | Ordered repair path |
-| `rationale` | text | |
-| `source_submission_ids` | UUID[] | |
-| `priority` | integer | |
-| `status` | enum | `ACTIVE`, `DISMISSED`, `COMPLETED` |
-| `created_at` | timestamptz | |
+| `curriculum_id` | UUID | Never mixed across curricula |
+| `version_number` | integer | Per student×curriculum |
+| `status` | enum | See above |
+| `source_evidence_hash` | string | Canonical B8 facts |
+| `curriculum_graph_hash` | string | Nodes + prerequisites |
+| `input_hash` | string | Algorithm + evidence + graph |
+| `algorithm_version` | string | `B9_V1` |
+| `generation_source` | enum | `AI`, `FIXED`, `RULES_FALLBACK` |
+| `celery_task_id` | string | Optional worker id |
+| `requested_by` / `requested_at` | UUID / timestamptz | |
 
 ---
 
-### 9.4 ImprovementAssessment `T` / ImprovementAssessmentItem `T`
+### 9.4 LearningRecommendation `T` — **B9 live (curriculum-constrained)**
+
+Curriculum-constrained remediation suggestion for one plan run. Targets and prerequisites
+must stay inside the selected curriculum. No external resource URLs (PEV-041 deferred).
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | UUID | PK |
+| `tenant_id` | UUID | |
+| `learning_plan_run_id` | UUID | Parent run |
+| `student_id` | UUID | |
+| `curriculum_id` | UUID | Must stay within curriculum |
+| `target_node_id` | UUID | Topic/concept to study |
+| `recommendation_kind` | enum | `PREREQUISITE_REPAIR`, `TARGET_CONCEPT`, `PROCEDURE_PRACTICE`, `EXECUTION_PRACTICE` |
+| `priority` | integer | 1–3 |
+| `rationale` | text | |
+| `concept_signal` / `execution_signal` / `procedure_signal` | enum | `STRONG`/`WEAK`/`INCONCLUSIVE` |
+| `evidence_count` | integer | |
+| `mean_evidence_score_ratio` | decimal | Optional |
+| `status` | enum | `ACTIVE`, `DISMISSED`, `COMPLETED` |
+| `target_node_*_snapshot` | string | Code/title/type at generation |
+
+Related: `LearningRecommendationPrerequisite` (ordered REQUIRED/RECOMMENDED edges),
+`LearningRecommendationEvidence` (FK to `MasteryEvidence`), `LearningPathStep`
+(ordered path kinds including `MASTERY_CHECK` for inconclusive required prerequisites).
+
+---
+
+### 9.5 ImprovementAssessment `T` / ImprovementAssessmentItem `T` — **B9 live (blueprint only)**
+
+Teacher-reviewed **blueprint** only. Approval does **not** create Assessment / Question /
+Submission reassessment entities (PEV-043 deferred). Resource assignment deferred (PEV-041).
 
 | Entity | Key fields |
 |--------|------------|
-| **ImprovementAssessment** | `id`, `tenant_id`, `student_id`, `curriculum_id`, `blueprint_s3_key`, `generated_from_submission_id`, `status`, `created_at` |
-| **ImprovementAssessmentItem** | `id`, `tenant_id`, `improvement_assessment_id`, `curriculum_node_id`, `question_template_ref`, `difficulty`, `sort_order` |
+| **ImprovementAssessment** | `id`, `tenant_id`, `student_id`, `curriculum_id`, `learning_plan_run_id`, `version_number`, `title`, `status` (`DRAFT`…`APPROVED`/`REJECTED`/`FAILED`), hashes, `blueprint_storage_key` / `blueprint_sha256` / `blueprint_byte_size`, approve/reject metadata |
+| **ImprovementAssessmentItem** | `id`, `tenant_id`, `improvement_assessment_id`, `learning_recommendation_id`, `curriculum_node_id`, `item_code`, `template_kind`, `question_template_ref`, `focus`, `difficulty`, `suggested_marks` (advisory), `sort_order` |
 
 ---
 
@@ -795,7 +833,9 @@ Tenant
       ├── ReviewAction
       └── PublishedResult
 
-Student ← MasteryEvidence / MasteryState / LearningRecommendation
+Student ← MasteryEvidence / MasteryState(deferred) / LearningPlanRun
+      └── LearningRecommendation → LearningPathStep
+      └── ImprovementAssessment (blueprint) → ImprovementAssessmentItem
 User ← UserRole → Role → Permission
 AuditEvent, AiExecutionRecord (cross-cutting)
 ```
@@ -818,3 +858,5 @@ AuditEvent, AiExecutionRecord (cross-cutting)
 | Version | Date | Change |
 |---------|------|--------|
 | 0.1 | 2026-09-04 | Initial domain model contract for CVB |
+| 0.2 | 2026-09-07 | B8 MasteryEvidence live; MasteryState deferred |
+| 0.3 | 2026-09-07 | B9 LearningPlanRun / LearningRecommendation / ImprovementAssessment blueprint live; MasteryState, resource assignment, reassessment still deferred |

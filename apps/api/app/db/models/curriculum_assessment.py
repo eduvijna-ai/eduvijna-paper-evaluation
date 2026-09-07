@@ -380,6 +380,12 @@ class AiExecutionRecord(UUIDPrimaryKeyMixin, Base):
     published_result_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("published_results.id", ondelete="SET NULL"), nullable=True
     )
+    learning_plan_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("learning_plan_runs.id", ondelete="SET NULL"), nullable=True
+    )
+    improvement_assessment_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("improvement_assessments.id", ondelete="SET NULL"), nullable=True
+    )
     model: Mapped[str | None] = mapped_column(String(100), nullable=True)
     model_version: Mapped[str | None] = mapped_column(String(100), nullable=True)
     prompt_template_version: Mapped[str | None] = mapped_column(String(100), nullable=True)

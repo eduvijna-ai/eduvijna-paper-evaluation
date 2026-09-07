@@ -9,6 +9,7 @@ import { EvaluationHttpApi } from "../http/evaluation";
 import { PublicationHttpApi } from "../http/publication";
 import { ReportsHttpApi } from "../http/reports";
 import { AnalyticsHttpApi } from "../http/analytics";
+import { LearningHttpApi } from "../http/learning";
 import { ApiError } from "../http/errors";
 import { httpRequest } from "../http/client";
 import { getApiCapabilities } from "../capabilities";
@@ -20,23 +21,8 @@ function isLiveSubmissionId(id: string): boolean {
   return LIVE_UUID_RE.test(id) && !id.toLowerCase().includes("demo");
 }
 
-function refuseMockDownstream(
-  domain: "learning",
-  entityId: string,
-): void {
-  if (!isLiveSubmissionId(entityId)) return;
-  const caps = getApiCapabilities();
-  if (caps[domain] !== "mock") return;
-  throw new ApiError({
-    message: `Live ${domain} is not enabled for this identity.`,
-    status: 404,
-    kind: "not_found",
-    code: `${domain.toUpperCase()}_NOT_LIVE`,
-  });
-}
-
 /**
- * Hybrid domain routing (B8):
+ * Hybrid domain routing (B9):
  * - Auth, Institution, Academic Years, Class Sections, Students, Import, Guardians → A1 HTTP
  * - Curriculum and Assessment authoring → A2 HTTP
  * - Submissions + identity review → B3 HTTP
@@ -45,10 +31,10 @@ function refuseMockDownstream(
  * - Evaluation ledger review → B6 HTTP
  * - Publication + reports → B7 HTTP
  * - Analytics → B8 HTTP
- * - Learning → MOCK (refuse live UUIDs)
+ * - Learning + improvement blueprints → B9 HTTP
  *
  * Components use `api` only — they must not inspect mock vs HTTP.
- * Live publication/report/analytics errors must never silently fall back to mock.
+ * Live learning errors must never silently fall back to mock.
  */
 export const HybridEduVijnaApi: ApiClient = {
   async getHealth() {
@@ -466,13 +452,100 @@ export const HybridEduVijnaApi: ApiClient = {
     });
   },
   getAdaptiveLearning: async (studentId) => {
-    refuseMockDownstream("learning", studentId);
+    if (getApiCapabilities().learning === "live") {
+      throw new ApiError({
+        message:
+          "Use getLearningWorkspace for live learning. Mock adaptive learning is unavailable when learning is live.",
+        status: 404,
+        kind: "not_found",
+        code: "LEARNING_USE_LIVE_WORKSPACE",
+      });
+    }
     return MockEduVijnaApi.getAdaptiveLearning(studentId);
   },
+  getLearningWorkspace: async (studentId, curriculumId) => {
+    if (getApiCapabilities().learning === "live") {
+      return LearningHttpApi.getLearningWorkspace(studentId, curriculumId);
+    }
+    throw new ApiError({
+      message: "Live learning workspace is only available when learning is live.",
+      status: 404,
+      kind: "not_found",
+      code: "LEARNING_NOT_LIVE",
+    });
+  },
+  prepareLearningPlan: async (studentId, curriculumId) => {
+    if (getApiCapabilities().learning === "live") {
+      return LearningHttpApi.prepareLearningPlan(studentId, curriculumId);
+    }
+    throw new ApiError({
+      message: "prepareLearningPlan is only available for live learning.",
+      status: 404,
+      kind: "not_found",
+      code: "LEARNING_NOT_LIVE",
+    });
+  },
+  getLearningPlanRun: async (runId) => {
+    if (getApiCapabilities().learning === "live") {
+      return LearningHttpApi.getLearningPlanRun(runId);
+    }
+    throw new ApiError({
+      message: "getLearningPlanRun is only available for live learning.",
+      status: 404,
+      kind: "not_found",
+      code: "LEARNING_NOT_LIVE",
+    });
+  },
+  prepareImprovementBlueprint: async (runId) => {
+    if (getApiCapabilities().learning === "live") {
+      return LearningHttpApi.prepareImprovementBlueprint(runId);
+    }
+    throw new ApiError({
+      message:
+        "prepareImprovementBlueprint is only available for live learning.",
+      status: 404,
+      kind: "not_found",
+      code: "LEARNING_NOT_LIVE",
+    });
+  },
+  getImprovementAssessment: async (id) => {
+    if (getApiCapabilities().learning === "live") {
+      return LearningHttpApi.getImprovementAssessment(id);
+    }
+    throw new ApiError({
+      message: "getImprovementAssessment is only available for live learning.",
+      status: 404,
+      kind: "not_found",
+      code: "LEARNING_NOT_LIVE",
+    });
+  },
   getImprovementBlueprint: async (studentId) => {
-    refuseMockDownstream("learning", studentId);
+    if (getApiCapabilities().learning === "live") {
+      throw new ApiError({
+        message:
+          "Use getImprovementAssessment / learning workspace for live blueprints.",
+        status: 404,
+        kind: "not_found",
+        code: "LEARNING_USE_LIVE_BLUEPRINT",
+      });
+    }
     return MockEduVijnaApi.getImprovementBlueprint(studentId);
   },
-  approveImprovementBlueprint: (...args) =>
-    MockEduVijnaApi.approveImprovementBlueprint(...args),
+  approveImprovementBlueprint: async (blueprintId) => {
+    if (getApiCapabilities().learning === "live") {
+      return LearningHttpApi.approveImprovementBlueprint(blueprintId);
+    }
+    return MockEduVijnaApi.approveImprovementBlueprint(blueprintId);
+  },
+  rejectImprovementBlueprint: async (blueprintId, reason) => {
+    if (getApiCapabilities().learning === "live") {
+      return LearningHttpApi.rejectImprovementBlueprint(blueprintId, reason);
+    }
+    throw new ApiError({
+      message: "rejectImprovementBlueprint is only available for live learning.",
+      status: 404,
+      kind: "not_found",
+      code: "LEARNING_NOT_LIVE",
+    });
+  },
 };

@@ -131,6 +131,18 @@ export default function AssessmentDetailPage({
         </p>
       )}
 
+      {capabilities.assessments === "live" &&
+        capabilities.analytics === "live" &&
+        capabilities.learning === "live" && (
+        <p
+          data-testid="assessment-learning-live-notice"
+          className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"
+        >
+          Analytics and adaptive learning are live for published ledger
+          evidence.
+        </p>
+      )}
+
       <nav
         data-testid="assessment-subnav"
         className="mt-4 flex flex-wrap gap-2 border-t border-slate-200 pt-4"

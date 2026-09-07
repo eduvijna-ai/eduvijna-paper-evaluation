@@ -11,6 +11,10 @@ from app.ai.types import (
     ErrorClassificationResult,
     IdentityExtractionInput,
     IdentityExtractionResult,
+    ImprovementBlueprintAIInput,
+    ImprovementBlueprintAIResult,
+    LearningPlanAIInput,
+    LearningPlanAIResult,
     PageAnalysisInput,
     PageAnalysisResult,
     ParentNarrativeInput,
@@ -45,6 +49,8 @@ class OpenAIStructureProvider:
         model_evaluation: str | None = None,
         model_student_report: str | None = None,
         model_parent_report: str | None = None,
+        model_learning_plan: str | None = None,
+        model_improvement_blueprint: str | None = None,
         timeout_seconds: int = 60,
         caller: JsonCaller | None = None,
     ) -> None:
@@ -58,6 +64,10 @@ class OpenAIStructureProvider:
             "classify_error": model_evaluation or model_transcription,
             "generate_student_explanation": model_student_report or model_transcription,
             "generate_parent_summary": model_parent_report or model_transcription,
+            "generate_learning_plan": model_learning_plan or model_transcription,
+            "generate_improvement_blueprint": (
+                model_improvement_blueprint or model_transcription
+            ),
         }
         self._timeout = timeout_seconds
         self._caller = caller
@@ -143,7 +153,24 @@ class OpenAIStructureProvider:
         )
         return ParentNarrativeResult.model_validate(raw)
 
+    async def generate_learning_plan(
+        self, request: LearningPlanAIInput
+    ) -> LearningPlanAIResult:
+        raw = await self._complete(
+            "generate_learning_plan", request.model_dump(mode="json")
+        )
+        return LearningPlanAIResult.model_validate(raw)
+
+    async def generate_improvement_blueprint(
+        self, request: ImprovementBlueprintAIInput
+    ) -> ImprovementBlueprintAIResult:
+        raw = await self._complete(
+            "generate_improvement_blueprint", request.model_dump(mode="json")
+        )
+        return ImprovementBlueprintAIResult.model_validate(raw)
+
 
 # Alias for clarity in evaluation-focused call sites / tests.
 OpenAIEvaluationProvider = OpenAIStructureProvider
 OpenAINarrativeProvider = OpenAIStructureProvider
+OpenAILearningProvider = OpenAIStructureProvider

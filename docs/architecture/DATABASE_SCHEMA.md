@@ -369,17 +369,27 @@ CREATE TABLE role_permissions (
 
 **Critical index:** `(tenant_id, submission_id, question_id)` on `question_evaluations`
 
-### 4.6 Publication (`0008`) & analytics mastery evidence (`0009`)
+### 4.6 Publication (`0008`), analytics mastery evidence (`0009`), learning blueprint (`0010`)
 
 | Table | Key columns | Status |
 |-------|-------------|--------|
 | `published_results` | `tenant_id`, `submission_id`, scores, report keys, `ledger_snapshot_hash` | B7 live |
 | `annotations` | publication annotations | B7 live |
-| `mastery_evidence` | published-ledger evidence; `evidence_type`, `strength`, `algorithm_version=B8_V1` | **B8 live** |
-| `mastery_states` | longitudinal concept/execution aggregates | **NOT in B8** (AFTER_CLIENT_APPROVAL) |
-| `learning_recommendations` / improvement tables | B9+ | deferred |
+| `mastery_evidence` | published-ledger evidence; `evidence_type`, `strength`, `algorithm_version=B8_V1` | **B8 live (B9 source)** |
+| `mastery_states` | longitudinal concept/execution aggregates | **Deferred** (AFTER_CLIENT_APPROVAL; not in B8/B9) |
+| `learning_plan_runs` | student×curriculum versioned plan; hashes; `algorithm_version=B9_V1`; status | **B9 live** |
+| `learning_recommendations` | curriculum-constrained remediation; kind/priority/signals | **B9 live** |
+| `learning_recommendation_prerequisites` | ordered REQUIRED/RECOMMENDED edges | **B9 live** |
+| `learning_recommendation_evidence` | FK → `mastery_evidence` | **B9 live** |
+| `learning_path_steps` | ordered path steps (incl. MASTERY_CHECK) | **B9 live** |
+| `improvement_assessments` | blueprint header + artifact key/hash + approve/reject | **B9 live (blueprint only)** |
+| `improvement_assessment_items` | template items; no Assessment/Question FKs | **B9 live (blueprint only)** |
 
-`PipelineJob.stage` includes `PUBLICATION` (B7) and `ANALYTICS` (B8).
+`PipelineJob.stage` includes `PUBLICATION` (B7) and `ANALYTICS` (B8). **B9 does not add a LEARNING PipelineJob stage** — learning uses `learning_plan_runs` / `improvement_assessments` + Celery task ids.
+
+`ai_execution_records` gains optional `learning_plan_run_id` and `improvement_assessment_id` (migration `0010`).
+
+Deferred (logical only; no tables): resource assignment, reassessment instantiation from approved blueprints.
 
 ### 4.7 AI tracing (`0008`)
 
@@ -446,3 +456,5 @@ Store S3 keys as `VARCHAR(512)`; never blob content in Postgres except small JSO
 | Version | Date | Change |
 |---------|------|--------|
 | 0.1 | 2026-09-04 | Initial schema contract; Day-1 foundation defined |
+| 0.2 | 2026-09-07 | B8 `mastery_evidence`; `mastery_states` deferred |
+| 0.3 | 2026-09-07 | B9 learning plan / recommendation / path / improvement blueprint tables (`0010`) |

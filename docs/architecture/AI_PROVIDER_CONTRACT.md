@@ -195,17 +195,21 @@ SymPy runs in-process — not delegated to LLM.
 
 ### 3.10 `generate_learning_plan`
 
-**Stage:** Learning evidence (post-approval)  
-**Input:** Approved ledger, curriculum nodes, prerequisite graph  
-**Output:** Curriculum-constrained recommendations (node IDs + rationale).
+**Stage:** Learning evidence (post-publication mastery evidence)  
+**Input:** Server-authorized plan structure (recommendation keys, default rationales, path steps) derived from B8 `MasteryEvidence` + curriculum graph — not raw mark mutation  
+**Output:** Bounded prose overlays (rationale / path descriptions). Structure remains server-owned (`B9_V1`).  
+**Constraint:** No URLs; curriculum-node IDs only; no Assessment/resource invention.  
+**Status:** **Implemented in B9** via `LearningAIProvider` (`AI_PROVIDER_TEXT=fixed|openai|none` → `FIXED` / `AI` / `RULES_FALLBACK`). Traced on `AiExecutionRecord` with `learning_plan_run_id`. Worker: `learning.generate_plan`.
 
 ---
 
 ### 3.11 `generate_improvement_blueprint`
 
-**Stage:** Learning evidence (post-approval)  
-**Input:** Weakness profile, curriculum scope  
-**Output:** `ImprovementAssessment` structure with targeted practice items.
+**Stage:** Learning evidence (post READY learning plan)  
+**Input:** Server-authorized blueprint item skeletons (template kinds, node IDs, default focus)  
+**Output:** Title + item focus prose for an `ImprovementAssessment` **blueprint** (not a live Assessment).  
+**Constraint:** No URLs; items must cover plan targets; no reassessment entity creation.  
+**Status:** **Implemented in B9** via `LearningAIProvider` (same text-provider modes). Traced with `improvement_assessment_id` (+ `learning_plan_run_id`). Worker: `learning.generate_improvement_blueprint`.
 
 ---
 
@@ -251,7 +255,8 @@ Link record IDs to ledger via `ai_execution_record_ids`.
 |-----------------|--------------|---------------|
 | Structure (identity, map, transcribe) | Submission < `APPROVED` | No marks |
 | Evaluation (`evaluate_rubric`, `verify_math`, `classify_error`) | Rubric `PUBLISHED` | Draft proposals only |
-| Narrative (`generate_*`) | Submission ≥ `APPROVED` | **Forbidden** |
+| Narrative (`generate_student_explanation`, `generate_parent_summary`) | Submission ≥ `APPROVED` / publication | **Forbidden** |
+| Learning (`generate_learning_plan`, `generate_improvement_blueprint`) | After B8 READY evidence / READY plan | **Forbidden** (structure server-owned) |
 
 Workers set `app.tenant_id` before any DB or AI call.
 
@@ -296,3 +301,5 @@ ai/
 | Version | Date | Change |
 |---------|------|--------|
 | 0.1 | 2026-09-04 | Initial AI provider contract |
+| 0.2 | 2026-09-07 | B7 narrative ops implemented |
+| 0.3 | 2026-09-07 | B9 `generate_learning_plan` + `generate_improvement_blueprint` implemented |

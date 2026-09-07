@@ -119,11 +119,11 @@ describe("B8 analytics capability", () => {
     vi.unstubAllEnvs();
   });
 
-  it("marks analytics live and learning mock in hybrid", () => {
+  it("marks analytics and learning live in hybrid", () => {
     vi.stubEnv("NEXT_PUBLIC_API_MODE", "hybrid");
     const caps = getApiCapabilities();
     expect(caps.analytics).toBe("live");
-    expect(caps.learning).toBe("mock");
+    expect(caps.learning).toBe("live");
     expect(caps.publication).toBe("live");
     expect(caps.reports).toBe("live");
   });
@@ -207,7 +207,7 @@ describe("B8 hybrid analytics routing", () => {
     expect(JSON.stringify(result)).not.toContain("question_difficulty");
   });
 
-  it("routes student analytics to live HTTP and does not call mock learning", async () => {
+  it("routes student analytics to live HTTP without calling learning", async () => {
     vi.stubEnv("NEXT_PUBLIC_API_MODE", "hybrid");
     const fetchMock = vi.fn().mockResolvedValue(
       new Response(JSON.stringify(studentDto), {
@@ -227,12 +227,6 @@ describe("B8 hybrid analytics routing", () => {
       true,
     );
     expect(urls.some((u) => u.includes("/learning"))).toBe(false);
-
-    await expect(
-      HybridEduVijnaApi.getAdaptiveLearning(
-        "33333333-3333-4333-8333-333333333333",
-      ),
-    ).rejects.toMatchObject({ code: "LEARNING_NOT_LIVE" });
   });
 
   it("surfaces live analytics HTTP errors without mock fallback", async () => {

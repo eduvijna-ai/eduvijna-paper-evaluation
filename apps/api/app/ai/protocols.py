@@ -9,6 +9,10 @@ from app.ai.types import (
     ErrorClassificationResult,
     IdentityExtractionInput,
     IdentityExtractionResult,
+    ImprovementBlueprintAIInput,
+    ImprovementBlueprintAIResult,
+    LearningPlanAIInput,
+    LearningPlanAIResult,
     PageAnalysisInput,
     PageAnalysisResult,
     ParentNarrativeInput,
@@ -68,3 +72,17 @@ class NarrativeAIProvider(Protocol):
     async def generate_parent_summary(
         self, request: ParentNarrativeInput
     ) -> ParentNarrativeResult: ...
+
+
+class LearningAIProvider(Protocol):
+    """B9 learning plan / improvement blueprint prose. Structure is server-owned."""
+
+    provider_name: str
+
+    async def generate_learning_plan(
+        self, request: LearningPlanAIInput
+    ) -> LearningPlanAIResult: ...
+
+    async def generate_improvement_blueprint(
+        self, request: ImprovementBlueprintAIInput
+    ) -> ImprovementBlueprintAIResult: ...

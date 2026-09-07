@@ -2,15 +2,15 @@
 
 **Product:** EduVijna Paper Evaluation (CVB)  
 **Author:** Implementation Engineer B (registry); A2 backend reconciliation by Implementation Engineer A  
-**Updated:** 2026-09-07 (B7 publication / reports / annotated paper)  
-**Status:** A1+A2+B1–B7 live through publication + published reports; analytics/learning remain open
+**Updated:** 2026-09-07 (B9 live curriculum learning / improvement blueprint)  
+**Status:** A1+A2+B1–B9 live through analytics + curriculum learning plans / improvement blueprints; longitudinal MasteryState, resource assignment, and reassessment creation remain deferred
 
 ## Context
 
 Adapters (`NEXT_PUBLIC_API_MODE`):
 
 - `mock` — all domains mock + demo role login (Playwright B0)
-- `hybrid` (alias `http`) — Auth/Institution/Years/Sections/Students/Import/Guardians (B1), Curriculum/Assessments (B2), Submissions/Identity (B3), Mapping (B4), Transcription (B5), Evaluation (B6), Publication + Reports (B7) via HTTP; Analytics/Learning remain mock
+- `hybrid` (alias `http`) — Auth/Institution/Years/Sections/Students/Import/Guardians (B1), Curriculum/Assessments (B2), Submissions/Identity (B3), Mapping (B4), Transcription (B5), Evaluation (B6), Publication + Reports (B7), Analytics (B8), Learning (B9) via HTTP; mock mode keeps all domains on fixtures
 
 A1 (PR #4) published OpenAPI for auth, institution, academic years, class sections, students, student import, and guardians.  
 A2 (PR #5) publishes curriculum trees, prerequisites, assessments/versions, question trees, mark reconciliation, answer keys, rubrics/criteria, curriculum mappings, readiness transitions, and controlled AI-proposal unavailability.
@@ -42,8 +42,8 @@ B should map mock/http adapters to these **canonical** paths (no duplicate alias
 | **FCR-002** | P0 | Identity review | **RESOLVED_BY_B3** | `GET …/identity`, confirm, unmatched | — |
 | **FCR-003** | P0 | Question mapping | **RESOLVED_BY_B4**; B5 adds AI-assisted region/mapping proposals (human confirm still mandatory) | Mapping workspace + region CRUD + confirm/finalize | — |
 | **FCR-004** | P0 | Evaluation | **RESOLVED_BY_B6** | Evaluation prepare/workspace/finalize + accept/override/feedback/escalate | — |
-| **FCR-005** | P1 | Reports / Analytics | **RESOLVED_BY_B7** (reporting); **OPEN_FOR_B8** (analytics) | Student/parent/teacher published reports + annotated paper | Analytics aggregations |
-| **FCR-006** | P1 | Adaptive learning | **OPEN** | — | Learning + improvement blueprint |
+| **FCR-005** | P1 | Reports / Analytics | **RESOLVED_BY_B7** (reporting); **RESOLVED_BY_B8** (analytics) | Student/parent/teacher published reports + annotated paper; assessment/student analytics | — |
+| **FCR-006** | P1 | Adaptive learning | **RESOLVED_BY_B9** | Learning workspace + plan prepare/run + improvement blueprint approve/reject | Deferred: resource assignment, reassessment, MasteryState |
 | **FCR-007** | P1 | Paper viewer / structure AI | **RESOLVED_BY_B5** for CVB structure pipeline (page analysis, crops, transcription review) | Page images + overlays + transcription workspace | — |
 | **FCR-008** | P2 | Answer key / curriculum map | **RESOLVED_BY_A2** | Answer-key versions + approve; question curriculum mappings; rubrics/criteria | — |
 | **FCR-009** | P2 | Raw upload | **RESOLVED_BY_B3** | Multipart `POST /api/v1/submissions` + immutable MinIO storage | — |
@@ -124,9 +124,23 @@ OCR/mapping correction workflows and result publication / reports remain out of 
 
 ## FCR-006 — Adaptive learning (P1)
 
-**Resolution:** **OPEN_FOR_B9**  
+**Resolution:** **RESOLVED_BY_B9**  
 
-Adaptive learning plans, improvement blueprints, and live learning navigation remain mock. Live UUIDs refuse mock learning. B8 analytics evidence is the input for B9.
+B9 resolves live curriculum-constrained recommendations, prerequisite-aware learning path, and improvement-assessment **blueprint** generation with teacher approve/reject.
+
+**Resolved by B9:**
+- `GET /api/v1/learning/students/{student_id}` — workspace (`available_curricula`, plan, path, materialization)
+- `POST /api/v1/learning/students/{student_id}/prepare` — enqueue `learning.generate_plan`
+- `GET /api/v1/learning/plan-runs/{run_id}` — versioned plan + staleness
+- `POST /api/v1/learning/plan-runs/{run_id}/improvement-blueprints/prepare`
+- `GET /api/v1/improvement-assessments/{id}` + `POST …/approve` + `POST …/reject`
+- Schemas: `learning-plan`, `improvement-assessment-blueprint`
+- Capability: `learning = live` in hybrid; live errors never fall back to mock
+
+**Explicitly deferred:**
+- Resource assignment / external study URLs (PEV-041)
+- Actual reassessment creation from an approved blueprint (PEV-043)
+- Longitudinal MasteryState aggregates (PEV-035/036/037/038)
 
 ---
 

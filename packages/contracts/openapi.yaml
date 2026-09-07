@@ -1164,6 +1164,117 @@ paths:
         "409":
           description: Prepare requires PUBLISHED result
           content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/learning/students/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getLearningWorkspace
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: curriculum_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Live learning workspace for a student
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LearningWorkspace" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/learning/students/{id}/prepare:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: prepareLearningPlan
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LearningPrepareInput" }
+      responses:
+        "200":
+          description: Queued or reused learning plan run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LearningPrepareResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Evidence not ready or other learning conflict
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/learning/plan-runs/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getLearningPlanRun
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Learning plan run with recommendations and path
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LearningPlanRun" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/learning/plan-runs/{id}/improvement-blueprints/prepare:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: prepareImprovementBlueprint
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Queued or reused improvement blueprint
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImprovementBlueprintPrepareResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Plan not ready, stale, or empty
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/improvement-assessments/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getImprovementAssessment
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Improvement assessment blueprint detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImprovementAssessment" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/improvement-assessments/{id}/approve:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: approveImprovementAssessment
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Blueprint approved (no reassessment created)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImprovementBlueprintApproveResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Stale or not pending approval
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/improvement-assessments/{id}/reject:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: rejectImprovementAssessment
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ImprovementBlueprintRejectInput" }
+      responses:
+        "200":
+          description: Blueprint rejected
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImprovementAssessment" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422":
+          description: Invalid rejection reason
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
   /api/v1/submission-pages/{id}/answer-regions:
     parameters: [{ $ref: "#/components/parameters/Id" }]
     post:
@@ -2787,4 +2898,266 @@ components:
         celery_task_id: { type: [string, "null"] }
         enqueue_error: { type: [string, "null"] }
         algorithm_version: { type: string, enum: [B8_V1] }
+    LearningWorkspace:
+      type: object
+      description: Live B9 learning workspace
+      required:
+        [
+          student,
+          available_curricula,
+          selected_curriculum_id,
+          materialization_status,
+          evidence_coverage,
+          is_stale,
+        ]
+      properties:
+        student:
+          type: object
+          required: [id, display_name]
+          properties:
+            id: { type: string, format: uuid }
+            display_name: { type: string }
+        available_curricula:
+          type: array
+          items: { type: object, additionalProperties: true }
+        selected_curriculum_id: { type: [string, "null"], format: uuid }
+        materialization_status: { type: string }
+        materialization: { type: object, additionalProperties: true }
+        evidence_coverage: { type: object, additionalProperties: true }
+        latest_run: { type: [object, "null"], additionalProperties: true }
+        latest_plan: { type: [object, "null"], additionalProperties: true }
+        is_stale: { type: boolean }
+        latest_improvement_blueprint:
+          type: [object, "null"]
+          additionalProperties: true
+        selection_required: { type: boolean }
+    LearningPrepareInput:
+      type: object
+      required: [curriculum_id]
+      properties:
+        curriculum_id: { type: string, format: uuid }
+    LearningPrepareResult:
+      type: object
+      required: [run_id, student_id, curriculum_id, version_number, status, algorithm_version]
+      properties:
+        run_id: { type: string, format: uuid }
+        student_id: { type: string, format: uuid }
+        curriculum_id: { type: string, format: uuid }
+        version_number: { type: integer }
+        status: { type: string, enum: [QUEUED, RUNNING, READY, FAILED, SUPERSEDED] }
+        input_hash: { type: string }
+        algorithm_version: { type: string, enum: [B9_V1] }
+        celery_task_id: { type: [string, "null"] }
+        enqueue_error: { type: [string, "null"] }
+    LearningRecommendationPrerequisite:
+      type: object
+      required: [curriculum_node_id, relationship_type, sequence]
+      properties:
+        curriculum_node_id: { type: string, format: uuid }
+        relationship_type: { type: string, enum: [REQUIRED, RECOMMENDED] }
+        sequence: { type: integer }
+    LearningRecommendation:
+      type: object
+      description: See packages/contracts/schemas/learning-plan.schema.json
+      required:
+        [
+          id,
+          target_node_id,
+          recommendation_kind,
+          priority,
+          rationale,
+          concept_signal,
+          execution_signal,
+          procedure_signal,
+          evidence_count,
+          status,
+          prerequisites,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        target_node_id: { type: string, format: uuid }
+        recommendation_kind:
+          type: string
+          enum: [PREREQUISITE_REPAIR, TARGET_CONCEPT, PROCEDURE_PRACTICE, EXECUTION_PRACTICE]
+        priority: { type: integer, enum: [1, 2, 3] }
+        rationale: { type: string }
+        concept_signal: { type: string, enum: [STRONG, WEAK, INCONCLUSIVE] }
+        execution_signal: { type: string, enum: [STRONG, WEAK, INCONCLUSIVE] }
+        procedure_signal: { type: string, enum: [STRONG, WEAK, INCONCLUSIVE] }
+        evidence_count: { type: integer }
+        mean_evidence_score_ratio: { type: [number, "null"] }
+        status: { type: string, enum: [ACTIVE, DISMISSED, COMPLETED] }
+        target_node_code: { type: string }
+        target_node_title: { type: string }
+        target_node_type: { type: string }
+        prerequisites:
+          type: array
+          items: { $ref: "#/components/schemas/LearningRecommendationPrerequisite" }
+        mastery_evidence_ids:
+          type: array
+          items: { type: string, format: uuid }
+    LearningPathStep:
+      type: object
+      required: [curriculum_node_id, kind, sequence, title, evidence_basis]
+      properties:
+        id: { type: string, format: uuid }
+        curriculum_node_id: { type: string, format: uuid }
+        learning_recommendation_id: { type: [string, "null"], format: uuid }
+        kind:
+          type: string
+          enum: [PREREQUISITE, LEARN, GUIDED, INDEPENDENT, MASTERY_CHECK]
+        sequence: { type: integer }
+        title: { type: string }
+        description: { type: [string, "null"] }
+        evidence_basis: { type: string }
+        relationship_type: { type: [string, "null"], enum: [REQUIRED, RECOMMENDED, null] }
+    LearningPlanRun:
+      type: object
+      description: See packages/contracts/schemas/learning-plan.schema.json
+      required:
+        [
+          id,
+          student_id,
+          curriculum_id,
+          version_number,
+          status,
+          algorithm_version,
+          source_evidence_hash,
+          curriculum_graph_hash,
+          input_hash,
+          is_stale,
+          recommendations,
+          learning_path,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        student_id: { type: string, format: uuid }
+        curriculum_id: { type: string, format: uuid }
+        version_number: { type: integer }
+        status: { type: string, enum: [QUEUED, RUNNING, READY, FAILED, SUPERSEDED] }
+        algorithm_version: { type: string, enum: [B9_V1] }
+        generation_source: { type: [string, "null"], enum: [AI, FIXED, RULES_FALLBACK, null] }
+        provider: { type: [string, "null"] }
+        model: { type: [string, "null"] }
+        source_evidence_hash: { type: string }
+        curriculum_graph_hash: { type: string }
+        input_hash: { type: string }
+        is_stale: { type: boolean }
+        failure_code: { type: [string, "null"] }
+        failure_detail: { type: [string, "null"] }
+        requested_at: { type: [string, "null"], format: date-time }
+        started_at: { type: [string, "null"], format: date-time }
+        finished_at: { type: [string, "null"], format: date-time }
+        recommendations:
+          type: array
+          items: { $ref: "#/components/schemas/LearningRecommendation" }
+        learning_path:
+          type: array
+          items: { $ref: "#/components/schemas/LearningPathStep" }
+        no_gap_message: { type: [string, "null"] }
+    ImprovementAssessmentItem:
+      type: object
+      required:
+        [
+          learning_recommendation_id,
+          curriculum_node_id,
+          item_code,
+          template_kind,
+          question_template_ref,
+          focus,
+          difficulty,
+          sort_order,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        learning_recommendation_id: { type: string, format: uuid }
+        curriculum_node_id: { type: string, format: uuid }
+        item_code: { type: string }
+        template_kind:
+          type: string
+          enum:
+            [
+              CONCEPT_CHECK,
+              PREREQUISITE_CHECK,
+              PROCEDURE_PRACTICE,
+              EXECUTION_PRACTICE,
+              TRANSFER_CHECK,
+            ]
+        question_template_ref: { type: string }
+        focus: { type: string }
+        difficulty: { type: string, enum: [EASY, MEDIUM, HARD] }
+        suggested_marks: { type: [number, "null"] }
+        sort_order: { type: integer }
+    ImprovementAssessment:
+      type: object
+      description: See packages/contracts/schemas/improvement-assessment-blueprint.schema.json
+      required:
+        [
+          id,
+          student_id,
+          curriculum_id,
+          learning_plan_run_id,
+          version_number,
+          title,
+          status,
+          source_evidence_hash,
+          curriculum_graph_hash,
+          input_hash,
+          items,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        student_id: { type: string, format: uuid }
+        curriculum_id: { type: string, format: uuid }
+        learning_plan_run_id: { type: string, format: uuid }
+        version_number: { type: integer }
+        title: { type: string }
+        status:
+          type: string
+          enum: [DRAFT, GENERATING, PENDING_APPROVAL, APPROVED, REJECTED, FAILED]
+        source_evidence_hash: { type: string }
+        curriculum_graph_hash: { type: string }
+        input_hash: { type: string }
+        generation_source: { type: [string, "null"], enum: [AI, FIXED, RULES_FALLBACK, null] }
+        provider: { type: [string, "null"] }
+        model: { type: [string, "null"] }
+        blueprint_storage_key: { type: [string, "null"] }
+        blueprint_sha256: { type: [string, "null"] }
+        blueprint_byte_size: { type: [integer, "null"] }
+        generated_at: { type: [string, "null"], format: date-time }
+        approved_at: { type: [string, "null"], format: date-time }
+        rejected_at: { type: [string, "null"], format: date-time }
+        rejection_reason: { type: [string, "null"] }
+        failure_code: { type: [string, "null"] }
+        failure_detail: { type: [string, "null"] }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ImprovementAssessmentItem" }
+    ImprovementBlueprintPrepareResult:
+      type: object
+      required:
+        [
+          improvement_assessment_id,
+          learning_plan_run_id,
+          version_number,
+          status,
+        ]
+      properties:
+        improvement_assessment_id: { type: string, format: uuid }
+        learning_plan_run_id: { type: string, format: uuid }
+        version_number: { type: integer }
+        status:
+          type: string
+          enum: [DRAFT, GENERATING, PENDING_APPROVAL, APPROVED, REJECTED, FAILED]
+        input_hash: { type: string }
+        celery_task_id: { type: [string, "null"] }
+        enqueue_error: { type: [string, "null"] }
+    ImprovementBlueprintApproveResult:
+      allOf:
+        - { $ref: "#/components/schemas/ImprovementAssessment" }
+    ImprovementBlueprintRejectInput:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 2000 }
 

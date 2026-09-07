@@ -99,7 +99,7 @@ describe("B7 publication capability", () => {
     expect(caps.publication).toBe("live");
     expect(caps.reports).toBe("live");
     expect(caps.analytics).toBe("live");
-    expect(caps.learning).toBe("mock");
+    expect(caps.learning).toBe("live");
   });
 
   it("keeps publication and reports mock in mock mode", () => {
@@ -185,27 +185,51 @@ describe("B7 publication mappers", () => {
   });
 });
 
-describe("B7 hybrid refuse mock learning for live UUIDs", () => {
+describe("B7 hybrid learning routes live for live UUIDs", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
   });
 
-  it("keeps learning refused for live UUID while analytics is live", async () => {
+  it("keeps analytics and learning live for live UUID", async () => {
     vi.stubEnv("NEXT_PUBLIC_API_MODE", "hybrid");
     expect(getApiCapabilities().analytics).toBe("live");
-    await expect(
-      HybridEduVijnaApi.getAdaptiveLearning(
-        "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+    expect(getApiCapabilities().learning).toBe("live");
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          student: {
+            id: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+            display_name: "Live",
+          },
+          available_curricula: [],
+          selected_curriculum: null,
+          materialization_status: "NOT_STARTED",
+          evidence_coverage: {
+            curriculum_node_count: 0,
+            evidence_row_count: 0,
+          },
+          latest_run: null,
+          latest_plan: null,
+          is_stale: false,
+          latest_improvement_blueprint: null,
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
       ),
-    ).rejects.toMatchObject({ code: "LEARNING_NOT_LIVE" });
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const ws = await HybridEduVijnaApi.getLearningWorkspace!(
+      "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+    );
+    expect(ws.materialization_status).toBe("NOT_STARTED");
   });
 
-  it("refuses learning for live UUID", async () => {
+  it("does not use mock getAdaptiveLearning when learning is live", async () => {
     vi.stubEnv("NEXT_PUBLIC_API_MODE", "hybrid");
     await expect(
       HybridEduVijnaApi.getAdaptiveLearning(
         "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
       ),
-    ).rejects.toMatchObject({ code: "LEARNING_NOT_LIVE" });
+    ).rejects.toMatchObject({ code: "LEARNING_USE_LIVE_WORKSPACE" });
   });
 });
