@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/parent-report.schema.json",
+  "title": "ParentReport",
+  "description": "PEV-027/PEV-078 plain-language parent report. Scores injected server-side from approved ledger. No confidence dimensions or internal review notes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "published_result_id",
+    "student_display_name",
+    "assessment_title",
+    "total_score",
+    "max_total_score",
+    "percentage",
+    "what_went_well",
+    "what_to_practice",
+    "how_family_can_help",
+    "next_step",
+    "ledger_snapshot_hash",
+    "narrative_source"
+  ],
+  "properties": {
+    "published_result_id": { "type": "string", "format": "uuid" },
+    "student_display_name": { "type": "string" },
+    "assessment_title": { "type": "string" },
+    "total_score": { "type": "number", "minimum": 0 },
+    "max_total_score": { "type": "number", "minimum": 0 },
+    "percentage": { "type": "number", "minimum": 0, "maximum": 100 },
+    "score_summary": { "type": "string" },
+    "what_went_well": { "type": "array", "items": { "type": "string" } },
+    "what_to_practice": { "type": "array", "items": { "type": "string" } },
+    "how_family_can_help": { "type": "array", "items": { "type": "string" } },
+    "next_step": { "type": "string" },
+    "ledger_snapshot_hash": { "type": "string", "minLength": 64, "maxLength": 64 },
+    "narrative_source": {
+      "type": "string",
+      "enum": ["AI", "FIXED", "RULES_FALLBACK"]
+    },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "published_at": { "type": ["string", "null"], "format": "date-time" }
+  }
+}

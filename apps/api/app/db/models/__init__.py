@@ -33,6 +33,7 @@ from app.db.models.mapping import (
     QuestionAnswerMapping,
     QuestionAnswerMappingRegion,
 )
+from app.db.models.publication import Annotation, PublishedResult
 from app.db.models.role import Permission, Role, RolePermission, UserRole
 from app.db.models.student import Guardian, ImportSession, Student, StudentGuardian
 from app.db.models.submission import PipelineJob, Submission, SubmissionPage
@@ -42,6 +43,7 @@ from app.db.models.user import User
 __all__ = [
     "AcademicYear",
     "AiExecutionRecord",
+    "Annotation",
     "AnswerKey",
     "AnswerKeyVersion",
     "AnswerRegion",
@@ -60,6 +62,7 @@ __all__ = [
     "ImportSession",
     "Permission",
     "PipelineJob",
+    "PublishedResult",
     "Question",
     "QuestionAnswerMapping",
     "QuestionAnswerMappingRegion",

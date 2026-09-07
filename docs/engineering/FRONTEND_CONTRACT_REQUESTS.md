@@ -2,15 +2,15 @@
 
 **Product:** EduVijna Paper Evaluation (CVB)  
 **Author:** Implementation Engineer B (registry); A2 backend reconciliation by Implementation Engineer A  
-**Updated:** 2026-09-06 (B6 evaluation ledger review)  
-**Status:** A1+A2+B1+B2+B3 live through identity; B4 mapping; B5 transcription; B6 evaluation ledger review live; reporting/learning remain open
+**Updated:** 2026-09-07 (B7 publication / reports / annotated paper)  
+**Status:** A1+A2+B1–B7 live through publication + published reports; analytics/learning remain open
 
 ## Context
 
 Adapters (`NEXT_PUBLIC_API_MODE`):
 
 - `mock` — all domains mock + demo role login (Playwright B0)
-- `hybrid` (alias `http`) — Auth/Institution/Years/Sections/Students/Import/Guardians (B1), Curriculum/Assessments (B2), Submissions/Identity (B3), Mapping (B4), Transcription (B5), Evaluation (B6) via HTTP; Analytics/Reporting/Learning remain mock
+- `hybrid` (alias `http`) — Auth/Institution/Years/Sections/Students/Import/Guardians (B1), Curriculum/Assessments (B2), Submissions/Identity (B3), Mapping (B4), Transcription (B5), Evaluation (B6), Publication + Reports (B7) via HTTP; Analytics/Learning remain mock
 
 A1 (PR #4) published OpenAPI for auth, institution, academic years, class sections, students, student import, and guardians.  
 A2 (PR #5) publishes curriculum trees, prerequisites, assessments/versions, question trees, mark reconciliation, answer keys, rubrics/criteria, curriculum mappings, readiness transitions, and controlled AI-proposal unavailability.
@@ -41,9 +41,9 @@ B should map mock/http adapters to these **canonical** paths (no duplicate alias
 | **FCR-001** | P0 | Domain CRUD | **IMPLEMENTED_IN_FRONTEND** (A1/B1/B2); submissions list/detail **RESOLVED_BY_B3** | A1 students/institution/years/sections; A2 curricula/assessments; B3 submissions | Mapping/evaluation later |
 | **FCR-002** | P0 | Identity review | **RESOLVED_BY_B3** | `GET …/identity`, confirm, unmatched | — |
 | **FCR-003** | P0 | Question mapping | **RESOLVED_BY_B4**; B5 adds AI-assisted region/mapping proposals (human confirm still mandatory) | Mapping workspace + region CRUD + confirm/finalize | — |
-| **FCR-004** | P0 | Evaluation | **RESOLVED_BY_B6** | Evaluation prepare/workspace/finalize + accept/override/feedback/escalate | Reports/publication later |
-| **FCR-005** | P1 | Reports / Analytics | **OPEN_FOR_REPORTING** | — | Report & analytics DTOs |
-| **FCR-006** | P1 | Adaptive learning | **OPEN_FOR_LEARNING** | — | Learning + improvement blueprint |
+| **FCR-004** | P0 | Evaluation | **RESOLVED_BY_B6** | Evaluation prepare/workspace/finalize + accept/override/feedback/escalate | — |
+| **FCR-005** | P1 | Reports / Analytics | **RESOLVED_BY_B7** (reporting); **OPEN_FOR_B8** (analytics) | Student/parent/teacher published reports + annotated paper | Analytics aggregations |
+| **FCR-006** | P1 | Adaptive learning | **OPEN** | — | Learning + improvement blueprint |
 | **FCR-007** | P1 | Paper viewer / structure AI | **RESOLVED_BY_B5** for CVB structure pipeline (page analysis, crops, transcription review) | Page images + overlays + transcription workspace | — |
 | **FCR-008** | P2 | Answer key / curriculum map | **RESOLVED_BY_A2** | Answer-key versions + approve; question curriculum mappings; rubrics/criteria | — |
 | **FCR-009** | P2 | Raw upload | **RESOLVED_BY_B3** | Multipart `POST /api/v1/submissions` + immutable MinIO storage | — |
@@ -103,13 +103,24 @@ OCR/mapping correction workflows and result publication / reports remain out of 
 
 ## FCR-005 — Reports & analytics (P1)
 
-**Resolution:** OPEN_FOR_REPORTING  
+**Resolution:** **RESOLVED_BY_B7** for reporting; **OPEN_FOR_B8** for analytics  
+
+**Resolved by B7:**
+- Publication prepare / workspace / regenerate / publish
+- Annotated evaluated paper (final scores only)
+- `GET /api/v1/reports/student|parent|teacher/{student_id}/assessments/{assessment_id}` — PUBLISHED only
+- Reviewer report previews while GENERATED
+- Schemas: `student-report`, `parent-report`, `teacher-report`, `evaluated-paper`
+
+**Still open (B8):** assessment/student analytics aggregations, score bands, class means — remain mock; live UUIDs refuse mock analytics.
 
 ---
 
 ## FCR-006 — Adaptive learning (P1)
 
-**Resolution:** OPEN_FOR_LEARNING  
+**Resolution:** **OPEN**  
+
+Adaptive learning plans, mastery topics, and improvement blueprints remain mock. Live UUIDs refuse mock learning.
 
 ---
 

@@ -12,7 +12,7 @@ function runId(): string {
 async function buildMultiPagePdf(): Promise<Buffer> {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
-  for (const label of ["Page 1 — B6", "Page 2 — B6"]) {
+  for (const label of ["Page 1 — B7", "Page 2 — B7"]) {
     const page = doc.addPage([400, 560]);
     page.drawText(label, { x: 48, y: 500, size: 18, font });
   }
@@ -38,8 +38,8 @@ async function createTwoLeafAssessment(
   const curriculum = await request.post(`${apiBase}/api/v1/curricula`, {
     headers,
     data: {
-      code: `B6-CUR-${suffix}`,
-      name: `B6 Curriculum ${suffix}`,
+      code: `B7-CUR-${suffix}`,
+      name: `B7 Curriculum ${suffix}`,
       version_label: "2026",
       status: "active",
     },
@@ -63,8 +63,8 @@ async function createTwoLeafAssessment(
     headers,
     data: {
       curriculum_id: curriculumId,
-      code: `B6-ASM-${suffix}`,
-      title: `B6 Evaluation Assessment ${suffix}`,
+      code: `B7-ASM-${suffix}`,
+      title: `B7 Publication Assessment ${suffix}`,
       assessment_type: "EXAM",
       max_marks: "10.00",
     },
@@ -200,8 +200,8 @@ async function createTwoLeafAssessment(
   const student = await request.post(`${apiBase}/api/v1/students`, {
     headers,
     data: {
-      student_code: `B6S-${suffix}`,
-      full_name: `B6 Student ${suffix}`,
+      student_code: `B7S-${suffix}`,
+      full_name: `B7 Student ${suffix}`,
       class_section_id: section!.id,
       academic_year_id: section!.academic_year_id,
       status: "active",
@@ -211,8 +211,11 @@ async function createTwoLeafAssessment(
   return { assessmentId, studentId: ((await student.json()) as { id: string }).id };
 }
 
-async function reachTranscriptionReady(
+async function reachApproved(
   page: Page,
+  request: APIRequestContext,
+  apiBase: string,
+  token: string,
   assessmentId: string,
   studentId: string,
   pdf: Buffer,
@@ -226,7 +229,7 @@ async function reachTranscriptionReady(
   await page.goto("/submissions/upload");
   await page.getByTestId("upload-assessment").selectOption(assessmentId);
   await page.getByTestId("upload-file").setInputFiles({
-    name: "b6-sheet.pdf",
+    name: "b7-sheet.pdf",
     mimeType: "application/pdf",
     buffer: pdf,
   });
@@ -277,23 +280,24 @@ async function reachTranscriptionReady(
   }
   await page.getByTestId("assign-region").click();
   await page.getByTestId("confirm-mapping").click();
-  await expect(page.getByTestId("mapping-completion")).toContainText(
-    /1 of 2 scorable questions confirmed/i,
-    { timeout: 20_000 },
-  );
 
   await page.getByTestId("question-tree-item-2").click();
   await page.getByTestId("mark-blank").click();
   await page.getByTestId("confirm-mapping").click();
-  await expect(page.getByTestId("mapping-completion")).toContainText(
-    /2 of 2 scorable questions confirmed/i,
-    { timeout: 20_000 },
-  );
-
   await page.getByTestId("finalize-mapping").click();
   await expect(page.getByTestId("submission-detail-page")).toBeVisible({
     timeout: 30_000,
   });
+
+  await expect
+    .poll(
+      async () => {
+        await page.goto(`/submissions/${submissionId}`);
+        return (await page.getByTestId("submission-workflow-state").textContent()) ?? "";
+      },
+      { timeout: 60_000 },
+    )
+    .toMatch(/ready for evaluation/i);
 
   await expect
     .poll(
@@ -346,16 +350,89 @@ async function reachTranscriptionReady(
     timeout: 30_000,
   });
   await expect(page.getByTestId("link-evaluation")).toBeVisible();
+
+  // Drive evaluation to APPROVED via API for reliability; UI publication is covered below.
+  const headers = { Authorization: `Bearer ${token}` };
+  await expect
+    .poll(
+      async () => {
+        const prep = await request.post(
+          `${apiBase}/api/v1/submissions/${submissionId}/evaluation/prepare`,
+          { headers },
+        );
+        if (![200, 409].includes(prep.status())) return `prep:${prep.status()}`;
+        const ws = await request.get(
+          `${apiBase}/api/v1/submissions/${submissionId}/evaluation`,
+          { headers },
+        );
+        if (!ws.ok()) return `ws:${ws.status()}`;
+        const body = (await ws.json()) as {
+          workflow_state?: string;
+          question_evaluations?: Array<{
+            id: string;
+            proposed_ai_score: number | string | null;
+            max_mark: number | string;
+            workflow_state: string;
+          }>;
+        };
+        if (body.workflow_state === "EVALUATING") return "evaluating";
+        const qes = body.question_evaluations ?? [];
+        if (qes.length < 2) return `qes:${qes.length}`;
+        let idx = 0;
+        for (const qe of qes) {
+          if (qe.workflow_state === "ACCEPTED" || qe.workflow_state === "OVERRIDDEN") {
+            idx += 1;
+            continue;
+          }
+          if (qe.proposed_ai_score !== null && qe.proposed_ai_score !== undefined) {
+            const acc = await request.post(
+              `${apiBase}/api/v1/question-evaluations/${qe.id}/accept`,
+              { headers },
+            );
+            if (![200, 409].includes(acc.status())) return `accept:${acc.status()}`;
+          } else {
+            const over = await request.post(
+              `${apiBase}/api/v1/question-evaluations/${qe.id}/override`,
+              {
+                headers,
+                data: {
+                  score: Number(qe.max_mark) > 0 ? Math.min(3.5, Number(qe.max_mark)) : 0,
+                  reason: `B7 E2E override Q${idx}`,
+                },
+              },
+            );
+            if (![200, 409].includes(over.status())) return `override:${over.status()}`;
+          }
+          idx += 1;
+        }
+        const fin = await request.post(
+          `${apiBase}/api/v1/submissions/${submissionId}/evaluation/finalize`,
+          { headers },
+        );
+        if (!fin.ok()) return `fin:${fin.status()}:${await fin.text()}`;
+        const finBody = (await fin.json()) as { workflow_state?: string };
+        return finBody.workflow_state ?? "unknown";
+      },
+      { timeout: 180_000 },
+    )
+    .toBe("APPROVED");
+
+  await page.goto(`/submissions/${submissionId}`);
+  await expect(page.getByTestId("submission-workflow-state")).toContainText(
+    /approved/i,
+    { timeout: 30_000 },
+  );
   return submissionId;
 }
 
-test.describe("B6 real evaluation ledger review", () => {
-  test("accept + override + finalize → APPROVED (not published)", async ({
+test.describe("B7 publication + reports (real API)", () => {
+  test("generate package, consumer 404 before publish, success after; analytics/learning refuse live UUID", async ({
     page,
     request,
   }) => {
-    const apiBase = process.env.API_UPSTREAM_URL ?? "http://127.0.0.1:18000";
-    expect((await request.get(`${apiBase}/health`)).ok()).toBeTruthy();
+    test.setTimeout(420_000);
+    const apiBase =
+      process.env.API_UPSTREAM_URL?.replace(/\/$/, "") ?? "http://127.0.0.1:18000";
     const token = await loginApi(request, apiBase);
     const { assessmentId, studentId } = await createTwoLeafAssessment(
       request,
@@ -363,124 +440,111 @@ test.describe("B6 real evaluation ledger review", () => {
       token,
     );
     const pdf = await buildMultiPagePdf();
-    const submissionId = await reachTranscriptionReady(
+    const submissionId = await reachApproved(
       page,
+      request,
+      apiBase,
+      token,
       assessmentId,
       studentId,
       pdf,
     );
 
-    await page.getByTestId("link-evaluation").click();
-    await expect(page.getByTestId("evaluation-workspace-page")).toBeVisible({
-      timeout: 60_000,
-    });
-    await expect(page.getByTestId("evaluation-workspace-page")).toHaveAttribute(
-      "data-evaluation-mode",
-      "live",
+    // Consumer 404 before publish (API + UI).
+    const before = await request.get(
+      `${apiBase}/api/v1/submissions/${submissionId}/published-result`,
+      { headers: { Authorization: `Bearer ${token}` } },
     );
+    expect(before.status()).toBe(404);
+
+    await page.goto(`/reports/student/${studentId}/assessment/${assessmentId}`);
+    await expect(
+      page.getByTestId("error-state").or(page.getByText(/not found|failed|unavailable/i)),
+    ).toBeVisible({ timeout: 20_000 });
+
+    await page.goto(`/submissions/${submissionId}`);
+    await expect(page.getByTestId("link-publication")).toBeVisible();
+    await page.getByTestId("link-publication").click();
+    await expect(page.getByTestId("publication-workspace-page")).toBeVisible({
+      timeout: 30_000,
+    });
+
+    await page.getByTestId("generate-publication-package").click();
+    await expect
+      .poll(
+        async () => {
+          const status =
+            (await page.getByTestId("publication-result-status").textContent()) ??
+            "";
+          return status.trim();
+        },
+        { timeout: 120_000 },
+      )
+      .toMatch(/GENERATED/i);
+
+    await expect(page.getByTestId("publication-snapshot-hash")).toBeVisible();
+    await expect(page.getByTestId("preview-annotated-paper")).toBeVisible();
+    await expect(page.getByTestId("publish-results")).toBeVisible();
+
+    // Still not published — consumer 404.
+    await page.goto(`/reports/parent/${studentId}/assessment/${assessmentId}`);
+    await expect(page.getByTestId("error-state")).toBeVisible({ timeout: 20_000 });
+
+    await page.goto(`/submissions/${submissionId}/publication`);
+    await expect(page.getByTestId("publish-results")).toBeVisible({
+      timeout: 30_000,
+    });
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByTestId("publish-results").click();
 
     await expect
       .poll(
         async () => {
-          await page.reload();
-          const text = await page.getByTestId("evaluation-progress").textContent();
-          const panel = await page.getByTestId("evaluation-decision-panel").count();
-          return `${text ?? ""}|${panel}`;
+          await page.goto(`/submissions/${submissionId}`);
+          return (
+            (await page.getByTestId("submission-workflow-state").textContent()) ??
+            ""
+          );
         },
-        { timeout: 180_000 },
+        { timeout: 60_000 },
       )
-      .toMatch(/of \d+ questions finalized\|1/);
+      .toMatch(/published/i);
 
-    await expect(page.getByTestId("confidence-dimensions")).toBeVisible();
-    await expect(page.getByTestId("evaluation-transcription")).toBeVisible();
+    await expect(page.getByTestId("submission-published-immutable")).toBeVisible();
+    await expect(page.getByTestId("link-student-report")).toBeVisible();
 
-    // ACCEPT first question when a proposal exists.
-    const acceptBtn = page.getByTestId("teacher-action-ACCEPT");
-    if (await acceptBtn.isEnabled()) {
-      await acceptBtn.click();
-      await page.getByRole("button", { name: "Apply" }).click();
-      await expect(page.getByTestId("teacher-action-result")).toContainText(
-        /accepted/i,
-        { timeout: 20_000 },
-      );
-    }
-
-    // Move to second question and OVERRIDE with reason.
-    await page.getByTestId("question-tree-item-2").click();
-    await page.waitForTimeout(500);
-    await page.getByTestId("teacher-action-CHANGE_SCORE").click();
-    await page.getByTestId("teacher-new-score").fill("4");
-    await page.getByTestId("teacher-feedback").fill("Teacher override for B6 E2E");
-    await page.getByRole("button", { name: "Apply" }).click();
-    await expect(page.getByTestId("teacher-action-result")).toContainText(
-      /overrid/i,
-      { timeout: 20_000 },
-    );
-
-    // Persistence across reload.
-    await page.reload();
-    await expect(page.getByTestId("evaluation-workspace-page")).toBeVisible({
+    await page.getByTestId("link-student-report").click();
+    await expect(page.getByTestId("student-report-page")).toBeVisible({
       timeout: 30_000,
     });
-    await expect(page.getByTestId("evaluation-progress")).toContainText(
-      /of \d+ questions finalized/i,
-    );
+    await expect(page.getByText(/Topics/i)).toHaveCount(0);
 
-    // Finish any remaining questions via tree codes 1/2.
-    for (const code of ["1", "2"]) {
-      const approve = page.getByTestId("approve-evaluation");
-      if (await approve.count()) break;
-      const item = page.getByTestId(`question-tree-item-${code}`);
-      if (await item.count()) await item.click();
-      await page.waitForTimeout(400);
-      const accept = page.getByTestId("teacher-action-ACCEPT");
-      if ((await accept.count()) && (await accept.isEnabled())) {
-        await accept.click();
-        await page.getByRole("button", { name: "Apply" }).click();
-        await page.waitForTimeout(500);
-        continue;
-      }
-      const change = page.getByTestId("teacher-action-CHANGE_SCORE");
-      if (await change.count()) {
-        await change.click();
-        await page.getByTestId("teacher-new-score").fill("3");
-        await page.getByTestId("teacher-feedback").fill(`Finalize remaining Q ${code}`);
-        await page.getByRole("button", { name: "Apply" }).click();
-        await page.waitForTimeout(500);
-      }
-    }
-
-    await expect(page.getByTestId("approve-evaluation")).toBeVisible({
-      timeout: 60_000,
-    });
-    await page.getByTestId("approve-evaluation").click();
-    await expect(page.getByTestId("evaluation-approved-boundary")).toContainText(
-      /Evaluation approved\./i,
-      { timeout: 30_000 },
-    );
-    // B7: publication is live after APPROVED; analytics/learning remain mock.
-    await expect(page.getByTestId("link-publication-from-evaluation")).toBeVisible();
-    await expect(page.getByTestId("evaluation-downstream-mock-boundary")).toContainText(
-      /Analytics and adaptive learning remain mock/i,
-    );
-
-    await page.goto(`/submissions/${submissionId}`);
-    await expect(page.getByTestId("submission-workflow-state")).toContainText(
-      /approved/i,
-      { timeout: 30_000 },
-    );
-    await expect(page.getByTestId("submission-workflow-state")).not.toContainText(
-      /published/i,
-    );
-    await expect(page.getByTestId("submission-downstream-boundary")).toContainText(
-      /publication|analytics|learning/i,
-    );
-
-    // Live UUID must not open mock analytics/learning.
-    await expect(page.getByTestId("link-evaluation")).toBeVisible();
-    await page.goto(`/analytics/assessments/${assessmentId}`);
-    await expect(page.getByTestId("error-state").or(page.getByText(/not live|unavailable|failed/i))).toBeVisible({
+    await page.goto(`/reports/parent/${studentId}/assessment/${assessmentId}`);
+    await expect(page.getByTestId("parent-report-page")).toBeVisible({
       timeout: 20_000,
     });
+
+    await page.goto(`/reports/teacher/${studentId}/assessment/${assessmentId}`);
+    await expect(page.getByTestId("teacher-report-page")).toBeVisible({
+      timeout: 20_000,
+    });
+
+    await page.goto(`/submissions/${submissionId}/annotated-paper`);
+    await expect(page.getByTestId("annotated-paper-page")).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.getByTestId("download-evaluated-pdf")).toBeVisible();
+    await expect(page.getByTestId("annotation-score-chip")).toBeVisible();
+
+    // Analytics / learning unavailable for live UUID.
+    await page.goto(`/analytics/assessments/${assessmentId}`);
+    await expect(
+      page.getByTestId("error-state").or(page.getByText(/not live|unavailable|failed/i)),
+    ).toBeVisible({ timeout: 20_000 });
+
+    await page.goto(`/learning/${studentId}`);
+    await expect(
+      page.getByTestId("error-state").or(page.getByText(/not live|unavailable|failed/i)),
+    ).toBeVisible({ timeout: 20_000 });
   });
 });

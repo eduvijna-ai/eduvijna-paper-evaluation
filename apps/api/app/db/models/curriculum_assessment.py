@@ -377,6 +377,9 @@ class AiExecutionRecord(UUIDPrimaryKeyMixin, Base):
     question_evaluation_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("question_evaluations.id", ondelete="SET NULL"), nullable=True
     )
+    published_result_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("published_results.id", ondelete="SET NULL"), nullable=True
+    )
     model: Mapped[str | None] = mapped_column(String(100), nullable=True)
     model_version: Mapped[str | None] = mapped_column(String(100), nullable=True)
     prompt_template_version: Mapped[str | None] = mapped_column(String(100), nullable=True)

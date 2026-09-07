@@ -912,6 +912,185 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/QuestionEvaluation" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/publication/prepare:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: preparePublication
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Publication package prepared and generation queued
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicationPrepareResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/publication:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getPublicationWorkspace
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Publication workspace for reviewers
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicationWorkspace" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/published-result:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getPublishedResult
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Consumer published result (404 until PUBLISHED)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublishedResultSummary" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/publication-results/{id}/regenerate:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: regeneratePublication
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: New publication version queued (not allowed when PUBLISHED)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicationRegenerateResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/publication-results/{id}/publish:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: publishPublicationResult
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Explicit publish gate — never auto-publish
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicationPublishResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/publication-results/{id}/artifacts/{artifact_type}:
+    parameters:
+      - { $ref: "#/components/parameters/Id" }
+      - name: artifact_type
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+            [
+              ANNOTATED_PDF,
+              STUDENT_REPORT_PDF,
+              PARENT_REPORT_PDF,
+              TEACHER_REPORT_PDF,
+            ]
+    get:
+      operationId: downloadPublicationArtifact
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Immutable PDF artifact stream
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/publication-results/{id}/reports/{audience}:
+    parameters:
+      - { $ref: "#/components/parameters/Id" }
+      - name: audience
+        in: path
+        required: true
+        schema: { type: string, enum: [student, parent, teacher] }
+    get:
+      operationId: previewPublicationReport
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Reviewer JSON report preview (GENERATED ok)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicationReportPayload" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/publication-results/{id}/annotations:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: createPublicationAnnotation
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ManualAnnotationInput" }
+      responses:
+        "200":
+          description: Manual COMMENT/HIGHLIGHT while GENERATED
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicationAnnotation" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/reports/student/{student_id}/assessments/{assessment_id}:
+    parameters:
+      - name: student_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: assessment_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getStudentAudienceReport
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Latest PUBLISHED student report only
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentReport" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/reports/parent/{student_id}/assessments/{assessment_id}:
+    parameters:
+      - name: student_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: assessment_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getParentAudienceReport
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Latest PUBLISHED parent report only
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ParentReport" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/reports/teacher/{student_id}/assessments/{assessment_id}:
+    parameters:
+      - name: student_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: assessment_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getTeacherAudienceReport
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Latest PUBLISHED teacher report only
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TeacherReport" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /api/v1/submission-pages/{id}/answer-regions:
     parameters: [{ $ref: "#/components/parameters/Id" }]
     post:
@@ -2196,4 +2375,118 @@ components:
       required: [reason]
       properties:
         reason: { type: string, minLength: 1, maxLength: 4000 }
+    PublicationPrepareResult:
+      type: object
+      required: [submission_id, workflow_state, published_result_id, status, version_number]
+      properties:
+        submission_id: { type: string, format: uuid }
+        workflow_state: { type: string }
+        published_result_id: { type: string, format: uuid }
+        status: { type: string, enum: [READY, GENERATING, GENERATED, PUBLISHED, FAILED] }
+        version_number: { type: integer }
+        job_id: { type: [string, "null"], format: uuid }
+    PublicationRegenerateResult:
+      type: object
+      required: [published_result_id, status, version_number, job_id]
+      properties:
+        published_result_id: { type: string, format: uuid }
+        status: { type: string }
+        version_number: { type: integer }
+        job_id: { type: string, format: uuid }
+        supersedes_result_id: { type: [string, "null"], format: uuid }
+    PublicationPublishResult:
+      type: object
+      required: [published_result_id, status, submission_id]
+      properties:
+        published_result_id: { type: string, format: uuid }
+        status: { type: string, enum: [PUBLISHED] }
+        submission_id: { type: string, format: uuid }
+        published_at: { type: [string, "null"], format: date-time }
+    PublishedResultArtifactInfo:
+      type: object
+      properties:
+        available: { type: boolean }
+        sha256: { type: [string, "null"] }
+        byte_size: { type: [integer, "null"] }
+    PublishedResultSummary:
+      type: object
+      required: [id, submission_id, status, version_number, ledger_snapshot_hash]
+      properties:
+        id: { type: string, format: uuid }
+        submission_id: { type: string, format: uuid }
+        student_id: { type: [string, "null"], format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        evaluation_run_id: { type: string, format: uuid }
+        version_number: { type: integer }
+        status: { type: string, enum: [READY, GENERATING, GENERATED, PUBLISHED, FAILED] }
+        ledger_snapshot_hash: { type: string }
+        total_score: { type: number }
+        max_total_score: { type: number }
+        narrative_source: { type: [string, "null"], enum: [AI, FIXED, RULES_FALLBACK, null] }
+        generated_at: { type: [string, "null"], format: date-time }
+        published_at: { type: [string, "null"], format: date-time }
+        failure_code: { type: [string, "null"] }
+        failure_detail: { type: [string, "null"] }
+        artifacts:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/PublishedResultArtifactInfo" }
+    PublicationAnnotation:
+      type: object
+      required: [id, annotation_type, submission_page_id, x, y, width, height, source_type]
+      properties:
+        id: { type: string, format: uuid }
+        annotation_type:
+          type: string
+          enum: [TICK, CROSS, PARTIAL, MARK, COMMENT, HIGHLIGHT]
+        submission_page_id: { type: string, format: uuid }
+        question_evaluation_id: { type: [string, "null"], format: uuid }
+        answer_region_id: { type: [string, "null"], format: uuid }
+        x: { type: number }
+        y: { type: number }
+        width: { type: number }
+        height: { type: number }
+        payload: { type: object }
+        source_type: { type: string, enum: [LEDGER, HUMAN] }
+    PublicationWorkspace:
+      type: object
+      required: [submission_id, workflow_state, versions, annotations]
+      properties:
+        submission_id: { type: string, format: uuid }
+        workflow_state: { type: string }
+        latest: { oneOf: [{ $ref: "#/components/schemas/PublishedResultSummary" }, { type: "null" }] }
+        versions:
+          type: array
+          items: { $ref: "#/components/schemas/PublishedResultSummary" }
+        annotations:
+          type: array
+          items: { $ref: "#/components/schemas/PublicationAnnotation" }
+    ManualAnnotationInput:
+      type: object
+      additionalProperties: false
+      required: [annotation_type, submission_page_id, x, y, width, height]
+      properties:
+        annotation_type: { type: string, enum: [COMMENT, HIGHLIGHT] }
+        submission_page_id: { type: string, format: uuid }
+        x: { type: number, minimum: 0, maximum: 1 }
+        y: { type: number, minimum: 0, maximum: 1 }
+        width: { type: number, exclusiveMinimum: 0, maximum: 1 }
+        height: { type: number, exclusiveMinimum: 0, maximum: 1 }
+        payload: { type: object }
+    PublicationReportPayload:
+      description: Discriminated by audience; mirrors student/parent/teacher report schemas
+      type: object
+      additionalProperties: true
+    StudentReport:
+      type: object
+      description: See packages/contracts/schemas/student-report.schema.json
+      additionalProperties: true
+    ParentReport:
+      type: object
+      description: See packages/contracts/schemas/parent-report.schema.json
+      additionalProperties: true
+    TeacherReport:
+      type: object
+      description: See packages/contracts/schemas/teacher-report.schema.json
+      additionalProperties: true
 

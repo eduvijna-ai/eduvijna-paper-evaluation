@@ -257,6 +257,50 @@ async def prepare_evaluation(
         )
         return active, job
 
+    # Serialize concurrent prepares for the same submission (React Strict Mode / double click).
+    locked = await db.scalar(
+        select(Submission)
+        .where(
+            Submission.id == submission.id,
+            Submission.tenant_id == tenant_id,
+        )
+        .with_for_update()
+    )
+    if locked is None:
+        raise EvaluationError("NOT_FOUND", "Submission not found")
+    submission = locked
+    if submission.workflow_state != "READY_FOR_EVALUATION":
+        active = await _active_run(db, tenant_id=tenant_id, submission_id=submission.id)
+        if active is not None:
+            job = await db.scalar(
+                select(PipelineJob)
+                .where(
+                    PipelineJob.tenant_id == tenant_id,
+                    PipelineJob.submission_id == submission.id,
+                    PipelineJob.stage == "EVALUATION",
+                )
+                .order_by(PipelineJob.created_at.desc())
+                .limit(1)
+            )
+            return active, job
+        raise EvaluationError(
+            "INVALID_WORKFLOW_STATE",
+            "Evaluation prepare requires READY_FOR_EVALUATION",
+        )
+    active = await _active_run(db, tenant_id=tenant_id, submission_id=submission.id)
+    if active is not None:
+        job = await db.scalar(
+            select(PipelineJob)
+            .where(
+                PipelineJob.tenant_id == tenant_id,
+                PipelineJob.submission_id == submission.id,
+                PipelineJob.stage == "EVALUATION",
+            )
+            .order_by(PipelineJob.created_at.desc())
+            .limit(1)
+        )
+        return active, job
+
     leaves = await _leaf_questions(
         db,
         tenant_id=tenant_id,

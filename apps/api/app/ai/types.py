@@ -343,5 +343,73 @@ class MathVerificationResult(BaseModel):
         return _conf(v)
 
 
+# --- B7 narrative contracts (prose only — no numeric marks in provider output) ---
+
+
+class StudentNarrativeQuestionContext(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    question_code: str = Field(max_length=100)
+    feedback: str | None = Field(default=None, max_length=5000)
+    error_explanations: list[str] = Field(default_factory=list, max_length=20)
+    performance_band: Literal["full", "partial", "none"] = "partial"
+
+
+class StudentNarrativeInput(BaseModel):
+    """Approved ledger context for student narrative. Scores are NOT included."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    assessment_title: str = Field(max_length=255)
+    student_display_name: str = Field(max_length=255)
+    questions: list[StudentNarrativeQuestionContext] = Field(
+        default_factory=list, max_length=100
+    )
+
+
+class StudentNarrativeQuestionProse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    question_code: str = Field(max_length=100)
+    explanation: str | None = Field(default=None, max_length=5000)
+    corrected_approach: str | None = Field(default=None, max_length=5000)
+
+
+class StudentNarrativeResult(BaseModel):
+    """Prose-only student narrative. Must not contain numeric marks."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    strengths: list[str] = Field(default_factory=list, max_length=20)
+    areas_for_improvement: list[str] = Field(default_factory=list, max_length=20)
+    next_steps: list[str] = Field(default_factory=list, max_length=20)
+    question_narratives: list[StudentNarrativeQuestionProse] = Field(
+        default_factory=list, max_length=100
+    )
+
+
+class ParentNarrativeInput(BaseModel):
+    """Approved ledger context for parent narrative. Scores are NOT included."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    assessment_title: str = Field(max_length=255)
+    student_display_name: str = Field(max_length=255)
+    question_summaries: list[str] = Field(default_factory=list, max_length=50)
+    performance_overview: Literal["strong", "mixed", "needs_practice"] = "mixed"
+
+
+class ParentNarrativeResult(BaseModel):
+    """Prose-only parent narrative. Must not contain numeric marks."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    what_went_well: list[str] = Field(default_factory=list, max_length=20)
+    what_to_practice: list[str] = Field(default_factory=list, max_length=20)
+    how_family_can_help: list[str] = Field(default_factory=list, max_length=20)
+    next_step: str = Field(default="", max_length=2000)
+    score_summary: str | None = Field(default=None, max_length=2000)
+
+
 def dump_bounded(model: BaseModel) -> dict[str, Any]:
     return model.model_dump(mode="json")

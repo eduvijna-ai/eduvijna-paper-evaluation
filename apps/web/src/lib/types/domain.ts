@@ -454,6 +454,11 @@ export interface StudentReport {
     outcome: "CORRECT" | "PARTIAL" | "DEDUCTED";
   }>;
   corrected_approaches: Array<{ question_code: string; approach: string }>;
+  /** Live B7 — hide Topics/mastery when true */
+  live_published?: boolean;
+  ledger_snapshot_hash?: string;
+  narrative_source?: "AI" | "FIXED" | "RULES_FALLBACK";
+  published_result_id?: string;
 }
 
 export interface ParentReport {
@@ -464,6 +469,164 @@ export interface ParentReport {
   what_to_practice: string[];
   how_to_help: string[];
   next_step: string;
+  total_score?: number;
+  max_total_score?: number;
+  percentage?: number;
+  live_published?: boolean;
+  ledger_snapshot_hash?: string;
+  narrative_source?: "AI" | "FIXED" | "RULES_FALLBACK";
+  published_result_id?: string;
+}
+
+export type PublicationStatus =
+  | "READY"
+  | "GENERATING"
+  | "GENERATED"
+  | "PUBLISHED"
+  | "FAILED";
+
+export type PublicationArtifactType =
+  | "ANNOTATED_PDF"
+  | "STUDENT_REPORT_PDF"
+  | "PARENT_REPORT_PDF"
+  | "TEACHER_REPORT_PDF";
+
+export interface PublicationArtifactInfo {
+  available: boolean;
+  sha256: string | null;
+  byte_size: number | null;
+}
+
+export interface PublicationAnnotation {
+  id: string;
+  annotation_type:
+    | "TICK"
+    | "CROSS"
+    | "PARTIAL"
+    | "MARK"
+    | "COMMENT"
+    | "HIGHLIGHT";
+  submission_page_id: string;
+  question_evaluation_id: string | null;
+  answer_region_id: string | null;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  payload: Record<string, unknown>;
+  source_type: "LEDGER" | "HUMAN" | string;
+}
+
+export interface PublishedResultSummary {
+  id: string;
+  submission_id: string;
+  student_id: string | null;
+  assessment_id: string;
+  assessment_version_id: string;
+  evaluation_run_id: string;
+  version_number: number;
+  status: PublicationStatus;
+  ledger_snapshot_hash: string;
+  total_score: number | null;
+  max_total_score: number | null;
+  narrative_source: "AI" | "FIXED" | "RULES_FALLBACK" | null;
+  generated_at: string | null;
+  published_at: string | null;
+  failure_code: string | null;
+  failure_detail: string | null;
+  artifacts: Partial<Record<PublicationArtifactType, PublicationArtifactInfo>>;
+}
+
+export interface PublicationWorkspace {
+  submission_id: string;
+  workflow_state: string;
+  latest: PublishedResultSummary | null;
+  versions: PublishedResultSummary[];
+  annotations: PublicationAnnotation[];
+}
+
+export interface PublicationPrepareResult {
+  submission_id: string;
+  workflow_state: string;
+  published_result_id: string;
+  status: PublicationStatus;
+  version_number: number;
+  job_id: string | null;
+}
+
+export interface PublicationRegenerateResult {
+  published_result_id: string;
+  status: PublicationStatus | string;
+  version_number: number;
+  job_id: string;
+  supersedes_result_id: string | null;
+}
+
+export interface PublicationPublishResult {
+  published_result_id: string;
+  status: "PUBLISHED";
+  submission_id: string;
+  published_at: string | null;
+}
+
+export interface AnnotatedPaperQuestionScore {
+  id: string;
+  question_code: string;
+  /** Always final human-approved score for live; never proposed_ai_score */
+  final_score: number | null;
+  max_mark: number;
+  feedback?: string | null;
+}
+
+export interface AnnotatedPaperWorkspace {
+  submission_id: string;
+  workflow_state: string;
+  pages: PaperPage[];
+  regions: EvidenceRegion[];
+  annotations: PublicationAnnotation[];
+  published_result: PublishedResultSummary | null;
+  questions: AnnotatedPaperQuestionScore[];
+  live: boolean;
+}
+
+export interface TeacherReportQuestion {
+  question_id: string;
+  question_version_id?: string;
+  question_code: string;
+  final_score: number;
+  max_mark: number;
+  workflow_state: "ACCEPTED" | "OVERRIDDEN" | string;
+  criterion_decisions: Array<Record<string, unknown>>;
+  error_codes: string[];
+  deduction_reasons?: string[];
+  first_divergence_step?: number | null;
+  ecf_applied?: boolean;
+  alternative_method_label?: string | null;
+  confidences?: {
+    identity?: number | null;
+    mapping?: number | null;
+    transcription?: number | null;
+    evaluation?: number | null;
+    math_verification?: number | null;
+  };
+}
+
+export interface TeacherReport {
+  published_result_id: string;
+  student: { id: string; display_name: string };
+  assessment: {
+    id: string;
+    title: string;
+    code?: string;
+    assessment_version_id: string;
+  };
+  total_score: number;
+  max_total_score: number;
+  questions: TeacherReportQuestion[];
+  ledger_snapshot_hash: string;
+  evaluation_run_id?: string;
+  generated_at?: string;
+  published_at?: string | null;
 }
 
 export interface AssessmentAnalytics {

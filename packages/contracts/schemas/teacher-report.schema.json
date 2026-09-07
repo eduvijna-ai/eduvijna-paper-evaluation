@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/teacher-report.schema.json",
+  "title": "TeacherReport",
+  "description": "PEV-028/PEV-078 per-student teacher diagnostic report from approved ledger. No class aggregation, mean/median, or score bands.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "published_result_id",
+    "student",
+    "assessment",
+    "total_score",
+    "max_total_score",
+    "questions",
+    "ledger_snapshot_hash"
+  ],
+  "properties": {
+    "published_result_id": { "type": "string", "format": "uuid" },
+    "student": {
+      "type": "object",
+      "required": ["id", "display_name"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "display_name": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "assessment": {
+      "type": "object",
+      "required": ["id", "title", "assessment_version_id"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "title": { "type": "string" },
+        "code": { "type": "string" },
+        "assessment_version_id": { "type": "string", "format": "uuid" }
+      },
+      "additionalProperties": false
+    },
+    "total_score": { "type": "number", "minimum": 0 },
+    "max_total_score": { "type": "number", "minimum": 0 },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "question_id",
+          "question_code",
+          "final_score",
+          "max_mark",
+          "workflow_state",
+          "criterion_decisions",
+          "error_codes",
+          "confidences"
+        ],
+        "properties": {
+          "question_id": { "type": "string", "format": "uuid" },
+          "question_version_id": { "type": "string", "format": "uuid" },
+          "question_code": { "type": "string" },
+          "final_score": { "type": "number", "minimum": 0 },
+          "max_mark": { "type": "number", "minimum": 0 },
+          "workflow_state": {
+            "type": "string",
+            "enum": ["ACCEPTED", "OVERRIDDEN"]
+          },
+          "criterion_decisions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "criterion_code": { "type": "string" },
+                "criterion_label": { "type": "string" },
+                "final_marks": { "type": ["number", "null"] },
+                "max_marks": { "type": "number" },
+                "decision": { "type": "string" },
+                "error_code": { "type": ["string", "null"] },
+                "deduction_reason": { "type": ["string", "null"] }
+              },
+              "additionalProperties": true
+            }
+          },
+          "error_codes": { "type": "array", "items": { "type": "string" } },
+          "deduction_reasons": { "type": "array", "items": { "type": "string" } },
+          "first_divergence_step": { "type": ["integer", "null"] },
+          "ecf_applied": { "type": "boolean" },
+          "ecf_details": { "type": ["object", "null"] },
+          "alternative_method_id": { "type": ["string", "null"] },
+          "alternative_method_label": { "type": ["string", "null"] },
+          "review_actions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "action_type": { "type": "string" },
+                "reason": { "type": ["string", "null"] },
+                "previous_score": { "type": ["number", "null"] },
+                "new_score": { "type": ["number", "null"] },
+                "created_at": { "type": "string", "format": "date-time" }
+              },
+              "additionalProperties": true
+            }
+          },
+          "transcription_outcome": { "type": ["string", "null"] },
+          "curriculum_refs": { "type": "array", "items": { "type": "string" } },
+          "confidences": {
+            "type": "object",
+            "properties": {
+              "identity": { "type": ["number", "null"] },
+              "mapping": { "type": ["number", "null"] },
+              "transcription": { "type": ["number", "null"] },
+              "evaluation": { "type": ["number", "null"] },
+              "math_verification": { "type": ["number", "null"] }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    "ledger_snapshot_hash": { "type": "string", "minLength": 64, "maxLength": 64 },
+    "evaluation_run_id": { "type": "string", "format": "uuid" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "published_at": { "type": ["string", "null"], "format": "date-time" }
+  }
+}

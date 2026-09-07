@@ -203,6 +203,7 @@ export function EvaluationDecisionPanel({
   ledger,
   onAction,
   liveMode,
+  disabled,
 }: {
   ledger: EvaluationLedger;
   onAction: (
@@ -210,6 +211,7 @@ export function EvaluationDecisionPanel({
     payload?: { newScore?: number; feedback?: string },
   ) => void;
   liveMode?: boolean;
+  disabled?: boolean;
 }) {
   const live = liveMode ?? getApiCapabilities().evaluation === "live";
   const acceptDisabled = !canAcceptProposedScore(ledger.proposed_ai_score);
@@ -378,6 +380,7 @@ export function EvaluationDecisionPanel({
           onAction={onAction}
           acceptDisabled={acceptDisabled}
           liveMode={live}
+          disabled={disabled}
         />
       </div>
     </section>

@@ -44,7 +44,7 @@ const navItems = [
 ];
 
 const SUBMISSION_ROUTE_RE =
-  /^\/submissions\/([^/]+)(?:\/(identity|mapping|transcription|evaluation|review|annotated-paper))?/;
+  /^\/submissions\/([^/]+)(?:\/(identity|mapping|transcription|evaluation|review|annotated-paper|publication))?/;
 
 function SubmissionWorkflowNav() {
   const pathname = usePathname();
@@ -78,6 +78,25 @@ function SubmissionWorkflowNav() {
       href: `/submissions/${submissionId}/transcription`,
       label: "Transcription",
       testId: "submission-nav-transcription",
+    });
+  }
+  if (caps.evaluation === "live") {
+    stageLinks.push({
+      href: `/submissions/${submissionId}/evaluation`,
+      label: "Evaluation",
+      testId: "submission-nav-evaluation",
+    });
+  }
+  if (caps.publication === "live") {
+    stageLinks.push({
+      href: `/submissions/${submissionId}/publication`,
+      label: "Publication",
+      testId: "submission-nav-publication",
+    });
+    stageLinks.push({
+      href: `/submissions/${submissionId}/annotated-paper`,
+      label: "Annotated",
+      testId: "submission-nav-annotated",
     });
   }
 

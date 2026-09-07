@@ -39,6 +39,14 @@ export default function ParentReportPage({
         <ReportSection title="Overview">
           <p className="text-lg text-slate-900">{data.score_summary}</p>
           <p className="mt-2 text-sm text-slate-600">{data.assessment_title}</p>
+          {data.live_published && data.total_score != null && (
+            <p
+              data-testid="parent-report-score"
+              className="mt-2 text-sm font-semibold tabular-nums text-slate-800"
+            >
+              {data.total_score} / {data.max_total_score} ({data.percentage}%)
+            </p>
+          )}
         </ReportSection>
         <ReportSection title="What went well">
           <ParentFriendlyInsight title="Strengths" items={data.what_went_well} />

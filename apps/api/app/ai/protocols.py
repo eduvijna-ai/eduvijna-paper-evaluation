@@ -1,4 +1,4 @@
-"""Structure- and evaluation-stage AI provider protocols (B5/B6)."""
+"""Structure-, evaluation-, and narrative-stage AI provider protocols."""
 
 from __future__ import annotations
 
@@ -11,10 +11,14 @@ from app.ai.types import (
     IdentityExtractionResult,
     PageAnalysisInput,
     PageAnalysisResult,
+    ParentNarrativeInput,
+    ParentNarrativeResult,
     RegionMappingInput,
     RegionMappingResult,
     RubricEvaluationInput,
     RubricEvaluationResult,
+    StudentNarrativeInput,
+    StudentNarrativeResult,
     TranscriptionInput,
     TranscriptionResult,
 )
@@ -50,3 +54,17 @@ class EvaluationAIProvider(Protocol):
     async def classify_error(
         self, request: ErrorClassificationInput
     ) -> ErrorClassificationResult: ...
+
+
+class NarrativeAIProvider(Protocol):
+    """Post-approval prose narratives. Must never emit or alter numeric marks."""
+
+    provider_name: str
+
+    async def generate_student_explanation(
+        self, request: StudentNarrativeInput
+    ) -> StudentNarrativeResult: ...
+
+    async def generate_parent_summary(
+        self, request: ParentNarrativeInput
+    ) -> ParentNarrativeResult: ...

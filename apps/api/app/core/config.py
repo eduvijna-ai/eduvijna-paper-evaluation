@@ -131,6 +131,26 @@ class Settings(BaseSettings):
             "AI_PROVIDER_VISION (fixed/openai/none) — no separate AI_PROVIDER_EVALUATION."
         ),
     )
+    ai_provider_text: str = Field(
+        default="none",
+        validation_alias=AliasChoices("AI_PROVIDER_TEXT", "ai_provider_text"),
+        description=(
+            "Text/narrative provider for B7 reports: none|fixed|openai. "
+            "When none, publication still succeeds with RULES_FALLBACK narratives."
+        ),
+    )
+    ai_model_student_report: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices(
+            "AI_MODEL_STUDENT_REPORT", "ai_model_student_report"
+        ),
+    )
+    ai_model_parent_report: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices(
+            "AI_MODEL_PARENT_REPORT", "ai_model_parent_report"
+        ),
+    )
     ai_request_timeout_seconds: int = Field(
         default=60,
         validation_alias=AliasChoices(

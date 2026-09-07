@@ -6,6 +6,8 @@ import { SubmissionHttpApi } from "../http/submissions";
 import { MappingHttpApi } from "../http/mapping";
 import { TranscriptionHttpApi } from "../http/transcription";
 import { EvaluationHttpApi } from "../http/evaluation";
+import { PublicationHttpApi } from "../http/publication";
+import { ReportsHttpApi } from "../http/reports";
 import { ApiError } from "../http/errors";
 import { httpRequest } from "../http/client";
 import { getApiCapabilities } from "../capabilities";
@@ -33,17 +35,18 @@ function refuseMockDownstream(
 }
 
 /**
- * Hybrid domain routing (B6):
+ * Hybrid domain routing (B7):
  * - Auth, Institution, Academic Years, Class Sections, Students, Import, Guardians → A1 HTTP
  * - Curriculum and Assessment authoring → A2 HTTP
  * - Submissions + identity review → B3 HTTP
  * - Mapping review → B4 HTTP
  * - Transcription review → B5 HTTP
  * - Evaluation ledger review → B6 HTTP
- * - Analytics, Reporting, Learning → MOCK (refuse live UUIDs)
+ * - Publication + reports → B7 HTTP
+ * - Analytics, Learning → MOCK (refuse live UUIDs)
  *
  * Components use `api` only — they must not inspect mock vs HTTP.
- * Live evaluation errors must never silently fall back to mock.
+ * Live publication/report errors must never silently fall back to mock.
  */
 export const HybridEduVijnaApi: ApiClient = {
   async getHealth() {
@@ -241,15 +244,176 @@ export const HybridEduVijnaApi: ApiClient = {
     });
   },
 
+  preparePublication: async (submissionId) => {
+    if (
+      getApiCapabilities().publication === "live" &&
+      isLiveSubmissionId(submissionId)
+    ) {
+      return PublicationHttpApi.preparePublication(submissionId);
+    }
+    throw new ApiError({
+      message: "preparePublication is only available for live publication submissions.",
+      status: 404,
+      kind: "not_found",
+      code: "PUBLICATION_NOT_LIVE",
+    });
+  },
+  getPublicationWorkspace: async (submissionId) => {
+    if (getApiCapabilities().publication === "live") {
+      if (isLiveSubmissionId(submissionId)) {
+        return PublicationHttpApi.getPublicationWorkspace(submissionId);
+      }
+    }
+    if (isLiveSubmissionId(submissionId)) {
+      throw new ApiError({
+        message: "Live publication is not enabled for this submission.",
+        status: 404,
+        kind: "not_found",
+        code: "PUBLICATION_NOT_LIVE",
+      });
+    }
+    throw new ApiError({
+      message: "Publication workspace is not available in mock mode.",
+      status: 404,
+      kind: "not_found",
+      code: "PUBLICATION_MOCK_UNSUPPORTED",
+    });
+  },
+  regeneratePublication: async (publishedResultId) => {
+    if (
+      getApiCapabilities().publication === "live" &&
+      isLiveSubmissionId(publishedResultId)
+    ) {
+      return PublicationHttpApi.regeneratePublication(publishedResultId);
+    }
+    throw new ApiError({
+      message: "regeneratePublication is only available for live publication.",
+      status: 404,
+      kind: "not_found",
+      code: "PUBLICATION_NOT_LIVE",
+    });
+  },
+  publishPublication: async (publishedResultId) => {
+    if (
+      getApiCapabilities().publication === "live" &&
+      isLiveSubmissionId(publishedResultId)
+    ) {
+      return PublicationHttpApi.publishPublication(publishedResultId);
+    }
+    throw new ApiError({
+      message: "publishPublication is only available for live publication.",
+      status: 404,
+      kind: "not_found",
+      code: "PUBLICATION_NOT_LIVE",
+    });
+  },
+  getPublicationArtifactBlob: async (publishedResultId, artifactType) => {
+    if (
+      getApiCapabilities().publication === "live" &&
+      isLiveSubmissionId(publishedResultId)
+    ) {
+      return PublicationHttpApi.getPublicationArtifactBlob(
+        publishedResultId,
+        artifactType,
+      );
+    }
+    throw new ApiError({
+      message: "Publication artifacts are only available for live publication.",
+      status: 404,
+      kind: "not_found",
+      code: "PUBLICATION_NOT_LIVE",
+    });
+  },
+  createPublicationAnnotation: async (publishedResultId, input) => {
+    if (
+      getApiCapabilities().publication === "live" &&
+      isLiveSubmissionId(publishedResultId)
+    ) {
+      return PublicationHttpApi.createPublicationAnnotation(
+        publishedResultId,
+        input,
+      );
+    }
+    throw new ApiError({
+      message: "Publication annotations are only available for live publication.",
+      status: 404,
+      kind: "not_found",
+      code: "PUBLICATION_NOT_LIVE",
+    });
+  },
+  previewPublicationReport: async (publishedResultId, audience) => {
+    if (
+      getApiCapabilities().publication === "live" &&
+      isLiveSubmissionId(publishedResultId)
+    ) {
+      return PublicationHttpApi.previewPublicationReport(
+        publishedResultId,
+        audience,
+      );
+    }
+    throw new ApiError({
+      message: "Publication report preview is only available for live publication.",
+      status: 404,
+      kind: "not_found",
+      code: "PUBLICATION_NOT_LIVE",
+    });
+  },
+  getAnnotatedPaperWorkspace: async (submissionId) => {
+    if (getApiCapabilities().publication === "live") {
+      if (isLiveSubmissionId(submissionId)) {
+        return PublicationHttpApi.getAnnotatedPaperWorkspace(submissionId);
+      }
+    }
+    if (isLiveSubmissionId(submissionId)) {
+      throw new ApiError({
+        message: "Live annotated paper is not enabled for this submission.",
+        status: 404,
+        kind: "not_found",
+        code: "PUBLICATION_NOT_LIVE",
+      });
+    }
+    throw new ApiError({
+      message: "Use evaluation workspace annotated paper path in mock mode.",
+      status: 404,
+      kind: "not_found",
+      code: "ANNOTATED_PAPER_USE_MOCK_EVAL",
+    });
+  },
+
   getStudentReport: async (studentId, assessmentId) => {
+    if (getApiCapabilities().reports === "live") {
+      if (isLiveSubmissionId(studentId) || isLiveSubmissionId(assessmentId)) {
+        return ReportsHttpApi.getStudentReport(studentId, assessmentId);
+      }
+      return MockEduVijnaApi.getStudentReport(studentId, assessmentId);
+    }
     refuseMockDownstream("reports", studentId);
     refuseMockDownstream("reports", assessmentId);
     return MockEduVijnaApi.getStudentReport(studentId, assessmentId);
   },
   getParentReport: async (studentId, assessmentId) => {
+    if (getApiCapabilities().reports === "live") {
+      if (isLiveSubmissionId(studentId) || isLiveSubmissionId(assessmentId)) {
+        return ReportsHttpApi.getParentReport(studentId, assessmentId);
+      }
+      return MockEduVijnaApi.getParentReport(studentId, assessmentId);
+    }
     refuseMockDownstream("reports", studentId);
     refuseMockDownstream("reports", assessmentId);
     return MockEduVijnaApi.getParentReport(studentId, assessmentId);
+  },
+  getTeacherReport: async (studentId, assessmentId) => {
+    if (getApiCapabilities().reports === "live") {
+      if (isLiveSubmissionId(studentId) || isLiveSubmissionId(assessmentId)) {
+        return ReportsHttpApi.getTeacherReport(studentId, assessmentId);
+      }
+    }
+    throw new ApiError({
+      message: "Teacher report is only available for live published results.",
+      status: 404,
+      kind: "not_found",
+      code: "TEACHER_REPORT_NOT_LIVE",
+    });
   },
   getAssessmentAnalytics: async (assessmentId) => {
     refuseMockDownstream("analytics", assessmentId);
