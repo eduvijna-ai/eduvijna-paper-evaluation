@@ -203,6 +203,24 @@ export interface ApiClient {
     assessmentVersionId?: string;
     instructions?: string;
   }): Promise<AuthoringAiRun>;
+  prepareAiCurriculumMappingProposal?(input: {
+    questionVersionId: string;
+    curriculumId?: string;
+    instructions?: string;
+  }): Promise<AuthoringAiRun>;
+  updateCurriculumMappingProposal?(
+    runId: string,
+    mappings: Array<{
+      curriculum_node_id: string;
+      mapping_type: "PRIMARY" | "SECONDARY" | "LEARNING_OUTCOME" | "SKILL";
+      weight?: string | number | null;
+      rationale?: string | null;
+    }>,
+  ): Promise<AuthoringAiRun>;
+  applyCurriculumMappings?(
+    runId: string,
+    selectedIndices?: number[] | null,
+  ): Promise<AuthoringAiRun>;
   transitionAssessment?(
     assessmentId: string,
     toStatus: string,

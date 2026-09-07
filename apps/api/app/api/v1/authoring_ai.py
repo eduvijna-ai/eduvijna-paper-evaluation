@@ -13,7 +13,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.registry import get_authoring_provider
-from app.ai.types import ProposedQuestionNode
+from app.ai.types import ProposedCurriculumMapping, ProposedQuestionNode
 from app.core.authorization import AuthContext, require_permissions
 from app.db.session import get_db_session
 from app.middleware.correlation import get_correlation_id
@@ -25,6 +25,7 @@ from app.services.ai_proposals import (
 )
 from app.services.authoring_ai import (
     AuthoringAiError,
+    apply_curriculum_mappings,
     apply_question_tree,
     dump_authoring_run,
     get_authoring_run,
@@ -33,6 +34,7 @@ from app.services.authoring_ai import (
     prepare_propose_answer_key,
     prepare_propose_rubric,
     prepare_suggest_curriculum_mapping,
+    update_curriculum_mapping_proposal,
     update_question_tree_proposal,
 )
 
@@ -60,11 +62,21 @@ def _map_authoring_error(exc: AuthoringAiError) -> HTTPException:
         "QUESTION_TREE_INVALID_SCORING_MODE",
         "RUBRIC_MARKS_MISMATCH",
         "INVALID_REJECTION_REASON",
+        "ASSESSMENT_ARTIFACT_INTEGRITY_ERROR",
+        "QUESTION_PAPER_EVIDENCE_UNAVAILABLE",
+        "QUESTION_PAPER_EVIDENCE_INVALID",
+        "QUESTION_PAPER_EVIDENCE_EMPTY",
+        "QUESTION_PAPER_TOO_MANY_PAGES",
+        "QUESTION_PAPER_IMAGE_TOO_LARGE",
+        "QUESTION_PAPER_UNSUPPORTED_MIME",
+        "QUESTION_PAPER_ARTIFACT_NOT_SCANNABLE",
+        "AUTHORING_PROVIDER_INVALID_CURRICULUM_NODE",
     }:
         return _http_error(422, exc.code, exc.message)
     if exc.code in {
         "AUTHORING_MATERIAL_ALREADY_EXISTS",
         "QUESTION_PAPER_STRUCTURE_EXISTS",
+        "QUESTION_PAPER_ARTIFACT_REQUIRED",
         "ASSESSMENT_NOT_DRAFT",
         "AUTHORING_RUN_NOT_EDITABLE",
         "AUTHORING_RUN_NOT_APPLICABLE",
@@ -80,6 +92,18 @@ class QuestionTreeProposalIn(BaseModel):
 
     roots: list[ProposedQuestionNode] = Field(min_length=1)
     notes: str | None = Field(default=None, max_length=2000)
+
+
+class CurriculumMappingProposalIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mappings: list[ProposedCurriculumMapping] = Field(default_factory=list)
+
+
+class ApplyCurriculumMappingsIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    selected_indices: list[int] | None = None
 
 
 async def _enqueue_and_refresh(
@@ -178,6 +202,49 @@ async def post_apply_question_tree(
             tenant_id=auth.tenant_id,
             run_id=run_id,
             applied_by=auth.user_id,
+        )
+        await db.commit()
+        run = await get_authoring_run(db, tenant_id=auth.tenant_id, run_id=run.id)
+    except AuthoringAiError as exc:
+        raise _map_authoring_error(exc) from exc
+    return dump_authoring_run(run)
+
+
+@router.put("/authoring-ai-runs/{run_id}/curriculum-mapping-proposal")
+async def put_curriculum_mapping_proposal(
+    run_id: uuid.UUID,
+    payload: CurriculumMappingProposalIn,
+    db: Db,
+    auth: AuthContext = Depends(require_permissions("curriculum:manage")),
+) -> dict[str, Any]:
+    try:
+        run = await update_curriculum_mapping_proposal(
+            db,
+            tenant_id=auth.tenant_id,
+            run_id=run_id,
+            mappings=list(payload.mappings),
+        )
+        await db.commit()
+        run = await get_authoring_run(db, tenant_id=auth.tenant_id, run_id=run.id)
+    except AuthoringAiError as exc:
+        raise _map_authoring_error(exc) from exc
+    return dump_authoring_run(run)
+
+
+@router.post("/authoring-ai-runs/{run_id}/apply-curriculum-mappings")
+async def post_apply_curriculum_mappings(
+    run_id: uuid.UUID,
+    db: Db,
+    payload: ApplyCurriculumMappingsIn = ApplyCurriculumMappingsIn(),
+    auth: AuthContext = Depends(require_permissions("curriculum:manage")),
+) -> dict[str, Any]:
+    try:
+        run = await apply_curriculum_mappings(
+            db,
+            tenant_id=auth.tenant_id,
+            run_id=run_id,
+            applied_by=auth.user_id,
+            selected_indices=payload.selected_indices,
         )
         await db.commit()
         run = await get_authoring_run(db, tenant_id=auth.tenant_id, run_id=run.id)

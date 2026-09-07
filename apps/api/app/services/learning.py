@@ -13,6 +13,7 @@ from typing import Any, Literal, cast
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.execution_metadata import metadata_from_provider
 from app.ai.registry import get_learning_provider
 from app.ai.tracing import canonical_input_hash, record_ai_execution, redacted_request_summary
 from app.ai.types import (
@@ -79,9 +80,7 @@ def _utcnow() -> datetime:
     return datetime.now(UTC)
 
 
-async def _get_student(
-    db: AsyncSession, *, tenant_id: uuid.UUID, student_id: uuid.UUID
-) -> Student:
+async def _get_student(db: AsyncSession, *, tenant_id: uuid.UUID, student_id: uuid.UUID) -> Student:
     student = await db.scalar(
         select(Student).where(Student.id == student_id, Student.tenant_id == tenant_id)
     )
@@ -94,9 +93,7 @@ async def _get_curriculum(
     db: AsyncSession, *, tenant_id: uuid.UUID, curriculum_id: uuid.UUID
 ) -> Curriculum:
     curriculum = await db.scalar(
-        select(Curriculum).where(
-            Curriculum.id == curriculum_id, Curriculum.tenant_id == tenant_id
-        )
+        select(Curriculum).where(Curriculum.id == curriculum_id, Curriculum.tenant_id == tenant_id)
     )
     if curriculum is None:
         raise LearningError("NOT_FOUND", "Curriculum not found")
@@ -217,9 +214,7 @@ async def _ensure_evidence_ready(
     student_id: uuid.UUID,
     curriculum_id: uuid.UUID,
 ) -> dict[str, Any]:
-    mat = await materialization_status_for_student(
-        db, tenant_id=tenant_id, student_id=student_id
-    )
+    mat = await materialization_status_for_student(db, tenant_id=tenant_id, student_id=student_id)
     status = mat.get("materialization_status")
     if status != "READY":
         raise LearningError(
@@ -374,20 +369,14 @@ async def run_learning_plan_pipeline(
         if input_hash != run.input_hash:
             run.status = "FAILED"
             run.failure_code = "LEARNING_INPUT_CHANGED"
-            run.failure_detail = (
-                "Canonical learning input changed before generation completed"
-            )
+            run.failure_detail = "Canonical learning input changed before generation completed"
             run.finished_at = _utcnow()
             await db.commit()
             return
 
         assert structure is not None
-        student = await _get_student(
-            db, tenant_id=tenant_id, student_id=run.student_id
-        )
-        curriculum = await _get_curriculum(
-            db, tenant_id=tenant_id, curriculum_id=run.curriculum_id
-        )
+        student = await _get_student(db, tenant_id=tenant_id, student_id=run.student_id)
+        curriculum = await _get_curriculum(db, tenant_id=tenant_id, curriculum_id=run.curriculum_id)
 
         # Apply optional provider wording over server structure.
         rec_contexts = [
@@ -429,9 +418,7 @@ async def run_learning_plan_pipeline(
         generation_source = "RULES_FALLBACK"
         provider_name: str | None = None
         model_name: str | None = None
-        rationale_by_key = {
-            c.recommendation_key: c.default_rationale for c in rec_contexts
-        }
+        rationale_by_key = {c.recommendation_key: c.default_rationale for c in rec_contexts}
         desc_by_key = {c.step_key: c.default_description for c in step_contexts}
 
         provider = get_learning_provider()
@@ -442,24 +429,22 @@ async def run_learning_plan_pipeline(
                 for rec_prose in result.recommendation_prose:
                     reject_provider_urls(rec_prose.rationale)
                     if rec_prose.recommendation_key in rationale_by_key:
-                        rationale_by_key[rec_prose.recommendation_key] = (
-                            rec_prose.rationale[:MAX_RATIONALE_LEN]
-                        )
+                        rationale_by_key[rec_prose.recommendation_key] = rec_prose.rationale[
+                            :MAX_RATIONALE_LEN
+                        ]
                 for step_prose in result.path_step_prose:
                     reject_provider_urls(step_prose.description)
                     if step_prose.step_key in desc_by_key:
                         desc_by_key[step_prose.step_key] = step_prose.description[
                             :MAX_RATIONALE_LEN
                         ]
-                generation_source = (
-                    "FIXED" if provider.provider_name == "fixed" else "AI"
-                )
+                generation_source = "FIXED" if provider.provider_name == "fixed" else "AI"
                 provider_name = provider.provider_name
+                meta = metadata_from_provider(provider, "generate_learning_plan")
                 await record_ai_execution(
                     db,
                     tenant_id=tenant_id,
                     operation="generate_learning_plan",
-                    provider=provider.provider_name,
                     status="SUCCEEDED",
                     request_summary=redacted_request_summary(
                         operation="generate_learning_plan",
@@ -477,15 +462,19 @@ async def run_learning_plan_pipeline(
                     input_hash=canonical_input_hash(ai_input.model_dump(mode="json")),
                     started_at=started,
                     finished_at=_utcnow(),
+                    provider=meta.provider,
+                    model=meta.model,
+                    model_version=meta.model_version,
+                    prompt_template_version=meta.prompt_template_version,
                 )
             except (ProviderUnavailable, LearningError, Exception) as exc:  # noqa: BLE001
                 logger.warning("learning provider failed; using rules fallback: %s", exc)
                 generation_source = "RULES_FALLBACK"
+                fail_meta = metadata_from_provider(provider, "generate_learning_plan")
                 await record_ai_execution(
                     db,
                     tenant_id=tenant_id,
                     operation="generate_learning_plan",
-                    provider=getattr(provider, "provider_name", "unknown"),
                     status="FAILED",
                     request_summary=redacted_request_summary(
                         operation="generate_learning_plan",
@@ -496,6 +485,10 @@ async def run_learning_plan_pipeline(
                     error_class=type(exc).__name__,
                     started_at=started,
                     finished_at=_utcnow(),
+                    provider=fail_meta.provider,
+                    model=fail_meta.model,
+                    model_version=fail_meta.model_version,
+                    prompt_template_version=fail_meta.prompt_template_version,
                 )
 
         # Persist recommendations
@@ -527,9 +520,7 @@ async def run_learning_plan_pipeline(
             )
             db.add(row)
             await db.flush()
-            rec_by_node_kind[(planned.target_node_id, planned.recommendation_kind)] = (
-                row.id
-            )
+            rec_by_node_kind[(planned.target_node_id, planned.recommendation_kind)] = row.id
 
             for prereq in planned.prerequisites:
                 db.add(
@@ -602,9 +593,7 @@ async def run_learning_plan_pipeline(
         await db.commit()
     except LearningError as exc:
         await db.rollback()
-        run = await db.scalar(
-            select(LearningPlanRun).where(LearningPlanRun.id == run_id)
-        )
+        run = await db.scalar(select(LearningPlanRun).where(LearningPlanRun.id == run_id))
         if run is not None:
             run.status = "FAILED"
             run.failure_code = exc.code
@@ -614,9 +603,7 @@ async def run_learning_plan_pipeline(
         raise
     except Exception as exc:  # noqa: BLE001
         await db.rollback()
-        run = await db.scalar(
-            select(LearningPlanRun).where(LearningPlanRun.id == run_id)
-        )
+        run = await db.scalar(select(LearningPlanRun).where(LearningPlanRun.id == run_id))
         if run is not None:
             run.status = "FAILED"
             run.failure_code = "LEARNING_PIPELINE_FAILED"
@@ -722,8 +709,7 @@ async def _serialize_plan_run(
             (
                 await db.scalars(
                     select(LearningRecommendationPrerequisite).where(
-                        LearningRecommendationPrerequisite.learning_recommendation_id
-                        == rec.id
+                        LearningRecommendationPrerequisite.learning_recommendation_id == rec.id
                     )
                 )
             ).all()
@@ -732,8 +718,7 @@ async def _serialize_plan_run(
             (
                 await db.scalars(
                     select(LearningRecommendationEvidence).where(
-                        LearningRecommendationEvidence.learning_recommendation_id
-                        == rec.id
+                        LearningRecommendationEvidence.learning_recommendation_id == rec.id
                     )
                 )
             ).all()
@@ -789,8 +774,7 @@ async def _serialize_plan_run(
         "learning_path": serialized_path,
         "path": serialized_path,
         "no_gap_message": (
-            "No evidence-backed learning gaps were identified from currently "
-            "published results."
+            "No evidence-backed learning gaps were identified from currently published results."
             if run.status == "READY" and not serialized_recs
             else None
         ),
@@ -817,9 +801,7 @@ async def get_plan_run(
         curriculum_id=run.curriculum_id,
     )
     is_stale = current_input != run.input_hash
-    return await _serialize_plan_run(
-        db, tenant_id=tenant_id, run=run, is_stale=is_stale
-    )
+    return await _serialize_plan_run(db, tenant_id=tenant_id, run=run, is_stale=is_stale)
 
 
 async def get_learning_workspace(
@@ -830,12 +812,8 @@ async def get_learning_workspace(
     curriculum_id: uuid.UUID | None = None,
 ) -> dict[str, Any]:
     student = await _get_student(db, tenant_id=tenant_id, student_id=student_id)
-    available = await _available_curricula(
-        db, tenant_id=tenant_id, student_id=student_id
-    )
-    mat = await materialization_status_for_student(
-        db, tenant_id=tenant_id, student_id=student_id
-    )
+    available = await _available_curricula(db, tenant_id=tenant_id, student_id=student_id)
+    mat = await materialization_status_for_student(db, tenant_id=tenant_id, student_id=student_id)
 
     selected_id: uuid.UUID | None = curriculum_id
     if selected_id is not None:
@@ -869,9 +847,7 @@ async def get_learning_workspace(
                 "name": match["name"],
             }
         else:
-            curriculum = await _get_curriculum(
-                db, tenant_id=tenant_id, curriculum_id=selected_id
-            )
+            curriculum = await _get_curriculum(db, tenant_id=tenant_id, curriculum_id=selected_id)
             selected_curriculum = {
                 "id": str(curriculum.id),
                 "code": curriculum.code,
@@ -1030,9 +1006,7 @@ async def prepare_improvement_blueprint(
         )
     )
     version = int(max_version or 0) + 1
-    curriculum = await _get_curriculum(
-        db, tenant_id=tenant_id, curriculum_id=run.curriculum_id
-    )
+    curriculum = await _get_curriculum(db, tenant_id=tenant_id, curriculum_id=run.curriculum_id)
     bp = ImprovementAssessment(
         tenant_id=tenant_id,
         student_id=run.student_id,
@@ -1080,9 +1054,7 @@ async def run_blueprint_pipeline(
             )
         )
         if run is None or run.status != "READY":
-            raise LearningError(
-                "LEARNING_PLAN_NOT_READY", "Source learning plan is not READY"
-            )
+            raise LearningError("LEARNING_PLAN_NOT_READY", "Source learning plan is not READY")
         _s, _g, current_input, _ = await _compute_current_hashes(
             db,
             tenant_id=tenant_id,
@@ -1119,18 +1091,12 @@ async def run_blueprint_pipeline(
                 f"Plan exceeds max blueprint items ({MAX_BLUEPRINT_ITEMS})",
             )
 
-        student = await _get_student(
-            db, tenant_id=tenant_id, student_id=bp.student_id
-        )
-        curriculum = await _get_curriculum(
-            db, tenant_id=tenant_id, curriculum_id=bp.curriculum_id
-        )
+        student = await _get_student(db, tenant_id=tenant_id, student_id=bp.student_id)
+        curriculum = await _get_curriculum(db, tenant_id=tenant_id, curriculum_id=bp.curriculum_id)
 
         item_contexts: list[ImprovementBlueprintItemContext] = []
         for idx, rec in enumerate(recs, start=1):
-            template_kind, template_ref = _template_for_recommendation(
-                rec.recommendation_kind
-            )
+            template_kind, template_ref = _template_for_recommendation(rec.recommendation_kind)
             item_contexts.append(
                 ImprovementBlueprintItemContext(
                     item_key=f"item-{idx}",
@@ -1160,16 +1126,14 @@ async def run_blueprint_pipeline(
                     ),
                     question_template_ref=template_ref,
                     default_focus=(
-                        f"Target {rec.target_node_title_snapshot} "
-                        f"({rec.recommendation_kind})"
+                        f"Target {rec.target_node_title_snapshot} ({rec.recommendation_kind})"
                     )[:MAX_RATIONALE_LEN],
                     difficulty="MEDIUM",
                 )
             )
 
         ai_input = ImprovementBlueprintAIInput(
-            student_display_name=getattr(student, "full_name", None)
-            or str(student.id),
+            student_display_name=getattr(student, "full_name", None) or str(student.id),
             curriculum_name=curriculum.name,
             title=bp.title,
             items=item_contexts,
@@ -1191,15 +1155,13 @@ async def run_blueprint_pipeline(
                     reject_provider_urls(prose.focus)
                     if prose.item_key in focus_by_key:
                         focus_by_key[prose.item_key] = prose.focus[:MAX_RATIONALE_LEN]
-                generation_source = (
-                    "FIXED" if provider.provider_name == "fixed" else "AI"
-                )
+                generation_source = "FIXED" if provider.provider_name == "fixed" else "AI"
                 provider_name = provider.provider_name
+                meta = metadata_from_provider(provider, "generate_improvement_blueprint")
                 await record_ai_execution(
                     db,
                     tenant_id=tenant_id,
                     operation="generate_improvement_blueprint",
-                    provider=provider.provider_name,
                     status="SUCCEEDED",
                     request_summary=redacted_request_summary(
                         operation="generate_improvement_blueprint",
@@ -1214,6 +1176,10 @@ async def run_blueprint_pipeline(
                     input_hash=canonical_input_hash(ai_input.model_dump(mode="json")),
                     started_at=started,
                     finished_at=_utcnow(),
+                    provider=meta.provider,
+                    model=meta.model,
+                    model_version=meta.model_version,
+                    prompt_template_version=meta.prompt_template_version,
                 )
             except Exception as exc:  # noqa: BLE001
                 logger.warning("blueprint provider failed; rules fallback: %s", exc)
@@ -1226,9 +1192,7 @@ async def run_blueprint_pipeline(
         for idx, ctx in enumerate(item_contexts, start=1):
             focus = focus_by_key[ctx.item_key]
             reject_provider_urls(focus, ctx.question_template_ref)
-            if "://" in ctx.question_template_ref or ctx.question_template_ref.startswith(
-                "www."
-            ):
+            if "://" in ctx.question_template_ref or ctx.question_template_ref.startswith("www."):
                 raise LearningError(
                     "LEARNING_PROVIDER_URL_REJECTED",
                     "question_template_ref must be an internal template ref",
@@ -1261,9 +1225,7 @@ async def run_blueprint_pipeline(
             (
                 await db.scalars(
                     select(ImprovementAssessmentItem)
-                    .where(
-                        ImprovementAssessmentItem.improvement_assessment_id == bp.id
-                    )
+                    .where(ImprovementAssessmentItem.improvement_assessment_id == bp.id)
                     .order_by(ImprovementAssessmentItem.sort_order)
                 )
             ).all()
@@ -1291,9 +1253,7 @@ async def run_blueprint_pipeline(
                     "focus": i.focus,
                     "difficulty": i.difficulty,
                     "suggested_marks": (
-                        float(i.suggested_marks)
-                        if i.suggested_marks is not None
-                        else None
+                        float(i.suggested_marks) if i.suggested_marks is not None else None
                     ),
                     "sort_order": i.sort_order,
                 }
@@ -1444,9 +1404,7 @@ async def approve_blueprint(
         )
     )
     if run is None or run.status != "READY":
-        raise LearningError(
-            "LEARNING_PLAN_NOT_READY", "Source learning plan must be READY"
-        )
+        raise LearningError("LEARNING_PLAN_NOT_READY", "Source learning plan must be READY")
 
     _s, _g, current_input, _ = await _compute_current_hashes(
         db,
@@ -1461,9 +1419,7 @@ async def approve_blueprint(
         )
 
     if not bp.blueprint_storage_key or not bp.blueprint_sha256:
-        raise LearningError(
-            "LEARNING_BLUEPRINT_ARTIFACT_MISSING", "Blueprint artifact is missing"
-        )
+        raise LearningError("LEARNING_BLUEPRINT_ARTIFACT_MISSING", "Blueprint artifact is missing")
     store = storage or ObjectStorage()
     data = store.get_bytes(bp.blueprint_storage_key)
     digest = hashlib.sha256(data).hexdigest()
@@ -1511,9 +1467,7 @@ async def approve_blueprint(
     )
     # Explicitly do NOT create Assessment / Question / etc.
     await db.flush()
-    return await get_improvement_assessment(
-        db, tenant_id=tenant_id, blueprint_id=bp.id
-    )
+    return await get_improvement_assessment(db, tenant_id=tenant_id, blueprint_id=bp.id)
 
 
 async def reject_blueprint(
@@ -1558,14 +1512,10 @@ async def reject_blueprint(
         after={"reason": reason[:200]},
     )
     await db.flush()
-    return await get_improvement_assessment(
-        db, tenant_id=tenant_id, blueprint_id=bp.id
-    )
+    return await get_improvement_assessment(db, tenant_id=tenant_id, blueprint_id=bp.id)
 
 
-async def count_assessments_for_tenant(
-    db: AsyncSession, *, tenant_id: uuid.UUID
-) -> int:
+async def count_assessments_for_tenant(db: AsyncSession, *, tenant_id: uuid.UUID) -> int:
     """Helper for tests asserting no reassessment creation."""
     return int(
         await db.scalar(

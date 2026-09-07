@@ -631,6 +631,23 @@ class ProposedQuestionNode(BaseModel):
     )
 
 
+class QuestionPaperEvidencePage(BaseModel):
+    """One page of immutable paper evidence for authoring parse (B11).
+
+    ``rendered_image_png`` is ephemeral provider input only — excluded from
+    default JSON dumps used in traces / proposals.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    page_index: int = Field(ge=0, le=500)
+    extracted_text: str | None = Field(default=None, max_length=50_000)
+    rendered_image_png: bytes | None = Field(default=None, repr=False)
+    width: int | None = Field(default=None, ge=1, le=20_000)
+    height: int | None = Field(default=None, ge=1, le=20_000)
+    has_visual_evidence: bool = False
+
+
 class QuestionPaperParseInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -638,10 +655,37 @@ class QuestionPaperParseInput(BaseModel):
     assessment_version_id: uuid.UUID
     assessment_title: str = Field(max_length=255)
     max_marks: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
-    assessment_artifact_id: uuid.UUID | None = None
-    content_sha256: str | None = Field(default=None, min_length=64, max_length=64)
-    mime_type: str | None = Field(default=None, max_length=128)
-    original_filename: str | None = Field(default=None, max_length=512)
+    assessment_artifact_id: uuid.UUID
+    content_sha256: str = Field(min_length=64, max_length=64)
+    mime_type: str = Field(min_length=1, max_length=128)
+    original_filename: str = Field(min_length=1, max_length=512)
+    evidence_pages: list[QuestionPaperEvidencePage] = Field(min_length=1, max_length=100)
+
+    def provider_payload(self) -> dict[str, Any]:
+        """JSON-safe payload for providers (no raw image bytes)."""
+        return {
+            "assessment_id": str(self.assessment_id),
+            "assessment_version_id": str(self.assessment_version_id),
+            "assessment_title": self.assessment_title,
+            "max_marks": str(self.max_marks),
+            "assessment_artifact_id": str(self.assessment_artifact_id),
+            "content_sha256": self.content_sha256,
+            "mime_type": self.mime_type,
+            "original_filename": self.original_filename,
+            "pages": [
+                {
+                    "page_index": page.page_index,
+                    "extracted_text": page.extracted_text,
+                    "has_visual_evidence": page.has_visual_evidence,
+                    "width": page.width,
+                    "height": page.height,
+                    "image_byte_size": (
+                        len(page.rendered_image_png) if page.rendered_image_png else 0
+                    ),
+                }
+                for page in self.evidence_pages
+            ],
+        }
 
 
 class QuestionPaperParseResult(BaseModel):

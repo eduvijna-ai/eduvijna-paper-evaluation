@@ -10,6 +10,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.execution_metadata import metadata_from_provider
 from app.ai.registry import get_structure_provider, structure_provider_active
 from app.ai.tracing import (
     canonical_input_hash,
@@ -110,11 +111,11 @@ async def apply_ai_mapping_proposals(
                 result = None
 
             finished = datetime.now(UTC)
+            meta = metadata_from_provider(provider, "analyze_page")
             exec_row = await record_ai_execution(
                 db,
                 tenant_id=tenant_id,
                 operation="analyze_page",
-                provider=provider.provider_name,
                 status=status,
                 request_summary=redacted_request_summary(
                     operation="analyze_page",
@@ -125,13 +126,16 @@ async def apply_ai_mapping_proposals(
                 ),
                 response_summary=response_summary,
                 submission_id=submission.id,
-                model=settings.ai_model_page_analysis,
                 input_refs={"page_id": str(page.id), "page_index": page.page_index},
                 input_hash=input_hash,
                 latency_ms=int((finished - started).total_seconds() * 1000),
                 error_class=error_class,
                 started_at=started,
                 finished_at=finished,
+                provider=meta.provider,
+                model=meta.model,
+                model_version=meta.model_version,
+                prompt_template_version=meta.prompt_template_version,
             )
 
             existing_analysis = await db.scalar(
@@ -149,10 +153,8 @@ async def apply_ai_mapping_proposals(
                         submission_page_id=page.id,
                         analysis_version=1,
                         status=(
-                        status
-                        if status in {"SUCCEEDED", "FAILED", "UNAVAILABLE"}
-                        else "FAILED"
-                    ),
+                            status if status in {"SUCCEEDED", "FAILED", "UNAVAILABLE"} else "FAILED"
+                        ),
                         result_json=payload,
                         ai_execution_record_id=exec_row.id,
                     )
@@ -160,7 +162,8 @@ async def apply_ai_mapping_proposals(
             else:
                 existing_analysis.status = (
                     status
-                    if status in {
+                    if status
+                    in {
                         "SUCCEEDED",
                         "FAILED",
                         "UNAVAILABLE",
@@ -269,11 +272,11 @@ async def apply_ai_mapping_proposals(
         map_result = None
 
     finished = datetime.now(UTC)
+    map_meta = metadata_from_provider(provider, "map_answer_regions")
     await record_ai_execution(
         db,
         tenant_id=tenant_id,
         operation="map_answer_regions",
-        provider=provider.provider_name,
         status=status,
         request_summary=redacted_request_summary(
             operation="map_answer_regions",
@@ -284,7 +287,6 @@ async def apply_ai_mapping_proposals(
         ),
         response_summary=map_response_summary,
         submission_id=submission.id,
-        model=settings.ai_model_mapping,
         input_refs={
             "region_count": len(region_ids),
             "question_count": len(leaf_ids),
@@ -294,6 +296,10 @@ async def apply_ai_mapping_proposals(
         error_class=error_class,
         started_at=started,
         finished_at=finished,
+        provider=map_meta.provider,
+        model=map_meta.model,
+        model_version=map_meta.model_version,
+        prompt_template_version=map_meta.prompt_template_version,
     )
 
     if map_result is None:
@@ -304,10 +310,7 @@ async def apply_ai_mapping_proposals(
             "ai_mapping_count": 0,
         }
 
-    questions_by_qv = {
-        qv.id: qv
-        for qv in leaves
-    }
+    questions_by_qv = {qv.id: qv for qv in leaves}
 
     used_regions: set[uuid.UUID] = set()
     for proposed in map_result.mappings:

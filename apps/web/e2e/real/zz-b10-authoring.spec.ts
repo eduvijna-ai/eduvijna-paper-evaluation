@@ -12,11 +12,14 @@ function runId(): string {
 async function buildUniquePdf(label: string): Promise<Buffer> {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
-  for (const pageLabel of [`Page 1 — ${label}`, `Page 2 — ${label}`]) {
-    const page = doc.addPage([400, 560]);
-    page.drawText(pageLabel, { x: 48, y: 500, size: 16, font });
-    page.drawText(runId(), { x: 48, y: 460, size: 10, font });
-  }
+  const page = doc.addPage([400, 560]);
+  page.drawText(`1(a) ${label} [10 marks]`, {
+    x: 48,
+    y: 500,
+    size: 12,
+    font,
+  });
+  page.drawText(runId(), { x: 48, y: 460, size: 10, font });
   return Buffer.from(await doc.save());
 }
 
@@ -83,7 +86,6 @@ test.describe("B10 real authoring AI flows", () => {
       },
     );
     expect(node.status()).toBe(201);
-    const nodeId = ((await node.json()) as { id: string }).id;
 
     await browserLogin(page);
 
@@ -121,7 +123,8 @@ test.describe("B10 real authoring AI flows", () => {
       /teacher apply/i,
     );
 
-    const pdf = await buildUniquePdf(`B10-${suffix}`);
+    const sourcePrompt = `Solve 2x + 3 = 7 for ${suffix}.`;
+    const pdf = await buildUniquePdf(sourcePrompt);
     await page.getByTestId("question-paper-upload").setInputFiles({
       name: `b10-paper-${suffix}.pdf`,
       mimeType: "application/pdf",
@@ -182,6 +185,7 @@ test.describe("B10 real authoring AI flows", () => {
 
     const leafPrompt = page.getByTestId("proposal-prompt-0-0");
     await expect(leafPrompt).toBeVisible();
+    await expect(leafPrompt).toHaveValue(new RegExp(`Solve 2x \\+ 3 = 7.*${suffix}`));
     await leafPrompt.fill(`Corrected B10 leaf ${suffix}`);
     await page.getByTestId("save-question-tree-proposal").click();
     await page.getByTestId("apply-question-tree").click();
@@ -217,18 +221,27 @@ test.describe("B10 real authoring AI flows", () => {
     const leafId = tree[0]?.children?.[0]?.id ?? tree[0]?.id;
     expect(leafId).toBeTruthy();
 
-    const mapping = await request.post(
-      `${apiBase}/api/v1/question-versions/${leafId}/curriculum-mappings`,
-      {
-        headers,
-        data: {
-          curriculum_node_id: nodeId,
-          mapping_type: "PRIMARY",
-          weight: "1.00",
-        },
-      },
-    );
-    expect(mapping.status()).toBe(201);
+    await page.goto(`/assessments/${assessmentId}/curriculum-map`);
+    await expect(page.getByTestId("assessment-curriculum-map-page")).toBeVisible({
+      timeout: 20_000,
+    });
+    const mapRow = page.locator('[data-testid^="curriculum-map-row-"]').filter({
+      hasText: /1\(a\)|Q1a/i,
+    });
+    await expect(mapRow.first()).toBeVisible({ timeout: 20_000 });
+    await expect(mapRow.first()).toContainText("—");
+    await page.getByTestId("generate-ai-curriculum-mapping").click();
+    await expect(page.getByTestId("curriculum-mapping-proposal")).toBeVisible({
+      timeout: 60_000,
+    });
+    await expect(mapRow.first()).toContainText("—");
+    await page.getByTestId("apply-curriculum-mappings").click();
+    await expect(page.getByTestId("curriculum-mapping-proposal")).toHaveCount(0, {
+      timeout: 30_000,
+    });
+    await expect(mapRow.first()).not.toContainText("—", {
+      timeout: 30_000,
+    });
 
     await page.goto(`/assessments/${assessmentId}/answer-key`);
     await expect(page.getByTestId("assessment-answer-key-page")).toBeVisible({

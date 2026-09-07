@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from app.ai.execution_metadata import FIXED_LEARNING_META, AIExecutionMetadata
 from app.ai.types import (
     ImprovementBlueprintAIInput,
     ImprovementBlueprintAIResult,
@@ -20,6 +21,14 @@ class FixedLearningProvider:
 
     def __init__(self, *, allow_non_test: bool = False) -> None:
         self._allow_non_test = allow_non_test
+
+    def execution_metadata(self, operation: str) -> AIExecutionMetadata:
+        return AIExecutionMetadata(
+            provider=FIXED_LEARNING_META.provider,
+            model=FIXED_LEARNING_META.model,
+            model_version=FIXED_LEARNING_META.model_version,
+            prompt_template_version=f"fixed-learning-{operation}-v1",
+        )
 
     async def generate_learning_plan(
         self, request: LearningPlanAIInput

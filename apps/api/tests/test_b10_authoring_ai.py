@@ -24,7 +24,19 @@ from app.db.models import (
 )
 from app.db.session import async_session_factory
 from app.main import create_app
+from app.services.storage import ObjectStorage
 from tests.test_a2_gate_matrix import _foundation, _headers
+
+
+def _pdf_with_text(label: str = "1(a) Solve 2x + 3 = 7. [10 marks]") -> bytes:
+    import fitz
+
+    doc = fitz.open()
+    page = doc.new_page(width=400, height=560)
+    page.insert_text((48, 72), label)
+    data = doc.tobytes()
+    doc.close()
+    return data
 
 
 @asynccontextmanager
@@ -34,8 +46,11 @@ async def api_client_authoring(
     os.environ["CELERY_TASK_ALWAYS_EAGER"] = "true"
     os.environ["AI_PROVIDER_AUTHORING"] = authoring_provider
     os.environ["APP_ENV"] = "test"
+    os.environ["S3_ENDPOINT_URL"] = "http://127.0.0.1:19000"
+    os.environ["UPLOAD_SCANNER"] = "fixed"
     await seed()
     get_settings.cache_clear()
+    ObjectStorage(get_settings()).ensure_bucket()
     # Ensure settings pick up env overrides for this process.
     assert get_settings().celery_task_always_eager is True
     assert get_settings().ai_provider_authoring == authoring_provider
@@ -52,12 +67,25 @@ async def api_client_authoring(
     celery_app.conf.task_always_eager = False
 
 
+async def _upload_question_paper(
+    client: AsyncClient, headers: dict[str, str], version_id: str, text: str | None = None
+) -> None:
+    pdf = _pdf_with_text(text or "1(a) Solve 2x + 3 = 7. [10 marks]")
+    response = await client.post(
+        f"/api/v1/assessment-versions/{version_id}/question-paper",
+        headers=headers,
+        files={"file": (f"paper-{uuid.uuid4().hex[:8]}.pdf", pdf, "application/pdf")},
+    )
+    assert response.status_code == 201, response.text
+
+
 @pytest.mark.asyncio
 async def test_b10_parse_edit_apply_questions() -> None:
     async with api_client_authoring(authoring_provider="fixed") as client:
         headers = await _headers(client)
         data = await _foundation(client, headers, marks="10.00")
         version_id = data["version_id"]
+        await _upload_question_paper(client, headers, version_id)
 
         parse = await client.post(
             f"/api/v1/assessment-versions/{version_id}/question-paper/parse",
@@ -81,6 +109,7 @@ async def test_b10_parse_edit_apply_questions() -> None:
         roots = body["proposal_payload"]["roots"]
         assert roots[0]["stable_code"] == "Q1"
         assert roots[0]["children"][0]["stable_code"] == "Q1a"
+        assert "2x + 3 = 7" in roots[0]["children"][0]["prompt_text"]
 
         # Edit leaf prompt then revalidate
         roots[0]["children"][0]["prompt_text"] = "Edited leaf prompt"
@@ -127,7 +156,8 @@ async def test_b10_parse_edit_apply_questions() -> None:
 async def test_b10_none_provider_unavailable() -> None:
     async with api_client_authoring(authoring_provider="none") as client:
         headers = await _headers(client)
-        data = await _foundation(client, headers)
+        data = await _foundation(client, headers, marks="10.00")
+        await _upload_question_paper(client, headers, data["version_id"])
         response = await client.post(
             f"/api/v1/assessment-versions/{data['version_id']}/question-paper/parse",
             headers=headers,
@@ -316,7 +346,8 @@ async def test_b10_foreign_run_404() -> None:
         assert foreign.status_code == 404
 
         # Cross-tenant: create run then query with other tenant shouldn't see it
-        data = await _foundation(client, headers)
+        data = await _foundation(client, headers, marks="10.00")
+        await _upload_question_paper(client, headers, data["version_id"])
         parse = await client.post(
             f"/api/v1/assessment-versions/{data['version_id']}/question-paper/parse",
             headers=headers,
@@ -348,6 +379,7 @@ async def test_b10_mark_mismatch_review_blocking() -> None:
     async with api_client_authoring(authoring_provider="fixed") as client:
         headers = await _headers(client)
         data = await _foundation(client, headers, marks="10.00")
+        await _upload_question_paper(client, headers, data["version_id"])
         parse = await client.post(
             f"/api/v1/assessment-versions/{data['version_id']}/question-paper/parse",
             headers=headers,

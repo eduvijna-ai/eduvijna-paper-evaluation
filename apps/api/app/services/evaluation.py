@@ -12,6 +12,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.execution_metadata import metadata_from_provider
 from app.ai.registry import evaluation_provider_active, get_evaluation_provider
 from app.ai.tracing import (
     canonical_input_hash,
@@ -653,7 +654,8 @@ async def _evaluate_one_leaf(
             submission_id=submission.id,
             evaluation_run_id=run.id,
             question_evaluation_id=qe.id,
-            model=None,
+            model="rules-engine",
+            model_version="B11_V1",
             prompt_template_version=RULES_ENGINE_VERSION,
             input_hash=canonical_input_hash(
                 {"disposition": "BLANK", "question_version_id": str(leaf.id)}
@@ -710,6 +712,8 @@ async def _evaluate_one_leaf(
             submission_id=submission.id,
             evaluation_run_id=run.id,
             question_evaluation_id=qe.id,
+            model="rules-engine",
+            model_version="B11_V1",
             prompt_template_version=RULES_ENGINE_VERSION,
             input_hash=canonical_input_hash(
                 {"unreadable": True, "question_version_id": str(leaf.id)}
@@ -748,10 +752,10 @@ async def _evaluate_one_leaf(
 
     started = datetime.now(UTC)
     provider_name = "none"
-    model_name = settings.ai_model_evaluation
     status = "SUCCEEDED"
     error_class: str | None = None
     result: RubricEvaluationResult | None = None
+    provider = None
 
     try:
         if not evaluation_provider_active(settings):
@@ -862,11 +866,14 @@ async def _evaluate_one_leaf(
 
     finished = datetime.now(UTC)
     latency = int((finished - started).total_seconds() * 1000)
+    meta_kwargs: dict[str, str] = {}
+    if provider is not None:
+        meta_kwargs = metadata_from_provider(provider, "evaluate_rubric").as_record_kwargs()
     exec_row = await record_ai_execution(
         db,
         tenant_id=tenant_id,
         operation="evaluate_rubric",
-        provider=provider_name,
+        provider=meta_kwargs.get("provider", provider_name),
         status=status,
         request_summary=redacted_request_summary(
             operation="evaluate_rubric",
@@ -888,8 +895,9 @@ async def _evaluate_one_leaf(
         submission_id=submission.id,
         evaluation_run_id=run.id,
         question_evaluation_id=qe.id,
-        model=model_name if provider_name != "rules" else None,
-        prompt_template_version="eval/v1",
+        model=meta_kwargs.get("model"),
+        model_version=meta_kwargs.get("model_version"),
+        prompt_template_version=meta_kwargs.get("prompt_template_version"),
         input_hash=canonical_input_hash(eval_input.model_dump(mode="json")),
         latency_ms=latency,
         error_class=error_class,

@@ -504,6 +504,62 @@ export const AuthoringHttpApi = {
     return authoringRunApiToView(row);
   },
 
+  async prepareAiCurriculumMappingProposal(input: {
+    questionVersionId: string;
+    curriculumId?: string;
+    instructions?: string;
+  }): Promise<AuthoringAiRun> {
+    const row = await httpRequest<Record<string, unknown>>(
+      "/api/v1/ai/proposals/curriculum-mapping",
+      {
+        method: "POST",
+        body: {
+          question_version_id: input.questionVersionId,
+          ...(input.curriculumId ? { curriculum_id: input.curriculumId } : {}),
+          ...(input.instructions ? { instructions: input.instructions } : {}),
+          context: {},
+        },
+      },
+    );
+    return authoringRunApiToView(row);
+  },
+
+  async updateCurriculumMappingProposal(
+    runId: string,
+    mappings: Array<{
+      curriculum_node_id: string;
+      mapping_type: "PRIMARY" | "SECONDARY" | "LEARNING_OUTCOME" | "SKILL";
+      weight?: string | number | null;
+      rationale?: string | null;
+    }>,
+  ): Promise<AuthoringAiRun> {
+    const row = await httpRequest<Record<string, unknown>>(
+      `/api/v1/authoring-ai-runs/${runId}/curriculum-mapping-proposal`,
+      {
+        method: "PUT",
+        body: { mappings },
+      },
+    );
+    return authoringRunApiToView(row);
+  },
+
+  async applyCurriculumMappings(
+    runId: string,
+    selectedIndices?: number[] | null,
+  ): Promise<AuthoringAiRun> {
+    const row = await httpRequest<Record<string, unknown>>(
+      `/api/v1/authoring-ai-runs/${runId}/apply-curriculum-mappings`,
+      {
+        method: "POST",
+        body: {
+          selected_indices:
+            selectedIndices === undefined ? null : selectedIndices,
+        },
+      },
+    );
+    return authoringRunApiToView(row);
+  },
+
   async transitionAssessment(assessmentId: string, toStatus: string) {
     return httpRequest<A2Assessment>(
       `/api/v1/assessments/${assessmentId}/transition`,

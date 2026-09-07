@@ -1,15 +1,17 @@
 # B10 — CVB release closure
 
+> **Post-audit note (B11):** Independent review found PEV-002 parse was not source-evidence-driven, curriculum AI suggestions auto-wrote canonical mappings, and PEV-060 authoring metadata was incomplete. Those blockers are fixed in `b11/cvb-release-blocker-fixes` — see `docs/engineering/B11_CVB_RELEASE_AUDIT_FIX_REPORT.md`. This B10 report remains historical; do not treat its pre-B11 59/59 claim as final without the B11 audit.
+
 **Branch:** `b10/cvb-release-closure`  
 **PR base:** `develop` (never `main`)  
 **Starting `develop` SHA:** `9f4f8f9fb3ece34fad08dd824e4052f47598c53d`  
 **Starting `main` SHA:** `be5f10aef3cf536420adcffdb9302b6b3b6c0955`  
 **Migration:** `database/migrations/versions/20260907_0011_cvb_release_closure.py`  
-**Final feature SHA:** `_TBD_`  
-**CI run ID:** `_TBD_`  
-**Squash SHA:** `_TBD_`  
-**Final develop:** `_TBD_`  
-**Final main:** `be5f10aef3cf536420adcffdb9302b6b3b6c0955` (must remain unchanged)
+**Final feature SHA:** `09a0eae2907ea7a43bbb889af15bf65c95c359da`  
+**CI run ID:** `34121730685`  
+**Squash SHA:** `be73cc3bcf91b4078b3fea63b3788403129a1419`  
+**Final develop:** `be73cc3bcf91b4078b3fea63b3788403129a1419`  
+**Final main:** `be5f10aef3cf536420adcffdb9302b6b3b6c0955` (unchanged)
 
 ```text
 CI: Infrastructure / Contracts / Backend / Frontend /

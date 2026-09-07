@@ -556,6 +556,10 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AuthoringAiRun" }
+        "409":
+          description: QUESTION_PAPER_ARTIFACT_REQUIRED when no uploaded paper is linked
+        "422":
+          description: Artifact integrity / evidence extraction failure
         "503":
           description: AI_PROVIDER_UNAVAILABLE when AI_PROVIDER_AUTHORING is unset
   /api/v1/assessment-versions/{id}/authoring-ai-runs/latest:
@@ -627,6 +631,42 @@ paths:
       responses:
         "200":
           description: Applied authoring run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthoringAiRun" }
+  /api/v1/authoring-ai-runs/{id}/curriculum-mapping-proposal:
+    put:
+      operationId: updateCurriculumMappingProposal
+      summary: Teacher edit of AI curriculum-mapping proposal (candidate allowlist enforced)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CurriculumMappingProposalEdit" }
+      responses:
+        "200":
+          description: Updated proposal payload (still REVIEW_REQUIRED)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthoringAiRun" }
+        "422":
+          description: AUTHORING_PROVIDER_INVALID_CURRICULUM_NODE or validation error
+  /api/v1/authoring-ai-runs/{id}/apply-curriculum-mappings:
+    post:
+      operationId: applyCurriculumMappings
+      summary: Human apply of REVIEW_REQUIRED curriculum-mapping proposal (creates canonical rows)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApplyCurriculumMappingsInput" }
+      responses:
+        "200":
+          description: Applied authoring run (SUCCEEDED)
           content:
             application/json:
               schema: { $ref: "#/components/schemas/AuthoringAiRun" }
@@ -2011,6 +2051,33 @@ components:
           maxItems: 200
           items: { $ref: "#/components/schemas/ProposedQuestionNode" }
         notes: { type: [string, "null"], maxLength: 2000 }
+    CurriculumMappingProposalEdit:
+      type: object
+      additionalProperties: false
+      properties:
+        mappings:
+          type: array
+          maxItems: 50
+          items: { $ref: "#/components/schemas/ProposedCurriculumMapping" }
+    ProposedCurriculumMapping:
+      type: object
+      additionalProperties: false
+      required: [curriculum_node_id, mapping_type]
+      properties:
+        curriculum_node_id: { type: string, format: uuid }
+        mapping_type:
+          type: string
+          enum: [PRIMARY, SECONDARY, LEARNING_OUTCOME, SKILL]
+        weight: { type: [number, "null"], minimum: 0 }
+        rationale: { type: [string, "null"], maxLength: 2000 }
+    ApplyCurriculumMappingsInput:
+      type: object
+      additionalProperties: false
+      properties:
+        selected_indices:
+          type: [array, "null"]
+          items: { type: integer, minimum: 0 }
+          maxItems: 50
     AuthoringAiOperation:
       type: string
       enum:

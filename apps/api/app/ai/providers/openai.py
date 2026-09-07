@@ -6,6 +6,7 @@ import json
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+from app.ai.execution_metadata import AIExecutionMetadata, openai_execution_metadata
 from app.ai.types import (
     AnswerKeyProposalInput,
     AnswerKeyProposalResult,
@@ -89,6 +90,10 @@ class OpenAIStructureProvider:
         }
         self._timeout = timeout_seconds
         self._caller = caller
+
+    def execution_metadata(self, operation: str) -> AIExecutionMetadata:
+        model = self._models.get(operation) or next(iter(self._models.values()))
+        return openai_execution_metadata(operation=operation, model=model)
 
     def _require(self) -> None:
         if not self._api_key and self._caller is None:
@@ -196,12 +201,78 @@ class OpenAIStructureProvider:
         )
         return ImprovementBlueprintAIResult.model_validate(raw)
 
+    async def _complete_multimodal(
+        self, operation: str, *, text_payload: dict[str, Any], image_pngs: list[bytes]
+    ) -> dict[str, Any]:
+        """Send text + optional transient image evidence (never logged as base64)."""
+        self._require()
+        if self._caller is not None:
+            # Tests/mocks receive page text + image byte sizes, not raw base64.
+            return await self._caller(
+                operation,
+                {
+                    **text_payload,
+                    "visual_page_count": len(image_pngs),
+                    "visual_image_bytes": [len(b) for b in image_pngs],
+                },
+            )
+        try:
+            from openai import AsyncOpenAI
+        except ImportError as exc:  # pragma: no cover
+            raise ProviderUnavailable("openai SDK is not installed") from exc
+        import base64
+
+        client = AsyncOpenAI(api_key=self._api_key, timeout=self._timeout)
+        model = self._models[operation]
+        user_content: list[dict[str, Any]] = [
+            {
+                "type": "text",
+                "text": (
+                    "Parse this question paper into JSON matching QuestionPaperParseResult. "
+                    f"Evidence summary: {json.dumps(text_payload)}"
+                ),
+            }
+        ]
+        for png in image_pngs[:20]:
+            b64 = base64.standard_b64encode(png).decode("ascii")
+            user_content.append(
+                {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/png;base64,{b64}"},
+                }
+            )
+        response = await client.chat.completions.create(  # type: ignore[call-overload]
+            model=model,
+            response_format={"type": "json_object"},
+            messages=[
+                {
+                    "role": "system",
+                    "content": f"Return JSON only for EduVijna {operation}.",
+                },
+                {"role": "user", "content": user_content},
+            ],
+        )
+        content = response.choices[0].message.content or "{}"
+        data = json.loads(content)
+        if not isinstance(data, dict):
+            raise ValueError("OpenAI response must be a JSON object")
+        return data
+
     async def parse_question_paper(
         self, request: QuestionPaperParseInput
     ) -> QuestionPaperParseResult:
-        raw = await self._complete(
-            "parse_question_paper", request.model_dump(mode="json")
-        )
+        text_payload = request.provider_payload()
+        images = [
+            page.rendered_image_png
+            for page in request.evidence_pages
+            if page.rendered_image_png
+        ]
+        if images:
+            raw = await self._complete_multimodal(
+                "parse_question_paper", text_payload=text_payload, image_pngs=images
+            )
+        else:
+            raw = await self._complete("parse_question_paper", text_payload)
         return QuestionPaperParseResult.model_validate(raw)
 
     async def propose_answer_key(
