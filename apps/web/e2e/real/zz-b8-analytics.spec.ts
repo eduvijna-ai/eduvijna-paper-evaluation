@@ -204,6 +204,17 @@ async function createTwoLeafAssessment(
     ).status(),
   ).toBe(200);
 
+  const assessmentGet = await request.get(
+    `${apiBase}/api/v1/assessments/${assessmentId}`,
+    { headers },
+  );
+  expect(assessmentGet.ok()).toBeTruthy();
+  const assessmentState = (await assessmentGet.json()) as {
+    status?: string;
+    workflow_state?: string;
+  };
+  expect(assessmentState.status ?? assessmentState.workflow_state).toBe("ACTIVE");
+
   const years = await request.get(`${apiBase}/api/v1/academic-years`, { headers });
   const sections = await request.get(`${apiBase}/api/v1/class-sections`, { headers });
   const yearRows = (await years.json()) as { id: string }[];
@@ -251,9 +262,11 @@ async function publishOne(
 ): Promise<string> {
   const headers = { Authorization: `Bearer ${token}` };
 
-  // API upload avoids react-hook-form select flakiness; UI covers analytics screens below.
+  // Prefer API upload; assert status for CI diagnostics.
   const upload = await request.post(`${apiBase}/api/v1/submissions`, {
-    headers,
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
     multipart: {
       assessment_id: assessmentId,
       file: {
@@ -263,7 +276,11 @@ async function publishOne(
       },
     },
   });
-  expect(upload.ok()).toBeTruthy();
+  if (!upload.ok()) {
+    throw new Error(
+      `B8 upload failed status=${upload.status()} body=${await upload.text()} assessment=${assessmentId}`,
+    );
+  }
   const submissionId = ((await upload.json()) as { id: string }).id;
 
   await page.goto("/login");
