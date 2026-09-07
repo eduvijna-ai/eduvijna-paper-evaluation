@@ -36,6 +36,15 @@ def derived_page_key(tenant_id: uuid.UUID, submission_id: uuid.UUID, page_index:
     return f"{tenant_id}/derived/{submission_id}/pages/{page_index:04d}.png"
 
 
+def publication_export_key(
+    tenant_id: uuid.UUID,
+    submission_id: uuid.UUID,
+    version: int,
+    filename: str,
+) -> str:
+    return f"{tenant_id}/exports/{submission_id}/publication/{version}/{filename}"
+
+
 def _extension(filename: str) -> str:
     lower = filename.lower()
     if lower.endswith(".pdf"):
@@ -112,6 +121,26 @@ class ObjectStorage:
     ) -> PutResult:
         if "/derived/" not in key:
             raise ValueError("derived uploads must use a /derived/ key prefix")
+        self.client.put_object(
+            Bucket=self.settings.s3_bucket,
+            Key=key,
+            Body=body,
+            ContentType=content_type,
+        )
+        return PutResult(key=key, byte_size=len(body))
+
+    def put_export_bytes(
+        self,
+        *,
+        key: str,
+        body: bytes,
+        content_type: str = "application/pdf",
+    ) -> PutResult:
+        """Write-once export artifacts (B7 publication PDFs). Never overwrite."""
+        if "/exports/" not in key:
+            raise ValueError("export uploads must use an /exports/ key prefix")
+        if self.exists(key):
+            raise StorageImmutabilityError(f"export key already exists: {key}")
         self.client.put_object(
             Bucket=self.settings.s3_bucket,
             Key=key,

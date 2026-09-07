@@ -1,5 +1,6 @@
 import type {
   AdaptiveLearningPlan,
+  AnnotatedPaperWorkspace,
   AnswerKeyStep,
   Assessment,
   AssessmentAnalytics,
@@ -15,6 +16,12 @@ import type {
   MappingReviewPayload,
   PaperPage,
   ParentReport,
+  PublicationAnnotation,
+  PublicationArtifactType,
+  PublicationPrepareResult,
+  PublicationPublishResult,
+  PublicationRegenerateResult,
+  PublicationWorkspace,
   Question,
   QuestionAnswerMappingView,
   RubricCriterion,
@@ -22,6 +29,7 @@ import type {
   StudentAnalytics,
   StudentReport,
   Submission,
+  TeacherReport,
   TranscriptionWorkspacePayload,
   RegionTranscriptionView,
 } from "@/lib/types/domain";
@@ -210,6 +218,40 @@ export interface ApiClient {
   /** B6 live evaluation. Optional for mock-source compatibility. */
   prepareEvaluation?(submissionId: string): Promise<Submission>;
   finalizeEvaluation?(submissionId: string): Promise<Submission>;
+  /** B7 live publication. Optional for mock-source compatibility. */
+  preparePublication?(submissionId: string): Promise<PublicationPrepareResult>;
+  getPublicationWorkspace?(
+    submissionId: string,
+  ): Promise<PublicationWorkspace>;
+  regeneratePublication?(
+    publishedResultId: string,
+  ): Promise<PublicationRegenerateResult>;
+  publishPublication?(
+    publishedResultId: string,
+  ): Promise<PublicationPublishResult>;
+  getPublicationArtifactBlob?(
+    publishedResultId: string,
+    artifactType: PublicationArtifactType,
+  ): Promise<Blob>;
+  createPublicationAnnotation?(
+    publishedResultId: string,
+    input: {
+      annotation_type: "COMMENT" | "HIGHLIGHT";
+      submission_page_id: string;
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      payload?: Record<string, unknown>;
+    },
+  ): Promise<PublicationAnnotation>;
+  previewPublicationReport?(
+    publishedResultId: string,
+    audience: "student" | "parent" | "teacher",
+  ): Promise<StudentReport | ParentReport | TeacherReport>;
+  getAnnotatedPaperWorkspace?(
+    submissionId: string,
+  ): Promise<AnnotatedPaperWorkspace>;
   getStudentReport(
     studentId: string,
     assessmentId: string,
@@ -218,6 +260,10 @@ export interface ApiClient {
     studentId: string,
     assessmentId: string,
   ): Promise<ParentReport>;
+  getTeacherReport?(
+    studentId: string,
+    assessmentId: string,
+  ): Promise<TeacherReport>;
   getAssessmentAnalytics(assessmentId: string): Promise<AssessmentAnalytics>;
   getStudentAnalytics(studentId: string): Promise<StudentAnalytics>;
   getAdaptiveLearning(studentId: string): Promise<AdaptiveLearningPlan>;

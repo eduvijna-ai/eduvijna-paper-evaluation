@@ -179,7 +179,8 @@ SymPy runs in-process — not delegated to LLM.
 **Stage:** Reporting (post-approval)  
 **Input:** **Approved** ledger snapshot IDs, rubric explanations  
 **Output:** Student-facing question-by-question narrative  
-**Constraint:** Must not alter marks; validator compares cited marks to ledger.
+**Constraint:** Must not alter marks; validator compares cited marks to ledger.  
+**Status:** **Implemented in B7** via narrative provider (`AI_PROVIDER_TEXT=fixed|openai|none`) during publication generation. Traced on `AiExecutionRecord` with `published_result_id`.
 
 ---
 
@@ -187,7 +188,8 @@ SymPy runs in-process — not delegated to LLM.
 
 **Stage:** Reporting (post-approval)  
 **Input:** Approved ledger + class context  
-**Output:** Plain-language summary for guardians.
+**Output:** Plain-language summary for guardians.  
+**Status:** **Implemented in B7** via narrative provider during publication generation (same registry / tracing path as 3.8).
 
 ---
 

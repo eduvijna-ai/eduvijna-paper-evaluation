@@ -13,11 +13,15 @@ from app.ai.types import (
     IdentityExtractionResult,
     PageAnalysisInput,
     PageAnalysisResult,
+    ParentNarrativeInput,
+    ParentNarrativeResult,
     ProviderUnavailable,
     RegionMappingInput,
     RegionMappingResult,
     RubricEvaluationInput,
     RubricEvaluationResult,
+    StudentNarrativeInput,
+    StudentNarrativeResult,
     TranscriptionInput,
     TranscriptionResult,
 )
@@ -39,6 +43,8 @@ class OpenAIStructureProvider:
         model_mapping: str,
         model_transcription: str,
         model_evaluation: str | None = None,
+        model_student_report: str | None = None,
+        model_parent_report: str | None = None,
         timeout_seconds: int = 60,
         caller: JsonCaller | None = None,
     ) -> None:
@@ -50,6 +56,8 @@ class OpenAIStructureProvider:
             "transcription": model_transcription,
             "evaluate_rubric": model_evaluation or model_transcription,
             "classify_error": model_evaluation or model_transcription,
+            "generate_student_explanation": model_student_report or model_transcription,
+            "generate_parent_summary": model_parent_report or model_transcription,
         }
         self._timeout = timeout_seconds
         self._caller = caller
@@ -119,6 +127,23 @@ class OpenAIStructureProvider:
         raw = await self._complete("classify_error", request.model_dump(mode="json"))
         return ErrorClassificationResult.model_validate(raw)
 
+    async def generate_student_explanation(
+        self, request: StudentNarrativeInput
+    ) -> StudentNarrativeResult:
+        raw = await self._complete(
+            "generate_student_explanation", request.model_dump(mode="json")
+        )
+        return StudentNarrativeResult.model_validate(raw)
+
+    async def generate_parent_summary(
+        self, request: ParentNarrativeInput
+    ) -> ParentNarrativeResult:
+        raw = await self._complete(
+            "generate_parent_summary", request.model_dump(mode="json")
+        )
+        return ParentNarrativeResult.model_validate(raw)
+
 
 # Alias for clarity in evaluation-focused call sites / tests.
 OpenAIEvaluationProvider = OpenAIStructureProvider
+OpenAINarrativeProvider = OpenAIStructureProvider

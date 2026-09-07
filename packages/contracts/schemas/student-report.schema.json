@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/student-report.schema.json",
+  "title": "StudentReport",
+  "description": "PEV-026/PEV-078 student evaluation report. Scores are final human-approved ledger values only. No proposed_ai_score. No B8 mastery fabrication.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "published_result_id",
+    "student",
+    "assessment",
+    "total_score",
+    "max_total_score",
+    "percentage",
+    "questions",
+    "strengths",
+    "areas_for_improvement",
+    "next_steps",
+    "ledger_snapshot_hash",
+    "narrative_source"
+  ],
+  "properties": {
+    "published_result_id": { "type": "string", "format": "uuid" },
+    "student": {
+      "type": "object",
+      "required": ["id", "display_name"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "display_name": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "assessment": {
+      "type": "object",
+      "required": ["id", "title", "assessment_version_id"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "title": { "type": "string" },
+        "code": { "type": "string" },
+        "assessment_version_id": { "type": "string", "format": "uuid" }
+      },
+      "additionalProperties": false
+    },
+    "total_score": { "type": "number", "minimum": 0 },
+    "max_total_score": { "type": "number", "minimum": 0 },
+    "percentage": { "type": "number", "minimum": 0, "maximum": 100 },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "question_id",
+          "question_code",
+          "final_score",
+          "max_mark",
+          "feedback",
+          "error_explanations"
+        ],
+        "properties": {
+          "question_id": { "type": "string", "format": "uuid" },
+          "question_version_id": { "type": "string", "format": "uuid" },
+          "question_code": { "type": "string" },
+          "final_score": { "type": "number", "minimum": 0 },
+          "max_mark": { "type": "number", "minimum": 0 },
+          "feedback": { "type": ["string", "null"] },
+          "error_explanations": {
+            "type": "array",
+            "items": { "type": "string" }
+          },
+          "corrected_approach": { "type": ["string", "null"] },
+          "explanation": { "type": ["string", "null"] }
+        }
+      }
+    },
+    "strengths": { "type": "array", "items": { "type": "string" } },
+    "areas_for_improvement": { "type": "array", "items": { "type": "string" } },
+    "next_steps": { "type": "array", "items": { "type": "string" } },
+    "ledger_snapshot_hash": { "type": "string", "minLength": 64, "maxLength": 64 },
+    "narrative_source": {
+      "type": "string",
+      "enum": ["AI", "FIXED", "RULES_FALLBACK"]
+    },
+    "evaluation_run_id": { "type": "string", "format": "uuid" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "published_at": { "type": ["string", "null"], "format": "date-time" }
+  }
+}

@@ -6,9 +6,11 @@
 **Starting `main` SHA:** `be5f10aef3cf536420adcffdb9302b6b3b6c0955`  
 **Trees at start:** identical (B5 tip on develop = main tree)  
 **Migration:** `database/migrations/versions/20260906_0007_evaluation_ledger.py`  
-**Final feature SHA:** _fill after push_  
-**Squash SHA on develop:** _fill after merge_  
-**CI run ID:** _fill after green gate_
+**Final feature SHA:** `bdbf45c419b968abcd2daf95990ba6bc529c1463`  
+**Squash SHA on develop:** `e726bae2ac4745670ddea956273a09f553141048`  
+**CI run ID:** `34050518906`  
+**Final develop:** `e726bae2ac4745670ddea956273a09f553141048`  
+**Final main:** `be5f10aef3cf536420adcffdb9302b6b3b6c0955`
 
 ## Scope
 
@@ -57,11 +59,11 @@ Live UUIDs never enter mock reports/analytics/learning.
 ## Residual debt
 
 * Structured math-verification summary field on workspace DTO (client currently derives from confidence)
-* Annotated paper / review hub remain mock for live submissions
+* Annotated paper / review hub remain mock for live submissions (addressed in B7)
 * Broad public re-evaluation UI deferred (data semantics support new EvaluationRun)
-* FCR-005 reports/analytics OPEN; FCR-006 learning OPEN
+* FCR-005 reports/analytics OPEN; FCR-006 learning OPEN (reports portion resolved in B7)
 
-## Verification (local)
+## Verification
 
 | Check | Status |
 |-------|--------|
@@ -69,6 +71,6 @@ Live UUIDs never enter mock reports/analytics/learning.
 | Frontend Vitest | 115 passed |
 | Ruff / mypy (evaluation modules) | green |
 | TypeScript `tsc --noEmit` | green |
-| GitHub Actions (six jobs) | _after PR_ |
+| GitHub Actions run `34050518906` | Infrastructure / Contracts / Backend / Frontend / Frontend E2E / Frontend E2E Real = SUCCESS |
 
-Confirm post-merge: `origin/main` remains `be5f10aef3cf536420adcffdb9302b6b3b6c0955`.
+Post-merge confirmation: `origin/main` remained `be5f10aef3cf536420adcffdb9302b6b3b6c0955`.

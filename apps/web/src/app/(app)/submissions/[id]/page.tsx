@@ -14,6 +14,7 @@ const TERMINAL_AFTER_IDENTITY = new Set([
   "READY_FOR_EVALUATION",
   "EVALUATION_REVIEW",
   "APPROVED",
+  "PUBLISHED",
   "FAILED",
 ]);
 const UUID_RE =
@@ -31,6 +32,7 @@ function stageHref(
   live: boolean,
   transcriptionState?: string,
   evaluationLive?: boolean,
+  publicationLive?: boolean,
 ): string {
   if (live) {
     if (state === "IDENTITY_REVIEW" || state === "UPLOADED" || state === "PROCESSING") {
@@ -41,6 +43,12 @@ function stageHref(
     }
     if (state === "READY_FOR_EVALUATION" && transcriptionState !== "READY") {
       return `/submissions/${id}/transcription`;
+    }
+    if (
+      publicationLive &&
+      (state === "APPROVED" || state === "PUBLISHED")
+    ) {
+      return `/submissions/${id}/publication`;
     }
     if (
       evaluationLive &&
@@ -79,6 +87,8 @@ export default function SubmissionDetailPage({
   const mappingLive = getApiCapabilities().mapping === "live";
   const transcriptionLive = getApiCapabilities().transcription === "live";
   const evaluationLive = getApiCapabilities().evaluation === "live";
+  const publicationLive = getApiCapabilities().publication === "live";
+  const reportsLive = getApiCapabilities().reports === "live";
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["submission", id],
     queryFn: () => api.getSubmission(id),
@@ -89,7 +99,6 @@ export default function SubmissionDetailPage({
       if (submission.workflow_state === "FAILED") return false;
       if (submission.workflow_state === "EVALUATING") return 2000;
       if (TERMINAL_AFTER_IDENTITY.has(submission.workflow_state)) return false;
-      // After identity confirm, keep polling PROCESSING until mapping prepare lands.
       if (
         submission.student_match_state === "CONFIRMED" &&
         POLL_STATES.has(submission.workflow_state)
@@ -104,6 +113,9 @@ export default function SubmissionDetailPage({
 
   if (isLoading) return <LoadingState />;
   if (isError || !data) return <ErrorState onRetry={() => void refetch()} />;
+
+  const published = data.workflow_state === "PUBLISHED";
+  const approved = data.workflow_state === "APPROVED";
 
   const mockLinks = [
     { href: `/submissions/${id}/identity`, label: "Identity", testId: "link-identity" },
@@ -125,7 +137,8 @@ export default function SubmissionDetailPage({
       data.workflow_state === "READY_FOR_EVALUATION" ||
       data.workflow_state === "EVALUATING" ||
       data.workflow_state === "EVALUATION_REVIEW" ||
-      data.workflow_state === "APPROVED")
+      data.workflow_state === "APPROVED" ||
+      data.workflow_state === "PUBLISHED")
   ) {
     liveLinks.push({
       href: `/submissions/${id}/mapping`,
@@ -138,7 +151,8 @@ export default function SubmissionDetailPage({
     (data.workflow_state === "READY_FOR_EVALUATION" ||
       data.workflow_state === "EVALUATING" ||
       data.workflow_state === "EVALUATION_REVIEW" ||
-      data.workflow_state === "APPROVED")
+      data.workflow_state === "APPROVED" ||
+      data.workflow_state === "PUBLISHED")
   ) {
     liveLinks.push({
       href: `/submissions/${id}/transcription`,
@@ -152,7 +166,8 @@ export default function SubmissionDetailPage({
     (data.workflow_state === "READY_FOR_EVALUATION" ||
       data.workflow_state === "EVALUATING" ||
       data.workflow_state === "EVALUATION_REVIEW" ||
-      data.workflow_state === "APPROVED")
+      data.workflow_state === "APPROVED" ||
+      data.workflow_state === "PUBLISHED")
   ) {
     liveLinks.push({
       href: `/submissions/${id}/evaluation`,
@@ -160,6 +175,44 @@ export default function SubmissionDetailPage({
       testId: "link-evaluation",
     });
   }
+  if (
+    publicationLive &&
+    (approved || published)
+  ) {
+    liveLinks.push({
+      href: `/submissions/${id}/publication`,
+      label: "Publication",
+      testId: "link-publication",
+    });
+    liveLinks.push({
+      href: `/submissions/${id}/annotated-paper`,
+      label: "Annotated paper",
+      testId: "link-annotated",
+    });
+  }
+  if (
+    reportsLive &&
+    published &&
+    data.student_id &&
+    data.assessment_id
+  ) {
+    liveLinks.push({
+      href: `/reports/student/${data.student_id}/assessment/${data.assessment_id}`,
+      label: "Student report",
+      testId: "link-student-report",
+    });
+    liveLinks.push({
+      href: `/reports/parent/${data.student_id}/assessment/${data.assessment_id}`,
+      label: "Parent report",
+      testId: "link-parent-report",
+    });
+    liveLinks.push({
+      href: `/reports/teacher/${data.student_id}/assessment/${data.assessment_id}`,
+      label: "Teacher report",
+      testId: "link-teacher-report",
+    });
+  }
+
   const links = live ? liveLinks : mockLinks;
   const identityConfirmedProcessing =
     live &&
@@ -168,23 +221,27 @@ export default function SubmissionDetailPage({
 
   const downstreamBoundary =
     live &&
-    (data.workflow_state === "APPROVED"
-      ? "Evaluation approved. Result publication, reports, analytics, and learning are not live yet."
-      : data.workflow_state === "EVALUATION_REVIEW" ||
-          data.workflow_state === "EVALUATING"
-        ? "Live evaluation review is available. Reports, analytics, and learning remain mock."
-        : data.workflow_state === "MAPPING_REVIEW"
-          ? "Question mapping is live for this submission. Open mapping to continue."
-          : data.workflow_state === "READY_FOR_EVALUATION" &&
-              data.transcription_state === "READY"
-            ? evaluationLive
-              ? "Evidence mapping and transcription are ready. Open evaluation to start scoring review."
-              : "Evidence mapping and transcription are ready. Live evaluation is not enabled yet."
-            : data.workflow_state === "READY_FOR_EVALUATION"
-              ? "Mapping is complete. Open transcription review to confirm evidence text before evaluation."
-              : mappingLive
-                ? "Identity review and mapping are available when ready."
-                : "Mapping, evaluation, annotated paper, and review hub are not live for B3 ingestion. Identity review is available; downstream stages remain on the mock provider.");
+    (published
+      ? "Results are published. Student, parent, and teacher reports are live. Analytics and adaptive learning remain unavailable for this live identity."
+      : approved
+        ? publicationLive
+          ? "Evaluation approved. Open publication to generate the package, then explicitly publish results. Analytics and learning remain mock."
+          : "Evaluation approved. Result publication, reports, analytics, and learning are not live yet."
+        : data.workflow_state === "EVALUATION_REVIEW" ||
+            data.workflow_state === "EVALUATING"
+          ? "Live evaluation review is available. Publication and reports unlock after approval."
+          : data.workflow_state === "MAPPING_REVIEW"
+            ? "Question mapping is live for this submission. Open mapping to continue."
+            : data.workflow_state === "READY_FOR_EVALUATION" &&
+                data.transcription_state === "READY"
+              ? evaluationLive
+                ? "Evidence mapping and transcription are ready. Open evaluation to start scoring review."
+                : "Evidence mapping and transcription are ready. Live evaluation is not enabled yet."
+              : data.workflow_state === "READY_FOR_EVALUATION"
+                ? "Mapping is complete. Open transcription review to confirm evidence text before evaluation."
+                : mappingLive
+                  ? "Identity review and mapping are available when ready."
+                  : "Mapping, evaluation, annotated paper, and review hub are not live for B3 ingestion. Identity review is available; downstream stages remain on the mock provider.");
 
   return (
     <div data-testid="submission-detail-page">
@@ -203,6 +260,7 @@ export default function SubmissionDetailPage({
               live,
               data.transcription_state,
               evaluationLive,
+              publicationLive,
             )}
             data-testid="open-current-stage"
             className="rounded-md bg-teal-800 px-3 py-2 text-sm font-medium text-white hover:bg-teal-900"
@@ -227,6 +285,16 @@ export default function SubmissionDetailPage({
           className="mb-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"
         >
           {downstreamBoundary}
+        </p>
+      )}
+
+      {published && (
+        <p
+          data-testid="submission-published-immutable"
+          className="mb-4 rounded-md border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-950"
+        >
+          Published results are immutable. Evaluation mutations, remapping, and
+          republication from this screen are disabled.
         </p>
       )}
 

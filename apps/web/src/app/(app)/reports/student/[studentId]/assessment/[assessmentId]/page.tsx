@@ -26,6 +26,8 @@ export default function StudentReportPage({
   if (isLoading) return <LoadingState />;
   if (isError || !data) return <ErrorState onRetry={() => void refetch()} />;
 
+  const live = Boolean(data.live_published);
+
   return (
     <div data-testid="student-report-page">
       <PageHeader
@@ -55,7 +57,11 @@ export default function StudentReportPage({
               <div key={q.question_id} className="space-y-1">
                 <QuestionScore
                   code={q.question_code}
-                  score={q.final_score ?? q.proposed_score}
+                  score={
+                    live
+                      ? (q.final_score ?? 0)
+                      : (q.final_score ?? q.proposed_score)
+                  }
                   max={q.max_mark}
                   state={q.workflow_state}
                 />
@@ -71,43 +77,49 @@ export default function StudentReportPage({
           </div>
         </ReportSection>
 
-        <ReportSection title="Evidence">
-          <ul className="space-y-2 text-sm">
-            {data.evidence_highlights.map((e) => (
-              <li key={`${e.question_code}-${e.excerpt}`}>
-                <span className="font-medium">{e.question_code}</span> ·{" "}
-                <span className="text-slate-500">{e.outcome}</span>
-                <div className="text-slate-700">{e.excerpt}</div>
-              </li>
-            ))}
-          </ul>
-        </ReportSection>
+        {data.evidence_highlights.length > 0 && (
+          <ReportSection title="Evidence">
+            <ul className="space-y-2 text-sm">
+              {data.evidence_highlights.map((e) => (
+                <li key={`${e.question_code}-${e.excerpt}`}>
+                  <span className="font-medium">{e.question_code}</span> ·{" "}
+                  <span className="text-slate-500">{e.outcome}</span>
+                  <div className="text-slate-700">{e.excerpt}</div>
+                </li>
+              ))}
+            </ul>
+          </ReportSection>
+        )}
 
-        <ReportSection title="Corrected approach">
-          <ul className="space-y-2 text-sm">
-            {data.corrected_approaches.map((c) => (
-              <li key={c.question_code}>
-                <span className="font-medium">{c.question_code}:</span>{" "}
-                {c.approach}
-              </li>
-            ))}
-          </ul>
-        </ReportSection>
+        {data.corrected_approaches.length > 0 && (
+          <ReportSection title="Corrected approach">
+            <ul className="space-y-2 text-sm">
+              {data.corrected_approaches.map((c) => (
+                <li key={c.question_code}>
+                  <span className="font-medium">{c.question_code}:</span>{" "}
+                  {c.approach}
+                </li>
+              ))}
+            </ul>
+          </ReportSection>
+        )}
 
-        <ReportSection title="Topics">
-          <ul className="space-y-2 text-sm">
-            {data.topic_focus.map((t) => (
-              <li key={t.topic} className="flex justify-between gap-3">
-                <span>
-                  Priority {t.priority}: {t.topic}
-                </span>
-                <span className="tabular-nums text-slate-500">
-                  {Math.round(t.mastery * 100)}%
-                </span>
-              </li>
-            ))}
-          </ul>
-        </ReportSection>
+        {!live && data.topic_focus.length > 0 && (
+          <ReportSection title="Topics">
+            <ul className="space-y-2 text-sm">
+              {data.topic_focus.map((t) => (
+                <li key={t.topic} className="flex justify-between gap-3">
+                  <span>
+                    Priority {t.priority}: {t.topic}
+                  </span>
+                  <span className="tabular-nums text-slate-500">
+                    {Math.round(t.mastery * 100)}%
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </ReportSection>
+        )}
 
         <ReportSection title="Strengths">
           <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
@@ -125,13 +137,15 @@ export default function StudentReportPage({
           </ul>
         </ReportSection>
 
-        <ReportSection title="Patterns">
-          <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
-            {data.patterns.map((s) => (
-              <li key={s}>{s}</li>
-            ))}
-          </ul>
-        </ReportSection>
+        {!live && data.patterns.length > 0 && (
+          <ReportSection title="Patterns">
+            <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">
+              {data.patterns.map((s) => (
+                <li key={s}>{s}</li>
+              ))}
+            </ul>
+          </ReportSection>
+        )}
 
         <ReportSection title="Next action">
           <ul className="list-disc space-y-1 pl-5 text-sm text-slate-700">

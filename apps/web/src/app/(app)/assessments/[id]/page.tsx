@@ -109,7 +109,9 @@ export default function AssessmentDetailPage({
           data-testid="assessment-downstream-boundary"
           className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"
         >
-          {capabilities.evaluation === "live"
+          {capabilities.evaluation === "live" && capabilities.reports === "live"
+            ? "Analytics and adaptive learning remain on the mock provider and are hidden for live assessment identities."
+            : capabilities.evaluation === "live"
             ? "Analytics, reports, and learning remain on the mock provider and are hidden for live assessment identities."
             : capabilities.submissions === "live"
               ? "Analytics, mapping, and evaluation remain on the mock provider and are hidden for live assessment identities."

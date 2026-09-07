@@ -157,6 +157,8 @@ export default function EvaluationWorkspacePage({
     data?.submission.workflow_state === "APPROVED" ||
     data?.submission.workflow_state === "PUBLISHED";
 
+  const published = data?.submission.workflow_state === "PUBLISHED";
+
   const actionMutation = useMutation({
     mutationFn: ({
       action,
@@ -288,17 +290,41 @@ export default function EvaluationWorkspacePage({
           data-testid="evaluation-approved-boundary"
           className="mx-2 mb-3 rounded-md border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-950 sm:mx-3"
         >
-          Evaluation approved. Result publication and reports are not live yet.
+          {getApiCapabilities().publication === "live" ? (
+            <>
+              Evaluation approved.{" "}
+              <a
+                href={`/submissions/${id}/publication`}
+                data-testid="link-publication-from-evaluation"
+                className="font-medium underline"
+              >
+                Open publication
+              </a>{" "}
+              to generate and publish results.
+            </>
+          ) : (
+            <>Evaluation approved. Result publication and reports are not live yet.</>
+          )}
         </p>
       )}
 
-      {liveMode && approved && (
+      {liveMode && approved && getApiCapabilities().publication !== "live" && (
         <p
           data-testid="evaluation-downstream-mock-boundary"
           className="mx-2 mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 sm:mx-3"
         >
           Reports, analytics, and adaptive learning remain mock and are not
           linked for this live submission.
+        </p>
+      )}
+
+      {liveMode && approved && getApiCapabilities().publication === "live" && (
+        <p
+          data-testid="evaluation-downstream-mock-boundary"
+          className="mx-2 mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 sm:mx-3"
+        >
+          Analytics and adaptive learning remain mock and are not linked for
+          this live submission.
         </p>
       )}
 
@@ -442,10 +468,20 @@ export default function EvaluationWorkspacePage({
           <EvaluationDecisionPanel
             ledger={ledger}
             liveMode={liveMode}
+            disabled={published}
             onAction={(action, payload) =>
               actionMutation.mutate({ action, payload })
             }
           />
+          {published && (
+            <p
+              data-testid="evaluation-published-locked"
+              className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"
+            >
+              Published results are immutable — teacher review actions are
+              disabled.
+            </p>
+          )}
         </div>
       </div>
     </div>

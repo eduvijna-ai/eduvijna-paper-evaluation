@@ -287,3 +287,53 @@ async def enqueue_evaluation(
     result = evaluation_task.delay(str(tenant_id), str(submission_id), str(job_id))
     task_id = getattr(result, "id", None)
     return str(task_id) if task_id is not None else None
+
+
+async def _publication_async(
+    tenant_id: uuid.UUID, submission_id: uuid.UUID, job_id: uuid.UUID
+) -> None:
+    from app.db.session import async_session_factory, engine
+    from app.services.publication import run_publication_pipeline
+
+    await engine.dispose()
+    async with async_session_factory() as db:
+        await run_publication_pipeline(
+            db,
+            tenant_id=tenant_id,
+            submission_id=submission_id,
+            job_id=job_id,
+        )
+
+
+def _publication_impl(tenant_id: str, submission_id: str, job_id: str) -> dict[str, str]:
+    asyncio.run(
+        _publication_async(
+            uuid.UUID(tenant_id),
+            uuid.UUID(submission_id),
+            uuid.UUID(job_id),
+        )
+    )
+    return {
+        "tenant_id": tenant_id,
+        "submission_id": submission_id,
+        "job_id": job_id,
+        "status": "ok",
+    }
+
+
+publication_task = cast(
+    Any, celery_app.task(name="submissions.run_publication")(_publication_impl)
+)
+
+
+async def enqueue_publication(
+    *, tenant_id: uuid.UUID, submission_id: uuid.UUID, job_id: uuid.UUID
+) -> str | None:
+    settings = get_settings()
+    if settings.celery_task_always_eager:
+        await _publication_async(tenant_id, submission_id, job_id)
+        return f"eager:{job_id}"
+
+    result = publication_task.delay(str(tenant_id), str(submission_id), str(job_id))
+    task_id = getattr(result, "id", None)
+    return str(task_id) if task_id is not None else None

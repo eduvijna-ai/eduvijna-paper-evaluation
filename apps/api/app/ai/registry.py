@@ -1,15 +1,24 @@
-"""Provider registry for B5 structure and B6 evaluation operations."""
+"""Provider registry for B5 structure, B6 evaluation, and B7 narrative operations."""
 
 from __future__ import annotations
 
-from app.ai.protocols import EvaluationAIProvider, StructureAIProvider
+from app.ai.protocols import (
+    EvaluationAIProvider,
+    NarrativeAIProvider,
+    StructureAIProvider,
+)
 from app.ai.providers.fixed import FixedStructureProvider, NoneStructureProvider
+from app.ai.providers.narrative import FixedNarrativeProvider, NoneNarrativeProvider
 from app.ai.providers.openai import OpenAIStructureProvider
 from app.core.config import Settings, get_settings
 
 
 def _vision_mode(settings: Settings) -> str:
     return (settings.ai_provider_vision or "none").strip().lower()
+
+
+def _text_mode(settings: Settings) -> str:
+    return (settings.ai_provider_text or "none").strip().lower()
 
 
 def get_structure_provider(settings: Settings | None = None) -> StructureAIProvider:
@@ -31,6 +40,8 @@ def get_structure_provider(settings: Settings | None = None) -> StructureAIProvi
             model_mapping=settings.ai_model_mapping,
             model_transcription=settings.ai_model_transcription,
             model_evaluation=settings.ai_model_evaluation,
+            model_student_report=settings.ai_model_student_report,
+            model_parent_report=settings.ai_model_parent_report,
             timeout_seconds=settings.ai_request_timeout_seconds,
         )
     raise RuntimeError(f"Unsupported AI_PROVIDER_VISION={mode!r}")
@@ -42,6 +53,35 @@ def get_evaluation_provider(settings: Settings | None = None) -> EvaluationAIPro
     return get_structure_provider(settings)  # type: ignore[return-value]
 
 
+def get_narrative_provider(
+    settings: Settings | None = None,
+) -> NarrativeAIProvider | None:
+    """Return narrative provider, or None when AI_PROVIDER_TEXT=none (rules fallback)."""
+    settings = settings or get_settings()
+    mode = _text_mode(settings)
+    env = settings.environment.lower()
+
+    if mode in {"", "none"}:
+        return None
+    if mode == "fixed":
+        if env in {"production", "prod"}:
+            raise RuntimeError("fixed AI provider is not allowed in production")
+        return FixedNarrativeProvider(allow_non_test=True)
+    if mode == "openai":
+        return OpenAIStructureProvider(
+            api_key=settings.openai_api_key,
+            model_identity=settings.ai_model_identity,
+            model_page_analysis=settings.ai_model_page_analysis,
+            model_mapping=settings.ai_model_mapping,
+            model_transcription=settings.ai_model_transcription,
+            model_evaluation=settings.ai_model_evaluation,
+            model_student_report=settings.ai_model_student_report,
+            model_parent_report=settings.ai_model_parent_report,
+            timeout_seconds=settings.ai_request_timeout_seconds,
+        )
+    raise RuntimeError(f"Unsupported AI_PROVIDER_TEXT={mode!r}")
+
+
 def structure_provider_active(settings: Settings | None = None) -> bool:
     settings = settings or get_settings()
     return _vision_mode(settings) not in {"", "none"}
@@ -49,3 +89,20 @@ def structure_provider_active(settings: Settings | None = None) -> bool:
 
 def evaluation_provider_active(settings: Settings | None = None) -> bool:
     return structure_provider_active(settings)
+
+
+def narrative_provider_active(settings: Settings | None = None) -> bool:
+    settings = settings or get_settings()
+    return _text_mode(settings) not in {"", "none"}
+
+
+# Re-export for callers that want an explicit none sentinel.
+__all__ = [
+    "NoneNarrativeProvider",
+    "evaluation_provider_active",
+    "get_evaluation_provider",
+    "get_narrative_provider",
+    "get_structure_provider",
+    "narrative_provider_active",
+    "structure_provider_active",
+]
