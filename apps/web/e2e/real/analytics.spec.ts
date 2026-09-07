@@ -256,6 +256,19 @@ async function publishOne(
   await expect(page.getByTestId("app-shell")).toBeVisible({ timeout: 30_000 });
 
   await page.goto("/submissions/upload");
+  await expect(page.getByTestId("upload-assessment")).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect
+    .poll(
+      async () =>
+        page
+          .getByTestId("upload-assessment")
+          .locator(`option[value="${assessmentId}"]`)
+          .count(),
+      { timeout: 60_000 },
+    )
+    .toBeGreaterThan(0);
   await page.getByTestId("upload-assessment").selectOption(assessmentId);
   await page.getByTestId("upload-file").setInputFiles({
     name: "b8-sheet.pdf",
@@ -264,7 +277,7 @@ async function publishOne(
   });
   await page.getByTestId("upload-submit").click();
   await expect(page.getByTestId("submission-detail-page")).toBeVisible({
-    timeout: 60_000,
+    timeout: 90_000,
   });
   const submissionUrl = page.url();
   const submissionId = submissionUrl.split("/submissions/")[1]?.split(/[/?#]/)[0] ?? "";

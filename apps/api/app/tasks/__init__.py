@@ -1,6 +1,7 @@
 """Celery task package."""
 
 from app.tasks.celery_app import (
+    analytics_task,
     celery_app,
     enqueue_analytics,
     enqueue_evaluation,
@@ -9,7 +10,6 @@ from app.tasks.celery_app import (
     enqueue_page_normalization,
     enqueue_publication,
     enqueue_transcription,
-    analytics_task,
     evaluation_task,
     identity_extraction_task,
     normalize_pages_task,
