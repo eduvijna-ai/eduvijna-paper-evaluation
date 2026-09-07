@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useEffect, useMemo, useState } from "react";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, isApiError } from "@/lib/api";
 import { getApiCapabilities } from "@/lib/api/capabilities";
@@ -55,6 +55,7 @@ export default function EvaluationWorkspacePage({
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [gateReady, setGateReady] = useState(!liveMode);
+  const prepareStartedRef = useRef(false);
 
   const submissionQuery = useQuery({
     queryKey: ["submission", id],
@@ -79,6 +80,8 @@ export default function EvaluationWorkspacePage({
     const state = submissionQuery.data?.workflow_state;
     if (!state) return;
     if (state === "READY_FOR_EVALUATION") {
+      if (prepareStartedRef.current) return;
+      prepareStartedRef.current = true;
       prepareMutation.mutate();
       return;
     }

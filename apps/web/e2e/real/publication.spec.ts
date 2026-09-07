@@ -213,6 +213,9 @@ async function createTwoLeafAssessment(
 
 async function reachApproved(
   page: Page,
+  request: APIRequestContext,
+  apiBase: string,
+  token: string,
   assessmentId: string,
   studentId: string,
   pdf: Buffer,
@@ -327,58 +330,79 @@ async function reachApproved(
   }
 
   await page.getByTestId("finalize-transcription").click();
+  await expect(page).toHaveURL(new RegExp(`/submissions/${submissionId}$`), {
+    timeout: 30_000,
+  });
   await expect(page.getByTestId("submission-detail-page")).toBeVisible({
     timeout: 30_000,
   });
   await expect(page.getByTestId("link-evaluation")).toBeVisible();
 
-  await page.getByTestId("link-evaluation").click();
-  await expect(page.getByTestId("evaluation-workspace-page")).toBeVisible({
-    timeout: 90_000,
-  });
-
+  // Drive evaluation to APPROVED via API for reliability; UI publication is covered below.
+  const headers = { Authorization: `Bearer ${token}` };
   await expect
     .poll(
       async () => {
-        await page.reload();
-        const text = await page.getByTestId("evaluation-progress").textContent();
-        const panel = await page.getByTestId("evaluation-decision-panel").count();
-        return `${text ?? ""}|${panel}`;
+        const prep = await request.post(
+          `${apiBase}/api/v1/submissions/${submissionId}/evaluation/prepare`,
+          { headers },
+        );
+        if (![200, 409].includes(prep.status())) return `prep:${prep.status()}`;
+        const ws = await request.get(
+          `${apiBase}/api/v1/submissions/${submissionId}/evaluation`,
+          { headers },
+        );
+        if (!ws.ok()) return `ws:${ws.status()}`;
+        const body = (await ws.json()) as {
+          workflow_state?: string;
+          question_evaluations?: Array<{
+            id: string;
+            proposed_ai_score: number | string | null;
+            max_mark: number | string;
+            workflow_state: string;
+          }>;
+        };
+        if (body.workflow_state === "EVALUATING") return "evaluating";
+        const qes = body.question_evaluations ?? [];
+        if (qes.length < 2) return `qes:${qes.length}`;
+        let idx = 0;
+        for (const qe of qes) {
+          if (qe.workflow_state === "ACCEPTED" || qe.workflow_state === "OVERRIDDEN") {
+            idx += 1;
+            continue;
+          }
+          if (qe.proposed_ai_score !== null && qe.proposed_ai_score !== undefined) {
+            const acc = await request.post(
+              `${apiBase}/api/v1/question-evaluations/${qe.id}/accept`,
+              { headers },
+            );
+            if (![200, 409].includes(acc.status())) return `accept:${acc.status()}`;
+          } else {
+            const over = await request.post(
+              `${apiBase}/api/v1/question-evaluations/${qe.id}/override`,
+              {
+                headers,
+                data: {
+                  score: Number(qe.max_mark) > 0 ? Math.min(3.5, Number(qe.max_mark)) : 0,
+                  reason: `B7 E2E override Q${idx}`,
+                },
+              },
+            );
+            if (![200, 409].includes(over.status())) return `override:${over.status()}`;
+          }
+          idx += 1;
+        }
+        const fin = await request.post(
+          `${apiBase}/api/v1/submissions/${submissionId}/evaluation/finalize`,
+          { headers },
+        );
+        if (!fin.ok()) return `fin:${fin.status()}:${await fin.text()}`;
+        const finBody = (await fin.json()) as { workflow_state?: string };
+        return finBody.workflow_state ?? "unknown";
       },
       { timeout: 180_000 },
     )
-    .toMatch(/of \d+ questions finalized\|1/);
-
-  for (let i = 0; i < 6; i += 1) {
-    const approve = page.getByTestId("approve-evaluation");
-    if (await approve.count()) break;
-    const accept = page.getByTestId("teacher-action-ACCEPT");
-    if ((await accept.count()) && (await accept.isEnabled())) {
-      await accept.click();
-      await page.getByRole("button", { name: "Apply" }).click();
-      await page.waitForTimeout(400);
-      continue;
-    }
-    const change = page.getByTestId("teacher-action-CHANGE_SCORE");
-    if (await change.count()) {
-      await change.click();
-      await page.getByTestId("teacher-new-score").fill("3.5");
-      await page.getByTestId("teacher-feedback").fill(`B7 finalize Q ${i}`);
-      await page.getByRole("button", { name: "Apply" }).click();
-      await page.waitForTimeout(400);
-    }
-    const next = page.getByTestId("question-tree-item-1");
-    if (await next.count()) await next.click();
-  }
-
-  await expect(page.getByTestId("approve-evaluation")).toBeVisible({
-    timeout: 90_000,
-  });
-  await page.getByTestId("approve-evaluation").click();
-  await expect(page.getByTestId("evaluation-approved-boundary")).toContainText(
-    /Evaluation approved/i,
-    { timeout: 30_000 },
-  );
+    .toBe("APPROVED");
 
   await page.goto(`/submissions/${submissionId}`);
   await expect(page.getByTestId("submission-workflow-state")).toContainText(
@@ -403,7 +427,15 @@ test.describe("B7 publication + reports (real API)", () => {
       token,
     );
     const pdf = await buildMultiPagePdf();
-    const submissionId = await reachApproved(page, assessmentId, studentId, pdf);
+    const submissionId = await reachApproved(
+      page,
+      request,
+      apiBase,
+      token,
+      assessmentId,
+      studentId,
+      pdf,
+    );
 
     // Consumer 404 before publish (API + UI).
     const before = await request.get(

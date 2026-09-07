@@ -326,6 +326,9 @@ async function reachTranscriptionReady(
   }
 
   await page.getByTestId("finalize-transcription").click();
+  await expect(page).toHaveURL(new RegExp(`/submissions/${submissionId}$`), {
+    timeout: 30_000,
+  });
   await expect(page.getByTestId("submission-detail-page")).toBeVisible({
     timeout: 30_000,
   });
@@ -390,10 +393,8 @@ test.describe("B6 real evaluation ledger review", () => {
     }
 
     // Move to second question and OVERRIDE with reason.
-    const q2 = page.getByTestId("question-tree-item-2");
-    if (await q2.count()) {
-      await q2.click();
-    }
+    await page.getByTestId("question-tree-item-2").click();
+    await page.waitForTimeout(500);
     await page.getByTestId("teacher-action-CHANGE_SCORE").click();
     await page.getByTestId("teacher-new-score").fill("4");
     await page.getByTestId("teacher-feedback").fill("Teacher override for B6 E2E");
@@ -412,24 +413,28 @@ test.describe("B6 real evaluation ledger review", () => {
       /of \d+ questions finalized/i,
     );
 
-    // If first accept was skipped (null proposal), accept/override remaining.
-    for (let i = 0; i < 4; i += 1) {
+    // Finish any remaining questions via tree codes 1/2.
+    for (const code of ["1", "2"]) {
       const approve = page.getByTestId("approve-evaluation");
       if (await approve.count()) break;
+      const item = page.getByTestId(`question-tree-item-${code}`);
+      if (await item.count()) await item.click();
+      await page.waitForTimeout(400);
       const accept = page.getByTestId("teacher-action-ACCEPT");
-      if (await accept.isEnabled()) {
+      if ((await accept.count()) && (await accept.isEnabled())) {
         await accept.click();
         await page.getByRole("button", { name: "Apply" }).click();
         await page.waitForTimeout(500);
         continue;
       }
-      await page.getByTestId("teacher-action-CHANGE_SCORE").click();
-      await page.getByTestId("teacher-new-score").fill("3");
-      await page.getByTestId("teacher-feedback").fill(`Finalize remaining Q ${i}`);
-      await page.getByRole("button", { name: "Apply" }).click();
-      await page.waitForTimeout(500);
-      const next = page.getByTestId("question-tree-item-1");
-      if (await next.count()) await next.click();
+      const change = page.getByTestId("teacher-action-CHANGE_SCORE");
+      if (await change.count()) {
+        await change.click();
+        await page.getByTestId("teacher-new-score").fill("3");
+        await page.getByTestId("teacher-feedback").fill(`Finalize remaining Q ${code}`);
+        await page.getByRole("button", { name: "Apply" }).click();
+        await page.waitForTimeout(500);
+      }
     }
 
     await expect(page.getByTestId("approve-evaluation")).toBeVisible({
