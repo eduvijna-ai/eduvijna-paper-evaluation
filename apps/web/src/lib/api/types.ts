@@ -34,6 +34,12 @@ import type {
   Student,
   StudentAnalyticsView,
   StudentMasteryEvidenceList,
+  StudentMasteryState,
+  StudentMasteryTrend,
+  StudentMistakeNotebook,
+  StudentRecoverableMarks,
+  StudentRepeatedErrors,
+  B12RebuildResult,
   StudentReport,
   Submission,
   TeacherReport,
@@ -380,6 +386,19 @@ export interface ApiClient {
   prepareAnalyticsMaterialization?(
     publishedResultId: string,
   ): Promise<AnalyticsMaterializationPrepareResult>;
+  getStudentMasteryState(studentId: string): Promise<StudentMasteryState>;
+  getStudentMasteryTrend(
+    studentId: string,
+    options?: { curriculumNodeId?: string },
+  ): Promise<StudentMasteryTrend>;
+  getStudentRepeatedErrors(studentId: string): Promise<StudentRepeatedErrors>;
+  getStudentRecoverableMarks(
+    studentId: string,
+  ): Promise<StudentRecoverableMarks>;
+  getStudentMistakeNotebook(
+    studentId: string,
+  ): Promise<StudentMistakeNotebook>;
+  rebuildStudentB12?(studentId: string): Promise<B12RebuildResult>;
   getAdaptiveLearning(studentId: string): Promise<AdaptiveLearningPlan>;
   getLearningWorkspace?(
     studentId: string,

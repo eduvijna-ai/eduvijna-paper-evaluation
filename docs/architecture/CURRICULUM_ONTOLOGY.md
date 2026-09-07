@@ -119,8 +119,8 @@ from_node_id  ──prerequisite──▶  to_node_id
    (REQUIRED / RECOMMENDED); path steps topological / dependency-first for REQUIRED.
 4. No external URL resources in CVB — only node references and generated text
    (resource assignment **deferred**, PEV-041).
-5. Evidence links only to B8 `MasteryEvidence` (`MasteryEvidence` = **source**;
-   `MasteryState` = **deferred**).
+5. Evidence links only to B8 `MasteryEvidence` (`MasteryEvidence` = immutable **source**;
+   longitudinal `MasteryState` = **B12 live** aggregates derived from that evidence).
 
 **Repair-before-advance:** If weakness detected at node X, emit REQUIRED prerequisite
 repair / mastery-check steps before X itself. RECOMMENDED weak support does not block X.
@@ -138,10 +138,12 @@ reassessment creation from an approved blueprint is **deferred** (PEV-043).
 | **Execution accuracy** | Procedural/arithmetic performance → `EXECUTION` |
 | **Procedure** | Method selection → `PROCEDURE` |
 
-`MasteryEvidence` is **B8 live** and is the **source** input for B9 learning plans.
-`MasteryState` longitudinal aggregates remain **AFTER_CLIENT_APPROVAL / deferred** —
-B8/B9 expose current evidence via API projection / plan hashes only, without persisting
-`mastery_states` rows ([DOMAIN_MODEL.md](./DOMAIN_MODEL.md)).
+`MasteryEvidence` is **B8 live** and is the immutable **source** input for B9 learning
+plans and B12 longitudinal mastery / mistake intelligence.
+`MasteryState` / `MasteryStateSnapshot` aggregates are **B12 live** (`B12_V1`, migration
+`0012`) — nullable decisive ratios with separate INCONCLUSIVE counts; see
+[DOMAIN_MODEL.md](./DOMAIN_MODEL.md). Resource assignment (PEV-041) and reassessment
+(PEV-043) remain deferred.
 
 ---
 
@@ -174,3 +176,4 @@ Full conventions: [API_CONVENTIONS.md](./API_CONVENTIONS.md).
 | 0.1 | 2026-09-04 | Initial curriculum ontology |
 | 0.2 | 2026-09-07 | B8 MasteryEvidence; MasteryState deferred |
 | 0.3 | 2026-09-07 | B9 curriculum-constrained recommendations + blueprint-only improvement |
+| 0.4 | 2026-09-08 | B12 MasteryState live from B8 evidence; PEV-041/043 still deferred |

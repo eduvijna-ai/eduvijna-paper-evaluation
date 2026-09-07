@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/b12-rebuild-result.schema.json",
+  "title": "B12RebuildResult",
+  "description": "Authenticated B12 longitudinal rebuild/backfill result (analytics:materialize).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "student_id",
+    "algorithm_version",
+    "mastery_state_count",
+    "snapshot_count",
+    "notebook_entry_count",
+    "source_evidence_hash",
+    "source"
+  ],
+  "properties": {
+    "student_id": { "type": "string", "format": "uuid" },
+    "algorithm_version": { "type": "string", "const": "B12_V1" },
+    "mastery_state_count": { "type": "integer", "minimum": 0 },
+    "snapshot_count": { "type": "integer", "minimum": 0 },
+    "notebook_entry_count": { "type": "integer", "minimum": 0 },
+    "source_evidence_hash": { "type": "string" },
+    "source": { "type": "string", "const": "MASTERY_EVIDENCE" }
+  }
+}

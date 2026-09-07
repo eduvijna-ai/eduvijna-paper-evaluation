@@ -35,6 +35,11 @@ import {
   getTranscriptionWorkspace,
   getParentReport,
   getStudentAnalytics,
+  getStudentMasteryState,
+  getStudentMasteryTrend,
+  getStudentMistakeNotebook,
+  getStudentRecoverableMarks,
+  getStudentRepeatedErrors,
   getStudentReport,
   MockNotFoundError,
   rubrics,
@@ -531,6 +536,21 @@ export const MockEduVijnaApi: ApiClient = {
   },
   async getStudentAnalytics(studentId) {
     return mockCall(() => getStudentAnalytics(studentId));
+  },
+  async getStudentMasteryState(studentId) {
+    return mockCall(() => getStudentMasteryState(studentId));
+  },
+  async getStudentMasteryTrend(studentId, options) {
+    return mockCall(() => getStudentMasteryTrend(studentId, options));
+  },
+  async getStudentRepeatedErrors(studentId) {
+    return mockCall(() => getStudentRepeatedErrors(studentId));
+  },
+  async getStudentRecoverableMarks(studentId) {
+    return mockCall(() => getStudentRecoverableMarks(studentId));
+  },
+  async getStudentMistakeNotebook(studentId) {
+    return mockCall(() => getStudentMistakeNotebook(studentId));
   },
   async getAdaptiveLearning(studentId) {
     return mockCall(() => getAdaptiveLearning(studentId));

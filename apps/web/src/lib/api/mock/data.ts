@@ -19,10 +19,16 @@ import type {
   CurriculumMapEntry,
   Student,
   StudentAnalytics,
+  StudentMasteryState,
+  StudentMasteryTrend,
+  StudentMistakeNotebook,
+  StudentRecoverableMarks,
+  StudentRepeatedErrors,
   StudentReport,
   Submission,
   TranscriptionWorkspacePayload,
 } from "@/lib/types/domain";
+import { B12_RECOVERABLE_MARKS_DISCLAIMER } from "@/lib/types/domain";
 
 export const TENANT_ID = "tenant-demo-001";
 export const INSTITUTION_ID = "inst-demo-001";
@@ -1102,6 +1108,337 @@ export function getStudentAnalytics(studentId: string): StudentAnalytics {
       { code: "METHOD", count: 4 },
       { code: "INCOMPLETE", count: 3 },
     ],
+  };
+}
+
+function emptyB12AsOf(): string {
+  return "2026-09-07T12:00:00.000Z";
+}
+
+/** Demo-only B12 fixtures — never invent longitudinal data for live UUIDs. */
+export function getStudentMasteryState(
+  studentId: string,
+): StudentMasteryState {
+  const student = students.find((s) => s.id === studentId);
+  if (!student) {
+    throw new MockNotFoundError(
+      "Data unavailable until this domain is connected",
+    );
+  }
+  if (studentId !== STUDENT_ID) {
+    return {
+      student_id: studentId,
+      items: [],
+      algorithm_version: "B12_V1",
+      source: "MASTERY_EVIDENCE",
+      as_of: emptyB12AsOf(),
+    };
+  }
+  return {
+    student_id: studentId,
+    items: [
+      {
+        id: "ms-demo-001",
+        curriculum_node_id: "node-demo-disc",
+        curriculum_id: CURRICULUM_ID,
+        code: "DISC",
+        title: "Discriminant",
+        node_type: "TOPIC",
+        concept_mastery: 0.85,
+        execution_accuracy: 0.6,
+        concept_decisive_count: 4,
+        execution_decisive_count: 5,
+        concept_inconclusive_count: 0,
+        execution_inconclusive_count: 1,
+        evidence_count: 6,
+        insufficient_concept_evidence: false,
+        insufficient_execution_evidence: false,
+        source_evidence_hash: "demo-hash-disc",
+        algorithm_version: "B12_V1",
+        last_updated_at: emptyB12AsOf(),
+      },
+      {
+        id: "ms-demo-002",
+        curriculum_node_id: "node-demo-bpt",
+        curriculum_id: CURRICULUM_ID,
+        code: "BPT",
+        title: "Similarity / BPT",
+        node_type: "TOPIC",
+        concept_mastery: null,
+        execution_accuracy: 0.4,
+        concept_decisive_count: 0,
+        execution_decisive_count: 3,
+        concept_inconclusive_count: 2,
+        execution_inconclusive_count: 0,
+        evidence_count: 3,
+        insufficient_concept_evidence: true,
+        insufficient_execution_evidence: false,
+        source_evidence_hash: "demo-hash-bpt",
+        algorithm_version: "B12_V1",
+        last_updated_at: emptyB12AsOf(),
+      },
+    ],
+    algorithm_version: "B12_V1",
+    source: "MASTERY_EVIDENCE",
+    as_of: emptyB12AsOf(),
+  };
+}
+
+export function getStudentMasteryTrend(
+  studentId: string,
+  _options?: { curriculumNodeId?: string },
+): StudentMasteryTrend {
+  const student = students.find((s) => s.id === studentId);
+  if (!student) {
+    throw new MockNotFoundError(
+      "Data unavailable until this domain is connected",
+    );
+  }
+  if (studentId !== STUDENT_ID) {
+    return {
+      student_id: studentId,
+      curriculum_node_id: _options?.curriculumNodeId ?? null,
+      points: [],
+      algorithm_version: "B12_V1",
+      source: "MASTERY_EVIDENCE",
+      as_of: emptyB12AsOf(),
+    };
+  }
+  return {
+    student_id: studentId,
+    curriculum_node_id: _options?.curriculumNodeId ?? null,
+    points: [
+      {
+        curriculum_node_id: "node-demo-disc",
+        curriculum_id: CURRICULUM_ID,
+        code: "DISC",
+        title: "Discriminant",
+        published_result_id: "pr-demo-001",
+        assessment_id: ASSESSMENT_ID,
+        assessment_code: "MATH-UT-1",
+        effective_at: "2026-08-01T10:00:00.000Z",
+        concept_mastery: 0.5,
+        execution_accuracy: 0.4,
+        concept_decisive_count: 2,
+        execution_decisive_count: 2,
+        evidence_count: 2,
+        insufficient_concept_evidence: false,
+        insufficient_execution_evidence: false,
+        source_evidence_hash: "demo-hash-t1",
+        algorithm_version: "B12_V1",
+      },
+      {
+        curriculum_node_id: "node-demo-disc",
+        curriculum_id: CURRICULUM_ID,
+        code: "DISC",
+        title: "Discriminant",
+        published_result_id: "pr-demo-002",
+        assessment_id: ASSESSMENT_ID_2,
+        assessment_code: "MATH-MT-DEMO-A",
+        effective_at: "2026-09-01T10:00:00.000Z",
+        concept_mastery: 0.85,
+        execution_accuracy: 0.6,
+        concept_decisive_count: 4,
+        execution_decisive_count: 5,
+        evidence_count: 6,
+        insufficient_concept_evidence: false,
+        insufficient_execution_evidence: false,
+        source_evidence_hash: "demo-hash-t2",
+        algorithm_version: "B12_V1",
+      },
+    ],
+    algorithm_version: "B12_V1",
+    source: "MASTERY_EVIDENCE",
+    as_of: emptyB12AsOf(),
+  };
+}
+
+export function getStudentRepeatedErrors(
+  studentId: string,
+): StudentRepeatedErrors {
+  const student = students.find((s) => s.id === studentId);
+  if (!student) {
+    throw new MockNotFoundError(
+      "Data unavailable until this domain is connected",
+    );
+  }
+  if (studentId !== STUDENT_ID) {
+    return {
+      student_id: studentId,
+      items: [],
+      recurrence_threshold: 2,
+      algorithm_version: "B12_V1",
+      source: "MASTERY_EVIDENCE",
+      as_of: emptyB12AsOf(),
+    };
+  }
+  return {
+    student_id: studentId,
+    items: [
+      {
+        error_code: "CALCULATION",
+        occurrence_count: 4,
+        distinct_published_result_count: 2,
+        distinct_assessment_count: 2,
+        first_seen_at: "2026-08-01T10:00:00.000Z",
+        last_seen_at: "2026-09-01T10:00:00.000Z",
+        affected_question_evaluations: [
+          {
+            published_result_id: "pr-demo-001",
+            assessment_id: ASSESSMENT_ID,
+            question_evaluation_id: "qe-demo-001",
+            question_version_id: "qv-demo-001",
+          },
+          {
+            published_result_id: "pr-demo-002",
+            assessment_id: ASSESSMENT_ID_2,
+            question_evaluation_id: "qe-demo-002",
+            question_version_id: "qv-demo-002",
+          },
+        ],
+        curriculum_node_ids: ["node-demo-disc"],
+      },
+    ],
+    recurrence_threshold: 2,
+    algorithm_version: "B12_V1",
+    source: "MASTERY_EVIDENCE",
+    as_of: emptyB12AsOf(),
+  };
+}
+
+export function getStudentRecoverableMarks(
+  studentId: string,
+): StudentRecoverableMarks {
+  const student = students.find((s) => s.id === studentId);
+  if (!student) {
+    throw new MockNotFoundError(
+      "Data unavailable until this domain is connected",
+    );
+  }
+  if (studentId !== STUDENT_ID) {
+    return {
+      student_id: studentId,
+      total_lost_marks: "0.00",
+      attributed_potentially_recoverable_marks: "0.00",
+      unattributed_lost_marks: "0.00",
+      items: [],
+      disclaimer: B12_RECOVERABLE_MARKS_DISCLAIMER,
+      algorithm_version: "B12_V1",
+      source: "PUBLISHED_LEDGER",
+      as_of: emptyB12AsOf(),
+    };
+  }
+  return {
+    student_id: studentId,
+    total_lost_marks: "7.50",
+    attributed_potentially_recoverable_marks: "5.00",
+    unattributed_lost_marks: "2.50",
+    items: [
+      {
+        error_code: "CALCULATION",
+        potentially_recoverable_marks: "5.00",
+        occurrence_count: 2,
+        percent_of_total_lost: 66.67,
+        affected_references: [
+          {
+            published_result_id: "pr-demo-001",
+            assessment_id: ASSESSMENT_ID,
+            question_evaluation_id: "qe-demo-001",
+            criterion_evaluation_id: "ce-demo-001",
+          },
+        ],
+      },
+    ],
+    disclaimer: B12_RECOVERABLE_MARKS_DISCLAIMER,
+    algorithm_version: "B12_V1",
+    source: "PUBLISHED_LEDGER",
+    as_of: emptyB12AsOf(),
+  };
+}
+
+export function getStudentMistakeNotebook(
+  studentId: string,
+): StudentMistakeNotebook {
+  const student = students.find((s) => s.id === studentId);
+  if (!student) {
+    throw new MockNotFoundError(
+      "Data unavailable until this domain is connected",
+    );
+  }
+  if (studentId !== STUDENT_ID) {
+    return {
+      student_id: studentId,
+      entries: [],
+      algorithm_version: "B12_V1",
+      source: "PUBLISHED_LEDGER",
+      as_of: emptyB12AsOf(),
+    };
+  }
+  return {
+    student_id: studentId,
+    entries: [
+      {
+        id: "nb-demo-001",
+        published_result_id: "pr-demo-001",
+        assessment_id: ASSESSMENT_ID,
+        assessment_code: "MATH-UT-1",
+        submission_id: SUBMISSION_ID,
+        question_evaluation_id: "qe-demo-001",
+        question_version_id: "qv-demo-001",
+        question_code: "Q1",
+        academic_error_code: "CALCULATION",
+        final_score: "3.00",
+        max_mark: "5.00",
+        deduction_reasons: ["Arithmetic slip in discriminant expansion"],
+        first_divergence_step: "2",
+        curriculum_nodes: [
+          {
+            id: "node-demo-disc",
+            code: "DISC",
+            title: "Discriminant",
+            node_type: "TOPIC",
+          },
+        ],
+        recommended_practice_kind: "EXECUTION_PRACTICE",
+        linked_learning_recommendation_ids: ["rec-demo-001"],
+        source_ledger_snapshot_hash: "demo-ledger-hash-1",
+        algorithm_version: "B12_V1",
+        materialized_at: emptyB12AsOf(),
+        effective_at: "2026-08-01T10:00:00.000Z",
+      },
+      {
+        id: "nb-demo-002",
+        published_result_id: "pr-demo-002",
+        assessment_id: ASSESSMENT_ID_2,
+        assessment_code: "MATH-MT-DEMO-A",
+        submission_id: "sub-demo-002",
+        question_evaluation_id: "qe-demo-002",
+        question_version_id: "qv-demo-002",
+        question_code: "Q2",
+        academic_error_code: "METHOD",
+        final_score: "2.00",
+        max_mark: "5.00",
+        deduction_reasons: ["Incorrect approach to BPT application"],
+        first_divergence_step: "1",
+        curriculum_nodes: [
+          {
+            id: "node-demo-bpt",
+            code: "BPT",
+            title: "Similarity / BPT",
+            node_type: "TOPIC",
+          },
+        ],
+        recommended_practice_kind: "CONCEPT_CHECK",
+        linked_learning_recommendation_ids: [],
+        source_ledger_snapshot_hash: "demo-ledger-hash-2",
+        algorithm_version: "B12_V1",
+        materialized_at: emptyB12AsOf(),
+        effective_at: "2026-09-01T10:00:00.000Z",
+      },
+    ],
+    algorithm_version: "B12_V1",
+    source: "PUBLISHED_LEDGER",
+    as_of: emptyB12AsOf(),
   };
 }
 
