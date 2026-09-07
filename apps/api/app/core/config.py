@@ -123,6 +123,14 @@ class Settings(BaseSettings):
             "AI_MODEL_TRANSCRIPTION", "ai_model_transcription"
         ),
     )
+    ai_model_evaluation: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices("AI_MODEL_EVALUATION", "ai_model_evaluation"),
+        description=(
+            "Model for evaluate_rubric/classify_error. Provider selection reuses "
+            "AI_PROVIDER_VISION (fixed/openai/none) — no separate AI_PROVIDER_EVALUATION."
+        ),
+    )
     ai_request_timeout_seconds: int = Field(
         default=60,
         validation_alias=AliasChoices(

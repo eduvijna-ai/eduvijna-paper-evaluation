@@ -364,14 +364,14 @@ describe("B4 API capabilities", () => {
     vi.unstubAllEnvs();
   });
 
-  it("marks mapping live in hybrid while evaluation stays mock", () => {
+  it("marks mapping and evaluation live in hybrid", () => {
     vi.stubEnv("NEXT_PUBLIC_API_MODE", "hybrid");
     const caps = getApiCapabilities();
     expect(caps.submissions).toBe("live");
     expect(caps.identityReview).toBe("live");
     expect(caps.mapping).toBe("live");
     expect(caps.transcription).toBe("live");
-    expect(caps.evaluation).toBe("mock");
+    expect(caps.evaluation).toBe("live");
     expect(caps.reports).toBe("mock");
     expect(caps.analytics).toBe("mock");
     expect(caps.learning).toBe("mock");

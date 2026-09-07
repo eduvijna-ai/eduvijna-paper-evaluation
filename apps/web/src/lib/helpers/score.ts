@@ -13,17 +13,42 @@ export function sumScores(scores: number[]): number {
   return scores.reduce((acc, value) => acc + value, 0);
 }
 
+/**
+ * Prefer human-approved score when present. Null proposed must stay null
+ * (never coerce unreadable / missing proposals to 0).
+ */
 export function resolveDisplayScore(
-  proposed: number,
+  proposed: number | null,
   finalApproved: number | null,
-): number {
-  return finalApproved ?? proposed;
+): number | null {
+  if (finalApproved !== null && finalApproved !== undefined) return finalApproved;
+  return proposed;
 }
 
 export function formatScore(score: number, max: number): string {
-  return `${resolveDisplayScore(score, null) === score ? score : score}/${max}`;
+  return `${score}/${max}`;
 }
 
-export function formatScorePair(score: number, max: number): string {
+export function formatScorePair(score: number | null, max: number): string {
+  if (score === null || score === undefined) return `— / ${max}`;
   return `${score} / ${max}`;
+}
+
+/** UI copy when AI did not propose a numeric score. */
+export const NO_PROPOSAL_SCORE_MESSAGE =
+  "No automatic score proposed. Human review required.";
+
+export function formatProposedScoreLabel(
+  proposed: number | null,
+  max: number,
+): string {
+  if (proposed === null || proposed === undefined) {
+    return NO_PROPOSAL_SCORE_MESSAGE;
+  }
+  return formatScorePair(proposed, max);
+}
+
+export function formatCriterionMarks(marks: number | null | undefined): string {
+  if (marks === null || marks === undefined) return "—";
+  return String(marks);
 }

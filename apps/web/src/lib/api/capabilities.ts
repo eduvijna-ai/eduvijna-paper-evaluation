@@ -39,7 +39,7 @@ export function getApiCapabilities(): ApiCapabilities {
       identityReview: "live",
       mapping: "live",
       transcription: "live",
-      evaluation: "mock",
+      evaluation: "live",
       reports: "mock",
       analytics: "mock",
       learning: "mock",

@@ -1,4 +1,4 @@
-"""Optional OpenAI structure provider (no network in CI)."""
+"""Optional OpenAI structure + evaluation provider (no network in CI)."""
 
 from __future__ import annotations
 
@@ -7,6 +7,8 @@ from collections.abc import Awaitable, Callable
 from typing import Any
 
 from app.ai.types import (
+    ErrorClassificationInput,
+    ErrorClassificationResult,
     IdentityExtractionInput,
     IdentityExtractionResult,
     PageAnalysisInput,
@@ -14,6 +16,8 @@ from app.ai.types import (
     ProviderUnavailable,
     RegionMappingInput,
     RegionMappingResult,
+    RubricEvaluationInput,
+    RubricEvaluationResult,
     TranscriptionInput,
     TranscriptionResult,
 )
@@ -22,6 +26,8 @@ JsonCaller = Callable[[str, dict[str, Any]], Awaitable[dict[str, Any]]]
 
 
 class OpenAIStructureProvider:
+    """Implements StructureAIProvider and EvaluationAIProvider."""
+
     provider_name = "openai"
 
     def __init__(
@@ -32,6 +38,7 @@ class OpenAIStructureProvider:
         model_page_analysis: str,
         model_mapping: str,
         model_transcription: str,
+        model_evaluation: str | None = None,
         timeout_seconds: int = 60,
         caller: JsonCaller | None = None,
     ) -> None:
@@ -41,6 +48,8 @@ class OpenAIStructureProvider:
             "page_analysis": model_page_analysis,
             "mapping": model_mapping,
             "transcription": model_transcription,
+            "evaluate_rubric": model_evaluation or model_transcription,
+            "classify_error": model_evaluation or model_transcription,
         }
         self._timeout = timeout_seconds
         self._caller = caller
@@ -53,7 +62,6 @@ class OpenAIStructureProvider:
         self._require()
         if self._caller is not None:
             return await self._caller(operation, payload)
-        # Production path uses official SDK only when key is present.
         try:
             from openai import AsyncOpenAI
         except ImportError as exc:  # pragma: no cover
@@ -96,6 +104,21 @@ class OpenAIStructureProvider:
     async def transcribe_answer(
         self, request: TranscriptionInput
     ) -> TranscriptionResult:
-        # Crop bytes are never included — only sha256 ref in the typed input.
         raw = await self._complete("transcription", request.model_dump(mode="json"))
         return TranscriptionResult.model_validate(raw)
+
+    async def evaluate_rubric(
+        self, request: RubricEvaluationInput
+    ) -> RubricEvaluationResult:
+        raw = await self._complete("evaluate_rubric", request.model_dump(mode="json"))
+        return RubricEvaluationResult.model_validate(raw)
+
+    async def classify_error(
+        self, request: ErrorClassificationInput
+    ) -> ErrorClassificationResult:
+        raw = await self._complete("classify_error", request.model_dump(mode="json"))
+        return ErrorClassificationResult.model_validate(raw)
+
+
+# Alias for clarity in evaluation-focused call sites / tests.
+OpenAIEvaluationProvider = OpenAIStructureProvider

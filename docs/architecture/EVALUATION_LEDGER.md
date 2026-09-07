@@ -2,7 +2,7 @@
 
 **Product:** EduVijna Paper Evaluation (CVB v0.1)  
 **Status:** Canonical source of truth for scores (ADR-006)  
-**Last updated:** 2026-09-04  
+**Last updated:** 2026-09-06  
 **Related:** [DOMAIN_MODEL.md](./DOMAIN_MODEL.md), [RUBRIC_SCHEMA.md](./RUBRIC_SCHEMA.md), [ERROR_TAXONOMY.md](./ERROR_TAXONOMY.md), [WORKFLOW_STATES.md](./WORKFLOW_STATES.md)
 
 ---
@@ -21,7 +21,7 @@ The **evaluation ledger** is the authoritative, queryable record of every propos
 2. Every ledger row references immutable `assessment_version_id`, `question_version_id`, `rubric_version_id`, and `answer_key_version_id`.
 3. Approved rows are **never deleted or silently overwritten**; corrections append `OVERRIDE` review actions and new ledger versions.
 4. **Separate confidence dimensions** — never a single generic "AI confidence" field (ADR-006).
-5. `UNREADABLE` transcription does not imply incorrect work — it triggers review, not automatic zero marks.
+5. `UNREADABLE` transcription does not imply incorrect work — it triggers review, not automatic zero marks. `proposed_ai_score` and criterion `proposed_marks` remain **null** until a human override supplies a score.
 
 ---
 
@@ -59,7 +59,7 @@ The **evaluation ledger** is the authoritative, queryable record of every propos
 |-------|------|----------|-------------|
 | `max_mark` | decimal | Yes | Question maximum from rubric |
 | `criterion_decisions` | JSONB | Yes | Array of per-criterion decisions (see §4) |
-| `proposed_ai_score` | decimal | Yes | Sum of AI-proposed criterion marks |
+| `proposed_ai_score` | decimal \| null | Yes | Sum of AI-proposed criterion marks; **null when unreadable / no proposal** (never coerce to 0) |
 | `final_human_approved_score` | decimal | No | Set on ACCEPT/OVERRIDE; null while pending |
 | `deduction_reasons` | JSONB | No | Structured list: `{ "criterion_id", "reason", "error_code", "marks_deducted" }` |
 | `error_codes` | string[] | No | Top-level taxonomy codes — see [ERROR_TAXONOMY.md](./ERROR_TAXONOMY.md) |
@@ -157,14 +157,14 @@ Each element in `criterion_decisions`:
 
 ```
 [Pipeline creates row]
-    workflow_state = PENDING | PROPOSED
-    proposed_ai_score populated
+    workflow_state = PENDING | PROPOSED | REVIEW_REQUIRED
+    proposed_ai_score populated **or null** (unreadable / provider unavailable / review-only)
     final_human_approved_score = null
 
 [Low confidence or review policy]
     workflow_state = REVIEW_REQUIRED
 
-[Reviewer ACCEPT]
+[Reviewer ACCEPT] (requires non-null proposed_ai_score)
     final_human_approved_score = proposed_ai_score (or confirmed)
     workflow_state = ACCEPTED
     review_action recorded
@@ -175,9 +175,13 @@ Each element in `criterion_decisions`:
     workflow_state = OVERRIDDEN
     original AI proposal preserved in before_snapshot
 
+[Reviewer ESCALATE]
+    workflow_state = ESCALATED
+    review_action recorded
+
 [Publication gate]
     All questions ACCEPTED | OVERRIDDEN
-    Submission transitions to APPROVED → PUBLISHED
+    Submission transitions to APPROVED (B6); PUBLISHED / reports later
     Ledger rows become read-only
 ```
 

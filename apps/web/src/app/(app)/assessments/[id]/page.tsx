@@ -104,14 +104,16 @@ export default function AssessmentDetailPage({
       </dl>
 
       {capabilities.assessments === "live" &&
-        (capabilities.analytics === "mock" || capabilities.mapping === "mock") && (
+        capabilities.analytics === "mock" && (
         <p
           data-testid="assessment-downstream-boundary"
           className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"
         >
-          {capabilities.submissions === "live"
-            ? "Analytics, mapping, and evaluation remain on the mock provider and are hidden for live assessment identities."
-            : "Analytics and submission workflows remain on the mock provider and are hidden for live A2 assessment identities."}
+          {capabilities.evaluation === "live"
+            ? "Analytics, reports, and learning remain on the mock provider and are hidden for live assessment identities."
+            : capabilities.submissions === "live"
+              ? "Analytics, mapping, and evaluation remain on the mock provider and are hidden for live assessment identities."
+              : "Analytics and submission workflows remain on the mock provider and are hidden for live A2 assessment identities."}
         </p>
       )}
 

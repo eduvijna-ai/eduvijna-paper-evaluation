@@ -237,3 +237,53 @@ async def enqueue_transcription(
     result = transcription_task.delay(str(tenant_id), str(submission_id), str(job_id))
     task_id = getattr(result, "id", None)
     return str(task_id) if task_id is not None else None
+
+
+async def _evaluation_async(
+    tenant_id: uuid.UUID, submission_id: uuid.UUID, job_id: uuid.UUID
+) -> None:
+    from app.db.session import async_session_factory, engine
+    from app.services.evaluation import run_evaluation_pipeline
+
+    await engine.dispose()
+    async with async_session_factory() as db:
+        await run_evaluation_pipeline(
+            db,
+            tenant_id=tenant_id,
+            submission_id=submission_id,
+            job_id=job_id,
+        )
+
+
+def _evaluation_impl(tenant_id: str, submission_id: str, job_id: str) -> dict[str, str]:
+    asyncio.run(
+        _evaluation_async(
+            uuid.UUID(tenant_id),
+            uuid.UUID(submission_id),
+            uuid.UUID(job_id),
+        )
+    )
+    return {
+        "tenant_id": tenant_id,
+        "submission_id": submission_id,
+        "job_id": job_id,
+        "status": "ok",
+    }
+
+
+evaluation_task = cast(
+    Any, celery_app.task(name="submissions.run_evaluation")(_evaluation_impl)
+)
+
+
+async def enqueue_evaluation(
+    *, tenant_id: uuid.UUID, submission_id: uuid.UUID, job_id: uuid.UUID
+) -> str | None:
+    settings = get_settings()
+    if settings.celery_task_always_eager:
+        await _evaluation_async(tenant_id, submission_id, job_id)
+        return f"eager:{job_id}"
+
+    result = evaluation_task.delay(str(tenant_id), str(submission_id), str(job_id))
+    task_id = getattr(result, "id", None)
+    return str(task_id) if task_id is not None else None

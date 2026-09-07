@@ -21,6 +21,12 @@ from app.db.models.curriculum_assessment import (
     RubricCriterion,
     RubricVersion,
 )
+from app.db.models.evaluation import (
+    CriterionEvaluation,
+    EvaluationRun,
+    QuestionEvaluation,
+    ReviewAction,
+)
 from app.db.models.institution import Institution
 from app.db.models.mapping import (
     AnswerRegion,
@@ -44,9 +50,11 @@ __all__ = [
     "AssessmentVersion",
     "AuditEvent",
     "ClassSection",
+    "CriterionEvaluation",
     "Curriculum",
     "CurriculumNode",
     "CurriculumPrerequisite",
+    "EvaluationRun",
     "Guardian",
     "Institution",
     "ImportSession",
@@ -56,7 +64,9 @@ __all__ = [
     "QuestionAnswerMapping",
     "QuestionAnswerMappingRegion",
     "QuestionCurriculumMapping",
+    "QuestionEvaluation",
     "QuestionVersion",
+    "ReviewAction",
     "Role",
     "RolePermission",
     "Rubric",

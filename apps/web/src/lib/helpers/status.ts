@@ -47,6 +47,7 @@ const evaluationLabels: Record<EvaluationWorkflowState, StatusVisual> = {
   REVIEW_REQUIRED: { label: "Review required", tone: "warning" },
   ACCEPTED: { label: "Accepted", tone: "success" },
   OVERRIDDEN: { label: "Overridden", tone: "warning" },
+  ESCALATED: { label: "Escalated", tone: "danger" },
 };
 
 export function getAssessmentStatus(state: AssessmentState): StatusVisual {

@@ -5,6 +5,7 @@ import { AuthoringHttpApi } from "../http/authoring";
 import { SubmissionHttpApi } from "../http/submissions";
 import { MappingHttpApi } from "../http/mapping";
 import { TranscriptionHttpApi } from "../http/transcription";
+import { EvaluationHttpApi } from "../http/evaluation";
 import { ApiError } from "../http/errors";
 import { httpRequest } from "../http/client";
 import { getApiCapabilities } from "../capabilities";
@@ -16,16 +17,33 @@ function isLiveSubmissionId(id: string): boolean {
   return LIVE_UUID_RE.test(id) && !id.toLowerCase().includes("demo");
 }
 
+function refuseMockDownstream(
+  domain: "reports" | "analytics" | "learning",
+  entityId: string,
+): void {
+  if (!isLiveSubmissionId(entityId)) return;
+  const caps = getApiCapabilities();
+  if (caps[domain] !== "mock") return;
+  throw new ApiError({
+    message: `Live ${domain} is not enabled for this identity.`,
+    status: 404,
+    kind: "not_found",
+    code: `${domain.toUpperCase()}_NOT_LIVE`,
+  });
+}
+
 /**
- * Hybrid domain routing (B4):
+ * Hybrid domain routing (B6):
  * - Auth, Institution, Academic Years, Class Sections, Students, Import, Guardians → A1 HTTP
  * - Curriculum and Assessment authoring → A2 HTTP
  * - Submissions + identity review → B3 HTTP
  * - Mapping review → B4 HTTP
  * - Transcription review → B5 HTTP
- * - Evaluation, Analytics, Reporting, Learning → MOCK until their backend phases land
+ * - Evaluation ledger review → B6 HTTP
+ * - Analytics, Reporting, Learning → MOCK (refuse live UUIDs)
  *
  * Components use `api` only — they must not inspect mock vs HTTP.
+ * Live evaluation errors must never silently fall back to mock.
  */
 export const HybridEduVijnaApi: ApiClient = {
   async getHealth() {
@@ -146,11 +164,29 @@ export const HybridEduVijnaApi: ApiClient = {
   finalizeTranscription: (id) => TranscriptionHttpApi.finalizeTranscription(id),
   getRegionCropBlob: (regionId) => TranscriptionHttpApi.getRegionCropBlob(regionId),
 
-  getEvaluationWorkspace: async (submissionId, ...args) => {
-    if (
-      getApiCapabilities().submissions === "live" &&
-      isLiveSubmissionId(submissionId)
-    ) {
+  prepareEvaluation: async (submissionId) => {
+    if (getApiCapabilities().evaluation === "live" && isLiveSubmissionId(submissionId)) {
+      return EvaluationHttpApi.prepareEvaluation(submissionId);
+    }
+    throw new ApiError({
+      message: "prepareEvaluation is only available for live evaluation submissions.",
+      status: 404,
+      kind: "not_found",
+      code: "EVALUATION_NOT_LIVE",
+    });
+  },
+  getEvaluationWorkspace: async (submissionId, questionId) => {
+    if (getApiCapabilities().evaluation === "live") {
+      if (isLiveSubmissionId(submissionId)) {
+        return EvaluationHttpApi.getEvaluationWorkspace(
+          submissionId,
+          questionId,
+        );
+      }
+      // Demo / mock IDs stay on mock fixtures even when capability is live.
+      return MockEduVijnaApi.getEvaluationWorkspace(submissionId, questionId);
+    }
+    if (isLiveSubmissionId(submissionId)) {
       throw new ApiError({
         message:
           "Live evaluation is not enabled for this submission. Complete transcription review first.",
@@ -159,13 +195,26 @@ export const HybridEduVijnaApi: ApiClient = {
         code: "EVALUATION_NOT_LIVE",
       });
     }
-    return MockEduVijnaApi.getEvaluationWorkspace(submissionId, ...args);
+    return MockEduVijnaApi.getEvaluationWorkspace(submissionId, questionId);
   },
-  applyTeacherAction: async (submissionId, ...args) => {
-    if (
-      getApiCapabilities().submissions === "live" &&
-      isLiveSubmissionId(submissionId)
-    ) {
+  applyTeacherAction: async (submissionId, ledgerId, action, payload) => {
+    if (getApiCapabilities().evaluation === "live") {
+      if (isLiveSubmissionId(submissionId)) {
+        return EvaluationHttpApi.applyTeacherAction(
+          submissionId,
+          ledgerId,
+          action,
+          payload,
+        );
+      }
+      return MockEduVijnaApi.applyTeacherAction(
+        submissionId,
+        ledgerId,
+        action,
+        payload,
+      );
+    }
+    if (isLiveSubmissionId(submissionId)) {
       throw new ApiError({
         message: "Live evaluation actions are not enabled for this submission.",
         status: 404,
@@ -173,18 +222,51 @@ export const HybridEduVijnaApi: ApiClient = {
         code: "EVALUATION_NOT_LIVE",
       });
     }
-    return MockEduVijnaApi.applyTeacherAction(submissionId, ...args);
+    return MockEduVijnaApi.applyTeacherAction(
+      submissionId,
+      ledgerId,
+      action,
+      payload,
+    );
   },
-  getStudentReport: (...args) => MockEduVijnaApi.getStudentReport(...args),
-  getParentReport: (...args) => MockEduVijnaApi.getParentReport(...args),
-  getAssessmentAnalytics: (...args) =>
-    MockEduVijnaApi.getAssessmentAnalytics(...args),
-  getStudentAnalytics: (...args) =>
-    MockEduVijnaApi.getStudentAnalytics(...args),
-  getAdaptiveLearning: (...args) =>
-    MockEduVijnaApi.getAdaptiveLearning(...args),
-  getImprovementBlueprint: (...args) =>
-    MockEduVijnaApi.getImprovementBlueprint(...args),
+  finalizeEvaluation: async (submissionId) => {
+    if (getApiCapabilities().evaluation === "live" && isLiveSubmissionId(submissionId)) {
+      return EvaluationHttpApi.finalizeEvaluation(submissionId);
+    }
+    throw new ApiError({
+      message: "finalizeEvaluation is only available for live evaluation submissions.",
+      status: 404,
+      kind: "not_found",
+      code: "EVALUATION_NOT_LIVE",
+    });
+  },
+
+  getStudentReport: async (studentId, assessmentId) => {
+    refuseMockDownstream("reports", studentId);
+    refuseMockDownstream("reports", assessmentId);
+    return MockEduVijnaApi.getStudentReport(studentId, assessmentId);
+  },
+  getParentReport: async (studentId, assessmentId) => {
+    refuseMockDownstream("reports", studentId);
+    refuseMockDownstream("reports", assessmentId);
+    return MockEduVijnaApi.getParentReport(studentId, assessmentId);
+  },
+  getAssessmentAnalytics: async (assessmentId) => {
+    refuseMockDownstream("analytics", assessmentId);
+    return MockEduVijnaApi.getAssessmentAnalytics(assessmentId);
+  },
+  getStudentAnalytics: async (studentId) => {
+    refuseMockDownstream("analytics", studentId);
+    return MockEduVijnaApi.getStudentAnalytics(studentId);
+  },
+  getAdaptiveLearning: async (studentId) => {
+    refuseMockDownstream("learning", studentId);
+    return MockEduVijnaApi.getAdaptiveLearning(studentId);
+  },
+  getImprovementBlueprint: async (studentId) => {
+    refuseMockDownstream("learning", studentId);
+    return MockEduVijnaApi.getImprovementBlueprint(studentId);
+  },
   approveImprovementBlueprint: (...args) =>
     MockEduVijnaApi.approveImprovementBlueprint(...args),
 };
