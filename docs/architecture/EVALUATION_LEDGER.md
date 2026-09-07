@@ -74,7 +74,7 @@ The **evaluation ledger** is the authoritative, queryable record of every propos
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `curriculum_concept_ids` | UUID[] | No | Mapped `CurriculumNode` IDs (concept/skill/LO) |
-| `mastery_evidence_ids` | UUID[] | No | Generated `MasteryEvidence` row refs post-approval |
+| `mastery_evidence_ids` | UUID[] | No | B8: materialised after **PUBLISHED** (not merely APPROVED); no MasteryState in B8 |
 
 ### 3.5 Confidence dimensions (SEPARATE — mandatory)
 

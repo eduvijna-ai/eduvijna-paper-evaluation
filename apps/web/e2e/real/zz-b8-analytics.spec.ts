@@ -9,12 +9,13 @@ function runId(): string {
   return `${Date.now().toString(36)}${randomUUID().replace(/-/g, "").slice(0, 8)}`;
 }
 
-async function buildMultiPagePdf(): Promise<Buffer> {
+async function buildUniquePdf(label: string): Promise<Buffer> {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
-  for (const label of ["Page 1 — B7", "Page 2 — B7"]) {
+  for (const pageLabel of [`Page 1 — ${label}`, `Page 2 — ${label}`]) {
     const page = doc.addPage([400, 560]);
-    page.drawText(label, { x: 48, y: 500, size: 18, font });
+    page.drawText(pageLabel, { x: 48, y: 500, size: 16, font });
+    page.drawText(runId(), { x: 48, y: 460, size: 10, font });
   }
   return Buffer.from(await doc.save());
 }
@@ -31,15 +32,15 @@ async function createTwoLeafAssessment(
   request: APIRequestContext,
   apiBase: string,
   token: string,
-): Promise<{ assessmentId: string; studentId: string }> {
+): Promise<{ assessmentId: string; studentA: string; studentB: string }> {
   const headers = { Authorization: `Bearer ${token}` };
   const suffix = runId();
 
   const curriculum = await request.post(`${apiBase}/api/v1/curricula`, {
     headers,
     data: {
-      code: `B7-CUR-${suffix}`,
-      name: `B7 Curriculum ${suffix}`,
+      code: `B8-CUR-${suffix}`,
+      name: `B8 Curriculum ${suffix}`,
       version_label: "2026",
       status: "active",
     },
@@ -47,24 +48,29 @@ async function createTwoLeafAssessment(
   expect(curriculum.status()).toBe(201);
   const curriculumId = ((await curriculum.json()) as { id: string }).id;
 
-  await request.post(`${apiBase}/api/v1/curricula/${curriculumId}/nodes`, {
-    headers,
-    data: {
-      node_type: "SUBJECT",
-      code: `SUB-${suffix}`,
-      name: `Subject ${suffix}`,
-      sequence: 1,
-      metadata: {},
-      status: "active",
+  const subjectNode = await request.post(
+    `${apiBase}/api/v1/curricula/${curriculumId}/nodes`,
+    {
+      headers,
+      data: {
+        node_type: "SUBJECT",
+        code: `SUB-${suffix}`,
+        name: `Subject ${suffix}`,
+        sequence: 1,
+        metadata: {},
+        status: "active",
+      },
     },
-  });
+  );
+  expect(subjectNode.status()).toBe(201);
+  const nodeId = ((await subjectNode.json()) as { id: string }).id;
 
   const assessment = await request.post(`${apiBase}/api/v1/assessments`, {
     headers,
     data: {
       curriculum_id: curriculumId,
-      code: `B7-ASM-${suffix}`,
-      title: `B7 Publication Assessment ${suffix}`,
+      code: `B8-ASM-${suffix}`,
+      title: `B8 Analytics Assessment ${suffix}`,
       assessment_type: "EXAM",
       max_marks: "10.00",
     },
@@ -100,6 +106,19 @@ async function createTwoLeafAssessment(
     );
     expect(question.status()).toBe(201);
     const questionId = ((await question.json()) as { id: string }).id;
+
+    const mapping = await request.post(
+      `${apiBase}/api/v1/question-versions/${questionId}/curriculum-mappings`,
+      {
+        headers,
+        data: {
+          curriculum_node_id: nodeId,
+          mapping_type: "PRIMARY",
+          weight: "1.00",
+        },
+      },
+    );
+    expect(mapping.status()).toBe(201);
 
     const key = await request.post(
       `${apiBase}/api/v1/assessments/${assessmentId}/answer-key-versions`,
@@ -186,6 +205,17 @@ async function createTwoLeafAssessment(
     ).status(),
   ).toBe(200);
 
+  const assessmentGet = await request.get(
+    `${apiBase}/api/v1/assessments/${assessmentId}`,
+    { headers },
+  );
+  expect(assessmentGet.ok()).toBeTruthy();
+  const assessmentState = (await assessmentGet.json()) as {
+    status?: string;
+    workflow_state?: string;
+  };
+  expect(assessmentState.status ?? assessmentState.workflow_state).toBe("ACTIVE");
+
   const years = await request.get(`${apiBase}/api/v1/academic-years`, { headers });
   const sections = await request.get(`${apiBase}/api/v1/class-sections`, { headers });
   const yearRows = (await years.json()) as { id: string }[];
@@ -197,21 +227,31 @@ async function createTwoLeafAssessment(
     yearRows.some((y) => y.id === s.academic_year_id),
   );
   expect(section).toBeTruthy();
-  const student = await request.post(`${apiBase}/api/v1/students`, {
-    headers,
-    data: {
-      student_code: `B7S-${suffix}`,
-      full_name: `B7 Student ${suffix}`,
-      class_section_id: section!.id,
-      academic_year_id: section!.academic_year_id,
-      status: "active",
-    },
-  });
-  expect(student.status()).toBe(201);
-  return { assessmentId, studentId: ((await student.json()) as { id: string }).id };
+
+  const students: string[] = [];
+  for (const tag of ["A", "B"] as const) {
+    const student = await request.post(`${apiBase}/api/v1/students`, {
+      headers,
+      data: {
+        student_code: `B8${tag}-${suffix}`,
+        full_name: `B8 Student ${tag} ${suffix}`,
+        class_section_id: section!.id,
+        academic_year_id: section!.academic_year_id,
+        status: "active",
+      },
+    });
+    expect(student.status()).toBe(201);
+    students.push(((await student.json()) as { id: string }).id);
+  }
+
+  return {
+    assessmentId,
+    studentA: students[0]!,
+    studentB: students[1]!,
+  };
 }
 
-async function reachApproved(
+async function publishOne(
   page: Page,
   request: APIRequestContext,
   apiBase: string,
@@ -219,27 +259,41 @@ async function reachApproved(
   assessmentId: string,
   studentId: string,
   pdf: Buffer,
+  overrideScore: number,
 ): Promise<string> {
+  const headers = { Authorization: `Bearer ${token}` };
+
+  // Prefer API upload; assert status for CI diagnostics.
+  const upload = await request.post(`${apiBase}/api/v1/submissions`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    multipart: {
+      assessment_id: assessmentId,
+      file: {
+        name: "b8-sheet.pdf",
+        mimeType: "application/pdf",
+        buffer: pdf,
+      },
+    },
+  });
+  if (!upload.ok()) {
+    throw new Error(
+      `B8 upload failed status=${upload.status()} body=${await upload.text()} assessment=${assessmentId}`,
+    );
+  }
+  const submissionId = ((await upload.json()) as { id: string }).id;
+
   await page.goto("/login");
   await page.getByTestId("login-email").fill(ADMIN_EMAIL);
   await page.getByTestId("login-password").fill(ADMIN_PASSWORD);
   await page.getByTestId("login-submit").click();
   await expect(page.getByTestId("app-shell")).toBeVisible({ timeout: 30_000 });
 
-  await page.goto("/submissions/upload");
-  await page.getByTestId("upload-assessment").selectOption(assessmentId);
-  await page.getByTestId("upload-file").setInputFiles({
-    name: "b7-sheet.pdf",
-    mimeType: "application/pdf",
-    buffer: pdf,
-  });
-  await page.getByTestId("upload-submit").click();
+  await page.goto(`/submissions/${submissionId}`);
   await expect(page.getByTestId("submission-detail-page")).toBeVisible({
-    timeout: 60_000,
+    timeout: 30_000,
   });
-  const submissionUrl = page.url();
-  const submissionId = submissionUrl.split("/submissions/")[1]?.split(/[/?#]/)[0] ?? "";
-  expect(submissionId).toBeTruthy();
 
   await expect
     .poll(
@@ -315,7 +369,9 @@ async function reachApproved(
     timeout: 30_000,
   });
 
-  await expect(page.getByTestId("transcription-ai-copy").or(page.getByTestId("transcription-text-input")).first()).toBeVisible({
+  await expect(
+    page.getByTestId("transcription-ai-copy").or(page.getByTestId("transcription-text-input")).first(),
+  ).toBeVisible({
     timeout: 90_000,
   });
 
@@ -351,8 +407,7 @@ async function reachApproved(
   });
   await expect(page.getByTestId("link-evaluation")).toBeVisible();
 
-  // Drive evaluation to APPROVED via API for reliability; UI publication is covered below.
-  const headers = { Authorization: `Bearer ${token}` };
+  // Drive evaluation to APPROVED via API; first leaf uses overrideScore for distinct attempts.
   await expect
     .poll(
       async () => {
@@ -384,7 +439,19 @@ async function reachApproved(
             idx += 1;
             continue;
           }
-          if (qe.proposed_ai_score !== null && qe.proposed_ai_score !== undefined) {
+          if (idx === 0) {
+            const over = await request.post(
+              `${apiBase}/api/v1/question-evaluations/${qe.id}/override`,
+              {
+                headers,
+                data: {
+                  score: overrideScore,
+                  reason: `B8 E2E override Q${idx}`,
+                },
+              },
+            );
+            if (![200, 409].includes(over.status())) return `override:${over.status()}`;
+          } else if (qe.proposed_ai_score !== null && qe.proposed_ai_score !== undefined) {
             const acc = await request.post(
               `${apiBase}/api/v1/question-evaluations/${qe.id}/accept`,
               { headers },
@@ -397,7 +464,7 @@ async function reachApproved(
                 headers,
                 data: {
                   score: Number(qe.max_mark) > 0 ? Math.min(3.5, Number(qe.max_mark)) : 0,
-                  reason: `B7 E2E override Q${idx}`,
+                  reason: `B8 E2E override Q${idx}`,
                 },
               },
             );
@@ -422,130 +489,114 @@ async function reachApproved(
     /approved/i,
     { timeout: 30_000 },
   );
+
+  const prep = await request.post(
+    `${apiBase}/api/v1/submissions/${submissionId}/publication/prepare`,
+    { headers },
+  );
+  expect(prep.ok()).toBeTruthy();
+  const prid = ((await prep.json()) as { published_result_id: string }).published_result_id;
+
+  await expect
+    .poll(
+      async () => {
+        const ws = await request.get(
+          `${apiBase}/api/v1/submissions/${submissionId}/publication`,
+          { headers },
+        );
+        if (!ws.ok()) return "err";
+        const latest = (await ws.json()) as { latest?: { status?: string } };
+        return latest.latest?.status ?? "";
+      },
+      { timeout: 120_000 },
+    )
+    .toBe("GENERATED");
+
+  const pub = await request.post(
+    `${apiBase}/api/v1/publication-results/${prid}/publish`,
+    { headers },
+  );
+  expect(pub.ok()).toBeTruthy();
+
+  await expect
+    .poll(
+      async () => {
+        const prepA = await request.post(
+          `${apiBase}/api/v1/analytics/published-results/${prid}/prepare`,
+          { headers },
+        );
+        if (!prepA.ok()) return `prep:${prepA.status()}`;
+        const st = await request.get(
+          `${apiBase}/api/v1/analytics/students/${studentId}`,
+          { headers },
+        );
+        if (!st.ok()) return `st:${st.status()}`;
+        const body = (await st.json()) as { materialization_status?: string };
+        return body.materialization_status ?? "";
+      },
+      { timeout: 120_000 },
+    )
+    .toMatch(/READY|PARTIAL/);
+
   return submissionId;
 }
 
-test.describe("B7 publication + reports (real API)", () => {
-  test("generate package, consumer 404 before publish, success after; analytics/learning refuse live UUID", async ({
+test.describe("B8 live analytics + mastery evidence (real API)", () => {
+  test("two published submissions drive live assessment and student analytics", async ({
     page,
     request,
   }) => {
-    test.setTimeout(420_000);
+    test.setTimeout(600_000);
     const apiBase =
       process.env.API_UPSTREAM_URL?.replace(/\/$/, "") ?? "http://127.0.0.1:18000";
     const token = await loginApi(request, apiBase);
-    const { assessmentId, studentId } = await createTwoLeafAssessment(
+    const { assessmentId, studentA, studentB } = await createTwoLeafAssessment(
       request,
       apiBase,
       token,
     );
-    const pdf = await buildMultiPagePdf();
-    const submissionId = await reachApproved(
-      page,
-      request,
-      apiBase,
-      token,
-      assessmentId,
-      studentId,
-      pdf,
-    );
+    const pdfA = await buildUniquePdf("B8-A");
+    const pdfB = await buildUniquePdf("B8-B");
 
-    // Consumer 404 before publish (API + UI).
-    const before = await request.get(
-      `${apiBase}/api/v1/submissions/${submissionId}/published-result`,
+    const empty = await request.get(
+      `${apiBase}/api/v1/analytics/assessments/${assessmentId}`,
       { headers: { Authorization: `Bearer ${token}` } },
     );
-    expect(before.status()).toBe(404);
+    expect(empty.ok()).toBeTruthy();
+    expect(
+      ((await empty.json()) as { published_attempt_count: number }).published_attempt_count,
+    ).toBe(0);
 
-    await page.goto(`/reports/student/${studentId}/assessment/${assessmentId}`);
-    await expect(
-      page.getByTestId("error-state").or(page.getByText(/not found|failed|unavailable/i)),
-    ).toBeVisible({ timeout: 20_000 });
+    await publishOne(page, request, apiBase, token, assessmentId, studentA, pdfA, 3.5);
+    await publishOne(page, request, apiBase, token, assessmentId, studentB, pdfB, 4);
 
-    await page.goto(`/submissions/${submissionId}`);
-    await expect(page.getByTestId("link-publication")).toBeVisible();
-    await page.getByTestId("link-publication").click();
-    await expect(page.getByTestId("publication-workspace-page")).toBeVisible({
-      timeout: 30_000,
-    });
-
-    await page.getByTestId("generate-publication-package").click();
-    await expect
-      .poll(
-        async () => {
-          const status =
-            (await page.getByTestId("publication-result-status").textContent()) ??
-            "";
-          return status.trim();
-        },
-        { timeout: 120_000 },
-      )
-      .toMatch(/GENERATED/i);
-
-    await expect(page.getByTestId("publication-snapshot-hash")).toBeVisible();
-    await expect(page.getByTestId("preview-annotated-paper")).toBeVisible();
-    await expect(page.getByTestId("publish-results")).toBeVisible();
-
-    // Still not published — consumer 404.
-    await page.goto(`/reports/parent/${studentId}/assessment/${assessmentId}`);
-    await expect(page.getByTestId("error-state")).toBeVisible({ timeout: 20_000 });
-
-    await page.goto(`/submissions/${submissionId}/publication`);
-    await expect(page.getByTestId("publish-results")).toBeVisible({
-      timeout: 30_000,
-    });
-    page.once("dialog", (dialog) => dialog.accept());
-    await page.getByTestId("publish-results").click();
-
-    await expect
-      .poll(
-        async () => {
-          await page.goto(`/submissions/${submissionId}`);
-          return (
-            (await page.getByTestId("submission-workflow-state").textContent()) ??
-            ""
-          );
-        },
-        { timeout: 60_000 },
-      )
-      .toMatch(/published/i);
-
-    await expect(page.getByTestId("submission-published-immutable")).toBeVisible();
-    await expect(page.getByTestId("link-student-report")).toBeVisible();
-
-    await page.getByTestId("link-student-report").click();
-    await expect(page.getByTestId("student-report-page")).toBeVisible({
-      timeout: 30_000,
-    });
-    await expect(page.getByText(/Topics/i)).toHaveCount(0);
-
-    await page.goto(`/reports/parent/${studentId}/assessment/${assessmentId}`);
-    await expect(page.getByTestId("parent-report-page")).toBeVisible({
-      timeout: 20_000,
-    });
-
-    await page.goto(`/reports/teacher/${studentId}/assessment/${assessmentId}`);
-    await expect(page.getByTestId("teacher-report-page")).toBeVisible({
-      timeout: 20_000,
-    });
-
-    await page.goto(`/submissions/${submissionId}/annotated-paper`);
-    await expect(page.getByTestId("annotated-paper-page")).toBeVisible({
-      timeout: 30_000,
-    });
-    await expect(page.getByTestId("download-evaluated-pdf")).toBeVisible();
-    await expect(page.getByTestId("annotation-score-chip")).toBeVisible();
-
-    // Analytics is live in B8 for published assessments; learning remains mock.
     await page.goto(`/analytics/assessments/${assessmentId}`);
     await expect(page.getByTestId("assessment-analytics-page")).toBeVisible({
       timeout: 30_000,
     });
-    await expect(page.getByTestId("analytics-published-attempts")).toContainText(
-      "1",
-    );
+    await expect(page.getByTestId("analytics-published-attempts")).toContainText("2");
+    await expect(page.getByTestId("question-performance-section")).toBeVisible();
+    await expect(page.getByText(/Question performance/i)).toBeVisible();
+    await expect(page.getByText(/Question difficulty/i)).toHaveCount(0);
 
-    await page.goto(`/learning/${studentId}`);
+    await page.getByTestId("pass-threshold-input").fill("40");
+    await page.getByTestId("pass-threshold-input").blur();
+    await expect
+      .poll(async () => (await page.getByTestId("analytics-pass-rate").textContent()) ?? "", {
+        timeout: 20_000,
+      })
+      .not.toMatch(/Not configured/i);
+
+    await page.goto(`/analytics/students/${studentA}`);
+    await expect(page.getByTestId("student-analytics-page")).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.getByTestId("learning-not-live-boundary")).toBeVisible();
+    await expect(page.getByRole("link", { name: /Open learning plan/i })).toHaveCount(0);
+    await expect(page.getByTestId("concept-signals-section")).toBeVisible();
+    await expect(page.getByText(/Recurring errors/i)).toHaveCount(0);
+
+    await page.goto(`/learning/${studentA}`);
     await expect(
       page.getByTestId("error-state").or(page.getByText(/not live|unavailable|failed/i)),
     ).toBeVisible({ timeout: 20_000 });

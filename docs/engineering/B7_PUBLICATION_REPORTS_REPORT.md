@@ -74,3 +74,21 @@ Live UUIDs never enter mock analytics/learning.
 | Squash-merge to develop | MERGED |
 | `main` unchanged | confirmed `be5f10aef3cf536420adcffdb9302b6b3b6c0955` |
 | Issue #1 | remains OPEN |
+
+## Post-merge note (B8 baseline)
+
+```text
+B7 squash SHA:
+1b6d51e09f7990da98e3749e21d7e3c2ba610827
+
+B7 CI:
+34076457655
+
+Post-merge docs-only follow-up:
+8d6f58149530b1b9fa5a1543ac851882cd4fef28
+
+B8 baseline:
+8d6f58149530b1b9fa5a1543ac851882cd4fef28
+```
+
+`8d6f5814…` is documentation-only (not application code). Class analytics / mastery evidence are implemented in B8 (not in this report’s residual “deferred to B8” line above, which described the B7-era boundary).

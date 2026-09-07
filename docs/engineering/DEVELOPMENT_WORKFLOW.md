@@ -125,11 +125,23 @@ bN/<topic>    ← feature branches from develop
 6. `main` receives merges from `develop` only at release milestones (founder approval).
    Feature PRs must not retarget or merge into `main`.
 
-### 4.2 Branch naming
+### 4.3 No direct post-merge pushes to `develop`
+
+After a feature PR is squash-merged into `develop`:
+
+* verify `origin/develop` equals the squash SHA and `main` is unchanged
+* return those SHAs in the Cursor report
+* **do not** push a follow-up documentation or “fill in CI SHA” commit directly to `develop`
+
+If post-merge evidence must be recorded in-repo, reconcile it in the **next** normal feature PR or a separately authorized docs PR.
+
+B7 used a docs-only direct follow-up on `develop` (`8d6f5814…`); that pattern is retired.
+
+### 4.4 Branch naming
 
 | Pattern | Example |
 |---------|---------|
-| `bN/<topic>` | `b6/live-evaluation-ledger-review` |
+| `bN/<topic>` | `b8/live-analytics-mastery-evidence` |
 | `fix/<topic>` | Hotfix from develop |
 
 ---

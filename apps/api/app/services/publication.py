@@ -1262,7 +1262,7 @@ async def publish_result(
     published_result_id: uuid.UUID,
     actor_user_id: uuid.UUID,
     settings: Settings | None = None,
-) -> PublishedResult:
+) -> tuple[PublishedResult, Any]:
     settings = settings or get_settings()
     storage = ObjectStorage(settings)
 
@@ -1350,8 +1350,14 @@ async def publish_result(
             },
         )
     )
+    # Ensure ANALYTICS PipelineJob in the same transaction (B8).
+    from app.services.analytics import ensure_analytics_job
+
+    analytics_job = await ensure_analytics_job(
+        db, tenant_id=tenant_id, published=published
+    )
     await db.flush()
-    return published
+    return published, analytics_job
 
 
 async def add_manual_annotation(

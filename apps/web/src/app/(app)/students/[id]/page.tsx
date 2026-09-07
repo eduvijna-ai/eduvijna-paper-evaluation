@@ -55,7 +55,13 @@ export default function StudentDetailPage({
   });
   const analyticsQuery = useQuery({
     queryKey: ["student-analytics", id],
-    queryFn: () => api.getStudentAnalytics(id),
+    queryFn: async () => {
+      const result = await api.getStudentAnalytics(id);
+      if (!("concept_mastery" in result)) {
+        throw new Error("Mock concept mastery unavailable");
+      }
+      return result;
+    },
     enabled: caps.analytics === "mock" && caps.students === "mock",
   });
   const linkedGuardiansQuery = useQuery({
@@ -208,6 +214,15 @@ export default function StudentDetailPage({
                   Adaptive learning
                 </Link>
               </>
+            )}
+            {caps.analytics === "live" && (
+              <Link
+                href={`/analytics/students/${student.id}`}
+                data-testid="link-student-analytics"
+                className="rounded-md border border-slate-200 px-3 py-2 text-sm hover:bg-slate-50"
+              >
+                Analytics
+              </Link>
             )}
           </div>
         }

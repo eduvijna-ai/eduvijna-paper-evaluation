@@ -629,6 +629,7 @@ export interface TeacherReport {
   published_at?: string | null;
 }
 
+/** Mock-mode assessment analytics (demo fixtures). */
 export interface AssessmentAnalytics {
   assessment: Assessment;
   mean_score: number;
@@ -643,6 +644,78 @@ export interface AssessmentAnalytics {
   score_bands: Array<{ label: string; count: number }>;
 }
 
+export interface LiveAnalyticsErrorCount {
+  code: ErrorCode | string;
+  count: number;
+  category?: "academic" | "review_condition" | string;
+}
+
+export interface LiveQuestionPerformance {
+  question_id: string;
+  question_code: string;
+  question_version_ids: string[];
+  attempt_count: number;
+  blank_count: number;
+  mean_score_percent: number | null;
+  median_score_percent: number | null;
+  full_credit_count: number;
+  zero_score_count: number;
+  common_errors: LiveAnalyticsErrorCount[];
+}
+
+export interface LiveScoreDistributionBand {
+  lower_bound: number;
+  upper_bound: number;
+  count: number;
+}
+
+export interface LiveCurriculumPerformance {
+  curriculum_node_id: string;
+  code: string;
+  title: string;
+  node_type: string;
+  question_count: number;
+  evidence_count: number;
+  mean_score_ratio: number | null;
+  strong_signal_count: number;
+  weak_signal_count: number;
+  inconclusive_signal_count: number;
+  common_academic_errors: LiveAnalyticsErrorCount[];
+}
+
+export interface LiveAssessmentSummary {
+  id: string;
+  code: string;
+  title: string;
+  curriculum_id: string;
+  status: string;
+}
+
+/** Live B8 assessment analytics (published-ledger projections). */
+export interface LiveAssessmentAnalytics {
+  assessment: LiveAssessmentSummary;
+  class_section_id: string | null;
+  published_attempt_count: number;
+  unique_student_count: number;
+  mean_percentage: number | null;
+  median_percentage: number | null;
+  pass_threshold_percent: number | null;
+  pass_rate: number | null;
+  score_distribution: LiveScoreDistributionBand[];
+  question_performance: LiveQuestionPerformance[];
+  error_distribution: {
+    academic: LiveAnalyticsErrorCount[];
+    review_conditions: LiveAnalyticsErrorCount[];
+  };
+  curriculum_performance: LiveCurriculumPerformance[];
+  mapped_scorable_question_count: number;
+  unmapped_scorable_question_count: number;
+  mastery_coverage_ratio: number | null;
+  source: "PUBLISHED_LEDGER";
+  as_of: string;
+}
+
+/** Mock-mode student analytics (demo fixtures). */
 export interface StudentAnalytics {
   student: Student;
   assessments_taken: number;
@@ -650,6 +723,146 @@ export interface StudentAnalytics {
   trend: Array<{ assessment_code: string; percentage: number }>;
   concept_mastery: Array<{ concept: string; mastery: number }>;
   recurring_errors: Array<{ code: ErrorCode; count: number }>;
+}
+
+export interface LiveConceptSignalBucket {
+  strong_count: number;
+  weak_count: number;
+  inconclusive_count: number;
+  signal: string;
+}
+
+export interface LiveConceptSignal {
+  curriculum_node_id: string;
+  code: string;
+  title: string;
+  node_type: string;
+  concept: LiveConceptSignalBucket;
+  execution: LiveConceptSignalBucket;
+  procedure: LiveConceptSignalBucket;
+  evidence_count: number;
+  mean_score_ratio: number | null;
+}
+
+export interface LiveStudentSummary {
+  id: string;
+  display_name: string;
+  student_code: string | null;
+  external_ref: string | null;
+}
+
+export type AnalyticsMaterializationStatus =
+  | "NOT_STARTED"
+  | "QUEUED"
+  | "RUNNING"
+  | "READY"
+  | "PARTIAL"
+  | "FAILED";
+
+/** Live B8 student analytics (published-ledger projections). */
+export interface LiveStudentAnalytics {
+  student: LiveStudentSummary;
+  published_assessment_count: number;
+  published_attempt_count: number;
+  average_percentage: number | null;
+  concept_signals: LiveConceptSignal[];
+  error_distribution: LiveAnalyticsErrorCount[];
+  mastery_coverage: {
+    curriculum_node_count: number;
+    evidence_row_count: number;
+  };
+  materialization_status: AnalyticsMaterializationStatus | string;
+  published_result_count: number;
+  materialized_result_count: number;
+  source: "PUBLISHED_LEDGER";
+  as_of: string;
+}
+
+export interface MasteryEvidenceItem {
+  id: string;
+  published_result_id: string;
+  assessment_id: string;
+  assessment_version_id: string;
+  submission_id: string;
+  evaluation_run_id: string;
+  question_evaluation_id: string;
+  question_version_id: string;
+  curriculum_id: string;
+  curriculum_node_id: string;
+  evidence_type: string;
+  strength: string;
+  score_ratio: number;
+  source_final_score: number;
+  source_max_mark: number;
+  mapping_types: string[];
+  mapping_weight: number | null;
+  academic_error_codes: string[];
+  review_condition_codes: string[];
+  reason_codes: string[];
+  source_ledger_snapshot_hash: string;
+  algorithm_version: string;
+  created_at: string;
+}
+
+export interface StudentMasteryEvidenceList {
+  student_id: string;
+  items: MasteryEvidenceItem[];
+}
+
+export interface AnalyticsMaterializationPrepareResult {
+  published_result_id: string;
+  pipeline_job_id: string;
+  job_status: string;
+  celery_task_id: string | null;
+  enqueue_error: string | null;
+  algorithm_version: string;
+}
+
+export type AssessmentAnalyticsView =
+  | AssessmentAnalytics
+  | LiveAssessmentAnalytics;
+export type StudentAnalyticsView = StudentAnalytics | LiveStudentAnalytics;
+
+export function isLiveAssessmentAnalytics(
+  value: AssessmentAnalyticsView,
+): value is LiveAssessmentAnalytics {
+  return (
+    "source" in value &&
+    value.source === "PUBLISHED_LEDGER" &&
+    "question_performance" in value
+  );
+}
+
+export function isLiveStudentAnalytics(
+  value: StudentAnalyticsView,
+): value is LiveStudentAnalytics {
+  return (
+    "source" in value &&
+    value.source === "PUBLISHED_LEDGER" &&
+    "concept_signals" in value
+  );
+}
+
+/** Pass-rate display helper for live analytics (null threshold = Not configured). */
+export function formatAnalyticsPassRate(
+  passRate: number | null | undefined,
+  passThresholdPercent: number | null | undefined,
+): string {
+  if (passThresholdPercent === null || passThresholdPercent === undefined) {
+    return "Not configured";
+  }
+  if (passRate === null || passRate === undefined) {
+    return "—";
+  }
+  return `${Math.round(passRate * 100)}%`;
+}
+
+export function formatAnalyticsPercentage(
+  value: number | null | undefined,
+  digits = 1,
+): string {
+  if (value === null || value === undefined) return "—";
+  return `${value.toFixed(digits)}%`;
 }
 
 export interface LearningPathStepItem {

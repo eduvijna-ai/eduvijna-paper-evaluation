@@ -136,7 +136,7 @@ class PipelineJob(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         CheckConstraint(
             "stage IN ("
             "'PAGE_NORMALIZATION','IDENTITY','MAPPING','TRANSCRIPTION',"
-            "'EVALUATION','PUBLICATION')",
+            "'EVALUATION','PUBLICATION','ANALYTICS')",
             name="ck_pipeline_jobs_stage",
         ),
         CheckConstraint(

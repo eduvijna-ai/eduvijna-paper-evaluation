@@ -337,3 +337,60 @@ async def enqueue_publication(
     result = publication_task.delay(str(tenant_id), str(submission_id), str(job_id))
     task_id = getattr(result, "id", None)
     return str(task_id) if task_id is not None else None
+
+
+async def _analytics_async(
+    tenant_id: uuid.UUID, published_result_id: uuid.UUID, job_id: uuid.UUID
+) -> None:
+    from app.db.session import async_session_factory, engine
+    from app.services.analytics import materialize_published_result
+
+    await engine.dispose()
+    async with async_session_factory() as db:
+        await materialize_published_result(
+            db,
+            tenant_id=tenant_id,
+            published_result_id=published_result_id,
+            job_id=job_id,
+        )
+
+
+def _analytics_impl(
+    tenant_id: str, published_result_id: str, job_id: str
+) -> dict[str, str]:
+    asyncio.run(
+        _analytics_async(
+            uuid.UUID(tenant_id),
+            uuid.UUID(published_result_id),
+            uuid.UUID(job_id),
+        )
+    )
+    return {
+        "tenant_id": tenant_id,
+        "published_result_id": published_result_id,
+        "job_id": job_id,
+        "status": "ok",
+    }
+
+
+analytics_task = cast(
+    Any, celery_app.task(name="analytics.materialize_published_result")(_analytics_impl)
+)
+
+
+async def enqueue_analytics(
+    *,
+    tenant_id: uuid.UUID,
+    published_result_id: uuid.UUID,
+    job_id: uuid.UUID,
+) -> str | None:
+    settings = get_settings()
+    if settings.celery_task_always_eager:
+        await _analytics_async(tenant_id, published_result_id, job_id)
+        return f"eager:{job_id}"
+
+    result = analytics_task.delay(
+        str(tenant_id), str(published_result_id), str(job_id)
+    )
+    task_id = getattr(result, "id", None)
+    return str(task_id) if task_id is not None else None

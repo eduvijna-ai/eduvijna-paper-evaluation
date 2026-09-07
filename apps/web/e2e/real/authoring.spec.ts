@@ -84,8 +84,9 @@ test.describe("B2 real A2 authoring flows", () => {
     await page.getByTestId("assessment-create-submit").click();
     await expect(page.getByTestId("assessment-detail-page")).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText(assessmentCode, { exact: true })).toBeVisible();
-    await expect(page.getByTestId("assessment-downstream-boundary")).toBeVisible();
-    await expect(page.getByTestId("link-analytics")).toHaveCount(0);
+    // B8: analytics live — learning remains mock.
+    await expect(page.getByTestId("assessment-learning-boundary")).toBeVisible();
+    await expect(page.getByTestId("link-analytics")).toBeVisible();
 
     const assessmentId = new URL(page.url()).pathname.split("/").filter(Boolean).at(-1)!;
     const versionsResponse = await request.get(

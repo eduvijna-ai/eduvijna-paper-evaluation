@@ -458,10 +458,10 @@ test.describe("B6 real evaluation ledger review", () => {
       /Evaluation approved\./i,
       { timeout: 30_000 },
     );
-    // B7: publication is live after APPROVED; analytics/learning remain mock.
+    // B8: publication + analytics live after APPROVED; learning remains mock.
     await expect(page.getByTestId("link-publication-from-evaluation")).toBeVisible();
     await expect(page.getByTestId("evaluation-downstream-mock-boundary")).toContainText(
-      /Analytics and adaptive learning remain mock/i,
+      /Adaptive learning remains mock/i,
     );
 
     await page.goto(`/submissions/${submissionId}`);
@@ -472,15 +472,15 @@ test.describe("B6 real evaluation ledger review", () => {
     await expect(page.getByTestId("submission-workflow-state")).not.toContainText(
       /published/i,
     );
-    await expect(page.getByTestId("submission-downstream-boundary")).toContainText(
-      /publication|analytics|learning/i,
-    );
 
-    // Live UUID must not open mock analytics/learning.
-    await expect(page.getByTestId("link-evaluation")).toBeVisible();
+    // Live analytics is available (published_attempt_count may be 0); learning is not.
     await page.goto(`/analytics/assessments/${assessmentId}`);
-    await expect(page.getByTestId("error-state").or(page.getByText(/not live|unavailable|failed/i))).toBeVisible({
-      timeout: 20_000,
+    await expect(page.getByTestId("assessment-analytics-page")).toBeVisible({
+      timeout: 30_000,
     });
+    await page.goto(`/learning/${assessmentId}`);
+    await expect(
+      page.getByTestId("error-state").or(page.getByText(/not live|unavailable|failed/i)),
+    ).toBeVisible({ timeout: 20_000 });
   });
 });

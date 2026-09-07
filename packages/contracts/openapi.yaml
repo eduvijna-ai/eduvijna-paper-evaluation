@@ -1091,6 +1091,79 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/TeacherReport" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/analytics/assessments/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getAssessmentAnalytics
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: pass_threshold_percent
+          in: query
+          required: false
+          schema: { type: number, minimum: 0, maximum: 100 }
+          description: Optional pass threshold; omitted → pass_threshold_percent and pass_rate are null
+      responses:
+        "200":
+          description: Published-ledger assessment analytics (B8)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssessmentAnalytics" }
+        "400":
+          description: Invalid pass_threshold_percent
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/analytics/students/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getStudentAnalytics
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Published-ledger student analytics with projected mastery signals (B8)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentAnalytics" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/analytics/students/{id}/mastery-evidence:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: listStudentMasteryEvidence
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: assessment_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: curriculum_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: curriculum_node_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Immutable mastery evidence rows with ledger provenance (B8_V1)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MasteryEvidenceList" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/analytics/published-results/{id}/prepare:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: preparePublishedResultAnalytics
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Ensure ANALYTICS job and enqueue materialization (idempotent)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnalyticsPrepareResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Prepare requires PUBLISHED result
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
   /api/v1/submission-pages/{id}/answer-regions:
     parameters: [{ $ref: "#/components/parameters/Id" }]
     post:
@@ -2489,4 +2562,229 @@ components:
       type: object
       description: See packages/contracts/schemas/teacher-report.schema.json
       additionalProperties: true
+    AssessmentAnalytics:
+      type: object
+      description: See packages/contracts/schemas/assessment-analytics.schema.json
+      required:
+        [
+          assessment,
+          published_attempt_count,
+          unique_student_count,
+          mean_percentage,
+          median_percentage,
+          pass_threshold_percent,
+          pass_rate,
+          score_distribution,
+          question_performance,
+          error_distribution,
+          curriculum_performance,
+          mapped_scorable_question_count,
+          unmapped_scorable_question_count,
+          mastery_coverage_ratio,
+          source,
+          as_of,
+        ]
+      properties:
+        assessment:
+          type: object
+          required: [id, code, title, curriculum_id, status]
+          properties:
+            id: { type: string, format: uuid }
+            code: { type: string }
+            title: { type: string }
+            curriculum_id: { type: string, format: uuid }
+            status: { type: string }
+        class_section_id: { type: [string, "null"], format: uuid }
+        published_attempt_count: { type: integer, minimum: 0 }
+        unique_student_count: { type: integer, minimum: 0 }
+        mean_percentage: { type: [number, "null"] }
+        median_percentage: { type: [number, "null"] }
+        pass_threshold_percent: { type: [number, "null"] }
+        pass_rate: { type: [number, "null"] }
+        score_distribution:
+          type: array
+          items:
+            type: object
+            required: [lower_bound, upper_bound, count]
+            properties:
+              lower_bound: { type: number }
+              upper_bound: { type: number }
+              count: { type: integer }
+        question_performance:
+          type: array
+          items: { type: object, additionalProperties: true }
+        error_distribution:
+          type: object
+          required: [academic, review_conditions]
+          properties:
+            academic:
+              type: array
+              items: { type: object, additionalProperties: true }
+            review_conditions:
+              type: array
+              items: { type: object, additionalProperties: true }
+        curriculum_performance:
+          type: array
+          items: { type: object, additionalProperties: true }
+        mapped_scorable_question_count: { type: integer }
+        unmapped_scorable_question_count: { type: integer }
+        mastery_coverage_ratio: { type: [number, "null"] }
+        source: { type: string, enum: [PUBLISHED_LEDGER] }
+        as_of: { type: string, format: date-time }
+    StudentAnalytics:
+      type: object
+      description: See packages/contracts/schemas/student-analytics.schema.json
+      required:
+        [
+          student,
+          published_assessment_count,
+          published_attempt_count,
+          average_percentage,
+          concept_signals,
+          error_distribution,
+          mastery_coverage,
+          materialization_status,
+          published_result_count,
+          materialized_result_count,
+          source,
+          as_of,
+        ]
+      properties:
+        student:
+          type: object
+          required: [id, display_name]
+          properties:
+            id: { type: string, format: uuid }
+            display_name: { type: [string, "null"] }
+            student_code: { type: [string, "null"] }
+            external_ref: { type: [string, "null"] }
+        published_assessment_count: { type: integer }
+        published_attempt_count: { type: integer }
+        average_percentage: { type: [number, "null"] }
+        concept_signals:
+          type: array
+          items:
+            type: object
+            required: [curriculum_node_id, concept, execution, procedure]
+            properties:
+              curriculum_node_id: { type: string, format: uuid }
+              code: { type: string }
+              title: { type: string }
+              node_type: { type: string }
+              concept: { $ref: "#/components/schemas/MasterySignalBucket" }
+              execution: { $ref: "#/components/schemas/MasterySignalBucket" }
+              procedure: { $ref: "#/components/schemas/MasterySignalBucket" }
+              evidence_count: { type: integer }
+              mean_score_ratio: { type: [number, "null"] }
+        error_distribution:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: string }
+              count: { type: integer }
+        mastery_coverage:
+          type: object
+          properties:
+            curriculum_node_count: { type: integer }
+            evidence_row_count: { type: integer }
+        materialization_status:
+          type: string
+          enum: [NOT_STARTED, QUEUED, RUNNING, READY, PARTIAL, FAILED]
+        published_result_count: { type: integer }
+        materialized_result_count: { type: integer }
+        source: { type: string, enum: [PUBLISHED_LEDGER] }
+        as_of: { type: string, format: date-time }
+    MasterySignalBucket:
+      type: object
+      required: [strong_count, weak_count, inconclusive_count, signal]
+      properties:
+        strong_count: { type: integer }
+        weak_count: { type: integer }
+        inconclusive_count: { type: integer }
+        signal: { type: string, enum: [STRONG, WEAK, INCONCLUSIVE] }
+    MasteryEvidenceList:
+      type: object
+      description: See packages/contracts/schemas/mastery-evidence.schema.json
+      required: [student_id, items]
+      properties:
+        student_id: { type: string, format: uuid }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/MasteryEvidenceItem" }
+    MasteryEvidenceItem:
+      type: object
+      required:
+        [
+          id,
+          published_result_id,
+          assessment_id,
+          assessment_version_id,
+          submission_id,
+          evaluation_run_id,
+          question_evaluation_id,
+          question_version_id,
+          curriculum_id,
+          curriculum_node_id,
+          evidence_type,
+          strength,
+          score_ratio,
+          source_final_score,
+          source_max_mark,
+          mapping_types,
+          academic_error_codes,
+          review_condition_codes,
+          reason_codes,
+          source_ledger_snapshot_hash,
+          algorithm_version,
+          created_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        published_result_id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        submission_id: { type: string, format: uuid }
+        evaluation_run_id: { type: string, format: uuid }
+        question_evaluation_id: { type: string, format: uuid }
+        question_version_id: { type: string, format: uuid }
+        curriculum_id: { type: string, format: uuid }
+        curriculum_node_id: { type: string, format: uuid }
+        evidence_type: { type: string, enum: [CONCEPT, EXECUTION, PROCEDURE] }
+        strength: { type: string, enum: [STRONG, WEAK, INCONCLUSIVE] }
+        score_ratio: { type: number }
+        source_final_score: { type: number }
+        source_max_mark: { type: number }
+        mapping_types:
+          type: array
+          items: { type: string }
+        mapping_weight: { type: [number, "null"] }
+        academic_error_codes:
+          type: array
+          items: { type: string }
+        review_condition_codes:
+          type: array
+          items: { type: string }
+        reason_codes:
+          type: array
+          items: { type: string }
+        source_ledger_snapshot_hash: { type: string }
+        algorithm_version: { type: string, enum: [B8_V1] }
+        created_at: { type: string, format: date-time }
+    AnalyticsPrepareResult:
+      type: object
+      required:
+        [
+          published_result_id,
+          pipeline_job_id,
+          job_status,
+          algorithm_version,
+        ]
+      properties:
+        published_result_id: { type: string, format: uuid }
+        pipeline_job_id: { type: string, format: uuid }
+        job_status: { type: string }
+        celery_task_id: { type: [string, "null"] }
+        enqueue_error: { type: [string, "null"] }
+        algorithm_version: { type: string, enum: [B8_V1] }
 

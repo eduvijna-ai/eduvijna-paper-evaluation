@@ -1,7 +1,9 @@
 """Celery task package."""
 
 from app.tasks.celery_app import (
+    analytics_task,
     celery_app,
+    enqueue_analytics,
     enqueue_evaluation,
     enqueue_identity_extraction,
     enqueue_mapping_preparation,
@@ -17,7 +19,9 @@ from app.tasks.celery_app import (
 )
 
 __all__ = [
+    "analytics_task",
     "celery_app",
+    "enqueue_analytics",
     "enqueue_evaluation",
     "enqueue_identity_extraction",
     "enqueue_mapping_preparation",

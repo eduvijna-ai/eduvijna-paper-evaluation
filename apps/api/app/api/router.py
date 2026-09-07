@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api.v1 import (
+    analytics,
     authoring_read,
     curriculum_assessment,
     evaluation,
@@ -24,3 +25,4 @@ api_router.include_router(mapping.router, prefix="/api/v1")
 api_router.include_router(transcription.router, prefix="/api/v1")
 api_router.include_router(evaluation.router, prefix="/api/v1")
 api_router.include_router(publication.router, prefix="/api/v1")
+api_router.include_router(analytics.router, prefix="/api/v1")

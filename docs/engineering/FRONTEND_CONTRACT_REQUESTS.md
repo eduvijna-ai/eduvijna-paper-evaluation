@@ -103,7 +103,7 @@ OCR/mapping correction workflows and result publication / reports remain out of 
 
 ## FCR-005 — Reports & analytics (P1)
 
-**Resolution:** **RESOLVED_BY_B7** for reporting; **OPEN_FOR_B8** for analytics  
+**Resolution:** **RESOLVED_BY_B7** for reporting; **RESOLVED_BY_B8** for analytics  
 
 **Resolved by B7:**
 - Publication prepare / workspace / regenerate / publish
@@ -112,15 +112,21 @@ OCR/mapping correction workflows and result publication / reports remain out of 
 - Reviewer report previews while GENERATED
 - Schemas: `student-report`, `parent-report`, `teacher-report`, `evaluated-paper`
 
-**Still open (B8):** assessment/student analytics aggregations, score bands, class means — remain mock; live UUIDs refuse mock analytics.
+**Resolved by B8:**
+- Assessment analytics (published attempts, mean/median %, optional pass threshold, score distribution)
+- Question performance (not psychometric difficulty)
+- Academic vs review-condition error distribution
+- Curriculum-node performance + mastery coverage
+- Student current MasteryEvidence projection (concept / execution / procedure)
+- `analytics` capability live; live UUIDs never enter mock analytics
 
 ---
 
 ## FCR-006 — Adaptive learning (P1)
 
-**Resolution:** **OPEN**  
+**Resolution:** **OPEN_FOR_B9**  
 
-Adaptive learning plans, mastery topics, and improvement blueprints remain mock. Live UUIDs refuse mock learning.
+Adaptive learning plans, improvement blueprints, and live learning navigation remain mock. Live UUIDs refuse mock learning. B8 analytics evidence is the input for B9.
 
 ---
 

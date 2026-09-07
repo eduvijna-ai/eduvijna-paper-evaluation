@@ -1,0 +1,184 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/assessment-analytics.schema.json",
+  "title": "AssessmentAnalytics",
+  "description": "B8 published-ledger assessment analytics. Scores and distributions use final human-approved published totals only. No proposed_ai_score. No MasteryState.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "assessment",
+    "published_attempt_count",
+    "unique_student_count",
+    "mean_percentage",
+    "median_percentage",
+    "pass_threshold_percent",
+    "pass_rate",
+    "score_distribution",
+    "question_performance",
+    "error_distribution",
+    "curriculum_performance",
+    "mapped_scorable_question_count",
+    "unmapped_scorable_question_count",
+    "mastery_coverage_ratio",
+    "source",
+    "as_of"
+  ],
+  "properties": {
+    "assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "code", "title", "curriculum_id", "status"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "code": { "type": "string" },
+        "title": { "type": "string" },
+        "curriculum_id": { "type": "string", "format": "uuid" },
+        "status": { "type": "string" }
+      }
+    },
+    "class_section_id": { "type": ["string", "null"], "format": "uuid" },
+    "published_attempt_count": { "type": "integer", "minimum": 0 },
+    "unique_student_count": { "type": "integer", "minimum": 0 },
+    "mean_percentage": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+    "median_percentage": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+    "pass_threshold_percent": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+    "pass_rate": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "score_distribution": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["lower_bound", "upper_bound", "count"],
+        "properties": {
+          "lower_bound": { "type": "number" },
+          "upper_bound": { "type": "number" },
+          "count": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "question_performance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "question_id",
+          "question_code",
+          "question_version_ids",
+          "attempt_count",
+          "blank_count",
+          "mean_score_percent",
+          "median_score_percent",
+          "full_credit_count",
+          "zero_score_count",
+          "common_errors"
+        ],
+        "properties": {
+          "question_id": { "type": "string", "format": "uuid" },
+          "question_code": { "type": "string" },
+          "question_version_ids": {
+            "type": "array",
+            "items": { "type": "string", "format": "uuid" }
+          },
+          "attempt_count": { "type": "integer", "minimum": 0 },
+          "blank_count": { "type": "integer", "minimum": 0 },
+          "mean_score_percent": { "type": ["number", "null"] },
+          "median_score_percent": { "type": ["number", "null"] },
+          "full_credit_count": { "type": "integer", "minimum": 0 },
+          "zero_score_count": { "type": "integer", "minimum": 0 },
+          "common_errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["code", "count"],
+              "properties": {
+                "code": { "type": "string" },
+                "count": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "error_distribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["academic", "review_conditions"],
+      "properties": {
+        "academic": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["code", "count", "category"],
+            "properties": {
+              "code": { "type": "string" },
+              "count": { "type": "integer", "minimum": 0 },
+              "category": { "type": "string", "const": "academic" }
+            }
+          }
+        },
+        "review_conditions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["code", "count", "category"],
+            "properties": {
+              "code": { "type": "string" },
+              "count": { "type": "integer", "minimum": 0 },
+              "category": { "type": "string", "const": "review_condition" }
+            }
+          }
+        }
+      }
+    },
+    "curriculum_performance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "curriculum_node_id",
+          "code",
+          "title",
+          "node_type",
+          "question_count",
+          "evidence_count",
+          "mean_score_ratio",
+          "strong_signal_count",
+          "weak_signal_count",
+          "inconclusive_signal_count",
+          "common_academic_errors"
+        ],
+        "properties": {
+          "curriculum_node_id": { "type": "string", "format": "uuid" },
+          "code": { "type": "string" },
+          "title": { "type": "string" },
+          "node_type": { "type": "string" },
+          "question_count": { "type": "integer", "minimum": 0 },
+          "evidence_count": { "type": "integer", "minimum": 0 },
+          "mean_score_ratio": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+          "strong_signal_count": { "type": "integer", "minimum": 0 },
+          "weak_signal_count": { "type": "integer", "minimum": 0 },
+          "inconclusive_signal_count": { "type": "integer", "minimum": 0 },
+          "common_academic_errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["code", "count"],
+              "properties": {
+                "code": { "type": "string" },
+                "count": { "type": "integer", "minimum": 0 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "mapped_scorable_question_count": { "type": "integer", "minimum": 0 },
+    "unmapped_scorable_question_count": { "type": "integer", "minimum": 0 },
+    "mastery_coverage_ratio": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "source": { "type": "string", "const": "PUBLISHED_LEDGER" },
+    "as_of": { "type": "string", "format": "date-time" }
+  }
+}

@@ -645,9 +645,12 @@ Released outputs after approval.
 
 ## 9. Learning Analytics
 
-### 9.1 MasteryEvidence `T`
+### 9.1 MasteryEvidence `T` — **B8 live**
 
-Evidence row linking evaluation to curriculum mastery signal.
+Evidence row linking a **PUBLISHED** evaluation to a curriculum mastery signal.
+Algorithm version `B8_V1`. Derived deterministically from final human-approved ledger
+scores + taxonomy + A2 `QuestionCurriculumMapping` (exact `question_version_id`).
+No AI inference. See migration `20260907_0009`.
 
 | Field | Type | Notes |
 |-------|------|-------|
@@ -656,16 +659,21 @@ Evidence row linking evaluation to curriculum mastery signal.
 | `student_id` | UUID | |
 | `curriculum_node_id` | UUID | Concept/skill/LO |
 | `question_evaluation_id` | UUID | Source evaluation |
+| `published_result_id` | UUID | B7 published source |
 | `evidence_type` | enum | `CONCEPT`, `EXECUTION`, `PROCEDURE` |
 | `strength` | enum | `STRONG`, `WEAK`, `INCONCLUSIVE` |
-| `score_ratio` | decimal | Normalized performance |
+| `score_ratio` | decimal | Factual normalized score (not “mastery probability”) |
+| `algorithm_version` | string | e.g. `B8_V1` |
 | `created_at` | timestamptz | |
 
 ---
 
-### 9.2 MasteryState `T`
+### 9.2 MasteryState `T` — **AFTER_CLIENT_APPROVAL (not in B8)**
 
-Aggregated mastery per student × curriculum node.
+Aggregated longitudinal mastery per student × curriculum node.
+
+**B8 deliberately does not create or update this table.** Current evidence profiles are
+API projections over immutable `MasteryEvidence` rows only (PEV-037 deferred).
 
 | Field | Type | Notes |
 |-------|------|-------|
