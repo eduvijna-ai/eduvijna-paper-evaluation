@@ -1,13 +1,16 @@
 # B7 — Publication, reports, annotated paper
 
-**Branch:** `b7/publication-reports-annotated-paper`  
+**Branch:** `b7/publication-reports-annotated-paper` (deleted after squash-merge)  
+**PR:** [#33](https://github.com/eduvijna-ai/eduvijna-paper-evaluation/pull/33)  
 **PR base:** `develop` (never `main`)  
 **Starting `develop` SHA:** `e726bae2ac4745670ddea956273a09f553141048`  
 **Starting `main` SHA:** `be5f10aef3cf536420adcffdb9302b6b3b6c0955`  
 **Migration:** `database/migrations/versions/20260907_0008_publication_reports.py`  
-**Final feature SHA:** _fill after push_  
-**Squash SHA on develop:** _fill after merge_  
-**CI run ID:** _fill after green gate_
+**Final feature SHA:** `3f3ce07803e80d358c81c225bfc64269db380914`  
+**Squash SHA on develop:** `1b6d51e09f7990da98e3749e21d7e3c2ba610827`  
+**CI run ID:** `34076457655`  
+**Final `develop`:** `1b6d51e09f7990da98e3749e21d7e3c2ba610827`  
+**Final `main`:** `be5f10aef3cf536420adcffdb9302b6b3b6c0955` (unchanged)
 
 ## Scope
 
@@ -27,7 +30,7 @@ Also: `ai_execution_records.published_result_id`; `PipelineJob.stage` includes `
 
 ## Semantics
 
-* Ledger snapshot SHA-256 over approved EvaluationRun + leaf QuestionEvaluations + CriterionEvaluation finals + review actions
+* Ledger snapshot SHA-256 over approved EvaluationRun + leaf QuestionEvaluations + CriterionEvaluation finals
 * Published scores = `final_human_approved_score` only (never `proposed_ai_score`)
 * Annotations source_type `LEDGER` or `HUMAN`; score marks from final decisions
 * Exports under `{tenant}/exports/{submission}/publication/{version}/…` (write-once)
@@ -46,6 +49,15 @@ learning = mock
 
 Live UUIDs never enter mock analytics/learning.
 
+## Test counts (CI `34076457655`)
+
+| Suite | Count |
+|-------|-------|
+| Backend pytest | 97 passed |
+| Frontend Vitest | 128 passed (27 files) |
+| Mock Playwright | 15 passed |
+| Real Playwright | 8 passed |
+
 ## Residual debt
 
 * Manual annotation draw UX (API exists)
@@ -56,8 +68,9 @@ Live UUIDs never enter mock analytics/learning.
 
 | Check | Status |
 |-------|--------|
-| Backend B7 pytest | green locally |
-| Frontend Vitest B7 | green locally |
-| GitHub Actions (six jobs) | _after PR_ |
-
-Confirm post-merge: `origin/main` remains `be5f10aef3cf536420adcffdb9302b6b3b6c0955`.
+| Backend B7 pytest | green |
+| Frontend Vitest B7 | green |
+| GitHub Actions (six jobs) | SUCCESS (`34076457655`) |
+| Squash-merge to develop | MERGED |
+| `main` unchanged | confirmed `be5f10aef3cf536420adcffdb9302b6b3b6c0955` |
+| Issue #1 | remains OPEN |
