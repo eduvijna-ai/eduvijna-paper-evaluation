@@ -5,9 +5,12 @@
 **Starting `develop` SHA:** `be73cc3bcf91b4078b3fea63b3788403129a1419`  
 **Starting `main` SHA:** `be5f10aef3cf536420adcffdb9302b6b3b6c0955`  
 **Migration:** none (application-logic + contract/test fixes; no schema change required)  
-**Final feature SHA:** `_TBD_`  
-**CI run ID:** `_TBD_`  
-**Squash SHA:** `_TBD_`  
+**Final feature SHA:** `7be4005001c07785022e4e09aeeef2b79b377ace`  
+**CI run ID:** `34128113727`  
+**Squash SHA:** `dd6bd64faf7ddcd089c94d7c32f748ec70109840`  
+**Final `develop` after B11:** `dd6bd64faf7ddcd089c94d7c32f748ec70109840`  
+**Final `main` after B11:** `be5f10aef3cf536420adcffdb9302b6b3b6c0955` (unchanged)  
+**Release approval:** `APP-002` in `docs/FOUNDER_APPROVAL_LOG.md`
 
 ## Independent post-B10 defects closed
 
@@ -47,6 +50,15 @@
 * Updated B10 authoring tests to upload real PDFs  
 * Frontend `b11-curriculum.test.ts`  
 * Real E2E asserts source-derived prompt + curriculum apply UI
+
+## Verification
+
+* Backend pytest: **163 passed**  
+* Frontend Vitest: **155 passed** (31 files)  
+* Mock E2E: **15 passed**  
+* Real E2E: **11 passed**  
+* GitHub Actions run `34128113727`: Infrastructure / Contracts / Backend / Frontend / Frontend E2E / Frontend E2E Real = **SUCCESS** on exact feature SHA `7be4005001c07785022e4e09aeeef2b79b377ace`  
+* BUILD_NOW: **59 VERIFIED / 0 BLOCKED**
 
 ## BUILD_NOW
 
