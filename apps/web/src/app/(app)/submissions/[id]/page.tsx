@@ -89,6 +89,8 @@ export default function SubmissionDetailPage({
   const evaluationLive = getApiCapabilities().evaluation === "live";
   const publicationLive = getApiCapabilities().publication === "live";
   const reportsLive = getApiCapabilities().reports === "live";
+  const analyticsLive = getApiCapabilities().analytics === "live";
+  const learningLive = getApiCapabilities().learning === "live";
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["submission", id],
     queryFn: () => api.getSubmission(id),
@@ -222,10 +224,16 @@ export default function SubmissionDetailPage({
   const downstreamBoundary =
     live &&
     (published
-      ? "Results are published. Student, parent, and teacher reports are live. Analytics and adaptive learning remain unavailable for this live identity."
+      ? analyticsLive
+        ? learningLive
+          ? "Results are published. Reports, analytics, and learning are live."
+          : "Results are published. Reports and analytics are live. Adaptive learning remains unavailable for this live identity."
+        : "Results are published. Student, parent, and teacher reports are live. Analytics and adaptive learning remain unavailable for this live identity."
       : approved
         ? publicationLive
-          ? "Evaluation approved. Open publication to generate the package, then explicitly publish results. Analytics and learning remain mock."
+          ? analyticsLive
+            ? "Evaluation approved. Open publication to generate the package, then explicitly publish results. Learning remains mock."
+            : "Evaluation approved. Open publication to generate the package, then explicitly publish results. Analytics and learning remain mock."
           : "Evaluation approved. Result publication, reports, analytics, and learning are not live yet."
         : data.workflow_state === "EVALUATION_REVIEW" ||
             data.workflow_state === "EVALUATING"
