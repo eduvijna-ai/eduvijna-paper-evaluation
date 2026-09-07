@@ -369,16 +369,17 @@ CREATE TABLE role_permissions (
 
 **Critical index:** `(tenant_id, submission_id, question_id)` on `question_evaluations`
 
-### 4.6 Publication & learning (`0007`)
+### 4.6 Publication (`0008`) & analytics mastery evidence (`0009`)
 
-| Table | Key columns |
-|-------|-------------|
-| `published_results` | `tenant_id`, `submission_id`, `total_score`, report S3 keys, `ledger_snapshot_id` |
-| `mastery_evidence` | `tenant_id`, `student_id`, `curriculum_node_id`, `question_evaluation_id`, `evidence_type` |
-| `mastery_states` | `tenant_id`, `student_id`, `curriculum_node_id`, `concept_mastery`, `execution_accuracy` |
-| `learning_recommendations` | `tenant_id`, `student_id`, `curriculum_id`, `target_node_id`, `priority` |
-| `improvement_assessments` | `tenant_id`, `student_id`, `blueprint_s3_key` |
-| `improvement_assessment_items` | `tenant_id`, `improvement_assessment_id`, `curriculum_node_id` |
+| Table | Key columns | Status |
+|-------|-------------|--------|
+| `published_results` | `tenant_id`, `submission_id`, scores, report keys, `ledger_snapshot_hash` | B7 live |
+| `annotations` | publication annotations | B7 live |
+| `mastery_evidence` | published-ledger evidence; `evidence_type`, `strength`, `algorithm_version=B8_V1` | **B8 live** |
+| `mastery_states` | longitudinal concept/execution aggregates | **NOT in B8** (AFTER_CLIENT_APPROVAL) |
+| `learning_recommendations` / improvement tables | B9+ | deferred |
+
+`PipelineJob.stage` includes `PUBLICATION` (B7) and `ANALYTICS` (B8).
 
 ### 4.7 AI tracing (`0008`)
 

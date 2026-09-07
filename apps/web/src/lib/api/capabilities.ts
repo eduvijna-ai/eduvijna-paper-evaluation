@@ -43,7 +43,7 @@ export function getApiCapabilities(): ApiCapabilities {
       evaluation: "live",
       publication: "live",
       reports: "live",
-      analytics: "mock",
+      analytics: "live",
       learning: "mock",
       showTransportBadge: true,
     };

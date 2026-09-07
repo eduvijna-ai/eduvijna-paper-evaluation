@@ -8,6 +8,7 @@ import { TranscriptionHttpApi } from "../http/transcription";
 import { EvaluationHttpApi } from "../http/evaluation";
 import { PublicationHttpApi } from "../http/publication";
 import { ReportsHttpApi } from "../http/reports";
+import { AnalyticsHttpApi } from "../http/analytics";
 import { ApiError } from "../http/errors";
 import { httpRequest } from "../http/client";
 import { getApiCapabilities } from "../capabilities";
@@ -20,7 +21,7 @@ function isLiveSubmissionId(id: string): boolean {
 }
 
 function refuseMockDownstream(
-  domain: "reports" | "analytics" | "learning",
+  domain: "learning",
   entityId: string,
 ): void {
   if (!isLiveSubmissionId(entityId)) return;
@@ -35,7 +36,7 @@ function refuseMockDownstream(
 }
 
 /**
- * Hybrid domain routing (B7):
+ * Hybrid domain routing (B8):
  * - Auth, Institution, Academic Years, Class Sections, Students, Import, Guardians → A1 HTTP
  * - Curriculum and Assessment authoring → A2 HTTP
  * - Submissions + identity review → B3 HTTP
@@ -43,10 +44,11 @@ function refuseMockDownstream(
  * - Transcription review → B5 HTTP
  * - Evaluation ledger review → B6 HTTP
  * - Publication + reports → B7 HTTP
- * - Analytics, Learning → MOCK (refuse live UUIDs)
+ * - Analytics → B8 HTTP
+ * - Learning → MOCK (refuse live UUIDs)
  *
  * Components use `api` only — they must not inspect mock vs HTTP.
- * Live publication/report errors must never silently fall back to mock.
+ * Live publication/report/analytics errors must never silently fall back to mock.
  */
 export const HybridEduVijnaApi: ApiClient = {
   async getHealth() {
@@ -387,8 +389,14 @@ export const HybridEduVijnaApi: ApiClient = {
       }
       return MockEduVijnaApi.getStudentReport(studentId, assessmentId);
     }
-    refuseMockDownstream("reports", studentId);
-    refuseMockDownstream("reports", assessmentId);
+    if (isLiveSubmissionId(studentId) || isLiveSubmissionId(assessmentId)) {
+      throw new ApiError({
+        message: "Live reports are not enabled for this identity.",
+        status: 404,
+        kind: "not_found",
+        code: "REPORTS_NOT_LIVE",
+      });
+    }
     return MockEduVijnaApi.getStudentReport(studentId, assessmentId);
   },
   getParentReport: async (studentId, assessmentId) => {
@@ -398,8 +406,14 @@ export const HybridEduVijnaApi: ApiClient = {
       }
       return MockEduVijnaApi.getParentReport(studentId, assessmentId);
     }
-    refuseMockDownstream("reports", studentId);
-    refuseMockDownstream("reports", assessmentId);
+    if (isLiveSubmissionId(studentId) || isLiveSubmissionId(assessmentId)) {
+      throw new ApiError({
+        message: "Live reports are not enabled for this identity.",
+        status: 404,
+        kind: "not_found",
+        code: "REPORTS_NOT_LIVE",
+      });
+    }
     return MockEduVijnaApi.getParentReport(studentId, assessmentId);
   },
   getTeacherReport: async (studentId, assessmentId) => {
@@ -415,13 +429,41 @@ export const HybridEduVijnaApi: ApiClient = {
       code: "TEACHER_REPORT_NOT_LIVE",
     });
   },
-  getAssessmentAnalytics: async (assessmentId) => {
-    refuseMockDownstream("analytics", assessmentId);
+  getAssessmentAnalytics: async (assessmentId, options) => {
+    if (getApiCapabilities().analytics === "live") {
+      return AnalyticsHttpApi.getAssessmentAnalytics(assessmentId, options);
+    }
     return MockEduVijnaApi.getAssessmentAnalytics(assessmentId);
   },
   getStudentAnalytics: async (studentId) => {
-    refuseMockDownstream("analytics", studentId);
+    if (getApiCapabilities().analytics === "live") {
+      return AnalyticsHttpApi.getStudentAnalytics(studentId);
+    }
     return MockEduVijnaApi.getStudentAnalytics(studentId);
+  },
+  getStudentMasteryEvidence: async (studentId, filters) => {
+    if (getApiCapabilities().analytics === "live") {
+      return AnalyticsHttpApi.getStudentMasteryEvidence(studentId, filters);
+    }
+    throw new ApiError({
+      message: "Mastery evidence is only available for live analytics.",
+      status: 404,
+      kind: "not_found",
+      code: "ANALYTICS_NOT_LIVE",
+    });
+  },
+  prepareAnalyticsMaterialization: async (publishedResultId) => {
+    if (getApiCapabilities().analytics === "live") {
+      return AnalyticsHttpApi.prepareAnalyticsMaterialization(
+        publishedResultId,
+      );
+    }
+    throw new ApiError({
+      message: "Analytics materialization is only available for live analytics.",
+      status: 404,
+      kind: "not_found",
+      code: "ANALYTICS_NOT_LIVE",
+    });
   },
   getAdaptiveLearning: async (studentId) => {
     refuseMockDownstream("learning", studentId);

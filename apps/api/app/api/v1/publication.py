@@ -179,8 +179,11 @@ async def publish_published_result(
     db: Db,
     auth: AuthContext = Depends(require_permissions("publication:publish")),
 ) -> dict[str, Any]:
+    import logging
+
+    logger = logging.getLogger(__name__)
     try:
-        result = await publish_result(
+        result, analytics_job = await publish_result(
             db,
             tenant_id=auth.tenant_id,
             published_result_id=published_result_id,
@@ -190,11 +193,31 @@ async def publish_published_result(
         status = 404 if exc.code == "NOT_FOUND" else 409
         raise _http_error(status, exc.code, exc.message) from exc
     await db.commit()
+
+    # Enqueue analytics after academic publish commits. Broker failure must not unpublish.
+    try:
+        from app.tasks.celery_app import enqueue_analytics
+
+        task_id = await enqueue_analytics(
+            tenant_id=auth.tenant_id,
+            published_result_id=result.id,
+            job_id=analytics_job.id,
+        )
+        if task_id:
+            analytics_job.celery_task_id = task_id
+            await db.commit()
+    except Exception:  # noqa: BLE001
+        logger.exception(
+            "analytics enqueue failed after publish published_result_id=%s",
+            published_result_id,
+        )
+
     return {
         "published_result_id": str(result.id),
         "status": result.status,
         "submission_id": str(result.submission_id),
         "published_at": result.published_at.isoformat() if result.published_at else None,
+        "analytics_job_id": str(analytics_job.id),
     }
 
 

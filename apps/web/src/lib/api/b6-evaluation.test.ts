@@ -66,14 +66,14 @@ describe("B6 evaluation capability", () => {
     vi.unstubAllEnvs();
   });
 
-  it("marks evaluation, publication, and reports live in hybrid while analytics stay mock", () => {
+  it("marks evaluation, publication, reports, and analytics live in hybrid while learning stays mock", () => {
     vi.stubEnv("NEXT_PUBLIC_API_MODE", "hybrid");
     const caps = getApiCapabilities();
     expect(caps.evaluation).toBe("live");
     expect(caps.transcription).toBe("live");
     expect(caps.publication).toBe("live");
     expect(caps.reports).toBe("live");
-    expect(caps.analytics).toBe("mock");
+    expect(caps.analytics).toBe("live");
     expect(caps.learning).toBe("mock");
   });
 
@@ -246,18 +246,26 @@ describe("B6 hybrid adapter live routing", () => {
     expect(urls.some((u) => u.includes("/evaluation"))).toBe(true);
   });
 
-  it("routes live reports to HTTP and refuses mock analytics/learning for live UUID", async () => {
+  it("routes live reports and analytics to HTTP and refuses mock learning for live UUID", async () => {
     vi.stubEnv("NEXT_PUBLIC_API_MODE", "hybrid");
     const liveId = "22222222-2222-4222-8222-222222222222";
-    const fetchMock = vi.fn().mockImplementation(
-      async () =>
-        new Response(
+    const fetchMock = vi.fn().mockImplementation(async (input: RequestInfo) => {
+      const url = String(input);
+      if (url.includes("/analytics/")) {
+        return new Response(
           JSON.stringify({
-            detail: { code: "NOT_FOUND", message: "No published report" },
+            detail: { code: "NOT_FOUND", message: "No analytics" },
           }),
           { status: 404, headers: { "Content-Type": "application/json" } },
-        ),
-    );
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          detail: { code: "NOT_FOUND", message: "No published report" },
+        }),
+        { status: 404, headers: { "Content-Type": "application/json" } },
+      );
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
@@ -269,7 +277,12 @@ describe("B6 hybrid adapter live routing", () => {
 
     await expect(
       HybridEduVijnaApi.getAssessmentAnalytics(liveId),
-    ).rejects.toMatchObject({ code: "ANALYTICS_NOT_LIVE" });
+    ).rejects.toBeInstanceOf(ApiError);
+    const analyticsUrls = fetchMock.mock.calls.map((c) => String(c[0]));
+    expect(
+      analyticsUrls.some((u) => u.includes("/analytics/assessments/")),
+    ).toBe(true);
+
     await expect(
       HybridEduVijnaApi.getAdaptiveLearning(liveId),
     ).rejects.toMatchObject({ code: "LEARNING_NOT_LIVE" });

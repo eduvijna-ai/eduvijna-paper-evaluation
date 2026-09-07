@@ -119,6 +119,18 @@ export default function AssessmentDetailPage({
         </p>
       )}
 
+      {capabilities.assessments === "live" &&
+        capabilities.analytics === "live" &&
+        capabilities.learning === "mock" && (
+        <p
+          data-testid="assessment-learning-boundary"
+          className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"
+        >
+          Adaptive learning remains on the mock provider and is hidden for live
+          assessment identities.
+        </p>
+      )}
+
       <nav
         data-testid="assessment-subnav"
         className="mt-4 flex flex-wrap gap-2 border-t border-slate-200 pt-4"

@@ -130,7 +130,9 @@ from_node_id  ──prerequisite──▶  to_node_id
 | **Execution accuracy** | Procedural/arithmetic performance → `EXECUTION` |
 | **Procedure** | Method selection → `PROCEDURE` |
 
-`MasteryState` aggregates per `(student_id, curriculum_node_id)` separating concept vs execution ([DOMAIN_MODEL.md](./DOMAIN_MODEL.md)).
+`MasteryEvidence` is **B8 live**. `MasteryState` longitudinal aggregates remain
+**AFTER_CLIENT_APPROVAL** — B8 exposes a current evidence profile via API projection only,
+without persisting `mastery_states` rows ([DOMAIN_MODEL.md](./DOMAIN_MODEL.md)).
 
 ---
 

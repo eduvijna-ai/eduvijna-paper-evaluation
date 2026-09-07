@@ -1,9 +1,10 @@
 import type {
   AdaptiveLearningPlan,
+  AnalyticsMaterializationPrepareResult,
   AnnotatedPaperWorkspace,
   AnswerKeyStep,
   Assessment,
-  AssessmentAnalytics,
+  AssessmentAnalyticsView,
   AuthSession,
   Curriculum,
   CurriculumMapEntry,
@@ -26,7 +27,8 @@ import type {
   QuestionAnswerMappingView,
   RubricCriterion,
   Student,
-  StudentAnalytics,
+  StudentAnalyticsView,
+  StudentMasteryEvidenceList,
   StudentReport,
   Submission,
   TeacherReport,
@@ -264,8 +266,22 @@ export interface ApiClient {
     studentId: string,
     assessmentId: string,
   ): Promise<TeacherReport>;
-  getAssessmentAnalytics(assessmentId: string): Promise<AssessmentAnalytics>;
-  getStudentAnalytics(studentId: string): Promise<StudentAnalytics>;
+  getAssessmentAnalytics(
+    assessmentId: string,
+    options?: { passThresholdPercent?: number },
+  ): Promise<AssessmentAnalyticsView>;
+  getStudentAnalytics(studentId: string): Promise<StudentAnalyticsView>;
+  getStudentMasteryEvidence?(
+    studentId: string,
+    filters?: {
+      assessmentId?: string;
+      curriculumId?: string;
+      curriculumNodeId?: string;
+    },
+  ): Promise<StudentMasteryEvidenceList>;
+  prepareAnalyticsMaterialization?(
+    publishedResultId: string,
+  ): Promise<AnalyticsMaterializationPrepareResult>;
   getAdaptiveLearning(studentId: string): Promise<AdaptiveLearningPlan>;
   getImprovementBlueprint(
     studentId: string,

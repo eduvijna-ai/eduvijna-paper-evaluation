@@ -33,6 +33,7 @@ from app.db.models.mapping import (
     QuestionAnswerMapping,
     QuestionAnswerMappingRegion,
 )
+from app.db.models.mastery import MasteryEvidence
 from app.db.models.publication import Annotation, PublishedResult
 from app.db.models.role import Permission, Role, RolePermission, UserRole
 from app.db.models.student import Guardian, ImportSession, Student, StudentGuardian
@@ -60,6 +61,7 @@ __all__ = [
     "Guardian",
     "Institution",
     "ImportSession",
+    "MasteryEvidence",
     "Permission",
     "PipelineJob",
     "PublishedResult",

@@ -14,7 +14,6 @@ import {
 } from "@/lib/api/http/reports";
 import { getApiCapabilities } from "@/lib/api/capabilities";
 import { HybridEduVijnaApi } from "@/lib/api/hybrid/adapter";
-import { ApiError } from "@/lib/api/http/errors";
 
 const workspaceDto: B7PublicationWorkspaceDto = {
   submission_id: "11111111-1111-4111-8111-111111111111",
@@ -93,13 +92,13 @@ describe("B7 publication capability", () => {
     vi.unstubAllEnvs();
   });
 
-  it("marks publication and reports live in hybrid", () => {
+  it("marks publication, reports, and analytics live in hybrid", () => {
     vi.stubEnv("NEXT_PUBLIC_API_MODE", "hybrid");
     const caps = getApiCapabilities();
     expect(caps.evaluation).toBe("live");
     expect(caps.publication).toBe("live");
     expect(caps.reports).toBe("live");
-    expect(caps.analytics).toBe("mock");
+    expect(caps.analytics).toBe("live");
     expect(caps.learning).toBe("mock");
   });
 
@@ -186,18 +185,19 @@ describe("B7 publication mappers", () => {
   });
 });
 
-describe("B7 hybrid refuse mock analytics/learning for live UUIDs", () => {
+describe("B7 hybrid refuse mock learning for live UUIDs", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
   });
 
-  it("refuses analytics for live UUID even when reports are live", async () => {
+  it("keeps learning refused for live UUID while analytics is live", async () => {
     vi.stubEnv("NEXT_PUBLIC_API_MODE", "hybrid");
+    expect(getApiCapabilities().analytics).toBe("live");
     await expect(
-      HybridEduVijnaApi.getAssessmentAnalytics(
+      HybridEduVijnaApi.getAdaptiveLearning(
         "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
       ),
-    ).rejects.toBeInstanceOf(ApiError);
+    ).rejects.toMatchObject({ code: "LEARNING_NOT_LIVE" });
   });
 
   it("refuses learning for live UUID", async () => {
