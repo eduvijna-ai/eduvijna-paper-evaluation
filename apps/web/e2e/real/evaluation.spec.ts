@@ -311,20 +311,33 @@ async function reachTranscriptionReady(
     timeout: 30_000,
   });
 
+  await expect(page.getByTestId("transcription-ai-copy").or(page.getByTestId("transcription-text-input")).first()).toBeVisible({
+    timeout: 90_000,
+  });
+
   const textInput = page.getByTestId("transcription-text-input").first();
   if (await textInput.count()) {
     await textInput.fill("4");
     await page.getByTestId("save-transcription").first().click();
+    await page.waitForTimeout(500);
   }
-  for (let i = 0; i < 10; i += 1) {
+  const confirmFirst = page.getByTestId("confirm-transcription").first();
+  if ((await confirmFirst.count()) && (await confirmFirst.isEnabled())) {
+    await confirmFirst.click();
+    await page.waitForTimeout(400);
+  }
+  for (let i = 0; i < 12; i += 1) {
     const enabled = page.locator(
       '[data-testid="confirm-transcription"]:not([disabled])',
     );
     if ((await enabled.count()) === 0) break;
     await enabled.first().click();
-    await page.waitForTimeout(400);
+    await page.waitForTimeout(500);
   }
 
+  await expect(page.getByTestId("finalize-transcription")).toBeEnabled({
+    timeout: 30_000,
+  });
   await page.getByTestId("finalize-transcription").click();
   await expect(page).toHaveURL(new RegExp(`/submissions/${submissionId}$`), {
     timeout: 30_000,
