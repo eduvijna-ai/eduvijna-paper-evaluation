@@ -458,7 +458,11 @@ test.describe("B6 real evaluation ledger review", () => {
       /Evaluation approved\./i,
       { timeout: 30_000 },
     );
-    await expect(page.getByTestId("link-publication-from-evaluation").or(page.getByTestId("evaluation-downstream-mock-boundary"))).toBeVisible();
+    // B7: publication is live after APPROVED; analytics/learning remain mock.
+    await expect(page.getByTestId("link-publication-from-evaluation")).toBeVisible();
+    await expect(page.getByTestId("evaluation-downstream-mock-boundary")).toContainText(
+      /Analytics and adaptive learning remain mock/i,
+    );
 
     await page.goto(`/submissions/${submissionId}`);
     await expect(page.getByTestId("submission-workflow-state")).toContainText(
