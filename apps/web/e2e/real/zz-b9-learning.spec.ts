@@ -678,28 +678,21 @@ test.describe("B9 live learning + improvement blueprint (real API)", () => {
     });
 
     const pathText = (await page.getByTestId("live-learning-path").textContent()) ?? "";
-    await expect(page.locator(`[data-node-code="${nodeACode}"]`).first()).toBeVisible();
-    await expect(page.locator(`[data-node-code="${nodeBCode}"]`).first()).toBeVisible();
-    const aPos = await page
+    const pathRoot = page.getByTestId("live-learning-path");
+    await expect(pathRoot.locator(`[data-node-code="${nodeACode}"]`).first()).toBeVisible();
+    await expect(pathRoot.locator(`[data-node-code="${nodeBCode}"]`).first()).toBeVisible();
+    const aPos = await pathRoot
       .locator(`[data-node-code="${nodeACode}"]`)
       .first()
-      .evaluate((el) => {
-        const steps = [
-          ...document.querySelectorAll("[data-testid^='live-learning-path-step-']"),
-        ];
-        return steps.findIndex((s) => s.contains(el));
-      });
-    const bPos = await page
+      .getAttribute("data-testid")
+      .then((id) => Number((id ?? "").replace("live-learning-path-step-", "")));
+    const bPos = await pathRoot
       .locator(`[data-node-code="${nodeBCode}"]`)
       .first()
-      .evaluate((el) => {
-        const steps = [
-          ...document.querySelectorAll("[data-testid^='live-learning-path-step-']"),
-        ];
-        return steps.findIndex((s) => s.contains(el));
-      });
-    expect(aPos).toBeGreaterThanOrEqual(0);
-    expect(bPos).toBeGreaterThanOrEqual(0);
+      .getAttribute("data-testid")
+      .then((id) => Number((id ?? "").replace("live-learning-path-step-", "")));
+    expect(Number.isFinite(aPos)).toBeTruthy();
+    expect(Number.isFinite(bPos)).toBeTruthy();
     expect(aPos).toBeLessThan(bPos);
     expect(pathText).not.toMatch(/https?:\/\//i);
     expect(pathText).not.toMatch(/\bwww\./i);
