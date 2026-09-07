@@ -517,24 +517,201 @@ paths:
       operationId: deleteQuestionCurriculumMapping
       security: [{ bearerAuth: [] }]
       responses: { "204": { description: Mapping deleted } }
+  /api/v1/assessment-versions/{id}/question-paper:
+    post:
+      operationId: uploadAssessmentQuestionPaper
+      summary: Upload question paper artifact for a DRAFT assessment version (PEV-002 / PEV-069)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Assessment artifact stored after scan hook
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssessmentArtifact" }
+        "409":
+          description: Version not DRAFT or question structure already exists
+        "422":
+          description: Validation or malware rejection
+  /api/v1/assessment-versions/{id}/question-paper/parse:
+    post:
+      operationId: parseQuestionPaper
+      summary: Enqueue AI parse of uploaded question paper into a proposed tree (PEV-002)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200":
+          description: Authoring AI run (QUEUED / REVIEW_REQUIRED / …)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthoringAiRun" }
+        "409":
+          description: QUESTION_PAPER_ARTIFACT_REQUIRED when no uploaded paper is linked
+        "422":
+          description: Artifact integrity / evidence extraction failure
+        "503":
+          description: AI_PROVIDER_UNAVAILABLE when AI_PROVIDER_AUTHORING is unset
+  /api/v1/assessment-versions/{id}/authoring-ai-runs/latest:
+    get:
+      operationId: getLatestAuthoringAiRun
+      summary: Latest authoring AI run for an assessment version (optional operation filter)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - name: operation
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/AuthoringAiOperation"
+      responses:
+        "200":
+          description: Latest matching authoring AI run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthoringAiRun" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/assessment-artifacts/{id}:
+    get:
+      operationId: getAssessmentArtifact
+      summary: Tenant-scoped assessment artifact metadata (no storage credentials)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200":
+          description: Assessment artifact metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssessmentArtifact" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/authoring-ai-runs/{id}:
+    get:
+      operationId: getAuthoringAiRun
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200":
+          description: Authoring AI run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthoringAiRun" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/authoring-ai-runs/{id}/question-tree-proposal:
+    put:
+      operationId: updateQuestionTreeProposal
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/QuestionTreeProposalInput" }
+      responses:
+        "200":
+          description: Updated proposal payload
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthoringAiRun" }
+  /api/v1/authoring-ai-runs/{id}/apply-question-tree:
+    post:
+      operationId: applyQuestionTree
+      summary: Materialize a REVIEW_REQUIRED parse proposal into Question / QuestionVersion rows
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200":
+          description: Applied authoring run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthoringAiRun" }
+  /api/v1/authoring-ai-runs/{id}/curriculum-mapping-proposal:
+    put:
+      operationId: updateCurriculumMappingProposal
+      summary: Teacher edit of AI curriculum-mapping proposal (candidate allowlist enforced)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CurriculumMappingProposalEdit" }
+      responses:
+        "200":
+          description: Updated proposal payload (still REVIEW_REQUIRED)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthoringAiRun" }
+        "422":
+          description: AUTHORING_PROVIDER_INVALID_CURRICULUM_NODE or validation error
+  /api/v1/authoring-ai-runs/{id}/apply-curriculum-mappings:
+    post:
+      operationId: applyCurriculumMappings
+      summary: Human apply of REVIEW_REQUIRED curriculum-mapping proposal (creates canonical rows)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ApplyCurriculumMappingsInput" }
+      responses:
+        "200":
+          description: Applied authoring run (SUCCEEDED)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthoringAiRun" }
   /api/v1/ai/proposals/answer-key:
     post:
       operationId: proposeAnswerKey
+      summary: B10 AI answer-key proposal (PEV-004); requires AI_PROVIDER_AUTHORING
       security: [{ bearerAuth: [] }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AnswerKeyProposalRequest" } } } }
-      responses: { "503": { description: AI provider unavailable; no content fabricated } }
+      responses:
+        "200":
+          description: Authoring AI run for answer-key proposal
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthoringAiRun" }
+        "503":
+          description: AI provider unavailable; no content fabricated
   /api/v1/ai/proposals/rubric:
     post:
       operationId: proposeRubric
+      summary: B10 AI rubric proposal (PEV-004); requires AI_PROVIDER_AUTHORING
       security: [{ bearerAuth: [] }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/RubricProposalRequest" } } } }
-      responses: { "503": { description: AI provider unavailable; no content fabricated } }
+      responses:
+        "200":
+          description: Authoring AI run for rubric proposal
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthoringAiRun" }
+        "503":
+          description: AI provider unavailable; no content fabricated
   /api/v1/ai/proposals/curriculum-mapping:
     post:
       operationId: suggestCurriculumMapping
+      summary: B10 AI curriculum-mapping suggestion; requires AI_PROVIDER_AUTHORING
       security: [{ bearerAuth: [] }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CurriculumMappingProposalRequest" } } } }
-      responses: { "503": { description: AI provider unavailable; no content fabricated } }
+      responses:
+        "200":
+          description: Authoring AI run for curriculum-mapping suggestion
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthoringAiRun" }
+        "503":
+          description: AI provider unavailable; no content fabricated
   /api/v1/submissions:
     get:
       operationId: listSubmissions
@@ -789,6 +966,492 @@ paths:
             image/png:
               schema: { type: string, format: binary }
         "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/evaluation/prepare:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: prepareEvaluation
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Evaluation run queued
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvaluationPrepareResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/evaluation:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getEvaluationWorkspace
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Evaluation review workspace
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvaluationWorkspace" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/evaluation/finalize:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: finalizeEvaluation
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Submission APPROVED (never PUBLISHED)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvaluationFinalizeResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/evaluation-runs/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getEvaluationRun
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Evaluation run with question ledger rows
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/EvaluationRunDetail" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/question-evaluations/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getQuestionEvaluation
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Question evaluation ledger row
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QuestionEvaluation" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/question-evaluations/{id}/accept:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: acceptQuestionEvaluation
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Accept proposed AI score
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QuestionEvaluation" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/question-evaluations/{id}/override:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: overrideQuestionEvaluation
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OverrideEvaluationInput" }
+      responses:
+        "200":
+          description: Override with human score
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QuestionEvaluation" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/question-evaluations/{id}/feedback:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: feedbackQuestionEvaluation
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FeedbackEvaluationInput" }
+      responses:
+        "200":
+          description: Edit feedback without score change
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QuestionEvaluation" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/question-evaluations/{id}/escalate:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: escalateQuestionEvaluation
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/EscalateEvaluationInput" }
+      responses:
+        "200":
+          description: Escalate question evaluation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QuestionEvaluation" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/publication/prepare:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: preparePublication
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Publication package prepared and generation queued
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicationPrepareResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/publication:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getPublicationWorkspace
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Publication workspace for reviewers
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicationWorkspace" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/published-result:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getPublishedResult
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Consumer published result (404 until PUBLISHED)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublishedResultSummary" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/publication-results/{id}/regenerate:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: regeneratePublication
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: New publication version queued (not allowed when PUBLISHED)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicationRegenerateResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/publication-results/{id}/publish:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: publishPublicationResult
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Explicit publish gate — never auto-publish
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicationPublishResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/publication-results/{id}/artifacts/{artifact_type}:
+    parameters:
+      - { $ref: "#/components/parameters/Id" }
+      - name: artifact_type
+        in: path
+        required: true
+        schema:
+          type: string
+          enum:
+            [
+              ANNOTATED_PDF,
+              STUDENT_REPORT_PDF,
+              PARENT_REPORT_PDF,
+              TEACHER_REPORT_PDF,
+            ]
+    get:
+      operationId: downloadPublicationArtifact
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Immutable PDF artifact stream
+          content:
+            application/pdf:
+              schema: { type: string, format: binary }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/publication-results/{id}/reports/{audience}:
+    parameters:
+      - { $ref: "#/components/parameters/Id" }
+      - name: audience
+        in: path
+        required: true
+        schema: { type: string, enum: [student, parent, teacher] }
+    get:
+      operationId: previewPublicationReport
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Reviewer JSON report preview (GENERATED ok)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicationReportPayload" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/publication-results/{id}/annotations:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: createPublicationAnnotation
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ManualAnnotationInput" }
+      responses:
+        "200":
+          description: Manual COMMENT/HIGHLIGHT while GENERATED
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicationAnnotation" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/reports/student/{student_id}/assessments/{assessment_id}:
+    parameters:
+      - name: student_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: assessment_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getStudentAudienceReport
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Latest PUBLISHED student report only
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentReport" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/reports/parent/{student_id}/assessments/{assessment_id}:
+    parameters:
+      - name: student_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: assessment_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getParentAudienceReport
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Latest PUBLISHED parent report only
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ParentReport" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/reports/teacher/{student_id}/assessments/{assessment_id}:
+    parameters:
+      - name: student_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: assessment_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getTeacherAudienceReport
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Latest PUBLISHED teacher report only
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TeacherReport" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/analytics/assessments/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getAssessmentAnalytics
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: pass_threshold_percent
+          in: query
+          required: false
+          schema: { type: number, minimum: 0, maximum: 100 }
+          description: Optional pass threshold; omitted → pass_threshold_percent and pass_rate are null
+      responses:
+        "200":
+          description: Published-ledger assessment analytics (B8)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssessmentAnalytics" }
+        "400":
+          description: Invalid pass_threshold_percent
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/analytics/students/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getStudentAnalytics
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Published-ledger student analytics with projected mastery signals (B8)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentAnalytics" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/analytics/students/{id}/mastery-evidence:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: listStudentMasteryEvidence
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: assessment_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: curriculum_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: curriculum_node_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Immutable mastery evidence rows with ledger provenance (B8_V1)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/MasteryEvidenceList" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/analytics/published-results/{id}/prepare:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: preparePublishedResultAnalytics
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Ensure ANALYTICS job and enqueue materialization (idempotent)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnalyticsPrepareResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Prepare requires PUBLISHED result
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/learning/students/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getLearningWorkspace
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: curriculum_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Live learning workspace for a student
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LearningWorkspace" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/learning/students/{id}/prepare:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: prepareLearningPlan
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LearningPrepareInput" }
+      responses:
+        "200":
+          description: Queued or reused learning plan run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LearningPrepareResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Evidence not ready or other learning conflict
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/learning/plan-runs/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getLearningPlanRun
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Learning plan run with recommendations and path
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LearningPlanRun" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/learning/plan-runs/{id}/improvement-blueprints/prepare:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: prepareImprovementBlueprint
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Queued or reused improvement blueprint
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImprovementBlueprintPrepareResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Plan not ready, stale, or empty
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/improvement-assessments/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getImprovementAssessment
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Improvement assessment blueprint detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImprovementAssessment" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/improvement-assessments/{id}/approve:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: approveImprovementAssessment
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Blueprint approved (no reassessment created)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImprovementBlueprintApproveResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Stale or not pending approval
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/improvement-assessments/{id}/reject:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: rejectImprovementAssessment
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ImprovementBlueprintRejectInput" }
+      responses:
+        "200":
+          description: Blueprint rejected
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ImprovementAssessment" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "422":
+          description: Invalid rejection reason
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
   /api/v1/submission-pages/{id}/answer-regions:
     parameters: [{ $ref: "#/components/parameters/Id" }]
     post:
@@ -1317,6 +1980,156 @@ components:
         question_type: { type: string }
         scoring_mode: { type: string, enum: [LEAF_SCORABLE, CONTAINER_DERIVED] }
         instructions: { type: [string, "null"] }
+    AssessmentArtifact:
+      type: object
+      description: Immutable assessment source artifact (B10 / PEV-002)
+      required:
+        [
+          id,
+          tenant_id,
+          assessment_id,
+          artifact_type,
+          original_filename,
+          mime_type,
+          byte_size,
+          content_sha256,
+          storage_key,
+          security_scan_status,
+          uploaded_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        artifact_type: { type: string, enum: [QUESTION_PAPER] }
+        original_filename: { type: string }
+        mime_type: { type: string }
+        byte_size: { type: integer }
+        content_sha256: { type: string, minLength: 64, maxLength: 64 }
+        storage_key: { type: string }
+        security_scan_status:
+          type: string
+          enum: [NOT_CONFIGURED, CLEAN, REJECTED, ERROR]
+        uploaded_by: { type: [string, "null"], format: uuid }
+        uploaded_at: { type: string, format: date-time }
+        created_at: { type: [string, "null"], format: date-time }
+    ProposedQuestionNode:
+      type: object
+      description: See packages/contracts/schemas/question-paper-parse.schema.json
+      additionalProperties: false
+      required:
+        [
+          stable_code,
+          display_label,
+          sequence,
+          prompt_text,
+          max_marks,
+          question_type,
+          scoring_mode,
+        ]
+      properties:
+        stable_code: { type: string, minLength: 1, maxLength: 100 }
+        display_label: { type: string, minLength: 1, maxLength: 100 }
+        sequence: { type: integer, minimum: 0, maximum: 10000 }
+        prompt_text: { type: string, minLength: 1, maxLength: 10000 }
+        max_marks: { type: number, minimum: 0 }
+        question_type: { type: string, minLength: 1, maxLength: 64 }
+        scoring_mode: { type: string, enum: [LEAF_SCORABLE, CONTAINER_DERIVED] }
+        instructions: { type: [string, "null"], maxLength: 5000 }
+        children:
+          type: array
+          maxItems: 200
+          items: { $ref: "#/components/schemas/ProposedQuestionNode" }
+    QuestionTreeProposalInput:
+      type: object
+      additionalProperties: false
+      required: [roots]
+      properties:
+        roots:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items: { $ref: "#/components/schemas/ProposedQuestionNode" }
+        notes: { type: [string, "null"], maxLength: 2000 }
+    CurriculumMappingProposalEdit:
+      type: object
+      additionalProperties: false
+      properties:
+        mappings:
+          type: array
+          maxItems: 50
+          items: { $ref: "#/components/schemas/ProposedCurriculumMapping" }
+    ProposedCurriculumMapping:
+      type: object
+      additionalProperties: false
+      required: [curriculum_node_id, mapping_type]
+      properties:
+        curriculum_node_id: { type: string, format: uuid }
+        mapping_type:
+          type: string
+          enum: [PRIMARY, SECONDARY, LEARNING_OUTCOME, SKILL]
+        weight: { type: [number, "null"], minimum: 0 }
+        rationale: { type: [string, "null"], maxLength: 2000 }
+    ApplyCurriculumMappingsInput:
+      type: object
+      additionalProperties: false
+      properties:
+        selected_indices:
+          type: [array, "null"]
+          items: { type: integer, minimum: 0 }
+          maxItems: 50
+    AuthoringAiOperation:
+      type: string
+      enum:
+        [
+          PARSE_QUESTION_PAPER,
+          PROPOSE_ANSWER_KEY,
+          PROPOSE_RUBRIC,
+          SUGGEST_CURRICULUM_MAPPING,
+        ]
+    AuthoringAiRun:
+      type: object
+      description: Durable B10 authoring AI job (PEV-002 / PEV-004)
+      required:
+        [
+          id,
+          tenant_id,
+          assessment_id,
+          assessment_version_id,
+          operation,
+          status,
+          input_hash,
+          requested_by,
+          requested_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        question_version_id: { type: [string, "null"], format: uuid }
+        assessment_artifact_id: { type: [string, "null"], format: uuid }
+        operation:
+          $ref: "#/components/schemas/AuthoringAiOperation"
+        status:
+          type: string
+          enum:
+            [QUEUED, RUNNING, REVIEW_REQUIRED, SUCCEEDED, FAILED, UNAVAILABLE]
+        input_hash: { type: string }
+        proposal_payload: { type: [object, "null"], additionalProperties: true }
+        requested_by: { type: string, format: uuid }
+        requested_at: { type: string, format: date-time }
+        started_at: { type: [string, "null"], format: date-time }
+        finished_at: { type: [string, "null"], format: date-time }
+        celery_task_id: { type: [string, "null"] }
+        answer_key_version_id: { type: [string, "null"], format: uuid }
+        rubric_version_id: { type: [string, "null"], format: uuid }
+        correlation_id: { type: [string, "null"], maxLength: 100 }
+        failure_code: { type: [string, "null"] }
+        failure_detail: { type: [string, "null"] }
+        enqueue_error: { type: [string, "null"] }
+        created_at: { type: [string, "null"], format: date-time }
+        updated_at: { type: [string, "null"], format: date-time }
     AnswerKeyProposalRequest:
       type: object
       additionalProperties: false
@@ -1705,9 +2518,30 @@ components:
     TranscriptionSegment:
       type: object
       additionalProperties: false
-      required: [text]
       properties:
-        text: { type: string, maxLength: 2000 }
+        kind:
+          type: string
+          enum: [TEXT, MATH, TABLE, DIAGRAM]
+          default: TEXT
+        step_index: { type: [integer, "null"], minimum: 0 }
+        text: { type: [string, "null"], maxLength: 2000 }
+        latex: { type: [string, "null"], maxLength: 5000 }
+        table:
+          type: [object, "null"]
+          additionalProperties: false
+          required: [rows]
+          properties:
+            rows:
+              type: array
+              minItems: 1
+              maxItems: 40
+              items:
+                type: array
+                minItems: 1
+                maxItems: 20
+                items: { type: string, maxLength: 500 }
+        diagram_description: { type: [string, "null"], maxLength: 5000 }
+        confidence: { type: [number, "null"], minimum: 0, maximum: 1 }
         start: { type: [number, "null"] }
         end: { type: [number, "null"] }
     AnswerRegionTranscription:
@@ -1861,4 +2695,837 @@ components:
         metadata:
           type: object
           additionalProperties: { type: string }
+    EvaluationPrepareResult:
+      type: object
+      required: [submission_id, workflow_state, evaluation_run_id, run_status]
+      properties:
+        submission_id: { type: string, format: uuid }
+        workflow_state: { type: string }
+        evaluation_run_id: { type: string, format: uuid }
+        run_status: { type: string }
+        job_id: { type: [string, "null"], format: uuid }
+    EvaluationFinalizeResult:
+      type: object
+      required: [submission_id, workflow_state]
+      properties:
+        submission_id: { type: string, format: uuid }
+        workflow_state: { type: string, enum: [APPROVED] }
+        evaluation_run_id: { type: [string, "null"], format: uuid }
+        run_status: { type: [string, "null"], enum: [COMPLETED, null] }
+    EvaluationRun:
+      type: object
+      required: [id, submission_id, run_number, status, provider]
+      properties:
+        id: { type: string, format: uuid }
+        submission_id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        run_number: { type: integer }
+        status:
+          type: string
+          enum: [QUEUED, RUNNING, REVIEW_REQUIRED, COMPLETED, FAILED, SUPERSEDED]
+        provider: { type: string }
+        model: { type: [string, "null"] }
+        rules_engine_version: { type: [string, "null"] }
+        started_by: { type: [string, "null"], format: uuid }
+        started_at: { type: [string, "null"], format: date-time }
+        finished_at: { type: [string, "null"], format: date-time }
+        failure_code: { type: [string, "null"] }
+        failure_detail: { type: [string, "null"] }
+    CriterionDecision:
+      type: object
+      required: [rubric_criterion_id, criterion_label, max_marks, decision]
+      properties:
+        id: { type: string, format: uuid }
+        rubric_criterion_id: { type: string, format: uuid }
+        criterion_code: { type: string }
+        criterion_label: { type: string }
+        max_marks: { type: number }
+        proposed_marks: { type: [number, "null"] }
+        final_marks: { type: [number, "null"] }
+        decision:
+          type: string
+          enum: [AWARDED, PARTIAL, DEDUCTED, NOT_APPLICABLE, UNREADABLE]
+        error_code: { type: [string, "null"] }
+        deduction_reason: { type: [string, "null"] }
+        step_index: { type: [integer, "null"] }
+        ecf_source_criterion_id: { type: [string, "null"], format: uuid }
+    QuestionEvaluation:
+      type: object
+      required:
+        [
+          id,
+          evaluation_run_id,
+          submission_id,
+          assessment_version_id,
+          question_version_id,
+          max_mark,
+          proposed_ai_score,
+          workflow_state,
+          identity_confidence,
+          mapping_confidence,
+          evaluation_confidence,
+          math_verification_confidence,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        evaluation_run_id: { type: string, format: uuid }
+        submission_id: { type: string, format: uuid }
+        student_id: { type: [string, "null"], format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        question_id: { type: string, format: uuid }
+        question_version_id: { type: string, format: uuid }
+        rubric_version_id: { type: string, format: uuid }
+        answer_key_version_id: { type: string, format: uuid }
+        mapping_id: { type: [string, "null"], format: uuid }
+        answer_region_ids: { type: array, items: { type: string } }
+        transcription_refs: { type: array, items: { type: object } }
+        max_mark: { type: number }
+        proposed_ai_score: { type: [number, "null"] }
+        final_human_approved_score: { type: [number, "null"] }
+        first_divergence_step: { type: [integer, "null"] }
+        ecf_applied: { type: boolean }
+        ecf_chain: { type: object }
+        alternative_method_id: { type: [string, "null"] }
+        alternative_method_label: { type: [string, "null"] }
+        error_codes: { type: array, items: { type: string } }
+        deduction_reasons: { type: array, items: { type: object } }
+        criterion_snapshot: { type: array, items: { type: object } }
+        criterion_decisions:
+          type: array
+          items: { $ref: "#/components/schemas/CriterionDecision" }
+        identity_confidence: { type: [number, "null"], minimum: 0, maximum: 1 }
+        mapping_confidence: { type: [number, "null"], minimum: 0, maximum: 1 }
+        transcription_confidence: { type: [number, "null"], minimum: 0, maximum: 1 }
+        evaluation_confidence: { type: [number, "null"], minimum: 0, maximum: 1 }
+        math_verification_confidence: { type: [number, "null"], minimum: 0, maximum: 1 }
+        workflow_state:
+          type: string
+          enum: [PENDING, PROPOSED, REVIEW_REQUIRED, ACCEPTED, OVERRIDDEN, ESCALATED]
+        ledger_version: { type: integer }
+        reviewed_by: { type: [string, "null"], format: uuid }
+        reviewed_at: { type: [string, "null"], format: date-time }
+        reviewer_feedback: { type: [string, "null"] }
+        approved_snapshot_hash: { type: [string, "null"] }
+    EvaluationRunDetail:
+      allOf:
+        - { $ref: "#/components/schemas/EvaluationRun" }
+        - type: object
+          properties:
+            question_evaluations:
+              type: array
+              items: { $ref: "#/components/schemas/QuestionEvaluation" }
+    EvaluationWorkspace:
+      type: object
+      required:
+        [
+          submission_id,
+          workflow_state,
+          evaluation_run,
+          question_evaluations,
+          automated_evaluation_active,
+        ]
+      properties:
+        submission_id: { type: string, format: uuid }
+        workflow_state: { type: string }
+        student_match_state: { type: string }
+        transcription_state: { type: string }
+        assessment_version_id: { type: string, format: uuid }
+        evaluation_run:
+          anyOf:
+            - { $ref: "#/components/schemas/EvaluationRun" }
+            - { type: "null" }
+        question_evaluations:
+          type: array
+          items: { $ref: "#/components/schemas/QuestionEvaluation" }
+        automated_evaluation_active: { type: boolean }
+    OverrideEvaluationInput:
+      type: object
+      additionalProperties: false
+      required: [score, reason]
+      properties:
+        score: { type: number, minimum: 0 }
+        reason: { type: string, minLength: 1, maxLength: 4000 }
+        feedback: { type: [string, "null"], maxLength: 5000 }
+        valid_alternative: { type: boolean, default: false }
+        criterion_finals:
+          type: array
+          maxItems: 50
+          items:
+            type: object
+            additionalProperties: false
+            required: [rubric_criterion_id, final_marks]
+            properties:
+              rubric_criterion_id: { type: string, format: uuid }
+              final_marks: { type: number, minimum: 0 }
+    EvaluationOverrideInput:
+      $ref: "#/components/schemas/OverrideEvaluationInput"
+    EvaluationFeedbackInput:
+      $ref: "#/components/schemas/FeedbackEvaluationInput"
+    CriterionEvaluation:
+      $ref: "#/components/schemas/CriterionDecision"
+    ReviewAction:
+      type: object
+      required:
+        [
+          id,
+          tenant_id,
+          submission_id,
+          question_evaluation_id,
+          evaluation_run_id,
+          actor_user_id,
+          action_type,
+          created_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        submission_id: { type: string, format: uuid }
+        question_evaluation_id: { type: string, format: uuid }
+        evaluation_run_id: { type: string, format: uuid }
+        actor_user_id: { type: string, format: uuid }
+        action_type:
+          type: string
+          enum: [ACCEPT, OVERRIDE, EDIT_FEEDBACK, VALID_ALTERNATIVE, ESCALATE]
+        reason: { type: [string, "null"] }
+        before_snapshot: { type: object }
+        after_snapshot: { type: object }
+        previous_score: { type: [number, "null"] }
+        new_score: { type: [number, "null"] }
+        correlation_id: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+    FeedbackEvaluationInput:
+      type: object
+      additionalProperties: false
+      required: [feedback]
+      properties:
+        feedback: { type: string, minLength: 1, maxLength: 4000 }
+    EscalateEvaluationInput:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 4000 }
+    PublicationPrepareResult:
+      type: object
+      required: [submission_id, workflow_state, published_result_id, status, version_number]
+      properties:
+        submission_id: { type: string, format: uuid }
+        workflow_state: { type: string }
+        published_result_id: { type: string, format: uuid }
+        status: { type: string, enum: [READY, GENERATING, GENERATED, PUBLISHED, FAILED] }
+        version_number: { type: integer }
+        job_id: { type: [string, "null"], format: uuid }
+    PublicationRegenerateResult:
+      type: object
+      required: [published_result_id, status, version_number, job_id]
+      properties:
+        published_result_id: { type: string, format: uuid }
+        status: { type: string }
+        version_number: { type: integer }
+        job_id: { type: string, format: uuid }
+        supersedes_result_id: { type: [string, "null"], format: uuid }
+    PublicationPublishResult:
+      type: object
+      required: [published_result_id, status, submission_id]
+      properties:
+        published_result_id: { type: string, format: uuid }
+        status: { type: string, enum: [PUBLISHED] }
+        submission_id: { type: string, format: uuid }
+        published_at: { type: [string, "null"], format: date-time }
+    PublishedResultArtifactInfo:
+      type: object
+      properties:
+        available: { type: boolean }
+        sha256: { type: [string, "null"] }
+        byte_size: { type: [integer, "null"] }
+    PublishedResultSummary:
+      type: object
+      required: [id, submission_id, status, version_number, ledger_snapshot_hash]
+      properties:
+        id: { type: string, format: uuid }
+        submission_id: { type: string, format: uuid }
+        student_id: { type: [string, "null"], format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        evaluation_run_id: { type: string, format: uuid }
+        version_number: { type: integer }
+        status: { type: string, enum: [READY, GENERATING, GENERATED, PUBLISHED, FAILED] }
+        ledger_snapshot_hash: { type: string }
+        total_score: { type: number }
+        max_total_score: { type: number }
+        narrative_source: { type: [string, "null"], enum: [AI, FIXED, RULES_FALLBACK, null] }
+        generated_at: { type: [string, "null"], format: date-time }
+        published_at: { type: [string, "null"], format: date-time }
+        failure_code: { type: [string, "null"] }
+        failure_detail: { type: [string, "null"] }
+        artifacts:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/PublishedResultArtifactInfo" }
+    PublicationAnnotation:
+      type: object
+      required: [id, annotation_type, submission_page_id, x, y, width, height, source_type]
+      properties:
+        id: { type: string, format: uuid }
+        annotation_type:
+          type: string
+          enum: [TICK, CROSS, PARTIAL, MARK, COMMENT, HIGHLIGHT]
+        submission_page_id: { type: string, format: uuid }
+        question_evaluation_id: { type: [string, "null"], format: uuid }
+        answer_region_id: { type: [string, "null"], format: uuid }
+        x: { type: number }
+        y: { type: number }
+        width: { type: number }
+        height: { type: number }
+        payload: { type: object }
+        source_type: { type: string, enum: [LEDGER, HUMAN] }
+    PublicationWorkspace:
+      type: object
+      required: [submission_id, workflow_state, versions, annotations]
+      properties:
+        submission_id: { type: string, format: uuid }
+        workflow_state: { type: string }
+        latest: { oneOf: [{ $ref: "#/components/schemas/PublishedResultSummary" }, { type: "null" }] }
+        versions:
+          type: array
+          items: { $ref: "#/components/schemas/PublishedResultSummary" }
+        annotations:
+          type: array
+          items: { $ref: "#/components/schemas/PublicationAnnotation" }
+    ManualAnnotationInput:
+      type: object
+      additionalProperties: false
+      required: [annotation_type, submission_page_id, x, y, width, height]
+      properties:
+        annotation_type: { type: string, enum: [COMMENT, HIGHLIGHT] }
+        submission_page_id: { type: string, format: uuid }
+        x: { type: number, minimum: 0, maximum: 1 }
+        y: { type: number, minimum: 0, maximum: 1 }
+        width: { type: number, exclusiveMinimum: 0, maximum: 1 }
+        height: { type: number, exclusiveMinimum: 0, maximum: 1 }
+        payload: { type: object }
+    PublicationReportPayload:
+      description: Discriminated by audience; mirrors student/parent/teacher report schemas
+      type: object
+      additionalProperties: true
+    StudentReport:
+      type: object
+      description: See packages/contracts/schemas/student-report.schema.json
+      additionalProperties: true
+    ParentReport:
+      type: object
+      description: See packages/contracts/schemas/parent-report.schema.json
+      additionalProperties: true
+    TeacherReport:
+      type: object
+      description: See packages/contracts/schemas/teacher-report.schema.json
+      additionalProperties: true
+    AssessmentAnalytics:
+      type: object
+      description: See packages/contracts/schemas/assessment-analytics.schema.json
+      required:
+        [
+          assessment,
+          published_attempt_count,
+          unique_student_count,
+          mean_percentage,
+          median_percentage,
+          pass_threshold_percent,
+          pass_rate,
+          score_distribution,
+          question_performance,
+          error_distribution,
+          curriculum_performance,
+          mapped_scorable_question_count,
+          unmapped_scorable_question_count,
+          mastery_coverage_ratio,
+          source,
+          as_of,
+        ]
+      properties:
+        assessment:
+          type: object
+          required: [id, code, title, curriculum_id, status]
+          properties:
+            id: { type: string, format: uuid }
+            code: { type: string }
+            title: { type: string }
+            curriculum_id: { type: string, format: uuid }
+            status: { type: string }
+        class_section_id: { type: [string, "null"], format: uuid }
+        published_attempt_count: { type: integer, minimum: 0 }
+        unique_student_count: { type: integer, minimum: 0 }
+        mean_percentage: { type: [number, "null"] }
+        median_percentage: { type: [number, "null"] }
+        pass_threshold_percent: { type: [number, "null"] }
+        pass_rate: { type: [number, "null"] }
+        score_distribution:
+          type: array
+          items:
+            type: object
+            required: [lower_bound, upper_bound, count]
+            properties:
+              lower_bound: { type: number }
+              upper_bound: { type: number }
+              count: { type: integer }
+        question_performance:
+          type: array
+          items: { type: object, additionalProperties: true }
+        error_distribution:
+          type: object
+          required: [academic, review_conditions]
+          properties:
+            academic:
+              type: array
+              items: { type: object, additionalProperties: true }
+            review_conditions:
+              type: array
+              items: { type: object, additionalProperties: true }
+        curriculum_performance:
+          type: array
+          items: { type: object, additionalProperties: true }
+        mapped_scorable_question_count: { type: integer }
+        unmapped_scorable_question_count: { type: integer }
+        mastery_coverage_ratio: { type: [number, "null"] }
+        source: { type: string, enum: [PUBLISHED_LEDGER] }
+        as_of: { type: string, format: date-time }
+    StudentAnalytics:
+      type: object
+      description: See packages/contracts/schemas/student-analytics.schema.json
+      required:
+        [
+          student,
+          published_assessment_count,
+          published_attempt_count,
+          average_percentage,
+          concept_signals,
+          error_distribution,
+          mastery_coverage,
+          materialization_status,
+          published_result_count,
+          materialized_result_count,
+          source,
+          as_of,
+        ]
+      properties:
+        student:
+          type: object
+          required: [id, display_name]
+          properties:
+            id: { type: string, format: uuid }
+            display_name: { type: [string, "null"] }
+            student_code: { type: [string, "null"] }
+            external_ref: { type: [string, "null"] }
+        published_assessment_count: { type: integer }
+        published_attempt_count: { type: integer }
+        average_percentage: { type: [number, "null"] }
+        concept_signals:
+          type: array
+          items:
+            type: object
+            required: [curriculum_node_id, concept, execution, procedure]
+            properties:
+              curriculum_node_id: { type: string, format: uuid }
+              code: { type: string }
+              title: { type: string }
+              node_type: { type: string }
+              concept: { $ref: "#/components/schemas/MasterySignalBucket" }
+              execution: { $ref: "#/components/schemas/MasterySignalBucket" }
+              procedure: { $ref: "#/components/schemas/MasterySignalBucket" }
+              evidence_count: { type: integer }
+              mean_score_ratio: { type: [number, "null"] }
+        error_distribution:
+          type: array
+          items:
+            type: object
+            properties:
+              code: { type: string }
+              count: { type: integer }
+        mastery_coverage:
+          type: object
+          properties:
+            curriculum_node_count: { type: integer }
+            evidence_row_count: { type: integer }
+        materialization_status:
+          type: string
+          enum: [NOT_STARTED, QUEUED, RUNNING, READY, PARTIAL, FAILED]
+        published_result_count: { type: integer }
+        materialized_result_count: { type: integer }
+        source: { type: string, enum: [PUBLISHED_LEDGER] }
+        as_of: { type: string, format: date-time }
+    MasterySignalBucket:
+      type: object
+      required: [strong_count, weak_count, inconclusive_count, signal]
+      properties:
+        strong_count: { type: integer }
+        weak_count: { type: integer }
+        inconclusive_count: { type: integer }
+        signal: { type: string, enum: [STRONG, WEAK, INCONCLUSIVE] }
+    MasteryEvidenceList:
+      type: object
+      description: See packages/contracts/schemas/mastery-evidence.schema.json
+      required: [student_id, items]
+      properties:
+        student_id: { type: string, format: uuid }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/MasteryEvidenceItem" }
+    MasteryEvidenceItem:
+      type: object
+      required:
+        [
+          id,
+          published_result_id,
+          assessment_id,
+          assessment_version_id,
+          submission_id,
+          evaluation_run_id,
+          question_evaluation_id,
+          question_version_id,
+          curriculum_id,
+          curriculum_node_id,
+          evidence_type,
+          strength,
+          score_ratio,
+          source_final_score,
+          source_max_mark,
+          mapping_types,
+          academic_error_codes,
+          review_condition_codes,
+          reason_codes,
+          source_ledger_snapshot_hash,
+          algorithm_version,
+          created_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        published_result_id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        submission_id: { type: string, format: uuid }
+        evaluation_run_id: { type: string, format: uuid }
+        question_evaluation_id: { type: string, format: uuid }
+        question_version_id: { type: string, format: uuid }
+        curriculum_id: { type: string, format: uuid }
+        curriculum_node_id: { type: string, format: uuid }
+        evidence_type: { type: string, enum: [CONCEPT, EXECUTION, PROCEDURE] }
+        strength: { type: string, enum: [STRONG, WEAK, INCONCLUSIVE] }
+        score_ratio: { type: number }
+        source_final_score: { type: number }
+        source_max_mark: { type: number }
+        mapping_types:
+          type: array
+          items: { type: string }
+        mapping_weight: { type: [number, "null"] }
+        academic_error_codes:
+          type: array
+          items: { type: string }
+        review_condition_codes:
+          type: array
+          items: { type: string }
+        reason_codes:
+          type: array
+          items: { type: string }
+        source_ledger_snapshot_hash: { type: string }
+        algorithm_version: { type: string, enum: [B8_V1] }
+        created_at: { type: string, format: date-time }
+    AnalyticsPrepareResult:
+      type: object
+      required:
+        [
+          published_result_id,
+          pipeline_job_id,
+          job_status,
+          algorithm_version,
+        ]
+      properties:
+        published_result_id: { type: string, format: uuid }
+        pipeline_job_id: { type: string, format: uuid }
+        job_status: { type: string }
+        celery_task_id: { type: [string, "null"] }
+        enqueue_error: { type: [string, "null"] }
+        algorithm_version: { type: string, enum: [B8_V1] }
+    LearningWorkspace:
+      type: object
+      description: Live B9 learning workspace
+      required:
+        [
+          student,
+          available_curricula,
+          selected_curriculum_id,
+          materialization_status,
+          evidence_coverage,
+          is_stale,
+        ]
+      properties:
+        student:
+          type: object
+          required: [id, display_name]
+          properties:
+            id: { type: string, format: uuid }
+            display_name: { type: string }
+        available_curricula:
+          type: array
+          items:
+            type: object
+            required: [id, code, name]
+            properties:
+              id: { type: string, format: uuid }
+              curriculum_id: { type: string, format: uuid }
+              code: { type: string }
+              name: { type: string }
+              evidence_count: { type: integer }
+        selected_curriculum_id: { type: [string, "null"], format: uuid }
+        selected_curriculum:
+          type: [object, "null"]
+          properties:
+            id: { type: string, format: uuid }
+            code: { type: string }
+            name: { type: string }
+        materialization_status: { type: string }
+        materialization: { type: object, additionalProperties: true }
+        evidence_coverage:
+          type: object
+          properties:
+            evidence_count: { type: integer }
+            node_count: { type: integer }
+            evidence_row_count: { type: integer }
+            curriculum_node_count: { type: integer }
+        latest_run: { type: [object, "null"], additionalProperties: true }
+        latest_plan: { type: [object, "null"], additionalProperties: true }
+        is_stale: { type: boolean }
+        latest_improvement_blueprint:
+          type: [object, "null"]
+          additionalProperties: true
+        selection_required: { type: boolean }
+    LearningPrepareInput:
+      type: object
+      required: [curriculum_id]
+      properties:
+        curriculum_id: { type: string, format: uuid }
+    LearningPrepareResult:
+      type: object
+      required: [run_id, student_id, curriculum_id, version_number, status, algorithm_version]
+      properties:
+        run_id: { type: string, format: uuid }
+        student_id: { type: string, format: uuid }
+        curriculum_id: { type: string, format: uuid }
+        version_number: { type: integer }
+        status: { type: string, enum: [QUEUED, RUNNING, READY, FAILED, SUPERSEDED] }
+        input_hash: { type: string }
+        algorithm_version: { type: string, enum: [B9_V1] }
+        celery_task_id: { type: [string, "null"] }
+        enqueue_error: { type: [string, "null"] }
+    LearningRecommendationPrerequisite:
+      type: object
+      required: [curriculum_node_id, relationship_type, sequence]
+      properties:
+        curriculum_node_id: { type: string, format: uuid }
+        relationship_type: { type: string, enum: [REQUIRED, RECOMMENDED] }
+        sequence: { type: integer }
+    LearningRecommendation:
+      type: object
+      description: See packages/contracts/schemas/learning-plan.schema.json
+      required:
+        [
+          id,
+          target_node_id,
+          recommendation_kind,
+          priority,
+          rationale,
+          concept_signal,
+          execution_signal,
+          procedure_signal,
+          evidence_count,
+          status,
+          prerequisites,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        target_node_id: { type: string, format: uuid }
+        recommendation_kind:
+          type: string
+          enum: [PREREQUISITE_REPAIR, TARGET_CONCEPT, PROCEDURE_PRACTICE, EXECUTION_PRACTICE]
+        priority: { type: integer, enum: [1, 2, 3] }
+        rationale: { type: string }
+        concept_signal: { type: string, enum: [STRONG, WEAK, INCONCLUSIVE] }
+        execution_signal: { type: string, enum: [STRONG, WEAK, INCONCLUSIVE] }
+        procedure_signal: { type: string, enum: [STRONG, WEAK, INCONCLUSIVE] }
+        evidence_count: { type: integer }
+        mean_evidence_score_ratio: { type: [number, "null"] }
+        status: { type: string, enum: [ACTIVE, DISMISSED, COMPLETED] }
+        target_node_code: { type: string }
+        target_node_title: { type: string }
+        target_node_type: { type: string }
+        prerequisites:
+          type: array
+          items: { $ref: "#/components/schemas/LearningRecommendationPrerequisite" }
+        mastery_evidence_ids:
+          type: array
+          items: { type: string, format: uuid }
+    LearningPathStep:
+      type: object
+      required: [curriculum_node_id, kind, sequence, title, evidence_basis]
+      properties:
+        id: { type: string, format: uuid }
+        curriculum_node_id: { type: string, format: uuid }
+        learning_recommendation_id: { type: [string, "null"], format: uuid }
+        kind:
+          type: string
+          enum: [PREREQUISITE, LEARN, GUIDED, INDEPENDENT, MASTERY_CHECK]
+        sequence: { type: integer }
+        title: { type: string }
+        description: { type: [string, "null"] }
+        evidence_basis: { type: string }
+        relationship_type: { type: [string, "null"], enum: [REQUIRED, RECOMMENDED, null] }
+    LearningPlanRun:
+      type: object
+      description: See packages/contracts/schemas/learning-plan.schema.json
+      required:
+        [
+          id,
+          student_id,
+          curriculum_id,
+          version_number,
+          status,
+          algorithm_version,
+          source_evidence_hash,
+          curriculum_graph_hash,
+          input_hash,
+          is_stale,
+          recommendations,
+          learning_path,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        student_id: { type: string, format: uuid }
+        curriculum_id: { type: string, format: uuid }
+        version_number: { type: integer }
+        status: { type: string, enum: [QUEUED, RUNNING, READY, FAILED, SUPERSEDED] }
+        algorithm_version: { type: string, enum: [B9_V1] }
+        generation_source: { type: [string, "null"], enum: [AI, FIXED, RULES_FALLBACK, null] }
+        provider: { type: [string, "null"] }
+        model: { type: [string, "null"] }
+        source_evidence_hash: { type: string }
+        curriculum_graph_hash: { type: string }
+        input_hash: { type: string }
+        is_stale: { type: boolean }
+        failure_code: { type: [string, "null"] }
+        failure_detail: { type: [string, "null"] }
+        requested_at: { type: [string, "null"], format: date-time }
+        started_at: { type: [string, "null"], format: date-time }
+        finished_at: { type: [string, "null"], format: date-time }
+        recommendations:
+          type: array
+          items: { $ref: "#/components/schemas/LearningRecommendation" }
+        learning_path:
+          type: array
+          items: { $ref: "#/components/schemas/LearningPathStep" }
+        no_gap_message: { type: [string, "null"] }
+    ImprovementAssessmentItem:
+      type: object
+      required:
+        [
+          learning_recommendation_id,
+          curriculum_node_id,
+          item_code,
+          template_kind,
+          question_template_ref,
+          focus,
+          difficulty,
+          sort_order,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        learning_recommendation_id: { type: string, format: uuid }
+        curriculum_node_id: { type: string, format: uuid }
+        item_code: { type: string }
+        template_kind:
+          type: string
+          enum:
+            [
+              CONCEPT_CHECK,
+              PREREQUISITE_CHECK,
+              PROCEDURE_PRACTICE,
+              EXECUTION_PRACTICE,
+              TRANSFER_CHECK,
+            ]
+        question_template_ref: { type: string }
+        focus: { type: string }
+        difficulty: { type: string, enum: [EASY, MEDIUM, HARD] }
+        suggested_marks: { type: [number, "null"] }
+        sort_order: { type: integer }
+    ImprovementAssessment:
+      type: object
+      description: See packages/contracts/schemas/improvement-assessment-blueprint.schema.json
+      required:
+        [
+          id,
+          student_id,
+          curriculum_id,
+          learning_plan_run_id,
+          version_number,
+          title,
+          status,
+          source_evidence_hash,
+          curriculum_graph_hash,
+          input_hash,
+          items,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        student_id: { type: string, format: uuid }
+        curriculum_id: { type: string, format: uuid }
+        learning_plan_run_id: { type: string, format: uuid }
+        version_number: { type: integer }
+        title: { type: string }
+        status:
+          type: string
+          enum: [DRAFT, GENERATING, PENDING_APPROVAL, APPROVED, REJECTED, FAILED]
+        source_evidence_hash: { type: string }
+        curriculum_graph_hash: { type: string }
+        input_hash: { type: string }
+        generation_source: { type: [string, "null"], enum: [AI, FIXED, RULES_FALLBACK, null] }
+        provider: { type: [string, "null"] }
+        model: { type: [string, "null"] }
+        blueprint_storage_key: { type: [string, "null"] }
+        blueprint_sha256: { type: [string, "null"] }
+        blueprint_byte_size: { type: [integer, "null"] }
+        generated_at: { type: [string, "null"], format: date-time }
+        approved_at: { type: [string, "null"], format: date-time }
+        rejected_at: { type: [string, "null"], format: date-time }
+        rejection_reason: { type: [string, "null"] }
+        failure_code: { type: [string, "null"] }
+        failure_detail: { type: [string, "null"] }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ImprovementAssessmentItem" }
+    ImprovementBlueprintPrepareResult:
+      type: object
+      required:
+        [
+          improvement_assessment_id,
+          learning_plan_run_id,
+          version_number,
+          status,
+        ]
+      properties:
+        improvement_assessment_id: { type: string, format: uuid }
+        learning_plan_run_id: { type: string, format: uuid }
+        version_number: { type: integer }
+        status:
+          type: string
+          enum: [DRAFT, GENERATING, PENDING_APPROVAL, APPROVED, REJECTED, FAILED]
+        input_hash: { type: string }
+        celery_task_id: { type: [string, "null"] }
+        enqueue_error: { type: [string, "null"] }
+    ImprovementBlueprintApproveResult:
+      allOf:
+        - { $ref: "#/components/schemas/ImprovementAssessment" }
+    ImprovementBlueprintRejectInput:
+      type: object
+      required: [reason]
+      properties:
+        reason: { type: string, minLength: 1, maxLength: 2000 }
 

@@ -1,5 +1,11 @@
 import { cn } from "@/lib/utils/cn";
-import { formatScorePair, resolveDisplayScore } from "@/lib/helpers/score";
+import {
+  formatCriterionMarks,
+  formatProposedScoreLabel,
+  formatScorePair,
+  NO_PROPOSAL_SCORE_MESSAGE,
+  resolveDisplayScore,
+} from "@/lib/helpers/score";
 import type { CriterionDecisionRow, ErrorCode } from "@/lib/types/domain";
 import type { EvaluationWorkflowState } from "@/lib/types/enums";
 import { StatusBadge } from "@/components/layout/PageHeader";
@@ -61,15 +67,18 @@ export function ScoreDisplay({
   finalApproved,
   size = "md",
 }: {
-  score: number;
+  score: number | null;
   max: number;
   finalApproved?: number | null;
   size?: "sm" | "md" | "lg";
 }) {
   const display = resolveDisplayScore(score, finalApproved ?? null);
+  const nullProposal = score === null && (finalApproved === null || finalApproved === undefined);
+
   return (
     <div
       data-testid="score-display"
+      data-null-proposal={nullProposal ? "true" : "false"}
       className={cn(
         "tabular-nums font-semibold text-slate-900",
         size === "sm" && "text-sm",
@@ -77,10 +86,18 @@ export function ScoreDisplay({
         size === "lg" && "text-3xl",
       )}
     >
-      {formatScorePair(display, max)}
+      {nullProposal ? (
+        <span data-testid="score-no-proposal" className="text-base font-medium text-amber-900">
+          {NO_PROPOSAL_SCORE_MESSAGE}
+        </span>
+      ) : (
+        formatScorePair(display, max)
+      )}
     </div>
   );
 }
+
+export { formatProposedScoreLabel };
 
 export function ScoreBreakdown({
   criteria,
@@ -140,6 +157,7 @@ export function RubricCriterionRow({
     },
   };
   const meta = decisionMeta[criterion.decision];
+  const marks = criterion.final_marks ?? criterion.proposed_marks;
 
   return (
     <li
@@ -164,8 +182,7 @@ export function RubricCriterionRow({
         </div>
         <div className="text-right shrink-0">
           <div className="text-sm font-semibold tabular-nums text-slate-900">
-            {criterion.final_marks ?? criterion.proposed_marks}/
-            {criterion.max_marks}
+            {formatCriterionMarks(marks)}/{criterion.max_marks}
           </div>
           <div
             className={cn(
@@ -191,7 +208,7 @@ export function QuestionScore({
   state,
 }: {
   code: string;
-  score: number;
+  score: number | null;
   max: number;
   state: EvaluationWorkflowState;
 }) {

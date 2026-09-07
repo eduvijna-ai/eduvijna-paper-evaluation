@@ -37,6 +37,11 @@ const requiredPaths = [
   "/api/v1/ai/proposals/answer-key",
   "/api/v1/ai/proposals/rubric",
   "/api/v1/ai/proposals/curriculum-mapping",
+  "/api/v1/assessment-versions/{id}/question-paper",
+  "/api/v1/assessment-versions/{id}/question-paper/parse",
+  "/api/v1/authoring-ai-runs/{id}",
+  "/api/v1/authoring-ai-runs/{id}/question-tree-proposal",
+  "/api/v1/authoring-ai-runs/{id}/apply-question-tree",
 ];
 
 const schemaFiles = (await readdir(schemasDirectory))

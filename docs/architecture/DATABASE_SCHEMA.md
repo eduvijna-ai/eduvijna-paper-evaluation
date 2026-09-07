@@ -3,7 +3,7 @@
 **Product:** EduVijna Paper Evaluation (CVB v0.1)  
 **ORM:** SQLAlchemy 2.x (async)  
 **Migrations:** Alembic (`database/migrations/`)  
-**Last updated:** 2026-09-04  
+**Last updated:** 2026-09-07  
 **Related:** [ADR-002](adrs/ADR-002-postgresql-system-of-record.md), [ADR-005](adrs/ADR-005-tenant-aware-data-model.md), [DOMAIN_MODEL.md](./DOMAIN_MODEL.md)
 
 ---
@@ -369,16 +369,31 @@ CREATE TABLE role_permissions (
 
 **Critical index:** `(tenant_id, submission_id, question_id)` on `question_evaluations`
 
-### 4.6 Publication & learning (`0007`)
+### 4.6 Publication (`0008`), analytics mastery evidence (`0009`), learning blueprint (`0010`), CVB release closure (`0011`)
 
-| Table | Key columns |
-|-------|-------------|
-| `published_results` | `tenant_id`, `submission_id`, `total_score`, report S3 keys, `ledger_snapshot_id` |
-| `mastery_evidence` | `tenant_id`, `student_id`, `curriculum_node_id`, `question_evaluation_id`, `evidence_type` |
-| `mastery_states` | `tenant_id`, `student_id`, `curriculum_node_id`, `concept_mastery`, `execution_accuracy` |
-| `learning_recommendations` | `tenant_id`, `student_id`, `curriculum_id`, `target_node_id`, `priority` |
-| `improvement_assessments` | `tenant_id`, `student_id`, `blueprint_s3_key` |
-| `improvement_assessment_items` | `tenant_id`, `improvement_assessment_id`, `curriculum_node_id` |
+| Table | Key columns | Status |
+|-------|-------------|--------|
+| `published_results` | `tenant_id`, `submission_id`, scores, report keys, `ledger_snapshot_hash` | B7 live |
+| `annotations` | publication annotations | B7 live |
+| `mastery_evidence` | published-ledger evidence; `evidence_type`, `strength`, `algorithm_version=B8_V1` | **B8 live (B9 source)** |
+| `mastery_states` | longitudinal concept/execution aggregates | **Deferred** (AFTER_CLIENT_APPROVAL; not in B8/B9/B10) |
+| `learning_plan_runs` | student×curriculum versioned plan; hashes; `algorithm_version=B9_V1`; status | **B9 live** |
+| `learning_recommendations` | curriculum-constrained remediation; kind/priority/signals | **B9 live** |
+| `learning_recommendation_prerequisites` | ordered REQUIRED/RECOMMENDED edges | **B9 live** |
+| `learning_recommendation_evidence` | FK → `mastery_evidence` | **B9 live** |
+| `learning_path_steps` | ordered path steps (incl. MASTERY_CHECK) | **B9 live** |
+| `improvement_assessments` | blueprint header + artifact key/hash + approve/reject | **B9 live (blueprint only)** |
+| `improvement_assessment_items` | template items; no Assessment/Question FKs | **B9 live (blueprint only)** |
+| `assessment_artifacts` | question-paper uploads; `content_sha256`, `storage_key`, `security_scan_status` | **B10 live** |
+| `authoring_ai_runs` | PARSE / PROPOSE_* / SUGGEST_*; `proposal_payload`, `correlation_id` | **B10 live** |
+
+`PipelineJob.stage` includes `PUBLICATION` (B7) and `ANALYTICS` (B8). **B9/B10 do not add LEARNING/AUTHORING PipelineJob stages** — learning and authoring use dedicated run tables + Celery task ids.
+
+`ai_execution_records` gains optional `learning_plan_run_id` / `improvement_assessment_id` (migration `0010`) and `authoring_ai_run_id` plus optional assessment/artifact/key/rubric refs (migration `0011`).  
+`assessment_versions.question_paper_artifact_id` FK → `assessment_artifacts` (migration `0011`).  
+`authoring_ai_runs` holds optional `answer_key_version_id` / `rubric_version_id` for created drafts.
+
+Deferred (logical only; no tables): resource assignment, reassessment instantiation from approved blueprints, longitudinal MasteryState.
 
 ### 4.7 AI tracing (`0008`)
 
@@ -445,3 +460,6 @@ Store S3 keys as `VARCHAR(512)`; never blob content in Postgres except small JSO
 | Version | Date | Change |
 |---------|------|--------|
 | 0.1 | 2026-09-04 | Initial schema contract; Day-1 foundation defined |
+| 0.2 | 2026-09-07 | B8 `mastery_evidence`; `mastery_states` deferred |
+| 0.3 | 2026-09-07 | B9 learning plan / recommendation / path / improvement blueprint tables (`0010`) |
+| 0.4 | 2026-09-07 | B10 `assessment_artifacts` + `authoring_ai_runs` (`0011`); authoring FKs on AI/key/rubric rows |

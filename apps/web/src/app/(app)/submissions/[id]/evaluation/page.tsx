@@ -1,9 +1,8 @@
 "use client";
 
-import { use, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { use, useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, isApiError } from "@/lib/api";
 import { getApiCapabilities } from "@/lib/api/capabilities";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { PaperViewerShell } from "@/components/paper/PaperViewerShell";
@@ -13,13 +12,15 @@ import { ErrorState, LoadingState } from "@/components/ui/FeedbackStates";
 import type { TeacherReviewAction } from "@/lib/types/enums";
 import type { EvaluationWorkflowState } from "@/lib/types/enums";
 import type { Question } from "@/lib/types/domain";
+import {
+  canApproveEvaluation,
+  countFinalizedQuestions,
+} from "@/lib/helpers/teacher-actions";
 
 const LIVE_UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-function isLiveSubmissionContext(id: string): boolean {
-  const caps = getApiCapabilities();
-  if (caps.submissions === "live") return true;
+function isLiveUuid(id: string): boolean {
   return LIVE_UUID_RE.test(id) && !id.toLowerCase().includes("demo");
 }
 
@@ -28,7 +29,7 @@ function findQuestion(
   id: string,
 ): Question | undefined {
   for (const node of nodes) {
-    if (node.id === id) return node;
+    if (node.id === id || node.question_version_id === id) return node;
     if (node.children) {
       const found = findQuestion(node.children, id);
       if (found) return found;
@@ -43,34 +44,91 @@ export default function EvaluationWorkspacePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const router = useRouter();
-  const liveBlocked =
-    getApiCapabilities().evaluation === "mock" && isLiveSubmissionContext(id);
-
-  useEffect(() => {
-    if (liveBlocked) {
-      router.replace(`/submissions/${id}`);
-    }
-  }, [liveBlocked, id, router]);
-
+  const evaluationLive = getApiCapabilities().evaluation === "live";
+  const liveMode = evaluationLive && isLiveUuid(id);
   const queryClient = useQueryClient();
-  const [activePageId, setActivePageId] = useState("page-1");
-  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(
-    "reg-2",
-  );
+  const [activePageId, setActivePageId] = useState<string | null>(null);
+  const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(
     null,
   );
   const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [gateReady, setGateReady] = useState(!liveMode);
+  const prepareStartedRef = useRef(false);
 
-  const { data, isLoading, isError, refetch } = useQuery({
+  const submissionQuery = useQuery({
+    queryKey: ["submission", id],
+    queryFn: () => api.getSubmission(id),
+    enabled: liveMode,
+  });
+
+  const prepareMutation = useMutation({
+    mutationFn: () => api.prepareEvaluation!(id),
+    onSuccess: async () => {
+      setGateReady(true);
+      await queryClient.invalidateQueries({ queryKey: ["submission", id] });
+    },
+    onError: () => {
+      // Already past prepare (e.g. EVALUATION_REVIEW) — still load workspace.
+      setGateReady(true);
+    },
+  });
+
+  useEffect(() => {
+    if (!liveMode || gateReady || prepareMutation.isPending) return;
+    const state = submissionQuery.data?.workflow_state;
+    if (!state) return;
+    if (state === "READY_FOR_EVALUATION") {
+      if (prepareStartedRef.current) return;
+      prepareStartedRef.current = true;
+      prepareMutation.mutate();
+      return;
+    }
+    if (
+      state === "EVALUATING" ||
+      state === "EVALUATION_REVIEW" ||
+      state === "APPROVED" ||
+      state === "PUBLISHED"
+    ) {
+      setGateReady(true);
+    }
+  }, [liveMode, gateReady, prepareMutation, submissionQuery.data?.workflow_state]);
+
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["evaluation", id, selectedQuestionId],
     queryFn: () =>
       api.getEvaluationWorkspace(id, selectedQuestionId ?? undefined),
-    enabled: !liveBlocked,
+    enabled: !liveMode || gateReady,
+    refetchInterval: (query) => {
+      const ws = query.state.data?.submission.workflow_state;
+      if (ws === "EVALUATING") return 2000;
+      const runPending =
+        (query.state.data?.ledgers.length ?? 0) > 0 &&
+        query.state.data?.ledgers.every((l) => l.workflow_state === "PENDING");
+      if (runPending) return 2000;
+      return false;
+    },
   });
 
-  const questionId = selectedQuestionId ?? data?.selected_question_id ?? "q-1b";
+  useEffect(() => {
+    if (!data) return;
+    const qid = selectedQuestionId ?? data.selected_question_id;
+    if (!selectedQuestionId && data.selected_question_id) {
+      setSelectedQuestionId(data.selected_question_id);
+    }
+    const region =
+      data.regions.find((r) => r.question_id === qid) ?? data.regions[0];
+    if (region) {
+      setSelectedRegionId((prev) => prev ?? region.id);
+      setActivePageId((prev) => prev ?? region.page_id);
+    } else if (data.pages[0]) {
+      setActivePageId((prev) => prev ?? data.pages[0]!.id);
+    }
+  }, [data, selectedQuestionId]);
+
+  const questionId =
+    selectedQuestionId ?? data?.selected_question_id ?? "";
 
   const ledger = useMemo(
     () => data?.ledgers.find((l) => l.question_id === questionId),
@@ -85,6 +143,25 @@ export default function EvaluationWorkspacePage({
     return map;
   }, [data]);
 
+  const progress = useMemo(() => {
+    const states = data?.ledgers.map((l) => l.workflow_state) ?? [];
+    return countFinalizedQuestions(states);
+  }, [data]);
+
+  const canFinalize = useMemo(() => {
+    const states = data?.ledgers.map((l) => l.workflow_state) ?? [];
+    return (
+      canApproveEvaluation(states) &&
+      data?.submission.workflow_state === "EVALUATION_REVIEW"
+    );
+  }, [data]);
+
+  const approved =
+    data?.submission.workflow_state === "APPROVED" ||
+    data?.submission.workflow_state === "PUBLISHED";
+
+  const published = data?.submission.workflow_state === "PUBLISHED";
+
   const actionMutation = useMutation({
     mutationFn: ({
       action,
@@ -92,21 +169,45 @@ export default function EvaluationWorkspacePage({
     }: {
       action: TeacherReviewAction;
       payload?: { newScore?: number; feedback?: string };
-    }) =>
-      api.applyTeacherAction(id, ledger?.id ?? "", action, payload),
+    }) => api.applyTeacherAction(id, ledger?.id ?? "", action, payload),
     onSuccess: (result) => {
+      setActionError(null);
       setActionMessage(result.message);
       void queryClient.invalidateQueries({ queryKey: ["evaluation", id] });
+      void queryClient.invalidateQueries({ queryKey: ["submission", id] });
+    },
+    onError: (err) => {
+      setActionMessage(null);
+      setActionError(
+        isApiError(err) ? err.message : "Teacher action failed.",
+      );
     },
   });
 
-  if (liveBlocked) {
+  const finalizeMutation = useMutation({
+    mutationFn: () => api.finalizeEvaluation!(id),
+    onSuccess: async () => {
+      setActionError(null);
+      setActionMessage("Evaluation approved.");
+      await queryClient.invalidateQueries({ queryKey: ["evaluation", id] });
+      await queryClient.invalidateQueries({ queryKey: ["submission", id] });
+    },
+    onError: (err) => {
+      setActionError(
+        isApiError(err) ? err.message : "Finalize evaluation failed.",
+      );
+    },
+  });
+
+  if (liveMode && (!gateReady || prepareMutation.isPending) && !data) {
     return <LoadingState />;
   }
 
   const relatedRegions =
     data?.regions.filter(
-      (r) => r.question_id === questionId || r.question_id === questionId.split("-").slice(0, 2).join("-"),
+      (r) =>
+        r.question_id === questionId ||
+        r.question_id === questionId.split("-").slice(0, 2).join("-"),
     ) ?? [];
 
   const answerKey =
@@ -114,45 +215,170 @@ export default function EvaluationWorkspacePage({
   const rubric =
     data?.rubrics.filter((r) => r.question_id === questionId) ?? [];
 
-  if (isLoading) return <LoadingState />;
-  if (isError || !data || !ledger)
-    return <ErrorState onRetry={() => void refetch()} />;
+  if (isLoading && !data) return <LoadingState />;
+  if ((isError || !data) && !ledger) {
+    return (
+      <ErrorState
+        message={
+          isApiError(error)
+            ? error.message
+            : isApiError(prepareMutation.error)
+              ? prepareMutation.error.message
+              : undefined
+        }
+        onRetry={() => {
+          setGateReady(false);
+          void submissionQuery.refetch();
+          void refetch();
+        }}
+      />
+    );
+  }
+  if (!data || !ledger) {
+    return (
+      <ErrorState
+        title="Evaluation not ready"
+        message="No question evaluation ledger rows yet. Wait for the evaluation run to finish."
+        onRetry={() => void refetch()}
+      />
+    );
+  }
 
   const question = findQuestion(data.questions, questionId);
+  const pageId = activePageId ?? data.pages[0]?.id ?? "";
 
   return (
-    <div data-testid="evaluation-workspace-page" className="-m-2 sm:-m-3">
+    <div
+      data-testid="evaluation-workspace-page"
+      data-evaluation-mode={liveMode ? "live" : "mock"}
+      className="-m-2 sm:-m-3"
+    >
       <div className="px-2 sm:px-3 pt-2">
         <PageHeader
           title="Evaluation workspace"
           description={`${data.assessment.title} · ${data.student?.display_name ?? "Unresolved student"}`}
           breadcrumbs={[
             { label: "Submissions", href: "/submissions" },
-            { label: id },
+            { label: id, href: `/submissions/${id}` },
             { label: "Evaluation" },
           ]}
+          actions={
+            liveMode ? (
+              <div className="flex flex-col items-end gap-2">
+                <p
+                  data-testid="evaluation-progress"
+                  className="text-sm text-slate-600"
+                >
+                  {progress.finalized} of {progress.total} questions finalized
+                </p>
+                {canFinalize && (
+                  <button
+                    type="button"
+                    data-testid="approve-evaluation"
+                    disabled={finalizeMutation.isPending}
+                    onClick={() => finalizeMutation.mutate()}
+                    className="rounded-md bg-teal-800 px-3 py-2 text-sm font-medium text-white hover:bg-teal-900 disabled:opacity-50"
+                  >
+                    Approve evaluation
+                  </button>
+                )}
+              </div>
+            ) : undefined
+          }
         />
       </div>
+
+      {approved && (
+        <p
+          data-testid="evaluation-approved-boundary"
+          className="mx-2 mb-3 rounded-md border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-950 sm:mx-3"
+        >
+          {getApiCapabilities().publication === "live" ? (
+            <>
+              Evaluation approved.{" "}
+              <a
+                href={`/submissions/${id}/publication`}
+                data-testid="link-publication-from-evaluation"
+                className="font-medium underline"
+              >
+                Open publication
+              </a>{" "}
+              to generate and publish results.
+            </>
+          ) : (
+            <>Evaluation approved. Result publication and reports are not live yet.</>
+          )}
+        </p>
+      )}
+
+      {liveMode && approved && getApiCapabilities().publication !== "live" && (
+        <p
+          data-testid="evaluation-downstream-mock-boundary"
+          className="mx-2 mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 sm:mx-3"
+        >
+          Reports, analytics, and adaptive learning remain mock and are not
+          linked for this live submission.
+        </p>
+      )}
+
+      {liveMode &&
+        approved &&
+        getApiCapabilities().publication === "live" &&
+        getApiCapabilities().analytics !== "live" && (
+        <p
+          data-testid="evaluation-downstream-mock-boundary"
+          className="mx-2 mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 sm:mx-3"
+        >
+          Analytics and adaptive learning remain mock and are not linked for
+          this live submission.
+        </p>
+      )}
+
+      {liveMode &&
+        approved &&
+        getApiCapabilities().publication === "live" &&
+        getApiCapabilities().analytics === "live" &&
+        getApiCapabilities().learning !== "live" && (
+        <p
+          data-testid="evaluation-downstream-mock-boundary"
+          className="mx-2 mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 sm:mx-3"
+        >
+          Adaptive learning remains mock and is not linked for this live
+          submission.
+        </p>
+      )}
+
+      {liveMode &&
+        approved &&
+        getApiCapabilities().publication === "live" &&
+        getApiCapabilities().analytics === "live" &&
+        getApiCapabilities().learning === "live" && (
+        <p
+          data-testid="evaluation-learning-live-notice"
+          className="mx-2 mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 sm:mx-3"
+        >
+          Analytics and adaptive learning are live after publication and
+          mastery materialization.
+        </p>
+      )}
 
       <div
         data-testid="evaluation-3col"
         className="grid min-h-[70vh] gap-3 xl:grid-cols-[minmax(280px,1.1fr)_minmax(280px,1fr)_minmax(300px,1fr)]"
       >
-        {/* LEFT: paper */}
         <div className="min-h-[480px] px-2 sm:px-3">
           <PaperViewerShell
             pages={data.pages}
             regions={
               relatedRegions.length > 0 ? relatedRegions : data.regions
             }
-            activePageId={activePageId}
+            activePageId={pageId}
             selectedRegionId={selectedRegionId}
             onPageSelect={setActivePageId}
             onRegionSelect={setSelectedRegionId}
           />
         </div>
 
-        {/* CENTER: question / key / rubric / curriculum */}
         <div className="flex min-h-[480px] flex-col gap-3 overflow-y-auto rounded-md border border-slate-200 bg-white p-4">
           <div>
             <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
@@ -181,6 +407,18 @@ export default function EvaluationWorkspacePage({
             </h2>
             <p className="mt-1 text-sm text-slate-700">
               {question?.prompt ?? "—"}
+            </p>
+          </div>
+
+          <div className="border-t border-slate-100 pt-3">
+            <h2 className="text-sm font-semibold text-slate-800">
+              Transcription
+            </h2>
+            <p
+              data-testid="evaluation-transcription"
+              className="mt-1 whitespace-pre-wrap text-sm text-slate-700"
+            >
+              {ledger.transcription_text || "—"}
             </p>
           </div>
 
@@ -236,8 +474,9 @@ export default function EvaluationWorkspacePage({
               data-testid="evaluation-method"
               className="mt-1 text-sm text-slate-600"
             >
-              Rubric-aligned step scoring with ECF where applicable. Proposed AI
-              score awaits teacher confirmation.
+              Rubric-aligned scoring with optional deterministic math
+              verification. AI proposals require teacher confirmation; human
+              final scores are authoritative.
             </p>
           </div>
 
@@ -249,16 +488,34 @@ export default function EvaluationWorkspacePage({
               {actionMessage}
             </p>
           )}
+          {actionError && (
+            <p
+              data-testid="teacher-action-error"
+              className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-900 ring-1 ring-rose-200"
+            >
+              {actionError}
+            </p>
+          )}
         </div>
 
-        {/* RIGHT: AI evaluation + teacher actions */}
         <div className="min-h-[480px] rounded-md border border-slate-200 bg-white p-4">
           <EvaluationDecisionPanel
             ledger={ledger}
+            liveMode={liveMode}
+            disabled={published}
             onAction={(action, payload) =>
               actionMutation.mutate({ action, payload })
             }
           />
+          {published && (
+            <p
+              data-testid="evaluation-published-locked"
+              className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"
+            >
+              Published results are immutable — teacher review actions are
+              disabled.
+            </p>
+          )}
         </div>
       </div>
     </div>

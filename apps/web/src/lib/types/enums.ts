@@ -38,6 +38,7 @@ export const EVALUATION_WORKFLOW_STATES = [
   "REVIEW_REQUIRED",
   "ACCEPTED",
   "OVERRIDDEN",
+  "ESCALATED",
 ] as const;
 export type EvaluationWorkflowState = (typeof EVALUATION_WORKFLOW_STATES)[number];
 
@@ -145,14 +146,52 @@ export const LEARNING_PATH_STEPS = [
 ] as const;
 export type LearningPathStepKind = (typeof LEARNING_PATH_STEPS)[number];
 
+export const LEARNING_PLAN_RUN_STATUSES = [
+  "QUEUED",
+  "RUNNING",
+  "READY",
+  "FAILED",
+  "SUPERSEDED",
+] as const;
+export type LearningPlanRunStatus = (typeof LEARNING_PLAN_RUN_STATUSES)[number];
+
+export const LEARNING_RECOMMENDATION_KINDS = [
+  "PREREQUISITE_REPAIR",
+  "TARGET_CONCEPT",
+  "PROCEDURE_PRACTICE",
+  "EXECUTION_PRACTICE",
+] as const;
+export type LearningRecommendationKind =
+  (typeof LEARNING_RECOMMENDATION_KINDS)[number];
+
+export const LEARNING_RECOMMENDATION_STATUSES = [
+  "ACTIVE",
+  "DISMISSED",
+  "COMPLETED",
+] as const;
+export type LearningRecommendationStatus =
+  (typeof LEARNING_RECOMMENDATION_STATUSES)[number];
+
 export const IMPROVEMENT_BLUEPRINT_STATES = [
   "DRAFT",
+  "GENERATING",
   "PENDING_APPROVAL",
   "APPROVED",
   "REJECTED",
+  "FAILED",
 ] as const;
 export type ImprovementBlueprintState =
   (typeof IMPROVEMENT_BLUEPRINT_STATES)[number];
+
+export const IMPROVEMENT_TEMPLATE_KINDS = [
+  "CONCEPT_CHECK",
+  "PREREQUISITE_CHECK",
+  "PROCEDURE_PRACTICE",
+  "EXECUTION_PRACTICE",
+  "TRANSFER_CHECK",
+] as const;
+export type ImprovementTemplateKind =
+  (typeof IMPROVEMENT_TEMPLATE_KINDS)[number];
 
 export const TRANSCRIPTION_STATES = [
   "NOT_STARTED",
@@ -164,3 +203,55 @@ export const TRANSCRIPTION_STATES = [
   "UNAVAILABLE",
 ] as const;
 export type TranscriptionState = (typeof TRANSCRIPTION_STATES)[number];
+
+/** B10 authoring AI durable run statuses. */
+export const AUTHORING_AI_RUN_STATUSES = [
+  "QUEUED",
+  "RUNNING",
+  "REVIEW_REQUIRED",
+  "SUCCEEDED",
+  "FAILED",
+  "UNAVAILABLE",
+] as const;
+export type AuthoringAiRunStatus = (typeof AUTHORING_AI_RUN_STATUSES)[number];
+
+export const AUTHORING_AI_OPERATIONS = [
+  "PARSE_QUESTION_PAPER",
+  "PROPOSE_ANSWER_KEY",
+  "PROPOSE_RUBRIC",
+  "SUGGEST_CURRICULUM_MAPPING",
+] as const;
+export type AuthoringAiOperation = (typeof AUTHORING_AI_OPERATIONS)[number];
+
+/** B10 assessment artifact security scan statuses. */
+export const ASSESSMENT_ARTIFACT_SCAN_STATUSES = [
+  "NOT_CONFIGURED",
+  "CLEAN",
+  "REJECTED",
+  "ERROR",
+] as const;
+export type AssessmentArtifactScanStatus =
+  (typeof ASSESSMENT_ARTIFACT_SCAN_STATUSES)[number];
+
+export const AUTHORING_SOURCE_TYPES = [
+  "TEACHER",
+  "AI_PROPOSED",
+  "IMPORTED",
+] as const;
+export type AuthoringSourceType = (typeof AUTHORING_SOURCE_TYPES)[number];
+
+export const AUTHORING_MATERIAL_STATUSES = [
+  "DRAFT",
+  "REVIEW_REQUIRED",
+  "APPROVED",
+  "SUPERSEDED",
+] as const;
+export type AuthoringMaterialStatus =
+  (typeof AUTHORING_MATERIAL_STATUSES)[number];
+
+export const PROPOSED_QUESTION_SCORING_MODES = [
+  "LEAF_SCORABLE",
+  "CONTAINER_DERIVED",
+] as const;
+export type ProposedQuestionScoringMode =
+  (typeof PROPOSED_QUESTION_SCORING_MODES)[number];

@@ -1,0 +1,112 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/student-analytics.schema.json",
+  "title": "StudentAnalytics",
+  "description": "B8 published-ledger student analytics with projected concept/execution/procedure signals. No MasteryState persistence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "student",
+    "published_assessment_count",
+    "published_attempt_count",
+    "average_percentage",
+    "concept_signals",
+    "error_distribution",
+    "mastery_coverage",
+    "materialization_status",
+    "published_result_count",
+    "materialized_result_count",
+    "source",
+    "as_of"
+  ],
+  "properties": {
+    "student": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "display_name"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "display_name": { "type": ["string", "null"] },
+        "student_code": { "type": ["string", "null"] },
+        "external_ref": { "type": ["string", "null"] }
+      }
+    },
+    "published_assessment_count": { "type": "integer", "minimum": 0 },
+    "published_attempt_count": { "type": "integer", "minimum": 0 },
+    "average_percentage": { "type": ["number", "null"], "minimum": 0, "maximum": 100 },
+    "concept_signals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "curriculum_node_id",
+          "code",
+          "title",
+          "node_type",
+          "concept",
+          "execution",
+          "procedure",
+          "evidence_count",
+          "mean_score_ratio"
+        ],
+        "properties": {
+          "curriculum_node_id": { "type": "string", "format": "uuid" },
+          "code": { "type": "string" },
+          "title": { "type": "string" },
+          "node_type": { "type": "string" },
+          "concept": { "$ref": "#/$defs/signalBucket" },
+          "execution": { "$ref": "#/$defs/signalBucket" },
+          "procedure": { "$ref": "#/$defs/signalBucket" },
+          "evidence_count": { "type": "integer", "minimum": 0 },
+          "mean_score_ratio": { "type": ["number", "null"], "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+    "error_distribution": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "count"],
+        "properties": {
+          "code": { "type": "string" },
+          "count": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "mastery_coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["curriculum_node_count", "evidence_row_count"],
+      "properties": {
+        "curriculum_node_count": { "type": "integer", "minimum": 0 },
+        "evidence_row_count": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "materialization_status": {
+      "type": "string",
+      "enum": ["NOT_STARTED", "QUEUED", "RUNNING", "READY", "PARTIAL", "FAILED"]
+    },
+    "published_result_count": { "type": "integer", "minimum": 0 },
+    "materialized_result_count": { "type": "integer", "minimum": 0 },
+    "source": { "type": "string", "const": "PUBLISHED_LEDGER" },
+    "as_of": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "signalBucket": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["strong_count", "weak_count", "inconclusive_count", "signal"],
+      "properties": {
+        "strong_count": { "type": "integer", "minimum": 0 },
+        "weak_count": { "type": "integer", "minimum": 0 },
+        "inconclusive_count": { "type": "integer", "minimum": 0 },
+        "signal": {
+          "type": "string",
+          "enum": ["STRONG", "WEAK", "INCONCLUSIVE"]
+        }
+      }
+    }
+  }
+}

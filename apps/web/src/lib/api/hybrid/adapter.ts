@@ -5,6 +5,11 @@ import { AuthoringHttpApi } from "../http/authoring";
 import { SubmissionHttpApi } from "../http/submissions";
 import { MappingHttpApi } from "../http/mapping";
 import { TranscriptionHttpApi } from "../http/transcription";
+import { EvaluationHttpApi } from "../http/evaluation";
+import { PublicationHttpApi } from "../http/publication";
+import { ReportsHttpApi } from "../http/reports";
+import { AnalyticsHttpApi } from "../http/analytics";
+import { LearningHttpApi } from "../http/learning";
 import { ApiError } from "../http/errors";
 import { httpRequest } from "../http/client";
 import { getApiCapabilities } from "../capabilities";
@@ -17,15 +22,19 @@ function isLiveSubmissionId(id: string): boolean {
 }
 
 /**
- * Hybrid domain routing (B4):
+ * Hybrid domain routing (B9):
  * - Auth, Institution, Academic Years, Class Sections, Students, Import, Guardians → A1 HTTP
  * - Curriculum and Assessment authoring → A2 HTTP
  * - Submissions + identity review → B3 HTTP
  * - Mapping review → B4 HTTP
  * - Transcription review → B5 HTTP
- * - Evaluation, Analytics, Reporting, Learning → MOCK until their backend phases land
+ * - Evaluation ledger review → B6 HTTP
+ * - Publication + reports → B7 HTTP
+ * - Analytics → B8 HTTP
+ * - Learning + improvement blueprints → B9 HTTP
  *
  * Components use `api` only — they must not inspect mock vs HTTP.
+ * Live learning errors must never silently fall back to mock.
  */
 export const HybridEduVijnaApi: ApiClient = {
   async getHealth() {
@@ -97,6 +106,45 @@ export const HybridEduVijnaApi: ApiClient = {
   getAssessmentAnswerKey: (id) => AuthoringHttpApi.getAssessmentAnswerKey(id),
   getAssessmentCurriculumMap: (id) =>
     AuthoringHttpApi.getAssessmentCurriculumMap(id),
+  getLatestAssessmentVersion: (id) =>
+    AuthoringHttpApi.getLatestAssessmentVersion(id),
+  uploadQuestionPaper: (versionId, file) =>
+    AuthoringHttpApi.uploadQuestionPaper(versionId, file),
+  prepareQuestionPaperParse: (versionId) =>
+    AuthoringHttpApi.prepareQuestionPaperParse(versionId),
+  getLatestAuthoringAiRun: (versionId, operation) =>
+    AuthoringHttpApi.getLatestAuthoringAiRun(versionId, operation),
+  getAssessmentArtifact: (artifactId) =>
+    AuthoringHttpApi.getAssessmentArtifact(artifactId),
+  getAuthoringAiRun: (runId) => AuthoringHttpApi.getAuthoringAiRun(runId),
+  updateQuestionTreeProposal: (runId, tree) =>
+    AuthoringHttpApi.updateQuestionTreeProposal(runId, tree),
+  applyQuestionTreeProposal: (runId) =>
+    AuthoringHttpApi.applyQuestionTreeProposal(runId),
+  createTeacherAnswerKey: (input) =>
+    AuthoringHttpApi.createTeacherAnswerKey(input),
+  updateAnswerKey: (id, patch) => AuthoringHttpApi.updateAnswerKey(id, patch),
+  approveAnswerKey: (id) => AuthoringHttpApi.approveAnswerKey(id),
+  prepareAiAnswerKeyProposal: (input) =>
+    AuthoringHttpApi.prepareAiAnswerKeyProposal(input),
+  createTeacherRubric: (input) => AuthoringHttpApi.createTeacherRubric(input),
+  updateRubric: (id, patch) => AuthoringHttpApi.updateRubric(id, patch),
+  approveRubric: (id) => AuthoringHttpApi.approveRubric(id),
+  prepareAiRubricProposal: (input) =>
+    AuthoringHttpApi.prepareAiRubricProposal(input),
+  prepareAiCurriculumMappingProposal: (input) =>
+    AuthoringHttpApi.prepareAiCurriculumMappingProposal(input),
+  updateCurriculumMappingProposal: (runId, mappings) =>
+    AuthoringHttpApi.updateCurriculumMappingProposal(runId, mappings),
+  applyCurriculumMappings: (runId, selectedIndices) =>
+    AuthoringHttpApi.applyCurriculumMappings(runId, selectedIndices),
+  transitionAssessment: async (assessmentId, toStatus) => {
+    const row = await AuthoringHttpApi.transitionAssessment(
+      assessmentId,
+      toStatus,
+    );
+    return AuthoringHttpApi.getAssessment(row.id);
+  },
 
   listSubmissions: () => SubmissionHttpApi.listSubmissions(),
   getSubmission: (id) => SubmissionHttpApi.getSubmission(id),
@@ -146,11 +194,29 @@ export const HybridEduVijnaApi: ApiClient = {
   finalizeTranscription: (id) => TranscriptionHttpApi.finalizeTranscription(id),
   getRegionCropBlob: (regionId) => TranscriptionHttpApi.getRegionCropBlob(regionId),
 
-  getEvaluationWorkspace: async (submissionId, ...args) => {
-    if (
-      getApiCapabilities().submissions === "live" &&
-      isLiveSubmissionId(submissionId)
-    ) {
+  prepareEvaluation: async (submissionId) => {
+    if (getApiCapabilities().evaluation === "live" && isLiveSubmissionId(submissionId)) {
+      return EvaluationHttpApi.prepareEvaluation(submissionId);
+    }
+    throw new ApiError({
+      message: "prepareEvaluation is only available for live evaluation submissions.",
+      status: 404,
+      kind: "not_found",
+      code: "EVALUATION_NOT_LIVE",
+    });
+  },
+  getEvaluationWorkspace: async (submissionId, questionId) => {
+    if (getApiCapabilities().evaluation === "live") {
+      if (isLiveSubmissionId(submissionId)) {
+        return EvaluationHttpApi.getEvaluationWorkspace(
+          submissionId,
+          questionId,
+        );
+      }
+      // Demo / mock IDs stay on mock fixtures even when capability is live.
+      return MockEduVijnaApi.getEvaluationWorkspace(submissionId, questionId);
+    }
+    if (isLiveSubmissionId(submissionId)) {
       throw new ApiError({
         message:
           "Live evaluation is not enabled for this submission. Complete transcription review first.",
@@ -159,13 +225,26 @@ export const HybridEduVijnaApi: ApiClient = {
         code: "EVALUATION_NOT_LIVE",
       });
     }
-    return MockEduVijnaApi.getEvaluationWorkspace(submissionId, ...args);
+    return MockEduVijnaApi.getEvaluationWorkspace(submissionId, questionId);
   },
-  applyTeacherAction: async (submissionId, ...args) => {
-    if (
-      getApiCapabilities().submissions === "live" &&
-      isLiveSubmissionId(submissionId)
-    ) {
+  applyTeacherAction: async (submissionId, ledgerId, action, payload) => {
+    if (getApiCapabilities().evaluation === "live") {
+      if (isLiveSubmissionId(submissionId)) {
+        return EvaluationHttpApi.applyTeacherAction(
+          submissionId,
+          ledgerId,
+          action,
+          payload,
+        );
+      }
+      return MockEduVijnaApi.applyTeacherAction(
+        submissionId,
+        ledgerId,
+        action,
+        payload,
+      );
+    }
+    if (isLiveSubmissionId(submissionId)) {
       throw new ApiError({
         message: "Live evaluation actions are not enabled for this submission.",
         status: 404,
@@ -173,18 +252,339 @@ export const HybridEduVijnaApi: ApiClient = {
         code: "EVALUATION_NOT_LIVE",
       });
     }
-    return MockEduVijnaApi.applyTeacherAction(submissionId, ...args);
+    return MockEduVijnaApi.applyTeacherAction(
+      submissionId,
+      ledgerId,
+      action,
+      payload,
+    );
   },
-  getStudentReport: (...args) => MockEduVijnaApi.getStudentReport(...args),
-  getParentReport: (...args) => MockEduVijnaApi.getParentReport(...args),
-  getAssessmentAnalytics: (...args) =>
-    MockEduVijnaApi.getAssessmentAnalytics(...args),
-  getStudentAnalytics: (...args) =>
-    MockEduVijnaApi.getStudentAnalytics(...args),
-  getAdaptiveLearning: (...args) =>
-    MockEduVijnaApi.getAdaptiveLearning(...args),
-  getImprovementBlueprint: (...args) =>
-    MockEduVijnaApi.getImprovementBlueprint(...args),
-  approveImprovementBlueprint: (...args) =>
-    MockEduVijnaApi.approveImprovementBlueprint(...args),
+  finalizeEvaluation: async (submissionId) => {
+    if (getApiCapabilities().evaluation === "live" && isLiveSubmissionId(submissionId)) {
+      return EvaluationHttpApi.finalizeEvaluation(submissionId);
+    }
+    throw new ApiError({
+      message: "finalizeEvaluation is only available for live evaluation submissions.",
+      status: 404,
+      kind: "not_found",
+      code: "EVALUATION_NOT_LIVE",
+    });
+  },
+
+  preparePublication: async (submissionId) => {
+    if (
+      getApiCapabilities().publication === "live" &&
+      isLiveSubmissionId(submissionId)
+    ) {
+      return PublicationHttpApi.preparePublication(submissionId);
+    }
+    throw new ApiError({
+      message: "preparePublication is only available for live publication submissions.",
+      status: 404,
+      kind: "not_found",
+      code: "PUBLICATION_NOT_LIVE",
+    });
+  },
+  getPublicationWorkspace: async (submissionId) => {
+    if (getApiCapabilities().publication === "live") {
+      if (isLiveSubmissionId(submissionId)) {
+        return PublicationHttpApi.getPublicationWorkspace(submissionId);
+      }
+    }
+    if (isLiveSubmissionId(submissionId)) {
+      throw new ApiError({
+        message: "Live publication is not enabled for this submission.",
+        status: 404,
+        kind: "not_found",
+        code: "PUBLICATION_NOT_LIVE",
+      });
+    }
+    throw new ApiError({
+      message: "Publication workspace is not available in mock mode.",
+      status: 404,
+      kind: "not_found",
+      code: "PUBLICATION_MOCK_UNSUPPORTED",
+    });
+  },
+  regeneratePublication: async (publishedResultId) => {
+    if (
+      getApiCapabilities().publication === "live" &&
+      isLiveSubmissionId(publishedResultId)
+    ) {
+      return PublicationHttpApi.regeneratePublication(publishedResultId);
+    }
+    throw new ApiError({
+      message: "regeneratePublication is only available for live publication.",
+      status: 404,
+      kind: "not_found",
+      code: "PUBLICATION_NOT_LIVE",
+    });
+  },
+  publishPublication: async (publishedResultId) => {
+    if (
+      getApiCapabilities().publication === "live" &&
+      isLiveSubmissionId(publishedResultId)
+    ) {
+      return PublicationHttpApi.publishPublication(publishedResultId);
+    }
+    throw new ApiError({
+      message: "publishPublication is only available for live publication.",
+      status: 404,
+      kind: "not_found",
+      code: "PUBLICATION_NOT_LIVE",
+    });
+  },
+  getPublicationArtifactBlob: async (publishedResultId, artifactType) => {
+    if (
+      getApiCapabilities().publication === "live" &&
+      isLiveSubmissionId(publishedResultId)
+    ) {
+      return PublicationHttpApi.getPublicationArtifactBlob(
+        publishedResultId,
+        artifactType,
+      );
+    }
+    throw new ApiError({
+      message: "Publication artifacts are only available for live publication.",
+      status: 404,
+      kind: "not_found",
+      code: "PUBLICATION_NOT_LIVE",
+    });
+  },
+  createPublicationAnnotation: async (publishedResultId, input) => {
+    if (
+      getApiCapabilities().publication === "live" &&
+      isLiveSubmissionId(publishedResultId)
+    ) {
+      return PublicationHttpApi.createPublicationAnnotation(
+        publishedResultId,
+        input,
+      );
+    }
+    throw new ApiError({
+      message: "Publication annotations are only available for live publication.",
+      status: 404,
+      kind: "not_found",
+      code: "PUBLICATION_NOT_LIVE",
+    });
+  },
+  previewPublicationReport: async (publishedResultId, audience) => {
+    if (
+      getApiCapabilities().publication === "live" &&
+      isLiveSubmissionId(publishedResultId)
+    ) {
+      return PublicationHttpApi.previewPublicationReport(
+        publishedResultId,
+        audience,
+      );
+    }
+    throw new ApiError({
+      message: "Publication report preview is only available for live publication.",
+      status: 404,
+      kind: "not_found",
+      code: "PUBLICATION_NOT_LIVE",
+    });
+  },
+  getAnnotatedPaperWorkspace: async (submissionId) => {
+    if (getApiCapabilities().publication === "live") {
+      if (isLiveSubmissionId(submissionId)) {
+        return PublicationHttpApi.getAnnotatedPaperWorkspace(submissionId);
+      }
+    }
+    if (isLiveSubmissionId(submissionId)) {
+      throw new ApiError({
+        message: "Live annotated paper is not enabled for this submission.",
+        status: 404,
+        kind: "not_found",
+        code: "PUBLICATION_NOT_LIVE",
+      });
+    }
+    throw new ApiError({
+      message: "Use evaluation workspace annotated paper path in mock mode.",
+      status: 404,
+      kind: "not_found",
+      code: "ANNOTATED_PAPER_USE_MOCK_EVAL",
+    });
+  },
+
+  getStudentReport: async (studentId, assessmentId) => {
+    if (getApiCapabilities().reports === "live") {
+      if (isLiveSubmissionId(studentId) || isLiveSubmissionId(assessmentId)) {
+        return ReportsHttpApi.getStudentReport(studentId, assessmentId);
+      }
+      return MockEduVijnaApi.getStudentReport(studentId, assessmentId);
+    }
+    if (isLiveSubmissionId(studentId) || isLiveSubmissionId(assessmentId)) {
+      throw new ApiError({
+        message: "Live reports are not enabled for this identity.",
+        status: 404,
+        kind: "not_found",
+        code: "REPORTS_NOT_LIVE",
+      });
+    }
+    return MockEduVijnaApi.getStudentReport(studentId, assessmentId);
+  },
+  getParentReport: async (studentId, assessmentId) => {
+    if (getApiCapabilities().reports === "live") {
+      if (isLiveSubmissionId(studentId) || isLiveSubmissionId(assessmentId)) {
+        return ReportsHttpApi.getParentReport(studentId, assessmentId);
+      }
+      return MockEduVijnaApi.getParentReport(studentId, assessmentId);
+    }
+    if (isLiveSubmissionId(studentId) || isLiveSubmissionId(assessmentId)) {
+      throw new ApiError({
+        message: "Live reports are not enabled for this identity.",
+        status: 404,
+        kind: "not_found",
+        code: "REPORTS_NOT_LIVE",
+      });
+    }
+    return MockEduVijnaApi.getParentReport(studentId, assessmentId);
+  },
+  getTeacherReport: async (studentId, assessmentId) => {
+    if (getApiCapabilities().reports === "live") {
+      if (isLiveSubmissionId(studentId) || isLiveSubmissionId(assessmentId)) {
+        return ReportsHttpApi.getTeacherReport(studentId, assessmentId);
+      }
+    }
+    throw new ApiError({
+      message: "Teacher report is only available for live published results.",
+      status: 404,
+      kind: "not_found",
+      code: "TEACHER_REPORT_NOT_LIVE",
+    });
+  },
+  getAssessmentAnalytics: async (assessmentId, options) => {
+    if (getApiCapabilities().analytics === "live") {
+      return AnalyticsHttpApi.getAssessmentAnalytics(assessmentId, options);
+    }
+    return MockEduVijnaApi.getAssessmentAnalytics(assessmentId);
+  },
+  getStudentAnalytics: async (studentId) => {
+    if (getApiCapabilities().analytics === "live") {
+      return AnalyticsHttpApi.getStudentAnalytics(studentId);
+    }
+    return MockEduVijnaApi.getStudentAnalytics(studentId);
+  },
+  getStudentMasteryEvidence: async (studentId, filters) => {
+    if (getApiCapabilities().analytics === "live") {
+      return AnalyticsHttpApi.getStudentMasteryEvidence(studentId, filters);
+    }
+    throw new ApiError({
+      message: "Mastery evidence is only available for live analytics.",
+      status: 404,
+      kind: "not_found",
+      code: "ANALYTICS_NOT_LIVE",
+    });
+  },
+  prepareAnalyticsMaterialization: async (publishedResultId) => {
+    if (getApiCapabilities().analytics === "live") {
+      return AnalyticsHttpApi.prepareAnalyticsMaterialization(
+        publishedResultId,
+      );
+    }
+    throw new ApiError({
+      message: "Analytics materialization is only available for live analytics.",
+      status: 404,
+      kind: "not_found",
+      code: "ANALYTICS_NOT_LIVE",
+    });
+  },
+  getAdaptiveLearning: async (studentId) => {
+    if (getApiCapabilities().learning === "live") {
+      throw new ApiError({
+        message:
+          "Use getLearningWorkspace for live learning. Mock adaptive learning is unavailable when learning is live.",
+        status: 404,
+        kind: "not_found",
+        code: "LEARNING_USE_LIVE_WORKSPACE",
+      });
+    }
+    return MockEduVijnaApi.getAdaptiveLearning(studentId);
+  },
+  getLearningWorkspace: async (studentId, curriculumId) => {
+    if (getApiCapabilities().learning === "live") {
+      return LearningHttpApi.getLearningWorkspace(studentId, curriculumId);
+    }
+    throw new ApiError({
+      message: "Live learning workspace is only available when learning is live.",
+      status: 404,
+      kind: "not_found",
+      code: "LEARNING_NOT_LIVE",
+    });
+  },
+  prepareLearningPlan: async (studentId, curriculumId) => {
+    if (getApiCapabilities().learning === "live") {
+      return LearningHttpApi.prepareLearningPlan(studentId, curriculumId);
+    }
+    throw new ApiError({
+      message: "prepareLearningPlan is only available for live learning.",
+      status: 404,
+      kind: "not_found",
+      code: "LEARNING_NOT_LIVE",
+    });
+  },
+  getLearningPlanRun: async (runId) => {
+    if (getApiCapabilities().learning === "live") {
+      return LearningHttpApi.getLearningPlanRun(runId);
+    }
+    throw new ApiError({
+      message: "getLearningPlanRun is only available for live learning.",
+      status: 404,
+      kind: "not_found",
+      code: "LEARNING_NOT_LIVE",
+    });
+  },
+  prepareImprovementBlueprint: async (runId) => {
+    if (getApiCapabilities().learning === "live") {
+      return LearningHttpApi.prepareImprovementBlueprint(runId);
+    }
+    throw new ApiError({
+      message:
+        "prepareImprovementBlueprint is only available for live learning.",
+      status: 404,
+      kind: "not_found",
+      code: "LEARNING_NOT_LIVE",
+    });
+  },
+  getImprovementAssessment: async (id) => {
+    if (getApiCapabilities().learning === "live") {
+      return LearningHttpApi.getImprovementAssessment(id);
+    }
+    throw new ApiError({
+      message: "getImprovementAssessment is only available for live learning.",
+      status: 404,
+      kind: "not_found",
+      code: "LEARNING_NOT_LIVE",
+    });
+  },
+  getImprovementBlueprint: async (studentId) => {
+    if (getApiCapabilities().learning === "live") {
+      throw new ApiError({
+        message:
+          "Use getImprovementAssessment / learning workspace for live blueprints.",
+        status: 404,
+        kind: "not_found",
+        code: "LEARNING_USE_LIVE_BLUEPRINT",
+      });
+    }
+    return MockEduVijnaApi.getImprovementBlueprint(studentId);
+  },
+  approveImprovementBlueprint: async (blueprintId) => {
+    if (getApiCapabilities().learning === "live") {
+      return LearningHttpApi.approveImprovementBlueprint(blueprintId);
+    }
+    return MockEduVijnaApi.approveImprovementBlueprint(blueprintId);
+  },
+  rejectImprovementBlueprint: async (blueprintId, reason) => {
+    if (getApiCapabilities().learning === "live") {
+      return LearningHttpApi.rejectImprovementBlueprint(blueprintId, reason);
+    }
+    throw new ApiError({
+      message: "rejectImprovementBlueprint is only available for live learning.",
+      status: 404,
+      kind: "not_found",
+      code: "LEARNING_NOT_LIVE",
+    });
+  },
 };

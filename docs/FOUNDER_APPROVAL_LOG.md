@@ -26,7 +26,22 @@ Copy this block for each new decision:
 
 | Date | Decision | Approver | Status | Notes |
 |------|----------|----------|--------|-------|
+| 2026-09-07 | **Approve CVB v0.1 release promotion.** Authorizes the independently re-audited BUILD_NOW release candidate on `develop` after B11: 59 VERIFIED / 0 BLOCKED, B11 squash `dd6bd64faf7ddcd089c94d7c32f748ec70109840`, with promotion to `main` through the release workflow after authoritative CI succeeds. Deferred requirements remain deferred and unchanged. | Founder / Product Architect | APPROVED | Release milestone approval. Record B11 evidence in the authorized release path; do not introduce new implementation scope. Issue #1 may close only after the `main` promotion is confirmed. |
 | 2026-09-04 | **Mandatory architecture contract for Day 1 bootstrap (CVB v0.1).** Approves: modular monolith; Python 3.12 + FastAPI + SQLAlchemy 2 async + Alembic + PostgreSQL 16; Redis + Celery async; S3-compatible storage (MinIO local); Next.js + React + TypeScript + Tailwind frontend stack; pnpm monorepo; SymPy + PyMuPDF; Docker Compose deployment. **Prohibits for CVB:** Kubernetes, Temporal, Kafka, microservices split, GraphQL, native mobile, Firebase, Supabase, serverless-only architecture. **Approves** core pipeline: source evidence → structured understanding → rubric decisions → evaluation ledger → human approval → published result → learning evidence. **Approves** tenant-aware data model from first migration; evaluation ledger as source of truth; immutable raw source papers; human approval required before publication; AI provider abstraction. **Approves** 30-day BUILD_NOW vertical slice per `docs/product/MASTER_PRODUCT_SCOPE.md` and requirements PEV-001 – PEV-078 in `docs/product/REQUIREMENTS_REGISTER.md`. **Approves** Cursor A/B ownership split per master scope §7. | Founder / Product Architect | APPROVED | Day 1 bootstrap foundation. ADRs ADR-001 through ADR-010 derive from this decision. Repository: `eduvijna/eduvijna-paper-evaluation`. No requirement from business context may be deleted — deferred items use AFTER_CLIENT_APPROVAL or FUTURE_ENTERPRISE only. |
+
+---
+
+## Detailed Entry — APP-002
+
+### APP-002 — CVB v0.1 Release Promotion
+
+| Field | Value |
+|-------|-------|
+| **Date** | 2026-09-07 |
+| **Decision** | Approve the CVB v0.1 release milestone for promotion from the independently re-audited `develop` release candidate to `main`, after B11 closed the post-B10 release blockers and the BUILD_NOW audit reached 59 VERIFIED / 0 BLOCKED. The approved B11 squash is `dd6bd64faf7ddcd089c94d7c32f748ec70109840`. |
+| **Approver** | Founder / Product Architect |
+| **Status** | APPROVED |
+| **Notes** | Promotion must use the repository release workflow and authoritative CI. This approval does not activate deferred PEV-035–038, PEV-041, PEV-043, PEV-044–046, PEV-048–051, or PEV-054–059. Issue #1 closes only after `main` promotion is confirmed. |
 
 ---
 
@@ -57,4 +72,5 @@ Copy this block for each new decision:
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.2 | 2026-09-07 | Release workflow | APP-002 CVB v0.1 release promotion approval |
 | 0.1 | 2026-09-04 | Cursor A (bootstrap) | Initial log with APP-001 Day 1 architecture approval |

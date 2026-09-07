@@ -104,14 +104,42 @@ export default function AssessmentDetailPage({
       </dl>
 
       {capabilities.assessments === "live" &&
-        (capabilities.analytics === "mock" || capabilities.mapping === "mock") && (
+        capabilities.analytics === "mock" && (
         <p
           data-testid="assessment-downstream-boundary"
           className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"
         >
-          {capabilities.submissions === "live"
-            ? "Analytics, mapping, and evaluation remain on the mock provider and are hidden for live assessment identities."
-            : "Analytics and submission workflows remain on the mock provider and are hidden for live A2 assessment identities."}
+          {capabilities.evaluation === "live" && capabilities.reports === "live"
+            ? "Analytics and adaptive learning remain on the mock provider and are hidden for live assessment identities."
+            : capabilities.evaluation === "live"
+            ? "Analytics, reports, and learning remain on the mock provider and are hidden for live assessment identities."
+            : capabilities.submissions === "live"
+              ? "Analytics, mapping, and evaluation remain on the mock provider and are hidden for live assessment identities."
+              : "Analytics and submission workflows remain on the mock provider and are hidden for live A2 assessment identities."}
+        </p>
+      )}
+
+      {capabilities.assessments === "live" &&
+        capabilities.analytics === "live" &&
+        capabilities.learning === "mock" && (
+        <p
+          data-testid="assessment-learning-boundary"
+          className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"
+        >
+          Adaptive learning remains on the mock provider and is hidden for live
+          assessment identities.
+        </p>
+      )}
+
+      {capabilities.assessments === "live" &&
+        capabilities.analytics === "live" &&
+        capabilities.learning === "live" && (
+        <p
+          data-testid="assessment-learning-live-notice"
+          className="mt-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"
+        >
+          Analytics and adaptive learning are live for published ledger
+          evidence.
         </p>
       )}
 

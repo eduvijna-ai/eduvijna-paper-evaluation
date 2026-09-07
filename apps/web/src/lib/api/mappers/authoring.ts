@@ -119,6 +119,9 @@ export function questionTreeApiToView(
     max_mark: Number(node.max_marks),
     sort_order: node.sequence,
     curriculum_node_ids: [],
+    question_version_id: node.id,
+    scoring_mode: node.scoring_mode,
+    is_leaf_scorable: node.scoring_mode === "LEAF_SCORABLE",
     children: questionTreeApiToView(node.children ?? [], assessmentId),
   }));
 }
@@ -137,12 +140,15 @@ export function answerKeyApiToView(
     step_index: 0,
     content: api.answer_text,
     marks: marksByQuestion.get(api.question_version_id) ?? 0,
+    source_type: api.source_type,
+    status: api.status,
   };
 }
 
 export function rubricCriterionApiToView(
   api: A2RubricCriterion,
   questionVersionId: string,
+  versionMeta?: { id: string; source_type: string; status: string },
 ): RubricCriterion {
   return {
     id: api.id,
@@ -151,6 +157,9 @@ export function rubricCriterionApiToView(
     description: api.description,
     max_marks: Number(api.max_marks),
     sort_order: api.sequence,
+    rubric_version_id: versionMeta?.id,
+    source_type: versionMeta?.source_type,
+    status: versionMeta?.status,
   };
 }
 

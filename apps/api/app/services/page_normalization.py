@@ -13,7 +13,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
-from app.db.models import AuditEvent, PipelineJob, Submission, SubmissionPage
+from app.db.models import PipelineJob, Submission, SubmissionPage
+from app.services.audit import add_audit_event
 from app.services.storage import ObjectStorage, derived_page_key
 from app.services.upload_validation import sha256_bytes
 
@@ -62,18 +63,17 @@ async def run_page_normalization(
         raw = storage.get_bytes(submission.source_storage_key)
         actual_hash = sha256_bytes(raw)
         if actual_hash != submission.source_content_sha256:
-            db.add(
-                AuditEvent(
-                    tenant_id=tenant_id,
-                    actor_user_id=submission.uploaded_by,
-                    entity_type="Submission",
-                    entity_id=submission.id,
-                    action="source_integrity_mismatch",
-                    payload_json={
-                        "expected": submission.source_content_sha256,
-                        "actual": actual_hash,
-                    },
-                )
+            await add_audit_event(
+                db,
+                tenant_id=tenant_id,
+                actor_user_id=submission.uploaded_by,
+                entity_type="Submission",
+                entity_id=submission.id,
+                action="source_integrity_mismatch",
+                after={
+                    "expected": submission.source_content_sha256,
+                    "actual": actual_hash,
+                },
             )
             raise PageNormalizationError(
                 "SOURCE_INTEGRITY_MISMATCH",
@@ -130,15 +130,14 @@ async def run_page_normalization(
         job.finished_at = datetime.now(UTC)
         job.error_code = None
         job.error_detail = None
-        db.add(
-            AuditEvent(
-                tenant_id=tenant_id,
-                actor_user_id=submission.uploaded_by,
-                entity_type="Submission",
-                entity_id=submission.id,
-                action="page_normalization_succeeded",
-                payload_json={"page_count": len(pages), "job_id": str(job.id)},
-            )
+        await add_audit_event(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=submission.uploaded_by,
+            entity_type="Submission",
+            entity_id=submission.id,
+            action="page_normalization_succeeded",
+            after={"page_count": len(pages), "job_id": str(job.id)},
         )
 
         from app.ai.registry import structure_provider_active

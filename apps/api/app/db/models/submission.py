@@ -134,7 +134,9 @@ class PipelineJob(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="uq_pipeline_jobs_tenant_idempotency",
         ),
         CheckConstraint(
-            "stage IN ('PAGE_NORMALIZATION','IDENTITY','MAPPING','TRANSCRIPTION','EVALUATION')",
+            "stage IN ("
+            "'PAGE_NORMALIZATION','IDENTITY','MAPPING','TRANSCRIPTION',"
+            "'EVALUATION','PUBLICATION','ANALYTICS')",
             name="ck_pipeline_jobs_stage",
         ),
         CheckConstraint(

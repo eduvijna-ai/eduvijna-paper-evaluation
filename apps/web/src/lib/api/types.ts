@@ -1,8 +1,10 @@
 import type {
   AdaptiveLearningPlan,
+  AnalyticsMaterializationPrepareResult,
+  AnnotatedPaperWorkspace,
   AnswerKeyStep,
   Assessment,
-  AssessmentAnalytics,
+  AssessmentAnalyticsView,
   AuthSession,
   Curriculum,
   CurriculumMapEntry,
@@ -11,17 +13,30 @@ import type {
   EvaluationWorkspacePayload,
   IdentityReviewPayload,
   ImprovementAssessmentBlueprint,
+  ImprovementBlueprintPrepareResult,
+  LearningPlanPrepareResult,
+  LiveImprovementAssessment,
+  LiveLearningPlan,
+  LiveLearningWorkspace,
   EvidenceRegion,
   MappingReviewPayload,
   PaperPage,
   ParentReport,
+  PublicationAnnotation,
+  PublicationArtifactType,
+  PublicationPrepareResult,
+  PublicationPublishResult,
+  PublicationRegenerateResult,
+  PublicationWorkspace,
   Question,
   QuestionAnswerMappingView,
   RubricCriterion,
   Student,
-  StudentAnalytics,
+  StudentAnalyticsView,
+  StudentMasteryEvidenceList,
   StudentReport,
   Submission,
+  TeacherReport,
   TranscriptionWorkspacePayload,
   RegionTranscriptionView,
 } from "@/lib/types/domain";
@@ -45,6 +60,12 @@ import type {
   ImportCommitResult,
   ImportValidationView,
 } from "@/lib/api/mappers/import";
+import type { A2AssessmentVersion, A2AnswerKeyVersion, A2Rubric, A2RubricCriterion, A2RubricVersion } from "@/lib/api/a2-types";
+import type {
+  AssessmentArtifact,
+  AuthoringAiRun,
+  ProposedQuestionNode,
+} from "@/lib/types/domain";
 
 export interface OperationalHealth {
   status: "ok" | "degraded" | "error" | string;
@@ -117,6 +138,93 @@ export interface ApiClient {
   getAssessmentRubric(id: string): Promise<RubricCriterion[]>;
   getAssessmentAnswerKey(id: string): Promise<AnswerKeyStep[]>;
   getAssessmentCurriculumMap(id: string): Promise<CurriculumMapEntry[]>;
+  /** B10 live authoring. Optional so the preserved B0 mock client remains source-compatible. */
+  getLatestAssessmentVersion?(assessmentId: string): Promise<A2AssessmentVersion>;
+  uploadQuestionPaper?(
+    versionId: string,
+    file: File,
+  ): Promise<AssessmentArtifact>;
+  prepareQuestionPaperParse?(versionId: string): Promise<AuthoringAiRun>;
+  getLatestAuthoringAiRun?(
+    versionId: string,
+    operation?: string,
+  ): Promise<AuthoringAiRun | null>;
+  getAssessmentArtifact?(artifactId: string): Promise<AssessmentArtifact>;
+  getAuthoringAiRun?(runId: string): Promise<AuthoringAiRun>;
+  updateQuestionTreeProposal?(
+    runId: string,
+    tree: { roots: ProposedQuestionNode[]; notes?: string | null },
+  ): Promise<AuthoringAiRun>;
+  applyQuestionTreeProposal?(runId: string): Promise<AuthoringAiRun>;
+  createTeacherAnswerKey?(input: {
+    assessmentId: string;
+    assessmentVersionId: string;
+    questionVersionId: string;
+    answerText: string;
+  }): Promise<A2AnswerKeyVersion>;
+  updateAnswerKey?(
+    answerKeyVersionId: string,
+    patch: { answerText?: string; status?: "DRAFT" | "REVIEW_REQUIRED" },
+  ): Promise<A2AnswerKeyVersion>;
+  approveAnswerKey?(answerKeyVersionId: string): Promise<A2AnswerKeyVersion>;
+  prepareAiAnswerKeyProposal?(input: {
+    questionVersionId: string;
+    assessmentVersionId?: string;
+    instructions?: string;
+  }): Promise<AuthoringAiRun>;
+  createTeacherRubric?(input: {
+    assessmentId: string;
+    questionVersionId: string;
+    title: string;
+    criteria: Array<{
+      criterionCode: string;
+      description: string;
+      maxMarks: number | string;
+      sequence: number;
+      scoringMode?: "ADDITIVE" | "DEDUCTIVE" | "ALL_OR_NOTHING";
+      partialCreditAllowed?: boolean;
+    }>;
+  }): Promise<{
+    rubric: A2Rubric;
+    version: A2RubricVersion;
+    criteria: A2RubricCriterion[];
+  }>;
+  updateRubric?(
+    rubricVersionId: string,
+    patch: {
+      questionVersionId: string;
+      status?: "DRAFT" | "REVIEW_REQUIRED";
+      sourceType?: "TEACHER" | "IMPORTED";
+    },
+  ): Promise<A2RubricVersion>;
+  approveRubric?(rubricVersionId: string): Promise<A2RubricVersion>;
+  prepareAiRubricProposal?(input: {
+    questionVersionId: string;
+    assessmentVersionId?: string;
+    instructions?: string;
+  }): Promise<AuthoringAiRun>;
+  prepareAiCurriculumMappingProposal?(input: {
+    questionVersionId: string;
+    curriculumId?: string;
+    instructions?: string;
+  }): Promise<AuthoringAiRun>;
+  updateCurriculumMappingProposal?(
+    runId: string,
+    mappings: Array<{
+      curriculum_node_id: string;
+      mapping_type: "PRIMARY" | "SECONDARY" | "LEARNING_OUTCOME" | "SKILL";
+      weight?: string | number | null;
+      rationale?: string | null;
+    }>,
+  ): Promise<AuthoringAiRun>;
+  applyCurriculumMappings?(
+    runId: string,
+    selectedIndices?: number[] | null,
+  ): Promise<AuthoringAiRun>;
+  transitionAssessment?(
+    assessmentId: string,
+    toStatus: string,
+  ): Promise<Assessment>;
   listSubmissions(): Promise<Submission[]>;
   getSubmission(id: string): Promise<Submission>;
   /** B3 live upload. Optional so the preserved B0 mock client remains source-compatible. */
@@ -207,6 +315,43 @@ export interface ApiClient {
     action: TeacherReviewAction,
     payload?: { newScore?: number; feedback?: string },
   ): Promise<TeacherActionResult>;
+  /** B6 live evaluation. Optional for mock-source compatibility. */
+  prepareEvaluation?(submissionId: string): Promise<Submission>;
+  finalizeEvaluation?(submissionId: string): Promise<Submission>;
+  /** B7 live publication. Optional for mock-source compatibility. */
+  preparePublication?(submissionId: string): Promise<PublicationPrepareResult>;
+  getPublicationWorkspace?(
+    submissionId: string,
+  ): Promise<PublicationWorkspace>;
+  regeneratePublication?(
+    publishedResultId: string,
+  ): Promise<PublicationRegenerateResult>;
+  publishPublication?(
+    publishedResultId: string,
+  ): Promise<PublicationPublishResult>;
+  getPublicationArtifactBlob?(
+    publishedResultId: string,
+    artifactType: PublicationArtifactType,
+  ): Promise<Blob>;
+  createPublicationAnnotation?(
+    publishedResultId: string,
+    input: {
+      annotation_type: "COMMENT" | "HIGHLIGHT";
+      submission_page_id: string;
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      payload?: Record<string, unknown>;
+    },
+  ): Promise<PublicationAnnotation>;
+  previewPublicationReport?(
+    publishedResultId: string,
+    audience: "student" | "parent" | "teacher",
+  ): Promise<StudentReport | ParentReport | TeacherReport>;
+  getAnnotatedPaperWorkspace?(
+    submissionId: string,
+  ): Promise<AnnotatedPaperWorkspace>;
   getStudentReport(
     studentId: string,
     assessmentId: string,
@@ -215,13 +360,52 @@ export interface ApiClient {
     studentId: string,
     assessmentId: string,
   ): Promise<ParentReport>;
-  getAssessmentAnalytics(assessmentId: string): Promise<AssessmentAnalytics>;
-  getStudentAnalytics(studentId: string): Promise<StudentAnalytics>;
+  getTeacherReport?(
+    studentId: string,
+    assessmentId: string,
+  ): Promise<TeacherReport>;
+  getAssessmentAnalytics(
+    assessmentId: string,
+    options?: { passThresholdPercent?: number },
+  ): Promise<AssessmentAnalyticsView>;
+  getStudentAnalytics(studentId: string): Promise<StudentAnalyticsView>;
+  getStudentMasteryEvidence?(
+    studentId: string,
+    filters?: {
+      assessmentId?: string;
+      curriculumId?: string;
+      curriculumNodeId?: string;
+    },
+  ): Promise<StudentMasteryEvidenceList>;
+  prepareAnalyticsMaterialization?(
+    publishedResultId: string,
+  ): Promise<AnalyticsMaterializationPrepareResult>;
   getAdaptiveLearning(studentId: string): Promise<AdaptiveLearningPlan>;
+  getLearningWorkspace?(
+    studentId: string,
+    curriculumId?: string,
+  ): Promise<LiveLearningWorkspace>;
+  prepareLearningPlan?(
+    studentId: string,
+    curriculumId: string,
+  ): Promise<LearningPlanPrepareResult>;
+  getLearningPlanRun?(runId: string): Promise<LiveLearningPlan>;
+  prepareImprovementBlueprint?(
+    runId: string,
+  ): Promise<ImprovementBlueprintPrepareResult>;
+  getImprovementAssessment?(
+    id: string,
+  ): Promise<LiveImprovementAssessment>;
   getImprovementBlueprint(
     studentId: string,
   ): Promise<ImprovementAssessmentBlueprint>;
   approveImprovementBlueprint(
     blueprintId: string,
-  ): Promise<ImprovementAssessmentBlueprint>;
+  ): Promise<
+    ImprovementAssessmentBlueprint | LiveImprovementAssessment
+  >;
+  rejectImprovementBlueprint?(
+    blueprintId: string,
+    reason: string,
+  ): Promise<LiveImprovementAssessment>;
 }

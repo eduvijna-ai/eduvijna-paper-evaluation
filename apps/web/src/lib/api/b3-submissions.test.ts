@@ -101,10 +101,11 @@ describe("B3 API capabilities", () => {
     expect(caps.identityReview).toBe("live");
     expect(caps.mapping).toBe("live");
     expect(caps.transcription).toBe("live");
-    expect(caps.evaluation).toBe("mock");
-    expect(caps.reports).toBe("mock");
-    expect(caps.analytics).toBe("mock");
-    expect(caps.learning).toBe("mock");
+    expect(caps.evaluation).toBe("live");
+    expect(caps.publication).toBe("live");
+    expect(caps.reports).toBe("live");
+    expect(caps.analytics).toBe("live");
+    expect(caps.learning).toBe("live");
   });
 
   it("keeps all domains mock in default mock mode", () => {
@@ -114,5 +115,6 @@ describe("B3 API capabilities", () => {
     expect(caps.identityReview).toBe("mock");
     expect(caps.mapping).toBe("mock");
     expect(caps.evaluation).toBe("mock");
+    expect(caps.publication).toBe("mock");
   });
 });

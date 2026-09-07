@@ -1,28 +1,48 @@
 import type {
+  AssessmentArtifactScanStatus,
   AssessmentState,
+  AuthoringAiOperation,
+  AuthoringAiRunStatus,
+  AuthoringMaterialStatus,
+  AuthoringSourceType,
   CriterionDecision,
   CurriculumNodeType,
   ErrorCode,
   EvaluationWorkflowState,
   IdentityMatchState,
   ImprovementBlueprintState,
+  ImprovementTemplateKind,
   LearningPathStepKind,
+  LearningPlanRunStatus,
+  LearningRecommendationKind,
+  LearningRecommendationStatus,
   MappingNodeState,
+  ProposedQuestionScoringMode,
   SubmissionState,
   TranscriptionState,
   UserRole,
 } from "./enums";
 
 export type {
+  AssessmentArtifactScanStatus,
   AssessmentState,
+  AuthoringAiOperation,
+  AuthoringAiRunStatus,
+  AuthoringMaterialStatus,
+  AuthoringSourceType,
   CriterionDecision,
   CurriculumNodeType,
   ErrorCode,
   EvaluationWorkflowState,
   IdentityMatchState,
   ImprovementBlueprintState,
+  ImprovementTemplateKind,
   LearningPathStepKind,
+  LearningPlanRunStatus,
+  LearningRecommendationKind,
+  LearningRecommendationStatus,
   MappingNodeState,
+  ProposedQuestionScoringMode,
   SubmissionState,
   TranscriptionState,
   UserRole,
@@ -141,6 +161,10 @@ export interface RubricCriterion {
   description: string;
   max_marks: number;
   sort_order: number;
+  /** B10 live rubric version provenance */
+  rubric_version_id?: string;
+  source_type?: AuthoringSourceType | string;
+  status?: AuthoringMaterialStatus | string;
 }
 
 export interface AnswerKeyStep {
@@ -149,13 +173,84 @@ export interface AnswerKeyStep {
   step_index: number;
   content: string;
   marks: number;
+  /** B10 live answer-key provenance */
+  source_type?: AuthoringSourceType | string;
+  status?: AuthoringMaterialStatus | string;
+}
+
+/** B10 nested AI question-tree proposal node. */
+export interface ProposedQuestionNode {
+  stable_code: string;
+  display_label: string;
+  sequence: number;
+  prompt_text: string;
+  max_marks: string | number;
+  question_type: string;
+  scoring_mode: ProposedQuestionScoringMode | string;
+  instructions?: string | null;
+  children?: ProposedQuestionNode[];
+}
+
+export interface AssessmentArtifact {
+  id: string;
+  tenant_id: string;
+  assessment_id: string;
+  artifact_type: string;
+  original_filename: string;
+  mime_type: string;
+  byte_size: number;
+  content_sha256: string;
+  storage_key: string;
+  security_scan_status: AssessmentArtifactScanStatus | string;
+  uploaded_by?: string | null;
+  uploaded_at: string;
+  created_at?: string | null;
+}
+
+export interface AuthoringAiRun {
+  id: string;
+  tenant_id: string;
+  assessment_id: string;
+  assessment_version_id: string;
+  question_version_id?: string | null;
+  assessment_artifact_id?: string | null;
+  operation: AuthoringAiOperation | string;
+  status: AuthoringAiRunStatus | string;
+  input_hash: string;
+  proposal_payload?: {
+    roots?: ProposedQuestionNode[];
+    notes?: string | null;
+    answer_text_length?: number;
+    has_structured_answer?: boolean;
+    mappings?: Array<{
+      curriculum_node_id: string;
+      mapping_type?: string;
+      weight?: string | number | null;
+      rationale?: string | null;
+    }>;
+    curriculum_id?: string;
+    candidate_node_ids?: string[];
+    [key: string]: unknown;
+  } | null;
+  requested_by: string;
+  requested_at?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  celery_task_id?: string | null;
+  answer_key_version_id?: string | null;
+  rubric_version_id?: string | null;
+  correlation_id?: string | null;
+  failure_code?: string | null;
+  failure_detail?: string | null;
+  enqueue_error?: string | null;
 }
 
 export interface CriterionDecisionRow {
   rubric_criterion_id: string;
   criterion_label: string;
   max_marks: number;
-  proposed_marks: number;
+  /** Null when unscorable / unreadable — must not render as 0. */
+  proposed_marks: number | null;
   final_marks: number | null;
   decision: CriterionDecision;
   error_code: ErrorCode | null;
@@ -178,20 +273,33 @@ export interface EvaluationLedger {
   answer_region_ids: string[];
   max_mark: number;
   criterion_decisions: CriterionDecisionRow[];
-  proposed_ai_score: number;
+  /** Null when unreadable / no proposal — must not display as 0. */
+  proposed_ai_score: number | null;
   final_human_approved_score: number | null;
   error_codes: ErrorCode[];
   ecf_applied: boolean;
-  identity_confidence: Confidence;
-  mapping_confidence: Confidence;
-  transcription_confidence: Confidence;
-  evaluation_confidence: Confidence;
+  identity_confidence: Confidence | null;
+  mapping_confidence: Confidence | null;
+  transcription_confidence: Confidence | null;
+  evaluation_confidence: Confidence | null;
   math_verification_confidence: Confidence | null;
+  /** Optional deterministic verification summary for UI. */
+  math_verification_summary?: string | null;
   workflow_state: EvaluationWorkflowState;
   ledger_version: number;
   feedback_draft: string;
   corrected_approach: string;
   teacher_notes: string | null;
+  /** Joined transcription evidence for the evaluation center column. */
+  transcription_text?: string | null;
+  alternative_method_id?: string | null;
+  alternative_method_label?: string | null;
+  /** Distinguishes AI proposal vs human final vs deterministic verify. */
+  score_sources?: {
+    ai_proposal: boolean;
+    deterministic_verification: boolean;
+    human_final: boolean;
+  };
 }
 
 export interface PaperPage {
@@ -440,6 +548,11 @@ export interface StudentReport {
     outcome: "CORRECT" | "PARTIAL" | "DEDUCTED";
   }>;
   corrected_approaches: Array<{ question_code: string; approach: string }>;
+  /** Live B7 — hide Topics/mastery when true */
+  live_published?: boolean;
+  ledger_snapshot_hash?: string;
+  narrative_source?: "AI" | "FIXED" | "RULES_FALLBACK";
+  published_result_id?: string;
 }
 
 export interface ParentReport {
@@ -450,8 +563,167 @@ export interface ParentReport {
   what_to_practice: string[];
   how_to_help: string[];
   next_step: string;
+  total_score?: number;
+  max_total_score?: number;
+  percentage?: number;
+  live_published?: boolean;
+  ledger_snapshot_hash?: string;
+  narrative_source?: "AI" | "FIXED" | "RULES_FALLBACK";
+  published_result_id?: string;
 }
 
+export type PublicationStatus =
+  | "READY"
+  | "GENERATING"
+  | "GENERATED"
+  | "PUBLISHED"
+  | "FAILED";
+
+export type PublicationArtifactType =
+  | "ANNOTATED_PDF"
+  | "STUDENT_REPORT_PDF"
+  | "PARENT_REPORT_PDF"
+  | "TEACHER_REPORT_PDF";
+
+export interface PublicationArtifactInfo {
+  available: boolean;
+  sha256: string | null;
+  byte_size: number | null;
+}
+
+export interface PublicationAnnotation {
+  id: string;
+  annotation_type:
+    | "TICK"
+    | "CROSS"
+    | "PARTIAL"
+    | "MARK"
+    | "COMMENT"
+    | "HIGHLIGHT";
+  submission_page_id: string;
+  question_evaluation_id: string | null;
+  answer_region_id: string | null;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  payload: Record<string, unknown>;
+  source_type: "LEDGER" | "HUMAN" | string;
+}
+
+export interface PublishedResultSummary {
+  id: string;
+  submission_id: string;
+  student_id: string | null;
+  assessment_id: string;
+  assessment_version_id: string;
+  evaluation_run_id: string;
+  version_number: number;
+  status: PublicationStatus;
+  ledger_snapshot_hash: string;
+  total_score: number | null;
+  max_total_score: number | null;
+  narrative_source: "AI" | "FIXED" | "RULES_FALLBACK" | null;
+  generated_at: string | null;
+  published_at: string | null;
+  failure_code: string | null;
+  failure_detail: string | null;
+  artifacts: Partial<Record<PublicationArtifactType, PublicationArtifactInfo>>;
+}
+
+export interface PublicationWorkspace {
+  submission_id: string;
+  workflow_state: string;
+  latest: PublishedResultSummary | null;
+  versions: PublishedResultSummary[];
+  annotations: PublicationAnnotation[];
+}
+
+export interface PublicationPrepareResult {
+  submission_id: string;
+  workflow_state: string;
+  published_result_id: string;
+  status: PublicationStatus;
+  version_number: number;
+  job_id: string | null;
+}
+
+export interface PublicationRegenerateResult {
+  published_result_id: string;
+  status: PublicationStatus | string;
+  version_number: number;
+  job_id: string;
+  supersedes_result_id: string | null;
+}
+
+export interface PublicationPublishResult {
+  published_result_id: string;
+  status: "PUBLISHED";
+  submission_id: string;
+  published_at: string | null;
+}
+
+export interface AnnotatedPaperQuestionScore {
+  id: string;
+  question_code: string;
+  /** Always final human-approved score for live; never proposed_ai_score */
+  final_score: number | null;
+  max_mark: number;
+  feedback?: string | null;
+}
+
+export interface AnnotatedPaperWorkspace {
+  submission_id: string;
+  workflow_state: string;
+  pages: PaperPage[];
+  regions: EvidenceRegion[];
+  annotations: PublicationAnnotation[];
+  published_result: PublishedResultSummary | null;
+  questions: AnnotatedPaperQuestionScore[];
+  live: boolean;
+}
+
+export interface TeacherReportQuestion {
+  question_id: string;
+  question_version_id?: string;
+  question_code: string;
+  final_score: number;
+  max_mark: number;
+  workflow_state: "ACCEPTED" | "OVERRIDDEN" | string;
+  criterion_decisions: Array<Record<string, unknown>>;
+  error_codes: string[];
+  deduction_reasons?: string[];
+  first_divergence_step?: number | null;
+  ecf_applied?: boolean;
+  alternative_method_label?: string | null;
+  confidences?: {
+    identity?: number | null;
+    mapping?: number | null;
+    transcription?: number | null;
+    evaluation?: number | null;
+    math_verification?: number | null;
+  };
+}
+
+export interface TeacherReport {
+  published_result_id: string;
+  student: { id: string; display_name: string };
+  assessment: {
+    id: string;
+    title: string;
+    code?: string;
+    assessment_version_id: string;
+  };
+  total_score: number;
+  max_total_score: number;
+  questions: TeacherReportQuestion[];
+  ledger_snapshot_hash: string;
+  evaluation_run_id?: string;
+  generated_at?: string;
+  published_at?: string | null;
+}
+
+/** Mock-mode assessment analytics (demo fixtures). */
 export interface AssessmentAnalytics {
   assessment: Assessment;
   mean_score: number;
@@ -466,6 +738,78 @@ export interface AssessmentAnalytics {
   score_bands: Array<{ label: string; count: number }>;
 }
 
+export interface LiveAnalyticsErrorCount {
+  code: ErrorCode | string;
+  count: number;
+  category?: "academic" | "review_condition" | string;
+}
+
+export interface LiveQuestionPerformance {
+  question_id: string;
+  question_code: string;
+  question_version_ids: string[];
+  attempt_count: number;
+  blank_count: number;
+  mean_score_percent: number | null;
+  median_score_percent: number | null;
+  full_credit_count: number;
+  zero_score_count: number;
+  common_errors: LiveAnalyticsErrorCount[];
+}
+
+export interface LiveScoreDistributionBand {
+  lower_bound: number;
+  upper_bound: number;
+  count: number;
+}
+
+export interface LiveCurriculumPerformance {
+  curriculum_node_id: string;
+  code: string;
+  title: string;
+  node_type: string;
+  question_count: number;
+  evidence_count: number;
+  mean_score_ratio: number | null;
+  strong_signal_count: number;
+  weak_signal_count: number;
+  inconclusive_signal_count: number;
+  common_academic_errors: LiveAnalyticsErrorCount[];
+}
+
+export interface LiveAssessmentSummary {
+  id: string;
+  code: string;
+  title: string;
+  curriculum_id: string;
+  status: string;
+}
+
+/** Live B8 assessment analytics (published-ledger projections). */
+export interface LiveAssessmentAnalytics {
+  assessment: LiveAssessmentSummary;
+  class_section_id: string | null;
+  published_attempt_count: number;
+  unique_student_count: number;
+  mean_percentage: number | null;
+  median_percentage: number | null;
+  pass_threshold_percent: number | null;
+  pass_rate: number | null;
+  score_distribution: LiveScoreDistributionBand[];
+  question_performance: LiveQuestionPerformance[];
+  error_distribution: {
+    academic: LiveAnalyticsErrorCount[];
+    review_conditions: LiveAnalyticsErrorCount[];
+  };
+  curriculum_performance: LiveCurriculumPerformance[];
+  mapped_scorable_question_count: number;
+  unmapped_scorable_question_count: number;
+  mastery_coverage_ratio: number | null;
+  source: "PUBLISHED_LEDGER";
+  as_of: string;
+}
+
+/** Mock-mode student analytics (demo fixtures). */
 export interface StudentAnalytics {
   student: Student;
   assessments_taken: number;
@@ -475,12 +819,153 @@ export interface StudentAnalytics {
   recurring_errors: Array<{ code: ErrorCode; count: number }>;
 }
 
+export interface LiveConceptSignalBucket {
+  strong_count: number;
+  weak_count: number;
+  inconclusive_count: number;
+  signal: string;
+}
+
+export interface LiveConceptSignal {
+  curriculum_node_id: string;
+  code: string;
+  title: string;
+  node_type: string;
+  concept: LiveConceptSignalBucket;
+  execution: LiveConceptSignalBucket;
+  procedure: LiveConceptSignalBucket;
+  evidence_count: number;
+  mean_score_ratio: number | null;
+}
+
+export interface LiveStudentSummary {
+  id: string;
+  display_name: string;
+  student_code: string | null;
+  external_ref: string | null;
+}
+
+export type AnalyticsMaterializationStatus =
+  | "NOT_STARTED"
+  | "QUEUED"
+  | "RUNNING"
+  | "READY"
+  | "PARTIAL"
+  | "FAILED";
+
+/** Live B8 student analytics (published-ledger projections). */
+export interface LiveStudentAnalytics {
+  student: LiveStudentSummary;
+  published_assessment_count: number;
+  published_attempt_count: number;
+  average_percentage: number | null;
+  concept_signals: LiveConceptSignal[];
+  error_distribution: LiveAnalyticsErrorCount[];
+  mastery_coverage: {
+    curriculum_node_count: number;
+    evidence_row_count: number;
+  };
+  materialization_status: AnalyticsMaterializationStatus | string;
+  published_result_count: number;
+  materialized_result_count: number;
+  source: "PUBLISHED_LEDGER";
+  as_of: string;
+}
+
+export interface MasteryEvidenceItem {
+  id: string;
+  published_result_id: string;
+  assessment_id: string;
+  assessment_version_id: string;
+  submission_id: string;
+  evaluation_run_id: string;
+  question_evaluation_id: string;
+  question_version_id: string;
+  curriculum_id: string;
+  curriculum_node_id: string;
+  evidence_type: string;
+  strength: string;
+  score_ratio: number;
+  source_final_score: number;
+  source_max_mark: number;
+  mapping_types: string[];
+  mapping_weight: number | null;
+  academic_error_codes: string[];
+  review_condition_codes: string[];
+  reason_codes: string[];
+  source_ledger_snapshot_hash: string;
+  algorithm_version: string;
+  created_at: string;
+}
+
+export interface StudentMasteryEvidenceList {
+  student_id: string;
+  items: MasteryEvidenceItem[];
+}
+
+export interface AnalyticsMaterializationPrepareResult {
+  published_result_id: string;
+  pipeline_job_id: string;
+  job_status: string;
+  celery_task_id: string | null;
+  enqueue_error: string | null;
+  algorithm_version: string;
+}
+
+export type AssessmentAnalyticsView =
+  | AssessmentAnalytics
+  | LiveAssessmentAnalytics;
+export type StudentAnalyticsView = StudentAnalytics | LiveStudentAnalytics;
+
+export function isLiveAssessmentAnalytics(
+  value: AssessmentAnalyticsView,
+): value is LiveAssessmentAnalytics {
+  return (
+    "source" in value &&
+    value.source === "PUBLISHED_LEDGER" &&
+    "question_performance" in value
+  );
+}
+
+export function isLiveStudentAnalytics(
+  value: StudentAnalyticsView,
+): value is LiveStudentAnalytics {
+  return (
+    "source" in value &&
+    value.source === "PUBLISHED_LEDGER" &&
+    "concept_signals" in value
+  );
+}
+
+/** Pass-rate display helper for live analytics (null threshold = Not configured). */
+export function formatAnalyticsPassRate(
+  passRate: number | null | undefined,
+  passThresholdPercent: number | null | undefined,
+): string {
+  if (passThresholdPercent === null || passThresholdPercent === undefined) {
+    return "Not configured";
+  }
+  if (passRate === null || passRate === undefined) {
+    return "—";
+  }
+  return `${Math.round(passRate * 100)}%`;
+}
+
+export function formatAnalyticsPercentage(
+  value: number | null | undefined,
+  digits = 1,
+): string {
+  if (value === null || value === undefined) return "—";
+  return `${value.toFixed(digits)}%`;
+}
+
 export interface LearningPathStepItem {
   id: string;
   kind: LearningPathStepKind;
   title: string;
   description: string;
-  estimated_minutes: number;
+  /** Optional — omit/null for live B9 (no invented study-time). */
+  estimated_minutes?: number | null;
   completed: boolean;
 }
 
@@ -514,6 +999,162 @@ export interface ImprovementAssessmentBlueprint {
   }>;
   teacher_notes: string | null;
   created_at: string;
+}
+
+export interface LiveLearningCurriculumOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface LiveLearningPrerequisiteRef {
+  curriculum_node_id: string;
+  code: string;
+  title: string;
+  relationship_type: "REQUIRED" | "RECOMMENDED";
+}
+
+/** Live B9 recommendation — signals only; never mastery %. */
+export interface LiveLearningRecommendation {
+  id: string;
+  curriculum_node_id: string;
+  code: string;
+  title: string;
+  node_type: string;
+  recommendation_kind: LearningRecommendationKind | string;
+  priority: 1 | 2 | 3;
+  rationale: string;
+  concept_signal: string;
+  execution_signal: string;
+  procedure_signal: string;
+  evidence_count: number;
+  mean_evidence_score_ratio: number | null;
+  status: LearningRecommendationStatus | string;
+  prerequisites: LiveLearningPrerequisiteRef[];
+}
+
+export interface LiveLearningPathStep {
+  id: string;
+  kind: LearningPathStepKind | string;
+  sequence: number;
+  title: string;
+  description: string;
+  curriculum_node_id: string | null;
+  node_code: string | null;
+  node_title: string | null;
+  evidence_basis: string | null;
+  relationship_type: "REQUIRED" | "RECOMMENDED" | null;
+  estimated_minutes: number | null;
+  learning_recommendation_id: string | null;
+}
+
+export interface LiveLearningPlanRunSummary {
+  id: string;
+  version_number: number;
+  status: LearningPlanRunStatus | string;
+  generation_source: string | null;
+  algorithm_version: string;
+  source_evidence_hash: string;
+  curriculum_graph_hash: string;
+  input_hash: string;
+  failure_code: string | null;
+  failure_detail: string | null;
+  requested_at: string | null;
+  finished_at: string | null;
+}
+
+export interface LiveLearningPlan {
+  run_id: string;
+  version_number: number;
+  status: LearningPlanRunStatus | string;
+  generation_source: string | null;
+  algorithm_version: string;
+  source_evidence_hash: string;
+  curriculum_graph_hash: string;
+  input_hash: string;
+  is_stale: boolean;
+  recommendations: LiveLearningRecommendation[];
+  path: LiveLearningPathStep[];
+  materialization_status: string | null;
+  evidence_coverage: {
+    curriculum_node_count: number;
+    evidence_row_count: number;
+  };
+}
+
+export interface LiveLearningWorkspace {
+  student: LiveStudentSummary;
+  available_curricula: LiveLearningCurriculumOption[];
+  selected_curriculum: LiveLearningCurriculumOption | null;
+  materialization_status: AnalyticsMaterializationStatus | string;
+  evidence_coverage: {
+    curriculum_node_count: number;
+    evidence_row_count: number;
+  };
+  latest_run: LiveLearningPlanRunSummary | null;
+  latest_plan: LiveLearningPlan | null;
+  is_stale: boolean;
+  latest_improvement_blueprint: LiveImprovementAssessment | null;
+}
+
+export interface LearningPlanPrepareResult {
+  run_id: string;
+  student_id: string;
+  curriculum_id: string;
+  version_number: number;
+  status: LearningPlanRunStatus | string;
+  celery_task_id: string | null;
+  enqueue_error: string | null;
+  algorithm_version: string;
+  is_idempotent_reuse: boolean;
+}
+
+export interface LiveImprovementAssessmentItem {
+  id: string;
+  learning_recommendation_id: string | null;
+  curriculum_node_id: string;
+  node_code: string | null;
+  node_title: string | null;
+  item_code: string;
+  template_kind: ImprovementTemplateKind | string;
+  question_template_ref: string;
+  focus: string;
+  difficulty: "EASY" | "MEDIUM" | "HARD" | string;
+  suggested_marks: number | null;
+  sort_order: number;
+}
+
+export interface LiveImprovementAssessment {
+  id: string;
+  student_id: string;
+  curriculum_id: string;
+  learning_plan_run_id: string;
+  version_number: number;
+  title: string;
+  status: ImprovementBlueprintState | string;
+  generation_source: string | null;
+  algorithm_version: string | null;
+  source_evidence_hash: string | null;
+  curriculum_graph_hash: string | null;
+  input_hash: string | null;
+  is_stale: boolean;
+  rejection_reason: string | null;
+  failure_code: string | null;
+  failure_detail: string | null;
+  items: LiveImprovementAssessmentItem[];
+  generated_at: string | null;
+  approved_at: string | null;
+  rejected_at: string | null;
+  created_at: string;
+}
+
+export interface ImprovementBlueprintPrepareResult {
+  improvement_assessment_id: string;
+  learning_plan_run_id: string;
+  version_number: number;
+  status: ImprovementBlueprintState | string;
+  celery_task_id: string | null;
+  enqueue_error: string | null;
 }
 
 export interface DashboardSummary {

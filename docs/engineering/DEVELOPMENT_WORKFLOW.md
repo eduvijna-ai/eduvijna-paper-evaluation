@@ -1,7 +1,7 @@
 # Development Workflow
 
 **Product:** EduVijna Paper Evaluation (CVB v0.1)  
-**Last updated:** 2026-09-04  
+**Last updated:** 2026-09-06  
 **Related:** [README.md](../../README.md), [MASTER_PRODUCT_SCOPE.md](../product/MASTER_PRODUCT_SCOPE.md)
 
 ---
@@ -16,7 +16,7 @@
 | Node.js | ≥ 20 | Frontend, contracts, pnpm |
 | pnpm | 9.x | JS/TS monorepo |
 | Python | 3.12 | API, workers, AI package |
-| Cursor IDE | Latest | Parallel Cursor A / B development |
+| Cursor IDE | Latest | Bounded-phase implementation |
 
 ---
 
@@ -35,18 +35,7 @@ cp .env.example .env
 
 Edit `.env` for local overrides. **Never commit `.env`.** See [SECURITY_BASELINE.md](../architecture/SECURITY_BASELINE.md).
 
-Key variables (defaults work for Docker Compose):
-
-| Variable | Purpose |
-|----------|---------|
-| `DATABASE_URL` | Async Postgres connection |
-| `REDIS_URL` / `CELERY_BROKER_URL` | Celery broker |
-| `S3_*` | MinIO object storage |
-| `CORS_ORIGINS` | Frontend origin (`http://localhost:3000`) |
-
 ### 2.2 Bootstrap
-
-Install dependencies, pull images, run initial migrations, seed demo tenant:
 
 ```bash
 # Unix / macOS / WSL
@@ -56,14 +45,6 @@ make bootstrap
 ./infra/scripts/bootstrap.ps1
 ```
 
-**Bootstrap performs:**
-
-1. pnpm install (root + workspaces)
-2. Python venv creation in `apps/api`, `workers`
-3. Docker Compose pull
-4. Alembic migration `0001_day1_foundation`
-5. Seed synthetic demo tenant, institution, roles, sample students
-
 ### 2.3 Start stack
 
 ```bash
@@ -71,18 +52,7 @@ make up
 # Windows: ./infra/scripts/up.ps1
 ```
 
-Services (local defaults):
-
-| Service | URL |
-|---------|-----|
-| API | http://localhost:8000 |
-| API docs | http://localhost:8000/docs |
-| Web (when built) | http://localhost:3000 |
-| MinIO console | http://localhost:9001 |
-
 ### 2.4 Verify
-
-Run the full verification suite (lint, typecheck, tests, contract validation):
 
 ```bash
 make verify
@@ -93,48 +63,24 @@ Exit code `0` required before opening PR to `develop`.
 
 ---
 
-## 3. Cursor A vs Cursor B Ownership
+## 3. Implementation model
 
-Parallel development uses **strict path ownership** to prevent merge conflicts.
+**One Cursor implementation engineer** handles backend + frontend + contracts +
+tests + CI for each bounded phase (for example B3–B6).
 
-### Cursor A — Backend, AI, Infrastructure
+Do not split a phase into parallel “Cursor A / Cursor B” ownership streams.
 
-| Path | Responsibility |
-|------|----------------|
-| `apps/api/**` | FastAPI application |
-| `workers/**` | Celery tasks |
-| `ai/**` | AI provider abstractions |
-| `infra/**` | Docker, scripts, Makefile |
-| `database/migrations/**` | Alembic migrations |
-| `docs/architecture/**` | Domain, ledger, workflow specs |
-
-### Cursor B — Frontend
-
-| Path | Responsibility |
-|------|----------------|
-| `apps/web/**` | Next.js application |
-| `packages/ui/**` | Shared UI components |
-| Frontend tests | Vitest, Playwright |
-
-### Shared (coordinate before merge)
-
-| Path | Rule |
-|------|------|
-| `packages/contracts/**` | OpenAPI + JSON Schema — **both** cursors align here first |
-| `docs/product/**` | Product scope — founder/architect authority |
-| Root `package.json`, `pnpm-workspace.yaml` | Coordinate via PR review |
-
-**Integration:** Cursor B consumes REST from `packages/contracts/openapi.yaml`. Cursor A implements. Neither modifies the other's owned paths without explicit coordination.
+Contract-first remains mandatory: update `packages/contracts/**` when APIs or
+schemas change, then implement API and UI against those contracts.
 
 ---
 
 ## 4. Branch Strategy
 
 ```
-main          ← production-ready releases
+main          ← release branch (founder-approved milestones only)
 develop       ← integration branch (default PR target)
-cursor-a/*    ← Cursor A feature branches
-cursor-b/*    ← Cursor B feature branches
+bN/<topic>    ← feature branches from develop
 ```
 
 ### 4.1 Workflow
@@ -143,34 +89,60 @@ cursor-b/*    ← Cursor B feature branches
    ```bash
    git fetch origin
    git checkout develop
-   git pull origin develop
-   git checkout -b cursor-a/my-feature   # or cursor-b/my-feature
+   git pull --ff-only origin develop
+   git checkout -b b6/my-feature
    ```
 
-2. Implement within owned paths only.
+2. Implement the bounded phase end-to-end.
 
-3. Run verification locally:
+3. Run verification locally (`make verify` / equivalent).
+
+4. Push and open a PR **explicitly** against `develop`:
+
    ```bash
-   make verify
+   gh pr create \
+     --base develop \
+     --head b6/my-feature \
+     --title "B6: …"
    ```
 
-4. Push and open **Pull Request → `develop`** (not directly to `main`).
+   **Never rely on the repository default branch to choose PR base.**
+
+   Immediately verify:
+
+   ```bash
+   gh pr view <PR> --json baseRefName,headRefName
+   ```
+
+   Required: `baseRefName = develop`.
 
 5. PR requirements:
-   - Passing CI (lint, typecheck, test, contracts)
+   - Passing CI (Infrastructure, Contracts, Backend, Frontend, Frontend E2E, Frontend E2E Real)
    - No secrets in diff
-   - Architecture docs updated if schema/API contract changes
-   - Reviewer from other cursor for shared contract changes
+   - Architecture/docs updated when schema/API contracts change
+   - Merge only with `--base develop` confirmed again immediately before merge
 
-6. `main` receives merges from `develop` at release milestones (founder approval).
+6. `main` receives merges from `develop` only at release milestones (founder approval).
+   Feature PRs must not retarget or merge into `main`.
 
-### 4.2 Branch naming
+### 4.3 No direct post-merge pushes to `develop`
+
+After a feature PR is squash-merged into `develop`:
+
+* verify `origin/develop` equals the squash SHA and `main` is unchanged
+* return those SHAs in the Cursor report
+* **do not** push a follow-up documentation or “fill in CI SHA” commit directly to `develop`
+
+If post-merge evidence must be recorded in-repo, reconcile it in the **next** normal feature PR or a separately authorized docs PR.
+
+B7 used a docs-only direct follow-up on `develop` (`8d6f5814…`); that pattern is retired.
+
+### 4.4 Branch naming
 
 | Pattern | Example |
 |---------|---------|
-| `cursor-a/<topic>` | `cursor-a/day1-migration` |
-| `cursor-b/<topic>` | `cursor-b/review-queue-ui` |
-| `fix/<topic>` | Either cursor — hotfix |
+| `bN/<topic>` | `b8/live-analytics-mastery-evidence` |
+| `fix/<topic>` | Hotfix from develop |
 
 ---
 
@@ -182,7 +154,7 @@ cursor-b/*    ← Cursor B feature branches
 make verify
 ```
 
-### 5.2 Backend (Cursor A)
+### 5.2 Backend
 
 ```bash
 cd apps/api
@@ -192,106 +164,53 @@ ruff check .
 mypy .
 ```
 
+### 5.3 Frontend
+
 ```bash
-cd workers
-pytest
+cd apps/web
+pnpm lint
+pnpm exec tsc --noEmit
+pnpm test
+pnpm test:e2e
+pnpm test:e2e:real
 ```
 
-### 5.3 Frontend (Cursor B)
+### 5.4 Contracts
 
 ```bash
-pnpm install
-pnpm --filter @eduvijna/web test        # Vitest
-pnpm --filter @eduvijna/web test:e2e    # Playwright (when configured)
-pnpm lint:contracts                      # OpenAPI / JSON Schema validation
-```
-
-### 5.4 Contracts (shared)
-
-```bash
-pnpm lint:contracts
-```
-
-Validates `packages/contracts/openapi.yaml` and JSON schemas.
-
-### 5.5 Database migrations
-
-```bash
-cd apps/api
-alembic upgrade head
-alembic revision --autogenerate -m "description"   # Cursor A only
+cd packages/contracts
+pnpm validate
 ```
 
 ---
 
-## 6. Local Development Tips
+## 6. CI before merge
 
-### 6.1 API hot reload
+All authoritative jobs must be `completed` + `success` on the exact feature SHA:
 
-When running API outside Docker:
+- Infrastructure
+- Contracts
+- Backend
+- Frontend
+- Frontend E2E
+- Frontend E2E Real
 
-```bash
-cd apps/api
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-Ensure `.env` points `POSTGRES_HOST=localhost` if not using Compose network.
-
-### 6.2 Celery worker
-
-```bash
-cd workers
-celery -A worker.app worker --loglevel=info
-```
-
-### 6.3 Frontend dev server
-
-```bash
-pnpm --filter @eduvijna/web dev
-```
-
-### 6.4 Docker logs
-
-```bash
-docker compose -f infra/docker-compose.yml logs -f api
-```
+Do not merge with pending, cancelled, unexpected skip, or stale-head CI.
 
 ---
 
-## 7. Contract-First API Changes
+## 7. Local tips
 
-1. Edit `packages/contracts/openapi.yaml` (+ JSON schemas if needed).
-2. Run `pnpm lint:contracts`.
-3. Cursor A implements FastAPI routes.
-4. Cursor B updates TanStack Query hooks / types.
-5. Both verify against `make verify`.
+- API: `uvicorn app.main:app --reload`
+- Worker: `celery -A app.tasks.celery_app.celery_app worker -l INFO`
+- Web: `pnpm --filter web dev`
+- Compose hardcodes in-container `S3_ENDPOINT_URL=http://minio:9000`
 
 ---
 
-## 8. Documentation
+## 8. Version history
 
-| When | Update |
+| Date | Change |
 |------|--------|
-| New entity or table | `docs/architecture/DOMAIN_MODEL.md`, `DATABASE_SCHEMA.md` |
-| New API endpoint | `packages/contracts/openapi.yaml`, `API_CONVENTIONS.md` if pattern change |
-| New workflow state | `WORKFLOW_STATES.md` |
-| Architecture decision | New ADR in `docs/architecture/adrs/` + `ADR_INDEX.md` |
-
----
-
-## 9. Getting Help
-
-| Topic | Document |
-|-------|----------|
-| Product scope | [MASTER_PRODUCT_SCOPE.md](../product/MASTER_PRODUCT_SCOPE.md) |
-| Requirements IDs | [REQUIREMENTS_REGISTER.md](../product/REQUIREMENTS_REGISTER.md) |
-| Architecture | [ADR_INDEX.md](../architecture/ADR_INDEX.md) |
-| Security | [SECURITY_BASELINE.md](../architecture/SECURITY_BASELINE.md) |
-
----
-
-## 10. Document Control
-
-| Version | Date | Change |
-|---------|------|--------|
-| 0.1 | 2026-09-04 | Initial development workflow |
+| 2026-09-04 | Initial two-cursor workflow |
+| 2026-09-06 | Single implementation engineer; mandatory `--base develop` |

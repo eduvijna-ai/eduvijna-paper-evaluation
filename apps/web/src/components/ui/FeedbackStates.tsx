@@ -14,12 +14,14 @@ export function ConfidenceIndicator({
   label = "Confidence",
   className,
 }: {
-  value: Confidence;
+  value: Confidence | null | undefined;
   label?: string;
   className?: string;
 }) {
-  const level = getConfidenceLevel(value);
-  const unresolved = isUnresolvedConfidence(value);
+  const missing = value === null || value === undefined;
+  const safeValue = missing ? 0 : value;
+  const level = missing ? "critical" : getConfidenceLevel(safeValue);
+  const unresolved = missing || isUnresolvedConfidence(safeValue);
   const barColor =
     level === "high"
       ? "bg-teal-600"
@@ -44,14 +46,14 @@ export function ConfidenceIndicator({
             unresolved ? "text-rose-700" : "text-slate-800",
           )}
         >
-          {formatConfidence(value)}
+          {missing ? "—" : formatConfidence(safeValue)}
           {unresolved && " · unresolved"}
         </span>
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-slate-200">
         <div
           className={cn("h-full rounded-full transition-all", barColor)}
-          style={{ width: `${Math.round(value * 100)}%` }}
+          style={{ width: `${missing ? 0 : Math.round(safeValue * 100)}%` }}
         />
       </div>
     </div>

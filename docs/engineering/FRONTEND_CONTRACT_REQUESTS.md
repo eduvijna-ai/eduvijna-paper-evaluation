@@ -2,18 +2,19 @@
 
 **Product:** EduVijna Paper Evaluation (CVB)  
 **Author:** Implementation Engineer B (registry); A2 backend reconciliation by Implementation Engineer A  
-**Updated:** 2026-09-06 (B4 answer-region + question mapping)  
-**Status:** A1+A2+B1+B2+B3 live through identity; B4 live for mapping through READY_FOR_EVALUATION; evaluation/reporting/learning remain open
+**Updated:** 2026-09-07 (B10 CVB release closure — authoring AI + question-paper artifacts)  
+**Status:** A1+A2+B1–B10 live through analytics, curriculum learning, and authoring AI proposals; longitudinal MasteryState, resource assignment, and reassessment creation remain deferred
 
 ## Context
 
 Adapters (`NEXT_PUBLIC_API_MODE`):
 
 - `mock` — all domains mock + demo role login (Playwright B0)
-- `hybrid` (alias `http`) — Auth/Institution/Years/Sections/Students/Import/Guardians (B1), Curriculum/Assessments (B2), Submissions/Identity (B3), Mapping (B4) via HTTP; Evaluation/Analytics/Learning remain mock
+- `hybrid` (alias `http`) — Auth/Institution/Years/Sections/Students/Import/Guardians (B1), Curriculum/Assessments (B2), Submissions/Identity (B3), Mapping (B4), Transcription (B5), Evaluation (B6), Publication + Reports (B7), Analytics (B8), Learning (B9) via HTTP; mock mode keeps all domains on fixtures. **B10 authoring paths are published for hybrid wiring** (question-paper upload/parse + AI proposals) — do not regress B7–B9 live capabilities.
 
 A1 (PR #4) published OpenAPI for auth, institution, academic years, class sections, students, student import, and guardians.  
-A2 (PR #5) publishes curriculum trees, prerequisites, assessments/versions, question trees, mark reconciliation, answer keys, rubrics/criteria, curriculum mappings, readiness transitions, and controlled AI-proposal unavailability.
+A2 (PR #5) publishes curriculum trees, prerequisites, assessments/versions, question trees, mark reconciliation, answer keys, rubrics/criteria, curriculum mappings, readiness transitions, and controlled AI-proposal unavailability.  
+B10 closes live authoring AI (`AI_PROVIDER_AUTHORING`) and question-paper artifact upload with scan hook.
 
 Pages must call `api.*` only — never import fixtures directly.
 
@@ -30,7 +31,8 @@ B should map mock/http adapters to these **canonical** paths (no duplicate alias
 | Answer keys | `GET/POST /api/v1/assessments/{id}/answer-key-versions`, `PATCH …/answer-key-versions/{id}`, `POST …/approve` |
 | Rubrics | under `/api/v1/assessments/{id}/rubrics`, `/api/v1/rubrics/{id}/versions`, `/api/v1/rubric-versions/{id}/…` |
 | Curriculum mapping | `POST/GET /api/v1/question-versions/{id}/curriculum-mappings` |
-| AI proposals | `POST /api/v1/ai/proposals/answer-key\|rubric\|curriculum-mapping` (503 when unconfigured) |
+| AI proposals | `POST /api/v1/ai/proposals/answer-key\|rubric\|curriculum-mapping` → **B10 live** `AuthoringAiRun` when `AI_PROVIDER_AUTHORING` configured; else 503 |
+| Question paper | `POST /api/v1/assessment-versions/{id}/question-paper`, `POST …/question-paper/parse`, `GET/PUT/POST /api/v1/authoring-ai-runs/{id}…` |
 
 ---
 
@@ -41,14 +43,15 @@ B should map mock/http adapters to these **canonical** paths (no duplicate alias
 | **FCR-001** | P0 | Domain CRUD | **IMPLEMENTED_IN_FRONTEND** (A1/B1/B2); submissions list/detail **RESOLVED_BY_B3** | A1 students/institution/years/sections; A2 curricula/assessments; B3 submissions | Mapping/evaluation later |
 | **FCR-002** | P0 | Identity review | **RESOLVED_BY_B3** | `GET …/identity`, confirm, unmatched | — |
 | **FCR-003** | P0 | Question mapping | **RESOLVED_BY_B4**; B5 adds AI-assisted region/mapping proposals (human confirm still mandatory) | Mapping workspace + region CRUD + confirm/finalize | — |
-| **FCR-004** | P0 | Evaluation | **OPEN_FOR_EVALUATION** | Ledger schema exists as JSON Schema; no HTTP paths yet | Evaluation workspace + teacher actions |
-| **FCR-005** | P1 | Reports / Analytics | **OPEN_FOR_REPORTING** | — | Report & analytics DTOs |
-| **FCR-006** | P1 | Adaptive learning | **OPEN_FOR_LEARNING** | — | Learning + improvement blueprint |
-| **FCR-007** | P1 | Paper viewer / structure AI | **RESOLVED_BY_B5** for CVB structure pipeline (page analysis, crops, transcription review) | Page images + overlays + transcription workspace | Evaluation remains mock |
-| **FCR-008** | P2 | Answer key / curriculum map | **RESOLVED_BY_A2** | Answer-key versions + approve; question curriculum mappings; rubrics/criteria | — |
-| **FCR-009** | P2 | Raw upload | **RESOLVED_BY_B3** | Multipart `POST /api/v1/submissions` + immutable MinIO storage | — |
+| **FCR-004** | P0 | Evaluation | **RESOLVED_BY_B6** | Evaluation prepare/workspace/finalize + accept/override/feedback/escalate | — |
+| **FCR-005** | P1 | Reports / Analytics | **RESOLVED_BY_B7** (reporting); **RESOLVED_BY_B8** (analytics) | Student/parent/teacher published reports + annotated paper; assessment/student analytics | — |
+| **FCR-006** | P1 | Adaptive learning | **RESOLVED_BY_B9** | Learning workspace + plan prepare/run + improvement blueprint approve/reject | Deferred: resource assignment, reassessment, MasteryState |
+| **FCR-007** | P1 | Paper viewer / structure AI | **RESOLVED_BY_B5** for CVB structure pipeline (page analysis, crops, transcription review) | Page images + overlays + transcription workspace | — |
+| **FCR-008** | P2 | Answer key / curriculum map / authoring AI | **RESOLVED_BY_A2** (CRUD/approve); **RESOLVED_BY_B10** (live AI proposals + question-paper parse) | Answer-key/rubric/mapping + `AuthoringAiRun` / `AssessmentArtifact` | Wire hybrid UI if not already |
+| **FCR-009** | P2 | Raw upload | **RESOLVED_BY_B3**; scan hook **RESOLVED_BY_B10** | Multipart `POST /api/v1/submissions` + immutable MinIO storage + `UPLOAD_SCANNER` | — |
 | **FCR-010** | P0 | Auth (B1) | **IMPLEMENTED_IN_FRONTEND** | Live `login`/`me` + hybrid session | Cookie sessions preferred (BCR) |
 | **FCR-011** | P1 | Guardians / import | **IMPLEMENTED_IN_FRONTEND** | Live guardians + CSV validate/commit + GET student guardians | — |
+| **FCR-012** | P1 | Question-paper authoring | **RESOLVED_BY_B10** (API); frontend hybrid wiring optional follow-up | Upload / parse / edit / apply tree | Do not regress analytics/learning live |
 
 ---
 
@@ -93,54 +96,90 @@ Live mapping workspace binds to `submission.assessment_version_id`, supports man
 
 ## FCR-004 — Evaluation ledger (P0)
 
-**Resolution:** OPEN_FOR_EVALUATION  
+**Resolution:** RESOLVED_BY_B6  
 
-JSON Schema `evaluation-ledger.schema.json` exists; HTTP workspace + action endpoints do not.
+Live evaluation prepare, workspace, accept / override / feedback / escalate, and finalize → `APPROVED`.  
+`proposed_ai_score` may be null (unreadable / no proposal) — UI must not display as zero.  
+OCR/mapping correction workflows and result publication / reports remain out of scope.
 
 ---
 
 ## FCR-005 — Reports & analytics (P1)
 
-**Resolution:** OPEN_FOR_REPORTING  
+**Resolution:** **RESOLVED_BY_B7** for reporting; **RESOLVED_BY_B8** for analytics  
+
+**Resolved by B7:**
+- Publication prepare / workspace / regenerate / publish
+- Annotated evaluated paper (final scores only)
+- `GET /api/v1/reports/student|parent|teacher/{student_id}/assessments/{assessment_id}` — PUBLISHED only
+- Reviewer report previews while GENERATED
+- Schemas: `student-report`, `parent-report`, `teacher-report`, `evaluated-paper`
+
+**Resolved by B8:**
+- Assessment analytics (published attempts, mean/median %, optional pass threshold, score distribution)
+- Question performance (not psychometric difficulty)
+- Academic vs review-condition error distribution
+- Curriculum-node performance + mastery coverage
+- Student current MasteryEvidence projection (concept / execution / procedure)
+- `analytics` capability live; live UUIDs never enter mock analytics
 
 ---
 
 ## FCR-006 — Adaptive learning (P1)
 
-**Resolution:** OPEN_FOR_LEARNING  
+**Resolution:** **RESOLVED_BY_B9** (unchanged by B10 — do not regress)
+
+B9 resolves live curriculum-constrained recommendations, prerequisite-aware learning path, and improvement-assessment **blueprint** generation with teacher approve/reject.
+
+**Resolved by B9:**
+- `GET /api/v1/learning/students/{student_id}` — workspace (`available_curricula`, plan, path, materialization)
+- `POST /api/v1/learning/students/{student_id}/prepare` — enqueue `learning.generate_plan`
+- `GET /api/v1/learning/plan-runs/{run_id}` — versioned plan + staleness
+- `POST /api/v1/learning/plan-runs/{run_id}/improvement-blueprints/prepare`
+- `GET /api/v1/improvement-assessments/{id}` + `POST …/approve` + `POST …/reject`
+- Schemas: `learning-plan`, `improvement-assessment-blueprint`
+- Capability: `learning = live` in hybrid; live errors never fall back to mock
+
+**Explicitly deferred:**
+- Resource assignment / external study URLs (PEV-041)
+- Actual reassessment creation from an approved blueprint (PEV-043)
+- Longitudinal MasteryState aggregates (PEV-035/036/037/038)
 
 ---
 
 ## FCR-007 — Paper / evidence geometry (P1)
 
-**Resolution:** RESOLVED_BY_B4 for manual geometry/review  
+**Resolution:** **RESOLVED_BY_B4** for manual geometry/review; **RESOLVED_BY_B5** for structure AI / transcription  
 
-Live page images plus manual answer-region overlays and mapping controls. Automated handwriting understanding / region detection / transcription remain open.
+Live page images plus answer-region overlays, mapping controls, and transcription workspace. B10 does not change this surface.
 
 ---
 
 ## FCR-008 — Answer key & curriculum map (P2)
 
-**Resolution:** RESOLVED_BY_A2  
+**Resolution:** **RESOLVED_BY_A2** for CRUD/approve; **RESOLVED_BY_B10** for live AI proposals  
 
-**Resolved API / schema:**
+**Resolved API / schema (A2):**
 - Answer keys: `GET/POST /api/v1/assessments/{id}/answer-key-versions`, `PATCH /api/v1/answer-key-versions/{id}`, `POST /api/v1/answer-key-versions/{id}/approve` — `AnswerKeyVersionInput` (`source_type` TEACHER|AI_PROPOSED|IMPORTED, `status`, `answer_text`, approval metadata on response)
 - Rubrics: `POST /api/v1/assessments/{id}/rubrics`, versions/criteria/reconcile/approve — `RubricCriterionInput` (scoring_mode ADDITIVE|DEDUCTIVE|ALL_OR_NOTHING, partial_credit_allowed, ecf_policy, max_marks)
 - Curriculum map: `POST/GET /api/v1/question-versions/{id}/curriculum-mappings`, `DELETE /api/v1/question-curriculum-mappings/{id}` — mapping_type PRIMARY|SECONDARY|LEARNING_OUTCOME|SKILL, optional weight
 - Mark reconcile: `GET /api/v1/assessment-versions/{id}/marks/reconcile`, `GET /api/v1/rubric-versions/{id}/reconcile`
-- AI (controlled failure): `POST /api/v1/ai/proposals/answer-key|rubric|curriculum-mapping` → 503 `AI_PROVIDER_UNAVAILABLE` when unconfigured
+
+**Resolved by B10 (authoring AI):**
+- `POST /api/v1/ai/proposals/answer-key|rubric|curriculum-mapping` → `AuthoringAiRun` when `AI_PROVIDER_AUTHORING` is set; else 503 `AI_PROVIDER_UNAVAILABLE`
+- AI_PROPOSED drafts still require teacher approve before READY / evaluation
+- Schemas: `AuthoringAiRun`, `ProposedQuestionNode`, `question-paper-parse.schema.json`
 
 **CVB policy note:** Question↔curriculum mapping is **not** required for assessment READY in A2; READY requires leaf mark reconciliation + approved answer key + approved reconciled rubric per scorable leaf.
-
-**Next:** B adapter wiring against canonical paths above.
 
 ---
 
 ## FCR-009 — Raw upload (P2)
 
-**Resolution:** RESOLVED_BY_B3  
+**Resolution:** **RESOLVED_BY_B3**; scan hook **RESOLVED_BY_B10**  
 
-Multipart `POST /api/v1/submissions` with immutable MinIO raw storage and page-normalization worker.
+Multipart `POST /api/v1/submissions` with immutable MinIO raw storage and page-normalization worker.  
+B10 adds `UPLOAD_SCANNER` hook (`none` | `fixed`) before storage write; UI should surface `MALWARE_DETECTED` / `UPLOAD_SCAN_FAILED` error codes.
 
 ## FCR-010 — Auth (added at A1 merge gate)
 
@@ -162,9 +201,26 @@ Multipart `POST /api/v1/submissions` with immutable MinIO raw storage and page-n
 
 ---
 
+## FCR-012 — Question-paper authoring (B10)
+
+**Resolution:** **RESOLVED_BY_B10** (backend API + contracts)
+
+**Resolved API / schema:**
+- `POST /api/v1/assessment-versions/{id}/question-paper` → `AssessmentArtifact`
+- `POST /api/v1/assessment-versions/{id}/question-paper/parse` → `AuthoringAiRun` (`PARSE_QUESTION_PAPER`)
+- `GET /api/v1/authoring-ai-runs/{id}`
+- `PUT /api/v1/authoring-ai-runs/{id}/question-tree-proposal`
+- `POST /api/v1/authoring-ai-runs/{id}/apply-question-tree`
+- Schemas: `AssessmentArtifact`, `AuthoringAiRun`, `QuestionTreeProposalInput`, `question-paper-parse.schema.json`
+
+**Frontend note:** Hybrid screens may wire these paths without changing B7–B9 capability flags (`analytics = live`, `learning = live`). Live UUID errors must never fall back to mock authoring fixtures.
+
+---
+
 ## Interim frontend stance
 
 - B0 continues on **MockEduVijnaApi**.
 - `HttpEduVijnaApi.a1.*` is typed against A1 OpenAPI for B1 readiness.
-- A2 OpenAPI is published; B should add typed helpers / adapters before switching pages off mock.
+- A2–B10 OpenAPI is published; B should add typed helpers / adapters before switching authoring pages off mock.
 - Do not treat localStorage demo auth as production-safe.
+- **Do not regress** B7 publication/reports, B8 analytics, or B9 learning live hybrid modes.
