@@ -394,3 +394,81 @@ async def enqueue_analytics(
     )
     task_id = getattr(result, "id", None)
     return str(task_id) if task_id is not None else None
+
+async def _learning_plan_async(tenant_id: uuid.UUID, run_id: uuid.UUID) -> None:
+    from app.db.session import async_session_factory, engine
+    from app.services.learning import run_learning_plan_pipeline
+
+    await engine.dispose()
+    async with async_session_factory() as db:
+        await run_learning_plan_pipeline(db, tenant_id=tenant_id, run_id=run_id)
+
+
+def _learning_plan_impl(tenant_id: str, run_id: str) -> dict[str, str]:
+    asyncio.run(_learning_plan_async(uuid.UUID(tenant_id), uuid.UUID(run_id)))
+    return {"tenant_id": tenant_id, "run_id": run_id, "status": "ok"}
+
+
+learning_plan_task = cast(
+    Any, celery_app.task(name="learning.generate_plan")(_learning_plan_impl)
+)
+
+
+async def enqueue_learning_plan(
+    *,
+    tenant_id: uuid.UUID,
+    run_id: uuid.UUID,
+) -> str | None:
+    settings = get_settings()
+    if settings.celery_task_always_eager:
+        await _learning_plan_async(tenant_id, run_id)
+        return f"eager:{run_id}"
+
+    result = learning_plan_task.delay(str(tenant_id), str(run_id))
+    task_id = getattr(result, "id", None)
+    return str(task_id) if task_id is not None else None
+
+
+async def _improvement_blueprint_async(
+    tenant_id: uuid.UUID, blueprint_id: uuid.UUID
+) -> None:
+    from app.db.session import async_session_factory, engine
+    from app.services.learning import run_blueprint_pipeline
+
+    await engine.dispose()
+    async with async_session_factory() as db:
+        await run_blueprint_pipeline(db, tenant_id=tenant_id, blueprint_id=blueprint_id)
+
+
+def _improvement_blueprint_impl(tenant_id: str, blueprint_id: str) -> dict[str, str]:
+    asyncio.run(
+        _improvement_blueprint_async(uuid.UUID(tenant_id), uuid.UUID(blueprint_id))
+    )
+    return {
+        "tenant_id": tenant_id,
+        "blueprint_id": blueprint_id,
+        "status": "ok",
+    }
+
+
+improvement_blueprint_task = cast(
+    Any,
+    celery_app.task(name="learning.generate_improvement_blueprint")(
+        _improvement_blueprint_impl
+    ),
+)
+
+
+async def enqueue_improvement_blueprint(
+    *,
+    tenant_id: uuid.UUID,
+    blueprint_id: uuid.UUID,
+) -> str | None:
+    settings = get_settings()
+    if settings.celery_task_always_eager:
+        await _improvement_blueprint_async(tenant_id, blueprint_id)
+        return f"eager:{blueprint_id}"
+
+    result = improvement_blueprint_task.delay(str(tenant_id), str(blueprint_id))
+    task_id = getattr(result, "id", None)
+    return str(task_id) if task_id is not None else None

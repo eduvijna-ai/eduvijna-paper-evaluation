@@ -44,7 +44,7 @@ export function getApiCapabilities(): ApiCapabilities {
       publication: "live",
       reports: "live",
       analytics: "live",
-      learning: "mock",
+      learning: "live",
       showTransportBadge: true,
     };
   }

@@ -411,5 +411,134 @@ class ParentNarrativeResult(BaseModel):
     score_summary: str | None = Field(default=None, max_length=2000)
 
 
+# --- B9 learning / improvement blueprint (bounded prose; server owns structure) ---
+
+
+class LearningPlanRecommendationContext(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    recommendation_key: str = Field(max_length=200)
+    target_node_id: uuid.UUID
+    target_node_code: str = Field(max_length=100)
+    target_node_title: str = Field(max_length=255)
+    recommendation_kind: Literal[
+        "PREREQUISITE_REPAIR",
+        "TARGET_CONCEPT",
+        "PROCEDURE_PRACTICE",
+        "EXECUTION_PRACTICE",
+    ]
+    priority: Literal[1, 2, 3]
+    concept_signal: Literal["STRONG", "WEAK", "INCONCLUSIVE"]
+    execution_signal: Literal["STRONG", "WEAK", "INCONCLUSIVE"]
+    procedure_signal: Literal["STRONG", "WEAK", "INCONCLUSIVE"]
+    default_rationale: str = Field(max_length=2000)
+
+
+class LearningPlanPathStepContext(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    step_key: str = Field(max_length=200)
+    curriculum_node_id: uuid.UUID
+    kind: Literal[
+        "PREREQUISITE", "LEARN", "GUIDED", "INDEPENDENT", "MASTERY_CHECK"
+    ]
+    title: str = Field(max_length=255)
+    default_description: str = Field(max_length=2000)
+
+
+class LearningPlanAIInput(BaseModel):
+    """Server-authorized recommendation/path facts for bounded wording only."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    student_display_name: str = Field(max_length=255)
+    curriculum_name: str = Field(max_length=255)
+    recommendations: list[LearningPlanRecommendationContext] = Field(
+        default_factory=list, max_length=50
+    )
+    path_steps: list[LearningPlanPathStepContext] = Field(
+        default_factory=list, max_length=100
+    )
+
+
+class LearningPlanRecommendationProse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    recommendation_key: str = Field(max_length=200)
+    rationale: str = Field(max_length=2000)
+
+
+class LearningPlanPathStepProse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    step_key: str = Field(max_length=200)
+    description: str = Field(max_length=2000)
+
+
+class LearningPlanAIResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    recommendation_prose: list[LearningPlanRecommendationProse] = Field(
+        default_factory=list, max_length=50
+    )
+    path_step_prose: list[LearningPlanPathStepProse] = Field(
+        default_factory=list, max_length=100
+    )
+
+
+class ImprovementBlueprintItemContext(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    item_key: str = Field(max_length=200)
+    learning_recommendation_id: uuid.UUID
+    curriculum_node_id: uuid.UUID
+    node_code: str = Field(max_length=100)
+    node_title: str = Field(max_length=255)
+    recommendation_kind: Literal[
+        "PREREQUISITE_REPAIR",
+        "TARGET_CONCEPT",
+        "PROCEDURE_PRACTICE",
+        "EXECUTION_PRACTICE",
+    ]
+    priority: Literal[1, 2, 3]
+    template_kind: Literal[
+        "CONCEPT_CHECK",
+        "PREREQUISITE_CHECK",
+        "PROCEDURE_PRACTICE",
+        "EXECUTION_PRACTICE",
+        "TRANSFER_CHECK",
+    ]
+    question_template_ref: str = Field(max_length=255)
+    default_focus: str = Field(max_length=2000)
+    difficulty: Literal["EASY", "MEDIUM", "HARD"] = "MEDIUM"
+
+
+class ImprovementBlueprintAIInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    student_display_name: str = Field(max_length=255)
+    curriculum_name: str = Field(max_length=255)
+    title: str = Field(max_length=255)
+    items: list[ImprovementBlueprintItemContext] = Field(
+        default_factory=list, max_length=40
+    )
+
+
+class ImprovementBlueprintItemProse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    item_key: str = Field(max_length=200)
+    focus: str = Field(max_length=2000)
+
+
+class ImprovementBlueprintAIResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str | None = Field(default=None, max_length=255)
+    item_prose: list[ImprovementBlueprintItemProse] = Field(
+        default_factory=list, max_length=40
+    )
+
+
 def dump_bounded(model: BaseModel) -> dict[str, Any]:
     return model.model_dump(mode="json")

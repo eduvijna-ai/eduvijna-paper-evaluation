@@ -6,7 +6,11 @@ import type {
   EvaluationWorkflowState,
   IdentityMatchState,
   ImprovementBlueprintState,
+  ImprovementTemplateKind,
   LearningPathStepKind,
+  LearningPlanRunStatus,
+  LearningRecommendationKind,
+  LearningRecommendationStatus,
   MappingNodeState,
   SubmissionState,
   TranscriptionState,
@@ -21,7 +25,11 @@ export type {
   EvaluationWorkflowState,
   IdentityMatchState,
   ImprovementBlueprintState,
+  ImprovementTemplateKind,
   LearningPathStepKind,
+  LearningPlanRunStatus,
+  LearningRecommendationKind,
+  LearningRecommendationStatus,
   MappingNodeState,
   SubmissionState,
   TranscriptionState,
@@ -870,7 +878,8 @@ export interface LearningPathStepItem {
   kind: LearningPathStepKind;
   title: string;
   description: string;
-  estimated_minutes: number;
+  /** Optional — omit/null for live B9 (no invented study-time). */
+  estimated_minutes?: number | null;
   completed: boolean;
 }
 
@@ -904,6 +913,162 @@ export interface ImprovementAssessmentBlueprint {
   }>;
   teacher_notes: string | null;
   created_at: string;
+}
+
+export interface LiveLearningCurriculumOption {
+  id: string;
+  code: string;
+  name: string;
+}
+
+export interface LiveLearningPrerequisiteRef {
+  curriculum_node_id: string;
+  code: string;
+  title: string;
+  relationship_type: "REQUIRED" | "RECOMMENDED";
+}
+
+/** Live B9 recommendation — signals only; never mastery %. */
+export interface LiveLearningRecommendation {
+  id: string;
+  curriculum_node_id: string;
+  code: string;
+  title: string;
+  node_type: string;
+  recommendation_kind: LearningRecommendationKind | string;
+  priority: 1 | 2 | 3;
+  rationale: string;
+  concept_signal: string;
+  execution_signal: string;
+  procedure_signal: string;
+  evidence_count: number;
+  mean_evidence_score_ratio: number | null;
+  status: LearningRecommendationStatus | string;
+  prerequisites: LiveLearningPrerequisiteRef[];
+}
+
+export interface LiveLearningPathStep {
+  id: string;
+  kind: LearningPathStepKind | string;
+  sequence: number;
+  title: string;
+  description: string;
+  curriculum_node_id: string | null;
+  node_code: string | null;
+  node_title: string | null;
+  evidence_basis: string | null;
+  relationship_type: "REQUIRED" | "RECOMMENDED" | null;
+  estimated_minutes: number | null;
+  learning_recommendation_id: string | null;
+}
+
+export interface LiveLearningPlanRunSummary {
+  id: string;
+  version_number: number;
+  status: LearningPlanRunStatus | string;
+  generation_source: string | null;
+  algorithm_version: string;
+  source_evidence_hash: string;
+  curriculum_graph_hash: string;
+  input_hash: string;
+  failure_code: string | null;
+  failure_detail: string | null;
+  requested_at: string | null;
+  finished_at: string | null;
+}
+
+export interface LiveLearningPlan {
+  run_id: string;
+  version_number: number;
+  status: LearningPlanRunStatus | string;
+  generation_source: string | null;
+  algorithm_version: string;
+  source_evidence_hash: string;
+  curriculum_graph_hash: string;
+  input_hash: string;
+  is_stale: boolean;
+  recommendations: LiveLearningRecommendation[];
+  path: LiveLearningPathStep[];
+  materialization_status: string | null;
+  evidence_coverage: {
+    curriculum_node_count: number;
+    evidence_row_count: number;
+  };
+}
+
+export interface LiveLearningWorkspace {
+  student: LiveStudentSummary;
+  available_curricula: LiveLearningCurriculumOption[];
+  selected_curriculum: LiveLearningCurriculumOption | null;
+  materialization_status: AnalyticsMaterializationStatus | string;
+  evidence_coverage: {
+    curriculum_node_count: number;
+    evidence_row_count: number;
+  };
+  latest_run: LiveLearningPlanRunSummary | null;
+  latest_plan: LiveLearningPlan | null;
+  is_stale: boolean;
+  latest_improvement_blueprint: LiveImprovementAssessment | null;
+}
+
+export interface LearningPlanPrepareResult {
+  run_id: string;
+  student_id: string;
+  curriculum_id: string;
+  version_number: number;
+  status: LearningPlanRunStatus | string;
+  celery_task_id: string | null;
+  enqueue_error: string | null;
+  algorithm_version: string;
+  is_idempotent_reuse: boolean;
+}
+
+export interface LiveImprovementAssessmentItem {
+  id: string;
+  learning_recommendation_id: string | null;
+  curriculum_node_id: string;
+  node_code: string | null;
+  node_title: string | null;
+  item_code: string;
+  template_kind: ImprovementTemplateKind | string;
+  question_template_ref: string;
+  focus: string;
+  difficulty: "EASY" | "MEDIUM" | "HARD" | string;
+  suggested_marks: number | null;
+  sort_order: number;
+}
+
+export interface LiveImprovementAssessment {
+  id: string;
+  student_id: string;
+  curriculum_id: string;
+  learning_plan_run_id: string;
+  version_number: number;
+  title: string;
+  status: ImprovementBlueprintState | string;
+  generation_source: string | null;
+  algorithm_version: string | null;
+  source_evidence_hash: string | null;
+  curriculum_graph_hash: string | null;
+  input_hash: string | null;
+  is_stale: boolean;
+  rejection_reason: string | null;
+  failure_code: string | null;
+  failure_detail: string | null;
+  items: LiveImprovementAssessmentItem[];
+  generated_at: string | null;
+  approved_at: string | null;
+  rejected_at: string | null;
+  created_at: string;
+}
+
+export interface ImprovementBlueprintPrepareResult {
+  improvement_assessment_id: string;
+  learning_plan_run_id: string;
+  version_number: number;
+  status: ImprovementBlueprintState | string;
+  celery_task_id: string | null;
+  enqueue_error: string | null;
 }
 
 export interface DashboardSummary {

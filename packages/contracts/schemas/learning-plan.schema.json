@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/learning-plan.schema.json",
+  "title": "LearningPlan",
+  "description": "B9 curriculum-constrained learning plan (algorithm B9_V1). No external URLs or resource links.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "student_id",
+    "curriculum_id",
+    "run_id",
+    "version_number",
+    "algorithm_version",
+    "generation_source",
+    "source_evidence_hash",
+    "curriculum_graph_hash",
+    "recommendations",
+    "learning_path"
+  ],
+  "properties": {
+    "student_id": { "type": "string", "format": "uuid" },
+    "curriculum_id": { "type": "string", "format": "uuid" },
+    "run_id": { "type": "string", "format": "uuid" },
+    "version_number": { "type": "integer", "minimum": 1 },
+    "algorithm_version": { "type": "string", "const": "B9_V1" },
+    "generation_source": {
+      "type": ["string", "null"],
+      "enum": ["AI", "FIXED", "RULES_FALLBACK", null]
+    },
+    "source_evidence_hash": { "type": "string", "minLength": 64, "maxLength": 64 },
+    "curriculum_graph_hash": { "type": "string", "minLength": 64, "maxLength": 64 },
+    "input_hash": { "type": "string", "minLength": 64, "maxLength": 64 },
+    "is_stale": { "type": "boolean" },
+    "status": {
+      "type": "string",
+      "enum": ["QUEUED", "RUNNING", "READY", "FAILED", "SUPERSEDED"]
+    },
+    "recommendations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/recommendation" }
+    },
+    "learning_path": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/pathStep" }
+    },
+    "materialization_status": { "type": ["string", "null"] },
+    "evidence_coverage": { "type": ["object", "null"], "additionalProperties": true },
+    "no_gap_message": { "type": ["string", "null"] },
+    "generated_at": { "type": ["string", "null"], "format": "date-time" }
+  },
+  "$defs": {
+    "recommendation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "target_node_id",
+        "recommendation_kind",
+        "priority",
+        "rationale",
+        "concept_signal",
+        "execution_signal",
+        "procedure_signal",
+        "evidence_count",
+        "status",
+        "prerequisites"
+      ],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "target_node_id": { "type": "string", "format": "uuid" },
+        "recommendation_kind": {
+          "type": "string",
+          "enum": [
+            "PREREQUISITE_REPAIR",
+            "TARGET_CONCEPT",
+            "PROCEDURE_PRACTICE",
+            "EXECUTION_PRACTICE"
+          ]
+        },
+        "priority": { "type": "integer", "enum": [1, 2, 3] },
+        "rationale": { "type": "string", "maxLength": 5000 },
+        "concept_signal": {
+          "type": "string",
+          "enum": ["STRONG", "WEAK", "INCONCLUSIVE"]
+        },
+        "execution_signal": {
+          "type": "string",
+          "enum": ["STRONG", "WEAK", "INCONCLUSIVE"]
+        },
+        "procedure_signal": {
+          "type": "string",
+          "enum": ["STRONG", "WEAK", "INCONCLUSIVE"]
+        },
+        "evidence_count": { "type": "integer", "minimum": 0 },
+        "mean_evidence_score_ratio": { "type": ["number", "null"] },
+        "status": {
+          "type": "string",
+          "enum": ["ACTIVE", "DISMISSED", "COMPLETED"]
+        },
+        "target_node_code": { "type": "string" },
+        "target_node_title": { "type": "string" },
+        "target_node_type": { "type": "string" },
+        "prerequisites": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["curriculum_node_id", "relationship_type", "sequence"],
+            "properties": {
+              "curriculum_node_id": { "type": "string", "format": "uuid" },
+              "relationship_type": {
+                "type": "string",
+                "enum": ["REQUIRED", "RECOMMENDED"]
+              },
+              "sequence": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "mastery_evidence_ids": {
+          "type": "array",
+          "items": { "type": "string", "format": "uuid" }
+        }
+      }
+    },
+    "pathStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "curriculum_node_id",
+        "kind",
+        "sequence",
+        "title",
+        "evidence_basis"
+      ],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "curriculum_node_id": { "type": "string", "format": "uuid" },
+        "learning_recommendation_id": {
+          "type": ["string", "null"],
+          "format": "uuid"
+        },
+        "kind": {
+          "type": "string",
+          "enum": [
+            "PREREQUISITE",
+            "LEARN",
+            "GUIDED",
+            "INDEPENDENT",
+            "MASTERY_CHECK"
+          ]
+        },
+        "sequence": { "type": "integer", "minimum": 1 },
+        "title": { "type": "string" },
+        "description": { "type": ["string", "null"] },
+        "evidence_basis": { "type": "string" },
+        "relationship_type": {
+          "type": ["string", "null"],
+          "enum": ["REQUIRED", "RECOMMENDED", null]
+        }
+      }
+    }
+  }
+}

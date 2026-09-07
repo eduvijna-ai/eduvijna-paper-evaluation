@@ -55,6 +55,10 @@ PERMISSION_CODES: Final = (
     "publication:publish",
     "analytics:read",
     "analytics:materialize",
+    "learning:read",
+    "learning:generate",
+    "learning:review",
+    "learning:approve",
 )
 
 ROLE_PERMISSION_MAP: Final = {
@@ -91,6 +95,10 @@ ROLE_PERMISSION_MAP: Final = {
             "publication:publish",
             "analytics:read",
             "analytics:materialize",
+            "learning:read",
+            "learning:generate",
+            "learning:review",
+            "learning:approve",
         }
     ),
     "EVALUATOR": frozenset(
@@ -112,6 +120,7 @@ ROLE_PERMISSION_MAP: Final = {
             "evaluation:review",
             "publication:read",
             "analytics:read",
+            "learning:read",
         }
     ),
     "STUDENT": frozenset(),

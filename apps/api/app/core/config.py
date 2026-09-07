@@ -151,6 +151,18 @@ class Settings(BaseSettings):
             "AI_MODEL_PARENT_REPORT", "ai_model_parent_report"
         ),
     )
+    ai_model_learning_plan: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices(
+            "AI_MODEL_LEARNING_PLAN", "ai_model_learning_plan"
+        ),
+    )
+    ai_model_improvement_blueprint: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices(
+            "AI_MODEL_IMPROVEMENT_BLUEPRINT", "ai_model_improvement_blueprint"
+        ),
+    )
     ai_request_timeout_seconds: int = Field(
         default=60,
         validation_alias=AliasChoices(

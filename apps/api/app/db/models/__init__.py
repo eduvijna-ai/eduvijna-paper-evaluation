@@ -28,6 +28,15 @@ from app.db.models.evaluation import (
     ReviewAction,
 )
 from app.db.models.institution import Institution
+from app.db.models.learning import (
+    ImprovementAssessment,
+    ImprovementAssessmentItem,
+    LearningPathStep,
+    LearningPlanRun,
+    LearningRecommendation,
+    LearningRecommendationEvidence,
+    LearningRecommendationPrerequisite,
+)
 from app.db.models.mapping import (
     AnswerRegion,
     QuestionAnswerMapping,
@@ -59,8 +68,15 @@ __all__ = [
     "CurriculumPrerequisite",
     "EvaluationRun",
     "Guardian",
+    "ImprovementAssessment",
+    "ImprovementAssessmentItem",
     "Institution",
     "ImportSession",
+    "LearningPathStep",
+    "LearningPlanRun",
+    "LearningRecommendation",
+    "LearningRecommendationEvidence",
+    "LearningRecommendationPrerequisite",
     "MasteryEvidence",
     "Permission",
     "PipelineJob",

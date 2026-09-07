@@ -100,7 +100,14 @@ function MockStudentAnalyticsView({
   );
 }
 
-function LiveStudentAnalyticsView({ data }: { data: LiveStudentAnalytics }) {
+function LiveStudentAnalyticsView({
+  data,
+  studentId,
+}: {
+  data: LiveStudentAnalytics;
+  studentId: string;
+}) {
+  const learningLive = getApiCapabilities().learning === "live";
   const errorItems = data.error_distribution.map((e) => ({
     code: e.code as ErrorCode,
     count: e.count,
@@ -121,15 +128,28 @@ function LiveStudentAnalyticsView({ data }: { data: LiveStudentAnalytics }) {
               data.student.id.slice(0, 8),
           },
         ]}
+        actions={
+          learningLive ? (
+            <Link
+              href={`/learning/${studentId}`}
+              data-testid="open-learning-plan"
+              className="rounded-md bg-teal-800 px-3 py-2 text-sm font-medium text-white hover:bg-teal-900"
+            >
+              Open learning plan
+            </Link>
+          ) : undefined
+        }
       />
 
-      <p
-        data-testid="learning-not-live-boundary"
-        className="mb-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"
-      >
-        Learning recommendations are not live yet. Analytics below reflect
-        published ledger evidence only.
-      </p>
+      {!learningLive && (
+        <p
+          data-testid="learning-not-live-boundary"
+          className="mb-4 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"
+        >
+          Learning recommendations are not live yet. Analytics below reflect
+          published ledger evidence only.
+        </p>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {[
@@ -264,7 +284,7 @@ export default function StudentAnalyticsPage({
   return (
     <div data-testid="student-analytics-page">
       {live && isLiveStudentAnalytics(data) ? (
-        <LiveStudentAnalyticsView data={data} />
+        <LiveStudentAnalyticsView data={data} studentId={studentId} />
       ) : (
         <MockStudentAnalyticsView
           data={data as StudentAnalytics}

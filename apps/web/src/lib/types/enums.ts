@@ -146,14 +146,52 @@ export const LEARNING_PATH_STEPS = [
 ] as const;
 export type LearningPathStepKind = (typeof LEARNING_PATH_STEPS)[number];
 
+export const LEARNING_PLAN_RUN_STATUSES = [
+  "QUEUED",
+  "RUNNING",
+  "READY",
+  "FAILED",
+  "SUPERSEDED",
+] as const;
+export type LearningPlanRunStatus = (typeof LEARNING_PLAN_RUN_STATUSES)[number];
+
+export const LEARNING_RECOMMENDATION_KINDS = [
+  "PREREQUISITE_REPAIR",
+  "TARGET_CONCEPT",
+  "PROCEDURE_PRACTICE",
+  "EXECUTION_PRACTICE",
+] as const;
+export type LearningRecommendationKind =
+  (typeof LEARNING_RECOMMENDATION_KINDS)[number];
+
+export const LEARNING_RECOMMENDATION_STATUSES = [
+  "ACTIVE",
+  "DISMISSED",
+  "COMPLETED",
+] as const;
+export type LearningRecommendationStatus =
+  (typeof LEARNING_RECOMMENDATION_STATUSES)[number];
+
 export const IMPROVEMENT_BLUEPRINT_STATES = [
   "DRAFT",
+  "GENERATING",
   "PENDING_APPROVAL",
   "APPROVED",
   "REJECTED",
+  "FAILED",
 ] as const;
 export type ImprovementBlueprintState =
   (typeof IMPROVEMENT_BLUEPRINT_STATES)[number];
+
+export const IMPROVEMENT_TEMPLATE_KINDS = [
+  "CONCEPT_CHECK",
+  "PREREQUISITE_CHECK",
+  "PROCEDURE_PRACTICE",
+  "EXECUTION_PRACTICE",
+  "TRANSFER_CHECK",
+] as const;
+export type ImprovementTemplateKind =
+  (typeof IMPROVEMENT_TEMPLATE_KINDS)[number];
 
 export const TRANSCRIPTION_STATES = [
   "NOT_STARTED",

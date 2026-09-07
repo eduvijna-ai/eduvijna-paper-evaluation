@@ -1,14 +1,25 @@
 # B8 — Live analytics and mastery evidence
 
-**Branch:** `b8/live-analytics-mastery-evidence`  
+**Branch:** `b8/live-analytics-mastery-evidence` (deleted after squash-merge)  
 **PR base:** `develop` (never `main`)  
 **Starting `develop` SHA:** `8d6f58149530b1b9fa5a1543ac851882cd4fef28`  
 **Starting `main` SHA:** `be5f10aef3cf536420adcffdb9302b6b3b6c0955`  
 **Migration:** `database/migrations/versions/20260907_0009_analytics_mastery_evidence.py`  
-**Final feature SHA:** _fill at pre-merge_  
-**CI run ID:** _fill at pre-merge_  
+**Final feature SHA:** `8beee3735141b2642713b7a8466018164ae928db`  
+**CI run ID:** `34090226606`  
+**Squash SHA:** `b960ca1af24f5b7c137cf5724e9126c25a553815`  
+**Final develop:** `b960ca1af24f5b7c137cf5724e9126c25a553815`  
+**Final main:** `be5f10aef3cf536420adcffdb9302b6b3b6c0955`
 
-Do **not** direct-push post-merge docs to `develop`. Squash SHA is reported in the Cursor merge report only.
+```text
+CI: Infrastructure / Contracts / Backend / Frontend /
+Frontend E2E / Frontend E2E Real = SUCCESS
+
+Feature branch deleted.
+No post-merge develop commit was used.
+```
+
+Do **not** direct-push post-merge docs to `develop`.
 
 ## Scope (implemented)
 
@@ -17,7 +28,8 @@ Do **not** direct-push post-merge docs to `develop`. Squash SHA is reported in t
 * PEV-033 Mastery vs Execution Separation  
 * PEV-047 basic question-level analytics  
 
-**Not implemented (deferred):** PEV-035/036/037/038, PEV-048 psychometrics, B9 learning plans / improvement blueprints.
+**Not implemented (deferred):** PEV-035/036/037/038, PEV-048 psychometrics.  
+Learning plans / improvement blueprints → B9.
 
 ## Persistence
 
@@ -60,25 +72,27 @@ Score distribution: percentage bins 0–20…80–100 with lower/upper bounds (d
 
 Question **performance** (not psychometric difficulty).
 
-## Frontend capability
+## Frontend capability (at B8 merge)
 
 ```
 analytics = live
 learning = mock
 ```
 
-Live student IDs never enter mock learning. Live student analytics hides learning-plan link.
-
 ## Residual debt
 
 * Class-section cohort filter on assessment analytics (class_section_id nullable stub)  
 * Richer materialization progress UI  
-* Real E2E CALCULATION→concept STRONG assertion depends on override error_codes support  
 
 ## Verification
 
 | Check | Status |
 |-------|--------|
-| Backend B8 pytest | local/CI |
-| Frontend Vitest | local/CI |
-| Six GitHub Actions jobs | _pre-merge_ |
+| Backend pytest | 113 passed |
+| Frontend Vitest | 137 passed |
+| Mock Playwright | 15 passed |
+| Real Playwright | 9 passed |
+| GitHub Actions (six jobs) | SUCCESS (`34090226606`) |
+| Squash-merge to develop | MERGED |
+| `main` unchanged | confirmed |
+| Issue #1 | remains OPEN |

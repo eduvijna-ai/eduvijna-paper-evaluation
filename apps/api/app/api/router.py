@@ -6,6 +6,7 @@ from app.api.v1 import (
     curriculum_assessment,
     evaluation,
     health,
+    learning,
     mapping,
     platform,
     publication,
@@ -26,3 +27,4 @@ api_router.include_router(transcription.router, prefix="/api/v1")
 api_router.include_router(evaluation.router, prefix="/api/v1")
 api_router.include_router(publication.router, prefix="/api/v1")
 api_router.include_router(analytics.router, prefix="/api/v1")
+api_router.include_router(learning.router, prefix="/api/v1")

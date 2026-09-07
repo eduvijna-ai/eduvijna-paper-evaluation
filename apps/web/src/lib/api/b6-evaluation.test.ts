@@ -66,7 +66,7 @@ describe("B6 evaluation capability", () => {
     vi.unstubAllEnvs();
   });
 
-  it("marks evaluation, publication, reports, and analytics live in hybrid while learning stays mock", () => {
+  it("marks evaluation, publication, reports, analytics, and learning live in hybrid", () => {
     vi.stubEnv("NEXT_PUBLIC_API_MODE", "hybrid");
     const caps = getApiCapabilities();
     expect(caps.evaluation).toBe("live");
@@ -74,7 +74,7 @@ describe("B6 evaluation capability", () => {
     expect(caps.publication).toBe("live");
     expect(caps.reports).toBe("live");
     expect(caps.analytics).toBe("live");
-    expect(caps.learning).toBe("mock");
+    expect(caps.learning).toBe("live");
   });
 
   it("keeps evaluation mock in default mock mode", () => {
@@ -246,11 +246,33 @@ describe("B6 hybrid adapter live routing", () => {
     expect(urls.some((u) => u.includes("/evaluation"))).toBe(true);
   });
 
-  it("routes live reports and analytics to HTTP and refuses mock learning for live UUID", async () => {
+  it("routes live reports and analytics to HTTP and learning to live workspace", async () => {
     vi.stubEnv("NEXT_PUBLIC_API_MODE", "hybrid");
     const liveId = "22222222-2222-4222-8222-222222222222";
     const fetchMock = vi.fn().mockImplementation(async (input: RequestInfo) => {
       const url = String(input);
+      if (url.includes("/learning/")) {
+        return new Response(
+          JSON.stringify({
+            student: {
+              id: liveId,
+              display_name: "Live Student",
+            },
+            available_curricula: [],
+            selected_curriculum: null,
+            materialization_status: "READY",
+            evidence_coverage: {
+              curriculum_node_count: 0,
+              evidence_row_count: 0,
+            },
+            latest_run: null,
+            latest_plan: null,
+            is_stale: false,
+            latest_improvement_blueprint: null,
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        );
+      }
       if (url.includes("/analytics/")) {
         return new Response(
           JSON.stringify({
@@ -283,9 +305,9 @@ describe("B6 hybrid adapter live routing", () => {
       analyticsUrls.some((u) => u.includes("/analytics/assessments/")),
     ).toBe(true);
 
-    await expect(
-      HybridEduVijnaApi.getAdaptiveLearning(liveId),
-    ).rejects.toMatchObject({ code: "LEARNING_NOT_LIVE" });
+    const workspace = await HybridEduVijnaApi.getLearningWorkspace!(liveId);
+    expect(workspace.student.id).toBe(liveId);
+    expect(workspace.materialization_status).toBe("READY");
   });
 
   it("exposes prepareEvaluation and finalizeEvaluation on hybrid client", () => {

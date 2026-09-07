@@ -13,6 +13,11 @@ import type {
   EvaluationWorkspacePayload,
   IdentityReviewPayload,
   ImprovementAssessmentBlueprint,
+  ImprovementBlueprintPrepareResult,
+  LearningPlanPrepareResult,
+  LiveImprovementAssessment,
+  LiveLearningPlan,
+  LiveLearningWorkspace,
   EvidenceRegion,
   MappingReviewPayload,
   PaperPage,
@@ -283,10 +288,31 @@ export interface ApiClient {
     publishedResultId: string,
   ): Promise<AnalyticsMaterializationPrepareResult>;
   getAdaptiveLearning(studentId: string): Promise<AdaptiveLearningPlan>;
+  getLearningWorkspace?(
+    studentId: string,
+    curriculumId?: string,
+  ): Promise<LiveLearningWorkspace>;
+  prepareLearningPlan?(
+    studentId: string,
+    curriculumId: string,
+  ): Promise<LearningPlanPrepareResult>;
+  getLearningPlanRun?(runId: string): Promise<LiveLearningPlan>;
+  prepareImprovementBlueprint?(
+    runId: string,
+  ): Promise<ImprovementBlueprintPrepareResult>;
+  getImprovementAssessment?(
+    id: string,
+  ): Promise<LiveImprovementAssessment>;
   getImprovementBlueprint(
     studentId: string,
   ): Promise<ImprovementAssessmentBlueprint>;
   approveImprovementBlueprint(
     blueprintId: string,
-  ): Promise<ImprovementAssessmentBlueprint>;
+  ): Promise<
+    ImprovementAssessmentBlueprint | LiveImprovementAssessment
+  >;
+  rejectImprovementBlueprint?(
+    blueprintId: string,
+    reason: string,
+  ): Promise<LiveImprovementAssessment>;
 }

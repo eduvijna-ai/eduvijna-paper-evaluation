@@ -232,7 +232,9 @@ export default function SubmissionDetailPage({
       : approved
         ? publicationLive
           ? analyticsLive
-            ? "Evaluation approved. Open publication to generate the package, then explicitly publish results. Learning remains mock."
+            ? learningLive
+              ? "Evaluation approved. Open publication to generate the package, then explicitly publish results. Learning unlocks after publish + analytics."
+              : "Evaluation approved. Open publication to generate the package, then explicitly publish results. Learning remains mock."
             : "Evaluation approved. Open publication to generate the package, then explicitly publish results. Analytics and learning remain mock."
           : "Evaluation approved. Result publication, reports, analytics, and learning are not live yet."
         : data.workflow_state === "EVALUATION_REVIEW" ||

@@ -45,6 +45,18 @@ def publication_export_key(
     return f"{tenant_id}/exports/{submission_id}/publication/{version}/{filename}"
 
 
+def learning_blueprint_export_key(
+    tenant_id: uuid.UUID,
+    student_id: uuid.UUID,
+    curriculum_id: uuid.UUID,
+    version: int,
+) -> str:
+    return (
+        f"{tenant_id}/exports/students/{student_id}/learning/"
+        f"{curriculum_id}/blueprints/{version}/blueprint.json"
+    )
+
+
 def _extension(filename: str) -> str:
     lower = filename.lower()
     if lower.endswith(".pdf"):

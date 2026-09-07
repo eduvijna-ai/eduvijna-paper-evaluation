@@ -84,8 +84,8 @@ test.describe("B2 real A2 authoring flows", () => {
     await page.getByTestId("assessment-create-submit").click();
     await expect(page.getByTestId("assessment-detail-page")).toBeVisible({ timeout: 30_000 });
     await expect(page.getByText(assessmentCode, { exact: true })).toBeVisible();
-    // B8: analytics live — learning remains mock.
-    await expect(page.getByTestId("assessment-learning-boundary")).toBeVisible();
+    // B9: analytics + adaptive learning are live for published ledger evidence.
+    await expect(page.getByTestId("assessment-learning-live-notice")).toBeVisible();
     await expect(page.getByTestId("link-analytics")).toBeVisible();
 
     const assessmentId = new URL(page.url()).pathname.split("/").filter(Boolean).at(-1)!;
