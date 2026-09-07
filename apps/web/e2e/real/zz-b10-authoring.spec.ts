@@ -225,17 +225,21 @@ test.describe("B10 real authoring AI flows", () => {
     await expect(page.getByTestId("assessment-curriculum-map-page")).toBeVisible({
       timeout: 20_000,
     });
-    await expect(page.getByTestId("curriculum-map-row-Q1a")).toContainText("—");
+    const mapRow = page.locator('[data-testid^="curriculum-map-row-"]').filter({
+      hasText: /1\(a\)|Q1a/i,
+    });
+    await expect(mapRow.first()).toBeVisible({ timeout: 20_000 });
+    await expect(mapRow.first()).toContainText("—");
     await page.getByTestId("generate-ai-curriculum-mapping").click();
     await expect(page.getByTestId("curriculum-mapping-proposal")).toBeVisible({
       timeout: 60_000,
     });
-    await expect(page.getByTestId("curriculum-map-row-Q1a")).toContainText("—");
+    await expect(mapRow.first()).toContainText("—");
     await page.getByTestId("apply-curriculum-mappings").click();
     await expect(page.getByTestId("curriculum-mapping-proposal")).toHaveCount(0, {
       timeout: 30_000,
     });
-    await expect(page.getByTestId("curriculum-map-row-Q1a")).not.toContainText("—", {
+    await expect(mapRow.first()).not.toContainText("—", {
       timeout: 30_000,
     });
 

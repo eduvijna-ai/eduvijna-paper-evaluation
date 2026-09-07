@@ -241,7 +241,7 @@ class OpenAIStructureProvider:
                     "image_url": {"url": f"data:image/png;base64,{b64}"},
                 }
             )
-        response = await client.chat.completions.create(
+        response = await client.chat.completions.create(  # type: ignore[call-overload]
             model=model,
             response_format={"type": "json_object"},
             messages=[
