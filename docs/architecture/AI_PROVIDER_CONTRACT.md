@@ -2,7 +2,7 @@
 
 **Product:** EduVijna Paper Evaluation (CVB v0.1)  
 **Package:** `apps/api/app/ai/` (runtime); architecture stub under `ai/`  
-**Last updated:** 2026-09-06  
+**Last updated:** 2026-09-07  
 **Related:** [ADR-007](adrs/ADR-007-ai-provider-abstraction.md), [EVALUATION_LEDGER.md](./EVALUATION_LEDGER.md), [SECURITY_BASELINE.md](./SECURITY_BASELINE.md)
 
 ---
@@ -40,6 +40,22 @@ Every invocation produces an **`AiExecutionRecord`** in PostgreSQL for traceabil
 
 Each B5 operation defines typed Pydantic models in `apps/api/app/ai/types.py`.
 
+### Deferred (enterprise / post-CVB)
+
+* Multi-subject structure providers beyond Mathematics (PEV-056)
+* Multilingual handwriting (PEV-057)
+* Gold-dataset regression gates (PEV-058 / PEV-059)
+
+### Implemented in B10 (authoring)
+
+* `parse_question_paper`
+* `propose_answer_key`
+* `propose_rubric`
+* `suggest_curriculum_mapping`
+
+Provider modes: `AI_PROVIDER_AUTHORING` = `none` | `fixed` (test/dev only) | `openai`.  
+Proposals never mutate evaluation marks; teacher approve gates remain mandatory (PEV-004).
+
 ### Implemented in B5
 
 * `extract_student_identity`
@@ -49,14 +65,13 @@ Each B5 operation defines typed Pydantic models in `apps/api/app/ai/types.py`.
 
 Provider modes: `none` | `fixed` (test/dev only) | `openai` (optional).
 
-### Deferred to B6+
+### Implemented in B6+
 
 * `evaluate_rubric`
-* `verify_math`
+* `verify_math` (SymPy, in-process — not on the provider Protocol)
 * `classify_error`
-* reporting / learning operations
 
-The B5 provider must never publish or mutate marks.
+The structure provider must never publish or mutate marks.
 
 ### 3.1 `extract_student_identity`
 
@@ -179,7 +194,8 @@ SymPy runs in-process — not delegated to LLM.
 **Stage:** Reporting (post-approval)  
 **Input:** **Approved** ledger snapshot IDs, rubric explanations  
 **Output:** Student-facing question-by-question narrative  
-**Constraint:** Must not alter marks; validator compares cited marks to ledger.
+**Constraint:** Must not alter marks; validator compares cited marks to ledger.  
+**Status:** **Implemented in B7** via narrative provider (`AI_PROVIDER_TEXT=fixed|openai|none`) during publication generation. Traced on `AiExecutionRecord` with `published_result_id`.
 
 ---
 
@@ -187,23 +203,68 @@ SymPy runs in-process — not delegated to LLM.
 
 **Stage:** Reporting (post-approval)  
 **Input:** Approved ledger + class context  
-**Output:** Plain-language summary for guardians.
+**Output:** Plain-language summary for guardians.  
+**Status:** **Implemented in B7** via narrative provider during publication generation (same registry / tracing path as 3.8).
 
 ---
 
 ### 3.10 `generate_learning_plan`
 
-**Stage:** Learning evidence (post-approval)  
-**Input:** Approved ledger, curriculum nodes, prerequisite graph  
-**Output:** Curriculum-constrained recommendations (node IDs + rationale).
+**Stage:** Learning evidence (post-publication mastery evidence)  
+**Input:** Server-authorized plan structure (recommendation keys, default rationales, path steps) derived from B8 `MasteryEvidence` + curriculum graph — not raw mark mutation  
+**Output:** Bounded prose overlays (rationale / path descriptions). Structure remains server-owned (`B9_V1`).  
+**Constraint:** No URLs; curriculum-node IDs only; no Assessment/resource invention.  
+**Status:** **Implemented in B9** via `LearningAIProvider` (`AI_PROVIDER_TEXT=fixed|openai|none` → `FIXED` / `AI` / `RULES_FALLBACK`). Traced on `AiExecutionRecord` with `learning_plan_run_id`. Worker: `learning.generate_plan`.
 
 ---
 
 ### 3.11 `generate_improvement_blueprint`
 
-**Stage:** Learning evidence (post-approval)  
-**Input:** Weakness profile, curriculum scope  
-**Output:** `ImprovementAssessment` structure with targeted practice items.
+**Stage:** Learning evidence (post READY learning plan)  
+**Input:** Server-authorized blueprint item skeletons (template kinds, node IDs, default focus)  
+**Output:** Title + item focus prose for an `ImprovementAssessment` **blueprint** (not a live Assessment).  
+**Constraint:** No URLs; items must cover plan targets; no reassessment entity creation.  
+**Status:** **Implemented in B9** via `LearningAIProvider` (same text-provider modes). Traced with `improvement_assessment_id` (+ `learning_plan_run_id`). Worker: `learning.generate_improvement_blueprint`.
+
+---
+
+### 3.12 `parse_question_paper`
+
+**Stage:** Authoring — question paper structure  
+**Input:** Assessment version context + optional `assessment_artifact` (content hash / mime / filename)  
+**Output:** Bounded `ProposedQuestionNode` tree (`roots`) + notes  
+**Bounds:** Max depth 6, max 200 nodes, unique `stable_code`, leaf marks must reconcile on apply  
+**Status:** **Implemented in B10** via `AuthoringAIProvider` (`AI_PROVIDER_AUTHORING=fixed|openai|none`). Durable `AuthoringAiRun` (`PARSE_QUESTION_PAPER`). Teacher edit + apply required before questions exist. Contract: `question-paper-parse.schema.json`.
+
+---
+
+### 3.13 `propose_answer_key`
+
+**Stage:** Authoring — answer key proposal  
+**Input:** Question version prompt / marks context  
+**Output:** `answer_text` (+ optional structured answer)  
+**Constraint:** Creates `AnswerKeyVersion` with `source_type=AI_PROPOSED` only; evaluation blocked until teacher approve. Never overwrites teacher material.  
+**Status:** **Implemented in B10** via `AuthoringAIProvider`. Traced with `authoring_ai_run_id`.
+
+---
+
+### 3.14 `propose_rubric`
+
+**Stage:** Authoring — rubric proposal  
+**Input:** Question (+ optional answer text)  
+**Output:** Rubric title + bounded criteria list  
+**Constraint:** Draft `RubricVersion` `AI_PROPOSED` enters review; not usable for evaluation until approve.  
+**Status:** **Implemented in B10** via `AuthoringAIProvider`. Traced with `authoring_ai_run_id`.
+
+---
+
+### 3.15 `suggest_curriculum_mapping`
+
+**Stage:** Authoring — curriculum mapping suggestion  
+**Input:** Question text + candidate curriculum nodes  
+**Output:** Ordered mapping suggestions (`PRIMARY` / `SECONDARY` / …)  
+**Constraint:** Suggestions only; teacher applies mappings via A2 APIs.  
+**Status:** **Implemented in B10** via `AuthoringAIProvider`.
 
 ---
 
@@ -216,6 +277,7 @@ SymPy runs in-process — not delegated to LLM.
 | `AI_PROVIDER_VISION` | `openai` |
 | `AI_PROVIDER_TEXT` | `anthropic` |
 | `AI_PROVIDER_CLASSIFY` | `openai` |
+| `AI_PROVIDER_AUTHORING` | `fixed` / `openai` / `none` |
 | Per-tenant override | `tenants.config.ai_providers` JSONB |
 
 **No generic `complete(prompt)` exported** to domain modules — internal to adapters only.
@@ -249,7 +311,9 @@ Link record IDs to ledger via `ai_execution_record_ids`.
 |-----------------|--------------|---------------|
 | Structure (identity, map, transcribe) | Submission < `APPROVED` | No marks |
 | Evaluation (`evaluate_rubric`, `verify_math`, `classify_error`) | Rubric `PUBLISHED` | Draft proposals only |
-| Narrative (`generate_*`) | Submission ≥ `APPROVED` | **Forbidden** |
+| Narrative (`generate_student_explanation`, `generate_parent_summary`) | Submission ≥ `APPROVED` / publication | **Forbidden** |
+| Learning (`generate_learning_plan`, `generate_improvement_blueprint`) | After B8 READY evidence / READY plan | **Forbidden** (structure server-owned) |
+| Authoring (`parse_question_paper`, `propose_*`, `suggest_curriculum_mapping`) | Assessment academic config mutable (typically DRAFT) | **Forbidden** for evaluation marks; proposals only |
 
 Workers set `app.tenant_id` before any DB or AI call.
 
@@ -294,3 +358,6 @@ ai/
 | Version | Date | Change |
 |---------|------|--------|
 | 0.1 | 2026-09-04 | Initial AI provider contract |
+| 0.2 | 2026-09-07 | B7 narrative ops implemented |
+| 0.3 | 2026-09-07 | B9 `generate_learning_plan` + `generate_improvement_blueprint` implemented |
+| 0.4 | 2026-09-07 | B10 authoring ops: `parse_question_paper`, `propose_answer_key`, `propose_rubric`, `suggest_curriculum_mapping` |

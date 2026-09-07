@@ -10,6 +10,7 @@ from typing import Any
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.execution_metadata import metadata_from_provider
 from app.ai.registry import get_structure_provider, structure_provider_active
 from app.ai.tracing import (
     canonical_input_hash,
@@ -20,13 +21,13 @@ from app.ai.types import IdentityExtractionInput, ProviderUnavailable
 from app.core.config import Settings, get_settings
 from app.db.models import (
     Assessment,
-    AuditEvent,
     PipelineJob,
     Student,
     Submission,
     SubmissionIdentityCandidate,
     SubmissionPage,
 )
+from app.services.audit import add_audit_event
 
 
 class IdentityPipelineError(RuntimeError):
@@ -76,15 +77,14 @@ async def run_identity_extraction(
             submission.identity_confidence = Decimal("0.0000")
             job.status = "SUCCEEDED"
             job.finished_at = datetime.now(UTC)
-            db.add(
-                AuditEvent(
-                    tenant_id=tenant_id,
-                    actor_user_id=None,
-                    entity_type="Submission",
-                    entity_id=submission.id,
-                    action="identity_provider_unavailable",
-                    payload_json={"provider": "none"},
-                )
+            await add_audit_event(
+                db,
+                tenant_id=tenant_id,
+                actor_user_id=None,
+                entity_type="Submission",
+                entity_id=submission.id,
+                action="identity_provider_unavailable",
+                after={"provider": "none"},
             )
             await db.commit()
             return
@@ -112,9 +112,7 @@ async def run_identity_extraction(
             Student.status == "active",
         )
         if assessment is not None and assessment.class_section_id is not None:
-            students_q = students_q.where(
-                Student.class_section_id == assessment.class_section_id
-            )
+            students_q = students_q.where(Student.class_section_id == assessment.class_section_id)
         students = list((await db.scalars(students_q.limit(100))).all())
         roster_hints = [
             {
@@ -158,11 +156,11 @@ async def run_identity_extraction(
             result = None
 
         finished = datetime.now(UTC)
+        meta = metadata_from_provider(provider, "extract_student_identity")
         exec_row = await record_ai_execution(
             db,
             tenant_id=tenant_id,
             operation="extract_student_identity",
-            provider=provider.provider_name,
             status=status,
             request_summary=redacted_request_summary(
                 operation="extract_student_identity",
@@ -174,13 +172,16 @@ async def run_identity_extraction(
             ),
             response_summary=response_summary,
             submission_id=submission.id,
-            model=getattr(settings, "ai_model_identity", None),
             input_refs={"page_id": str(page.id), "roster_hint_count": len(roster_hints)},
             input_hash=input_hash,
             latency_ms=int((finished - started).total_seconds() * 1000),
             error_class=error_class,
             started_at=started,
             finished_at=finished,
+            provider=meta.provider,
+            model=meta.model,
+            model_version=meta.model_version,
+            prompt_template_version=meta.prompt_template_version,
         )
 
         await db.execute(
@@ -224,27 +225,24 @@ async def run_identity_extraction(
             job.error_code = None
             job.error_detail = None
         job.finished_at = finished
-        db.add(
-            AuditEvent(
-                tenant_id=tenant_id,
-                actor_user_id=None,
-                entity_type="Submission",
-                entity_id=submission.id,
-                action="identity_extraction_finished",
-                payload_json={
-                    "status": status,
-                    "execution_id": str(exec_row.id),
-                    "provider": provider.provider_name,
-                },
-            )
+        await add_audit_event(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=None,
+            entity_type="Submission",
+            entity_id=submission.id,
+            action="identity_extraction_finished",
+            after={
+                "status": status,
+                "execution_id": str(exec_row.id),
+                "provider": provider.provider_name,
+            },
         )
         await db.commit()
     except Exception as exc:
         await db.rollback()
         job = await db.scalar(select(PipelineJob).where(PipelineJob.id == job_id))
-        submission = await db.scalar(
-            select(Submission).where(Submission.id == submission_id)
-        )
+        submission = await db.scalar(select(Submission).where(Submission.id == submission_id))
         if job is not None and submission is not None:
             code = getattr(exc, "code", "IDENTITY_FAILED")
             message = getattr(exc, "message", str(exc))

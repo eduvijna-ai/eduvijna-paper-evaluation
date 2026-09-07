@@ -18,6 +18,7 @@ export interface ApiCapabilities {
   mapping: DomainCapability;
   transcription: DomainCapability;
   evaluation: DomainCapability;
+  publication: DomainCapability;
   reports: DomainCapability;
   analytics: DomainCapability;
   learning: DomainCapability;
@@ -39,10 +40,11 @@ export function getApiCapabilities(): ApiCapabilities {
       identityReview: "live",
       mapping: "live",
       transcription: "live",
-      evaluation: "mock",
-      reports: "mock",
-      analytics: "mock",
-      learning: "mock",
+      evaluation: "live",
+      publication: "live",
+      reports: "live",
+      analytics: "live",
+      learning: "live",
       showTransportBadge: true,
     };
   }
@@ -58,6 +60,7 @@ export function getApiCapabilities(): ApiCapabilities {
     mapping: "mock",
     transcription: "mock",
     evaluation: "mock",
+    publication: "mock",
     reports: "mock",
     analytics: "mock",
     learning: "mock",

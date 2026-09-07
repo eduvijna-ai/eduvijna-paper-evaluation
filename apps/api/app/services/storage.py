@@ -36,6 +36,43 @@ def derived_page_key(tenant_id: uuid.UUID, submission_id: uuid.UUID, page_index:
     return f"{tenant_id}/derived/{submission_id}/pages/{page_index:04d}.png"
 
 
+def publication_export_key(
+    tenant_id: uuid.UUID,
+    submission_id: uuid.UUID,
+    version: int,
+    filename: str,
+) -> str:
+    return f"{tenant_id}/exports/{submission_id}/publication/{version}/{filename}"
+
+
+def learning_blueprint_export_key(
+    tenant_id: uuid.UUID,
+    student_id: uuid.UUID,
+    curriculum_id: uuid.UUID,
+    version: int,
+) -> str:
+    return (
+        f"{tenant_id}/exports/students/{student_id}/learning/"
+        f"{curriculum_id}/blueprints/{version}/blueprint.json"
+    )
+
+
+def _safe_filename(filename: str) -> str:
+    base = filename.replace("\\", "/").split("/")[-1].strip() or "upload.bin"
+    cleaned = "".join(ch if ch.isalnum() or ch in {"-", "_", ".", " "} else "_" for ch in base)
+    return cleaned[:200] or "upload.bin"
+
+
+def assessment_source_key(
+    tenant_id: uuid.UUID,
+    assessment_id: uuid.UUID,
+    artifact_id: uuid.UUID,
+    filename: str,
+) -> str:
+    safe = _safe_filename(filename)
+    return f"{tenant_id}/assessment-sources/{assessment_id}/{artifact_id}/{safe}"
+
+
 def _extension(filename: str) -> str:
     lower = filename.lower()
     if lower.endswith(".pdf"):
@@ -112,6 +149,46 @@ class ObjectStorage:
     ) -> PutResult:
         if "/derived/" not in key:
             raise ValueError("derived uploads must use a /derived/ key prefix")
+        self.client.put_object(
+            Bucket=self.settings.s3_bucket,
+            Key=key,
+            Body=body,
+            ContentType=content_type,
+        )
+        return PutResult(key=key, byte_size=len(body))
+
+    def put_export_bytes(
+        self,
+        *,
+        key: str,
+        body: bytes,
+        content_type: str = "application/pdf",
+    ) -> PutResult:
+        """Write-once export artifacts (B7 publication PDFs). Never overwrite."""
+        if "/exports/" not in key:
+            raise ValueError("export uploads must use an /exports/ key prefix")
+        if self.exists(key):
+            raise StorageImmutabilityError(f"export key already exists: {key}")
+        self.client.put_object(
+            Bucket=self.settings.s3_bucket,
+            Key=key,
+            Body=body,
+            ContentType=content_type,
+        )
+        return PutResult(key=key, byte_size=len(body))
+
+    def put_assessment_source_bytes(
+        self,
+        *,
+        key: str,
+        body: bytes,
+        content_type: str,
+    ) -> PutResult:
+        """Write-once assessment source artifacts (B10 question papers). Never overwrite."""
+        if "/assessment-sources/" not in key:
+            raise ValueError("assessment sources must use an /assessment-sources/ key prefix")
+        if self.exists(key):
+            raise StorageImmutabilityError(f"assessment source key already exists: {key}")
         self.client.put_object(
             Bucket=self.settings.s3_bucket,
             Key=key,

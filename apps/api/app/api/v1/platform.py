@@ -17,7 +17,6 @@ from app.core.config import Settings, get_settings
 from app.core.security import AuthProvider, get_auth_provider, verify_password
 from app.db.models import (
     AcademicYear,
-    AuditEvent,
     ClassSection,
     Guardian,
     ImportSession,
@@ -32,6 +31,7 @@ from app.db.models import (
     UserRole,
 )
 from app.db.session import get_db_session
+from app.services.audit import add_audit_event
 
 router = APIRouter()
 Db = Annotated[AsyncSession, Depends(get_db_session)]
@@ -229,15 +229,14 @@ async def _scoped[ModelT](
 async def _audit(
     db: AsyncSession, auth: AuthContext, entity: Any, action: str, payload: dict[str, Any]
 ) -> None:
-    db.add(
-        AuditEvent(
-            tenant_id=auth.tenant_id,
-            actor_user_id=auth.user_id,
-            entity_type=entity.__class__.__name__,
-            entity_id=entity.id,
-            action=action,
-            payload_json=payload,
-        )
+    await add_audit_event(
+        db,
+        tenant_id=auth.tenant_id,
+        actor_user_id=auth.user_id,
+        entity_type=entity.__class__.__name__,
+        entity_id=entity.id,
+        action=action,
+        after=payload,
     )
 
 

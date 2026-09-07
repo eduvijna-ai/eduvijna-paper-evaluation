@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/evaluated-paper.schema.json",
+  "title": "EvaluatedPaperManifest",
+  "description": "PEV-025/PEV-077 evaluated annotated paper artifact manifest. Marks are final human-approved ledger scores only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "published_result_id",
+    "submission_id",
+    "assessment_version_id",
+    "evaluation_run_id",
+    "ledger_snapshot_hash",
+    "version",
+    "page_count",
+    "annotation_count",
+    "total_score",
+    "max_total_score",
+    "artifact_sha256",
+    "generated_at"
+  ],
+  "properties": {
+    "published_result_id": { "type": "string", "format": "uuid" },
+    "submission_id": { "type": "string", "format": "uuid" },
+    "assessment_version_id": { "type": "string", "format": "uuid" },
+    "evaluation_run_id": { "type": "string", "format": "uuid" },
+    "ledger_snapshot_hash": { "type": "string", "minLength": 64, "maxLength": 64 },
+    "version": { "type": "integer", "minimum": 1 },
+    "page_count": { "type": "integer", "minimum": 1 },
+    "annotation_count": { "type": "integer", "minimum": 0 },
+    "total_score": { "type": "number", "minimum": 0 },
+    "max_total_score": { "type": "number", "minimum": 0 },
+    "artifact_sha256": { "type": "string", "minLength": 64, "maxLength": 64 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "published_at": { "type": ["string", "null"], "format": "date-time" },
+    "annotations": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/annotation" }
+    }
+  },
+  "$defs": {
+    "annotation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "annotation_type",
+        "submission_page_id",
+        "x",
+        "y",
+        "width",
+        "height",
+        "source_type",
+        "payload"
+      ],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "annotation_type": {
+          "type": "string",
+          "enum": ["TICK", "CROSS", "PARTIAL", "MARK", "COMMENT", "HIGHLIGHT"]
+        },
+        "submission_page_id": { "type": "string", "format": "uuid" },
+        "question_evaluation_id": { "type": ["string", "null"], "format": "uuid" },
+        "answer_region_id": { "type": ["string", "null"], "format": "uuid" },
+        "x": { "type": "number", "minimum": 0, "maximum": 1 },
+        "y": { "type": "number", "minimum": 0, "maximum": 1 },
+        "width": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "height": { "type": "number", "exclusiveMinimum": 0, "maximum": 1 },
+        "source_type": { "type": "string", "enum": ["LEDGER", "HUMAN"] },
+        "payload": {
+          "type": "object",
+          "properties": {
+            "final_marks": { "type": ["number", "null"] },
+            "max_marks": { "type": ["number", "null"] },
+            "criterion_id": { "type": ["string", "null"] },
+            "error_code": { "type": ["string", "null"] },
+            "reason": { "type": ["string", "null"], "maxLength": 500 },
+            "text": { "type": ["string", "null"], "maxLength": 2000 }
+          },
+          "additionalProperties": true
+        }
+      }
+    }
+  }
+}

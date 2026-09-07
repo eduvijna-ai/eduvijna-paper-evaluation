@@ -85,6 +85,17 @@ class Settings(BaseSettings):
         default=100,
         validation_alias=AliasChoices("SUBMISSION_MAX_PAGES", "submission_max_pages"),
     )
+    assessment_paper_upload_max_bytes: int = Field(
+        default=20_971_520,
+        validation_alias=AliasChoices(
+            "ASSESSMENT_PAPER_UPLOAD_MAX_BYTES", "assessment_paper_upload_max_bytes"
+        ),
+    )
+    upload_scanner: str = Field(
+        default="none",
+        validation_alias=AliasChoices("UPLOAD_SCANNER", "upload_scanner"),
+        description="Upload malware scan provider: none|fixed. none never reports CLEAN.",
+    )
     celery_broker_url: str = Field(
         default="redis://127.0.0.1:16379/0",
         validation_alias=AliasChoices("CELERY_BROKER_URL", "celery_broker_url"),
@@ -121,6 +132,113 @@ class Settings(BaseSettings):
         default="gpt-4o-mini",
         validation_alias=AliasChoices(
             "AI_MODEL_TRANSCRIPTION", "ai_model_transcription"
+        ),
+    )
+    ai_model_evaluation: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices("AI_MODEL_EVALUATION", "ai_model_evaluation"),
+        description=(
+            "Model for evaluate_rubric/classify_error. Provider selection reuses "
+            "AI_PROVIDER_VISION (fixed/openai/none) — no separate AI_PROVIDER_EVALUATION."
+        ),
+    )
+    ai_provider_text: str = Field(
+        default="none",
+        validation_alias=AliasChoices("AI_PROVIDER_TEXT", "ai_provider_text"),
+        description=(
+            "Text/narrative provider for B7 reports: none|fixed|openai. "
+            "When none, publication still succeeds with RULES_FALLBACK narratives."
+        ),
+    )
+    ai_model_student_report: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices(
+            "AI_MODEL_STUDENT_REPORT", "ai_model_student_report"
+        ),
+    )
+    ai_model_parent_report: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices(
+            "AI_MODEL_PARENT_REPORT", "ai_model_parent_report"
+        ),
+    )
+    ai_model_learning_plan: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices(
+            "AI_MODEL_LEARNING_PLAN", "ai_model_learning_plan"
+        ),
+    )
+    ai_model_improvement_blueprint: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices(
+            "AI_MODEL_IMPROVEMENT_BLUEPRINT", "ai_model_improvement_blueprint"
+        ),
+    )
+    ai_provider_authoring: str = Field(
+        default="none",
+        validation_alias=AliasChoices(
+            "AI_PROVIDER_AUTHORING", "ai_provider_authoring"
+        ),
+        description=(
+            "Authoring AI provider for B10 question-paper parse / proposals: "
+            "none|fixed|openai. When none, endpoints return 503 UNAVAILABLE."
+        ),
+    )
+    ai_model_question_paper_parse: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices(
+            "AI_MODEL_QUESTION_PAPER_PARSE", "ai_model_question_paper_parse"
+        ),
+    )
+    ai_model_answer_key_proposal: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices(
+            "AI_MODEL_ANSWER_KEY_PROPOSAL", "ai_model_answer_key_proposal"
+        ),
+    )
+    ai_model_rubric_proposal: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices(
+            "AI_MODEL_RUBRIC_PROPOSAL", "ai_model_rubric_proposal"
+        ),
+    )
+    ai_model_curriculum_mapping_proposal: str = Field(
+        default="gpt-4o-mini",
+        validation_alias=AliasChoices(
+            "AI_MODEL_CURRICULUM_MAPPING_PROPOSAL",
+            "ai_model_curriculum_mapping_proposal",
+        ),
+    )
+    authoring_parse_max_pages: int = Field(
+        default=30,
+        validation_alias=AliasChoices(
+            "AUTHORING_PARSE_MAX_PAGES", "authoring_parse_max_pages"
+        ),
+        description="Hard max PDF pages accepted for question-paper parse evidence.",
+    )
+    authoring_parse_max_text_chars: int = Field(
+        default=40_000,
+        validation_alias=AliasChoices(
+            "AUTHORING_PARSE_MAX_TEXT_CHARS", "authoring_parse_max_text_chars"
+        ),
+    )
+    authoring_parse_max_page_text_chars: int = Field(
+        default=8_000,
+        validation_alias=AliasChoices(
+            "AUTHORING_PARSE_MAX_PAGE_TEXT_CHARS",
+            "authoring_parse_max_page_text_chars",
+        ),
+    )
+    authoring_parse_max_render_pixels: int = Field(
+        default=4_000_000,
+        validation_alias=AliasChoices(
+            "AUTHORING_PARSE_MAX_RENDER_PIXELS", "authoring_parse_max_render_pixels"
+        ),
+    )
+    authoring_parse_max_image_bytes: int = Field(
+        default=2_097_152,
+        validation_alias=AliasChoices(
+            "AUTHORING_PARSE_MAX_IMAGE_BYTES", "authoring_parse_max_image_bytes"
         ),
     )
     ai_request_timeout_seconds: int = Field(

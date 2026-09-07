@@ -138,7 +138,9 @@ class AssessmentVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     title: Mapped[str] = mapped_column(String(255))
     instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
     max_marks: Mapped[Decimal] = mapped_column(Numeric(10, 2))
-    question_paper_artifact_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    question_paper_artifact_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("assessment_artifacts.id", ondelete="SET NULL"), nullable=True
+    )
     status: Mapped[str] = mapped_column(String(32), default="DRAFT", server_default="DRAFT")
     created_by: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
 
@@ -371,7 +373,36 @@ class AiExecutionRecord(UUIDPrimaryKeyMixin, Base):
     answer_region_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("answer_regions.id", ondelete="SET NULL"), nullable=True
     )
-    evaluation_run_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    evaluation_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("evaluation_runs.id", ondelete="SET NULL"), nullable=True
+    )
+    question_evaluation_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("question_evaluations.id", ondelete="SET NULL"), nullable=True
+    )
+    published_result_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("published_results.id", ondelete="SET NULL"), nullable=True
+    )
+    learning_plan_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("learning_plan_runs.id", ondelete="SET NULL"), nullable=True
+    )
+    improvement_assessment_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("improvement_assessments.id", ondelete="SET NULL"), nullable=True
+    )
+    authoring_ai_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("authoring_ai_runs.id", ondelete="SET NULL"), nullable=True
+    )
+    assessment_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("assessment_versions.id", ondelete="SET NULL"), nullable=True
+    )
+    assessment_artifact_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("assessment_artifacts.id", ondelete="SET NULL"), nullable=True
+    )
+    answer_key_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("answer_key_versions.id", ondelete="SET NULL"), nullable=True
+    )
+    rubric_version_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("rubric_versions.id", ondelete="SET NULL"), nullable=True
+    )
     model: Mapped[str | None] = mapped_column(String(100), nullable=True)
     model_version: Mapped[str | None] = mapped_column(String(100), nullable=True)
     prompt_template_version: Mapped[str | None] = mapped_column(String(100), nullable=True)

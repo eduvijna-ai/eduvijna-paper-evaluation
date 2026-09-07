@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/question-paper-parse.schema.json",
+  "title": "QuestionPaperParse",
+  "description": "B10 / PEV-002 proposed question tree bounds for parse_question_paper. Server validates depth, node count, unique stable_code, and leaf marks before apply.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["roots"],
+  "properties": {
+    "roots": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 200,
+      "items": { "$ref": "#/$defs/ProposedQuestionNode" }
+    },
+    "notes": { "type": ["string", "null"], "maxLength": 2000 }
+  },
+  "$defs": {
+    "ProposedQuestionNode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stable_code",
+        "display_label",
+        "sequence",
+        "prompt_text",
+        "max_marks",
+        "question_type",
+        "scoring_mode"
+      ],
+      "properties": {
+        "stable_code": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "display_label": { "type": "string", "minLength": 1, "maxLength": 100 },
+        "sequence": { "type": "integer", "minimum": 0, "maximum": 10000 },
+        "prompt_text": { "type": "string", "minLength": 1, "maxLength": 10000 },
+        "max_marks": { "type": "number", "minimum": 0 },
+        "question_type": { "type": "string", "minLength": 1, "maxLength": 64 },
+        "scoring_mode": {
+          "type": "string",
+          "enum": ["LEAF_SCORABLE", "CONTAINER_DERIVED"]
+        },
+        "instructions": { "type": ["string", "null"], "maxLength": 5000 },
+        "children": {
+          "type": "array",
+          "maxItems": 200,
+          "items": { "$ref": "#/$defs/ProposedQuestionNode" },
+          "default": []
+        }
+      },
+      "description": "Max tree depth 6 (enforced server-side). Max total nodes 200 across the full tree."
+    }
+  }
+}

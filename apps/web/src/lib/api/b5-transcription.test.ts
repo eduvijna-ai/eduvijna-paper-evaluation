@@ -251,13 +251,24 @@ describe("B5 hybrid adapter guards", () => {
     vi.unstubAllEnvs();
   });
 
-  it("refuses mock evaluation for live submission UUIDs", async () => {
+  it("routes live evaluation for live submission UUIDs in hybrid", async () => {
     vi.stubEnv("NEXT_PUBLIC_API_MODE", "hybrid");
+    const fetchMock = vi.fn().mockImplementation(
+      async () =>
+        new Response(
+          JSON.stringify({
+            detail: { code: "NOT_FOUND", message: "not found" },
+          }),
+          { status: 404, headers: { "Content-Type": "application/json" } },
+        ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
     await expect(
       HybridEduVijnaApi.getEvaluationWorkspace(
         "11111111-1111-4111-8111-111111111111",
       ),
     ).rejects.toBeInstanceOf(ApiError);
+    expect(fetchMock).toHaveBeenCalled();
   });
 });
 
@@ -266,11 +277,11 @@ describe("B5 API capabilities", () => {
     vi.unstubAllEnvs();
   });
 
-  it("marks transcription live in hybrid while evaluation stays mock", () => {
+  it("marks transcription and evaluation live in hybrid", () => {
     vi.stubEnv("NEXT_PUBLIC_API_MODE", "hybrid");
     const caps = getApiCapabilities();
     expect(caps.transcription).toBe("live");
-    expect(caps.evaluation).toBe("mock");
+    expect(caps.evaluation).toBe("live");
     expect(caps.mapping).toBe("live");
   });
 

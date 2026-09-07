@@ -2,6 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://contracts.eduvijna.local/evaluation-ledger.schema.json",
   "title": "EvaluationLedger",
+  "description": "Question-level evaluation ledger. proposed_ai_score may be null only for review-blocking evidence conditions (UNREADABLE, OCR_TRANSCRIPTION, RUBRIC_AMBIGUITY, OTHER_REVIEW_REQUIRED). Readable incorrect answers and confirmed BLANK may propose 0.",
   "type": "object",
   "required": [
     "id",
@@ -32,6 +33,7 @@
     "question_version_id": { "$ref": "#/$defs/uuid" },
     "rubric_version_id": { "$ref": "#/$defs/uuid" },
     "answer_key_version_id": { "$ref": "#/$defs/uuid" },
+    "mapping_id": { "anyOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }] },
     "answer_region_ids": {
       "type": "array",
       "items": { "$ref": "#/$defs/uuid" }
@@ -42,24 +44,50 @@
       "type": "array",
       "items": { "$ref": "#/$defs/criterionDecision" }
     },
-    "proposed_ai_score": { "type": "number", "minimum": 0 },
+    "proposed_ai_score": {
+      "anyOf": [
+        { "type": "number", "minimum": 0 },
+        { "type": "null" }
+      ],
+      "description": "Null only when automated scoring cannot produce a valid academic proposal due to a review-blocking evidence condition. Never use 0 to mean UNREADABLE."
+    },
     "final_human_approved_score": { "type": ["number", "null"], "minimum": 0 },
+    "first_divergence_step": { "type": ["integer", "null"], "minimum": 0 },
     "error_codes": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+    "deduction_reasons": {
+      "type": "array",
+      "items": { "type": "object" }
+    },
     "ecf_applied": { "type": "boolean" },
+    "ecf_chain": { "type": "object" },
+    "alternative_method_id": { "type": ["string", "null"], "maxLength": 100 },
+    "alternative_method_label": { "type": ["string", "null"], "maxLength": 255 },
     "identity_confidence": { "$ref": "#/$defs/confidence" },
     "mapping_confidence": { "$ref": "#/$defs/confidence" },
-    "transcription_confidence": { "$ref": "#/$defs/confidence" },
-    "evaluation_confidence": { "$ref": "#/$defs/confidence" },
+    "transcription_confidence": {
+      "anyOf": [{ "$ref": "#/$defs/confidence" }, { "type": "null" }]
+    },
+    "evaluation_confidence": {
+      "anyOf": [{ "$ref": "#/$defs/confidence" }, { "type": "null" }]
+    },
     "math_verification_confidence": {
       "anyOf": [{ "$ref": "#/$defs/confidence" }, { "type": "null" }]
     },
     "workflow_state": {
-      "enum": ["PENDING", "PROPOSED", "REVIEW_REQUIRED", "ACCEPTED", "OVERRIDDEN"]
+      "enum": [
+        "PENDING",
+        "PROPOSED",
+        "REVIEW_REQUIRED",
+        "ACCEPTED",
+        "OVERRIDDEN",
+        "ESCALATED"
+      ]
     },
     "ledger_version": { "type": "integer", "minimum": 1 },
     "supersedes_ledger_id": {
       "anyOf": [{ "$ref": "#/$defs/uuid" }, { "type": "null" }]
-    }
+    },
+    "approved_snapshot_hash": { "type": ["string", "null"], "maxLength": 64 }
   },
   "$defs": {
     "uuid": { "type": "string", "format": "uuid" },
@@ -77,7 +105,13 @@
         "rubric_criterion_id": { "$ref": "#/$defs/uuid" },
         "criterion_label": { "type": "string" },
         "max_marks": { "type": "number", "minimum": 0 },
-        "proposed_marks": { "type": "number", "minimum": 0 },
+        "proposed_marks": {
+          "anyOf": [
+            { "type": "number", "minimum": 0 },
+            { "type": "null" }
+          ],
+          "description": "Null when decision is UNREADABLE or the criterion is unscorable pending human review."
+        },
         "final_marks": { "type": ["number", "null"], "minimum": 0 },
         "decision": {
           "enum": ["AWARDED", "PARTIAL", "DEDUCTED", "NOT_APPLICABLE", "UNREADABLE"]
