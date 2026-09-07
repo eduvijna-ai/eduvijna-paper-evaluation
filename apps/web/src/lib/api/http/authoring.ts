@@ -30,6 +30,7 @@ import type {
   ProposedQuestionNode,
 } from "@/lib/types/domain";
 import { httpRequest } from "./client";
+import { isApiError } from "./errors";
 
 function latestVersion(versions: A2AssessmentVersion[]): A2AssessmentVersion | undefined {
   return [...versions].sort((a, b) => b.version_number - a.version_number)[0];
@@ -268,6 +269,31 @@ export const AuthoringHttpApi = {
       { method: "POST" },
     );
     return authoringRunApiToView(row);
+  },
+
+  async getLatestAuthoringAiRun(
+    versionId: string,
+    operation?: string,
+  ): Promise<AuthoringAiRun | null> {
+    const query = operation
+      ? `?operation=${encodeURIComponent(operation)}`
+      : "";
+    try {
+      const row = await httpRequest<Record<string, unknown>>(
+        `/api/v1/assessment-versions/${versionId}/authoring-ai-runs/latest${query}`,
+      );
+      return authoringRunApiToView(row);
+    } catch (err) {
+      if (isApiError(err) && err.status === 404) return null;
+      throw err;
+    }
+  },
+
+  async getAssessmentArtifact(artifactId: string): Promise<AssessmentArtifact> {
+    const row = await httpRequest<Record<string, unknown>>(
+      `/api/v1/assessment-artifacts/${artifactId}`,
+    );
+    return artifactApiToView(row);
   },
 
   async getAuthoringAiRun(runId: string): Promise<AuthoringAiRun> {

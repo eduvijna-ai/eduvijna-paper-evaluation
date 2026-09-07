@@ -215,6 +215,27 @@ async def get_authoring_run(
     return await _get_run(db, tenant_id=tenant_id, run_id=run_id)
 
 
+async def get_latest_authoring_run_for_version(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    assessment_version_id: uuid.UUID,
+    operation: str | None = None,
+) -> AuthoringAiRun | None:
+    """Return the newest authoring run for a tenant-scoped assessment version."""
+    await _get_version(
+        db, tenant_id=tenant_id, version_id=assessment_version_id
+    )
+    stmt = select(AuthoringAiRun).where(
+        AuthoringAiRun.tenant_id == tenant_id,
+        AuthoringAiRun.assessment_version_id == assessment_version_id,
+    )
+    if operation is not None:
+        stmt = stmt.where(AuthoringAiRun.operation == operation)
+    stmt = stmt.order_by(AuthoringAiRun.created_at.desc()).limit(1)
+    return await db.scalar(stmt)
+
+
 async def _get_question_version(
     db: AsyncSession, *, tenant_id: uuid.UUID, question_version_id: uuid.UUID
 ) -> QuestionVersion:

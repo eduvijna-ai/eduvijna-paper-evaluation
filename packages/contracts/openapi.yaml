@@ -558,6 +558,38 @@ paths:
               schema: { $ref: "#/components/schemas/AuthoringAiRun" }
         "503":
           description: AI_PROVIDER_UNAVAILABLE when AI_PROVIDER_AUTHORING is unset
+  /api/v1/assessment-versions/{id}/authoring-ai-runs/latest:
+    get:
+      operationId: getLatestAuthoringAiRun
+      summary: Latest authoring AI run for an assessment version (optional operation filter)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - name: operation
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/AuthoringAiOperation"
+      responses:
+        "200":
+          description: Latest matching authoring AI run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthoringAiRun" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/assessment-artifacts/{id}:
+    get:
+      operationId: getAssessmentArtifact
+      summary: Tenant-scoped assessment artifact metadata (no storage credentials)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200":
+          description: Assessment artifact metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssessmentArtifact" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /api/v1/authoring-ai-runs/{id}:
     get:
       operationId: getAuthoringAiRun

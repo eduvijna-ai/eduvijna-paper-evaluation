@@ -68,6 +68,16 @@ async def test_b10_parse_edit_apply_questions() -> None:
         assert body["status"] == "REVIEW_REQUIRED"
         assert body["operation"] == "PARSE_QUESTION_PAPER"
         run_id = body["id"]
+
+        latest = await client.get(
+            f"/api/v1/assessment-versions/{version_id}/authoring-ai-runs/latest"
+            "?operation=PARSE_QUESTION_PAPER",
+            headers=headers,
+        )
+        assert latest.status_code == 200, latest.text
+        assert latest.json()["id"] == run_id
+        assert latest.json()["status"] == "REVIEW_REQUIRED"
+
         roots = body["proposal_payload"]["roots"]
         assert roots[0]["stable_code"] == "Q1"
         assert roots[0]["children"][0]["stable_code"] == "Q1a"

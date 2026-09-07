@@ -28,6 +28,7 @@ from app.services.authoring_ai import (
     apply_question_tree,
     dump_authoring_run,
     get_authoring_run,
+    get_latest_authoring_run_for_version,
     prepare_parse_question_paper,
     prepare_propose_answer_key,
     prepare_propose_rubric,
@@ -119,6 +120,27 @@ async def get_authoring_ai_run(
         run = await get_authoring_run(db, tenant_id=auth.tenant_id, run_id=run_id)
     except AuthoringAiError as exc:
         raise _map_authoring_error(exc) from exc
+    return dump_authoring_run(run)
+
+
+@router.get("/assessment-versions/{version_id}/authoring-ai-runs/latest")
+async def get_latest_authoring_ai_run(
+    version_id: uuid.UUID,
+    db: Db,
+    operation: str | None = None,
+    auth: AuthContext = Depends(require_permissions("assessment:read")),
+) -> dict[str, Any]:
+    try:
+        run = await get_latest_authoring_run_for_version(
+            db,
+            tenant_id=auth.tenant_id,
+            assessment_version_id=version_id,
+            operation=operation,
+        )
+    except AuthoringAiError as exc:
+        raise _map_authoring_error(exc) from exc
+    if run is None:
+        raise _http_error(404, "NOT_FOUND", "No authoring AI run found")
     return dump_authoring_run(run)
 
 

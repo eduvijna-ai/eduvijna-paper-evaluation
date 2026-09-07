@@ -152,26 +152,13 @@ test.describe("B10 real authoring AI flows", () => {
           const versionId = [...versions].sort(
             (a, b) => b.version_number - a.version_number,
           )[0]!.id;
-          const prep = await request.post(
-            `${apiBase}/api/v1/assessment-versions/${versionId}/question-paper/parse`,
+          const latest = await request.get(
+            `${apiBase}/api/v1/assessment-versions/${versionId}/authoring-ai-runs/latest?operation=PARSE_QUESTION_PAPER`,
             { headers },
           );
-          if (![200, 409].includes(prep.status())) {
-            return `parse:${prep.status()}:${await prep.text()}`;
-          }
-          const body = (await prep.json()) as {
-            id?: string;
-            run_id?: string;
-            status?: string;
-          };
-          const runId = body.run_id ?? body.id;
-          if (!runId) return "no-run";
-          const run = await request.get(
-            `${apiBase}/api/v1/authoring-ai-runs/${runId}`,
-            { headers },
-          );
-          if (!run.ok()) return `run:${run.status()}`;
-          const runBody = (await run.json()) as {
+          if (latest.status() === 404) return "no-run";
+          if (!latest.ok()) return `latest:${latest.status()}`;
+          const runBody = (await latest.json()) as {
             status?: string;
             failure_code?: string | null;
           };

@@ -50,6 +50,20 @@ def dump_assessment_artifact(item: AssessmentArtifact) -> dict[str, Any]:
     }
 
 
+async def get_assessment_artifact(
+    db: AsyncSession, *, tenant_id: uuid.UUID, artifact_id: uuid.UUID
+) -> AssessmentArtifact:
+    artifact = await db.scalar(
+        select(AssessmentArtifact).where(
+            AssessmentArtifact.id == artifact_id,
+            AssessmentArtifact.tenant_id == tenant_id,
+        )
+    )
+    if artifact is None:
+        raise _http_error(404, "NOT_FOUND", "Assessment artifact not found")
+    return artifact
+
+
 async def enforce_upload_scan(
     *,
     filename: str,

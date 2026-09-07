@@ -162,6 +162,26 @@ describe("B10 hybrid authoring routing", () => {
             headers: { "Content-Type": "application/json" },
           });
         }
+        if (
+          url.includes(
+            `/assessment-versions/${versionId}/authoring-ai-runs/latest`,
+          ) &&
+          method === "GET"
+        ) {
+          return new Response(JSON.stringify(reviewRunDto), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        if (
+          url.includes(`/assessment-artifacts/${artifactDto.id}`) &&
+          method === "GET"
+        ) {
+          return new Response(JSON.stringify(artifactDto), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
         return new Response(JSON.stringify({ detail: "unexpected" }), {
           status: 500,
         });
@@ -178,6 +198,16 @@ describe("B10 hybrid authoring routing", () => {
     const prepared = await HybridEduVijnaApi.prepareQuestionPaperParse!(versionId);
     expect(prepared.status).toBe("REVIEW_REQUIRED");
     expect(prepared.proposal_payload?.roots?.[0]?.stable_code).toBe("Q1");
+
+    const latest = await HybridEduVijnaApi.getLatestAuthoringAiRun!(
+      versionId,
+      "PARSE_QUESTION_PAPER",
+    );
+    expect(latest?.id).toBe(runId);
+    expect(latest?.status).toBe("REVIEW_REQUIRED");
+
+    const artifact = await HybridEduVijnaApi.getAssessmentArtifact!(artifactDto.id);
+    expect(artifact.original_filename).toBe("b10-paper.pdf");
 
     const editedRoots = structuredClone(proposedRoots);
     editedRoots[0]!.children![0]!.prompt_text = "Corrected leaf prompt";

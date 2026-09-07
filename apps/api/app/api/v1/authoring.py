@@ -11,10 +11,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.authorization import AuthContext, require_permissions
 from app.db.session import get_db_session
-from app.services.assessment_artifacts import dump_assessment_artifact, upload_question_paper
+from app.services.assessment_artifacts import (
+    dump_assessment_artifact,
+    get_assessment_artifact,
+    upload_question_paper,
+)
 
 router = APIRouter()
 Db = Annotated[AsyncSession, Depends(get_db_session)]
+
+
+@router.get("/assessment-artifacts/{artifact_id}")
+async def read_assessment_artifact(
+    artifact_id: uuid.UUID,
+    db: Db,
+    auth: AuthContext = Depends(require_permissions("assessment:read")),
+) -> dict[str, Any]:
+    artifact = await get_assessment_artifact(
+        db, tenant_id=auth.tenant_id, artifact_id=artifact_id
+    )
+    return dump_assessment_artifact(artifact)
 
 
 @router.post("/assessment-versions/{version_id}/question-paper", status_code=201)

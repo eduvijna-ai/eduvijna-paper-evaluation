@@ -154,6 +154,44 @@ function LiveQuestionsPage({ id }: { id: string }) {
     queryFn: () => api.getAssessmentQuestions(id),
   });
 
+  const artifactId = versionQuery.data?.question_paper_artifact_id ?? null;
+  const artifactQuery = useQuery({
+    queryKey: ["assessment-artifact", artifactId],
+    queryFn: () => api.getAssessmentArtifact!(artifactId!),
+    enabled: Boolean(artifactId),
+  });
+
+  const latestParseQuery = useQuery({
+    queryKey: ["latest-parse-run", versionQuery.data?.id],
+    queryFn: () =>
+      api.getLatestAuthoringAiRun!(
+        versionQuery.data!.id,
+        "PARSE_QUESTION_PAPER",
+      ),
+    enabled: Boolean(versionQuery.data?.id),
+  });
+
+  useEffect(() => {
+    if (artifactQuery.data) {
+      setArtifact(artifactQuery.data);
+    }
+  }, [artifactQuery.data]);
+
+  useEffect(() => {
+    const latest = latestParseQuery.data;
+    if (!latest) return;
+    if (
+      latest.status === "QUEUED" ||
+      latest.status === "RUNNING" ||
+      latest.status === "REVIEW_REQUIRED"
+    ) {
+      setActiveRunId(latest.id);
+      if (latest.status === "REVIEW_REQUIRED" && latest.proposal_payload?.roots) {
+        setDraftRoots(latest.proposal_payload.roots);
+      }
+    }
+  }, [latestParseQuery.data]);
+
   const runQuery = useQuery({
     queryKey: ["authoring-ai-run", activeRunId],
     queryFn: () => api.getAuthoringAiRun!(activeRunId!),
@@ -192,6 +230,9 @@ function LiveQuestionsPage({ id }: { id: string }) {
       if (run.status === "REVIEW_REQUIRED" && run.proposal_payload?.roots) {
         setDraftRoots(run.proposal_payload.roots);
       }
+      void queryClient.invalidateQueries({
+        queryKey: ["latest-parse-run", versionQuery.data?.id],
+      });
     },
     onError: (err) => {
       setActionError(isApiError(err) ? err.message : "Parse failed");

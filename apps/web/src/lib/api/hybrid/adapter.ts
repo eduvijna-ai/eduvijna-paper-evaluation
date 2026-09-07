@@ -112,6 +112,10 @@ export const HybridEduVijnaApi: ApiClient = {
     AuthoringHttpApi.uploadQuestionPaper(versionId, file),
   prepareQuestionPaperParse: (versionId) =>
     AuthoringHttpApi.prepareQuestionPaperParse(versionId),
+  getLatestAuthoringAiRun: (versionId, operation) =>
+    AuthoringHttpApi.getLatestAuthoringAiRun(versionId, operation),
+  getAssessmentArtifact: (artifactId) =>
+    AuthoringHttpApi.getAssessmentArtifact(artifactId),
   getAuthoringAiRun: (runId) => AuthoringHttpApi.getAuthoringAiRun(runId),
   updateQuestionTreeProposal: (runId, tree) =>
     AuthoringHttpApi.updateQuestionTreeProposal(runId, tree),

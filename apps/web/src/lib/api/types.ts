@@ -145,6 +145,11 @@ export interface ApiClient {
     file: File,
   ): Promise<AssessmentArtifact>;
   prepareQuestionPaperParse?(versionId: string): Promise<AuthoringAiRun>;
+  getLatestAuthoringAiRun?(
+    versionId: string,
+    operation?: string,
+  ): Promise<AuthoringAiRun | null>;
+  getAssessmentArtifact?(artifactId: string): Promise<AssessmentArtifact>;
   getAuthoringAiRun?(runId: string): Promise<AuthoringAiRun>;
   updateQuestionTreeProposal?(
     runId: string,
