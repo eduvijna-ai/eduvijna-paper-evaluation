@@ -9,12 +9,13 @@ function runId(): string {
   return `${Date.now().toString(36)}${randomUUID().replace(/-/g, "").slice(0, 8)}`;
 }
 
-async function buildMultiPagePdf(): Promise<Buffer> {
+async function buildUniquePdf(label: string): Promise<Buffer> {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
-  for (const label of ["Page 1 — B8", "Page 2 — B8"]) {
+  for (const pageLabel of [`Page 1 — ${label}`, `Page 2 — ${label}`]) {
     const page = doc.addPage([400, 560]);
-    page.drawText(label, { x: 48, y: 500, size: 18, font });
+    page.drawText(pageLabel, { x: 48, y: 500, size: 16, font });
+    page.drawText(runId(), { x: 48, y: 460, size: 10, font });
   }
   return Buffer.from(await doc.save());
 }
@@ -554,7 +555,8 @@ test.describe("B8 live analytics + mastery evidence (real API)", () => {
       apiBase,
       token,
     );
-    const pdf = await buildMultiPagePdf();
+    const pdfA = await buildUniquePdf("B8-A");
+    const pdfB = await buildUniquePdf("B8-B");
 
     const empty = await request.get(
       `${apiBase}/api/v1/analytics/assessments/${assessmentId}`,
@@ -565,8 +567,8 @@ test.describe("B8 live analytics + mastery evidence (real API)", () => {
       ((await empty.json()) as { published_attempt_count: number }).published_attempt_count,
     ).toBe(0);
 
-    await publishOne(page, request, apiBase, token, assessmentId, studentA, pdf, 3.5);
-    await publishOne(page, request, apiBase, token, assessmentId, studentB, pdf, 4);
+    await publishOne(page, request, apiBase, token, assessmentId, studentA, pdfA, 3.5);
+    await publishOne(page, request, apiBase, token, assessmentId, studentB, pdfB, 4);
 
     await page.goto(`/analytics/assessments/${assessmentId}`);
     await expect(page.getByTestId("assessment-analytics-page")).toBeVisible({
