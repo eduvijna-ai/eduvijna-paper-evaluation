@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from app.ai.execution_metadata import FIXED_NARRATIVE_META, AIExecutionMetadata
 from app.ai.types import (
     ParentNarrativeInput,
     ParentNarrativeResult,
@@ -19,6 +20,14 @@ class FixedNarrativeProvider:
 
     def __init__(self, *, allow_non_test: bool = False) -> None:
         self._allow_non_test = allow_non_test
+
+    def execution_metadata(self, operation: str) -> AIExecutionMetadata:
+        return AIExecutionMetadata(
+            provider=FIXED_NARRATIVE_META.provider,
+            model=FIXED_NARRATIVE_META.model,
+            model_version=FIXED_NARRATIVE_META.model_version,
+            prompt_template_version=f"fixed-narrative-{operation}-v1",
+        )
 
     async def generate_student_explanation(
         self, request: StudentNarrativeInput

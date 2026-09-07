@@ -132,6 +132,12 @@ export const HybridEduVijnaApi: ApiClient = {
   approveRubric: (id) => AuthoringHttpApi.approveRubric(id),
   prepareAiRubricProposal: (input) =>
     AuthoringHttpApi.prepareAiRubricProposal(input),
+  prepareAiCurriculumMappingProposal: (input) =>
+    AuthoringHttpApi.prepareAiCurriculumMappingProposal(input),
+  updateCurriculumMappingProposal: (runId, mappings) =>
+    AuthoringHttpApi.updateCurriculumMappingProposal(runId, mappings),
+  applyCurriculumMappings: (runId, selectedIndices) =>
+    AuthoringHttpApi.applyCurriculumMappings(runId, selectedIndices),
   transitionAssessment: async (assessmentId, toStatus) => {
     const row = await AuthoringHttpApi.transitionAssessment(
       assessmentId,

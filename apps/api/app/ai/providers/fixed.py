@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 from decimal import Decimal
 
+from app.ai.execution_metadata import FIXED_STRUCTURE_META, AIExecutionMetadata
 from app.ai.types import (
     CriterionProposal,
     ErrorClassificationInput,
@@ -70,6 +71,14 @@ class FixedStructureProvider:
 
     def __init__(self, *, allow_non_test: bool = False) -> None:
         self._allow_non_test = allow_non_test
+
+    def execution_metadata(self, operation: str) -> AIExecutionMetadata:
+        return AIExecutionMetadata(
+            provider=FIXED_STRUCTURE_META.provider,
+            model=FIXED_STRUCTURE_META.model,
+            model_version=FIXED_STRUCTURE_META.model_version,
+            prompt_template_version=f"fixed-structure-{operation}-v1",
+        )
 
     def _guard(self) -> None:
         if not self._allow_non_test:

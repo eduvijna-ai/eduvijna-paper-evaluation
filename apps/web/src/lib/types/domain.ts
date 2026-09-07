@@ -222,6 +222,14 @@ export interface AuthoringAiRun {
     notes?: string | null;
     answer_text_length?: number;
     has_structured_answer?: boolean;
+    mappings?: Array<{
+      curriculum_node_id: string;
+      mapping_type?: string;
+      weight?: string | number | null;
+      rationale?: string | null;
+    }>;
+    curriculum_id?: string;
+    candidate_node_ids?: string[];
     [key: string]: unknown;
   } | null;
   requested_by: string;

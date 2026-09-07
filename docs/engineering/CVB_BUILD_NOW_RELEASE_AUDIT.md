@@ -1,13 +1,27 @@
 # CVB BUILD_NOW Release Audit
 
 **Product:** EduVijna Enterprise Paper Evaluation — CVB v0.1  
-**Branch:** `b10/cvb-release-closure`  
+**Current corrective branch:** `b11/cvb-release-blocker-fixes`  
 **PR base:** `develop`  
-**Starting `develop` SHA:** `9f4f8f9fb3ece34fad08dd824e4052f47598c53d`  
+**B10 squash on `develop`:** `be73cc3bcf91b4078b3fea63b3788403129a1419`  
 **Starting `main` SHA:** `be5f10aef3cf536420adcffdb9302b6b3b6c0955`  
 **Authoritative register:** `docs/product/REQUIREMENTS_REGISTER.md`  
-**Audit date:** 2026-09-07  
-**Evidence basis:** Live code on this branch after A1–A2 + B1–B10 (including uncommitted B10 closure work)
+**Audit date:** 2026-09-07 (re-audited after B11)  
+**Evidence basis:** Live code after A1–A2 + B1–B11
+
+---
+
+## Independent post-B10 audit findings
+
+An independent post-merge audit of B10 superseded the earlier **59/59 VERIFIED** claim. Confirmed defects:
+
+| Finding | Requirement impact | Status after B11 |
+|---------|-------------------|------------------|
+| Question-paper parse did not consume uploaded source evidence (metadata-only input; tests parsed without upload) | **PEV-002** | Closed — artifact required + evidence extraction + evidence-dependent fixed parse + regressions |
+| Curriculum AI suggestions auto-wrote canonical `QuestionCurriculumMapping` rows | Authoring human-gate (PEV-004 / curriculum proposal path) | Closed — proposal-only worker + `apply-curriculum-mappings` + allowlist |
+| Authoring (and other) AI invocations omitted `model` / `model_version` / `prompt_template_version` | **PEV-060** | Closed — `AIExecutionMetadata` + call-site population |
+
+Do not treat the pre-B11 B10 matrix as final release evidence. See `docs/engineering/B11_CVB_RELEASE_AUDIT_FIX_REPORT.md`.
 
 ---
 
@@ -15,7 +29,7 @@
 
 * Scope = all **59 BUILD_NOW** requirements from the register (§ Summary).  
 * **VERIFIED** = concrete runtime implementation + test evidence meeting acceptance intent (not contract-only stubs).  
-* **BLOCKED** = genuine BUILD_NOW gap remaining after B10.  
+* **BLOCKED** = genuine BUILD_NOW gap remaining after B11.  
 * AFTER_CLIENT_APPROVAL / FUTURE_ENTERPRISE IDs are **out of scope** and listed only under Deferred (must not be marked VERIFIED as live).  
 * CVB-bounded deliverables (e.g. PEV-013 Mathematics focus, PEV-042 blueprint-only, PEV-047 basic question analytics, PEV-069 scan **hook**) are VERIFIED when the register’s CVB acceptance intent is met.
 
@@ -25,8 +39,8 @@
 
 | Status | Count | Notes |
 |--------|------:|-------|
-| **VERIFIED** | **59** | All BUILD_NOW IDs have live implementation evidence after B0–B10 |
-| **BLOCKED** | **0** | No remaining BUILD_NOW implementation gaps found |
+| **VERIFIED** | **59** | Re-verified after B11 blocker fixes (evidence-driven parse, curriculum human-gate, PEV-060 metadata) |
+| **BLOCKED** | **0** | No remaining BUILD_NOW implementation gaps found after B11 |
 
 **Deferred (not BUILD_NOW — do not treat as live):**  
 PEV-035, 036, 037, 038, 041, 043, 044–046, 048–051, 054–059.
@@ -67,9 +81,9 @@ PEV-035, 036, 037, 038, 041, 043, 044–046, 048–051, 054–059.
 | PEV | Name | Phase | Code evidence | Test evidence | Status |
 |-----|------|-------|---------------|---------------|--------|
 | PEV-001 | Assessment Creation | A2 | `apps/api/app/db/models/curriculum_assessment.py` (`Assessment`/`AssessmentVersion`); `apps/api/app/api/v1/curriculum_assessment.py` | `apps/api/tests/test_a2_gate_matrix.py` | **VERIFIED** |
-| PEV-002 | Question Paper Ingestion | B10 | `apps/api/app/services/assessment_artifacts.py`; `apps/api/app/api/v1/authoring.py`; `apps/api/app/services/authoring_ai.py` (parse/apply); mig `20260907_0011` | `test_b10_assessment_artifacts.py`; `test_b10_authoring_ai.py` (`test_b10_parse_edit_apply_questions`) | **VERIFIED** |
+| PEV-002 | Question Paper Ingestion | B10+B11 | `assessment_artifacts.py`; evidence `question_paper_evidence.py`; parse/apply in `authoring_ai.py`; mig `20260907_0011` | `test_b11_release_blockers.py` (no-source blocked; evidence-dependent parse); `test_b10_authoring_ai.py` | **VERIFIED** |
 | PEV-003 | Teacher Answer Key & Rubric | A2 | `AnswerKeyVersion` / `RubricVersion` / `RubricCriterion` models + A2 approve routes | `test_a2_gate_matrix.py` (`test_a2_answer_key_rubric_mapping_and_readiness`) | **VERIFIED** |
-| PEV-004 | AI-Proposed Answer Key & Rubric | B10 | `apps/api/app/api/v1/authoring_ai.py`; `services/authoring_ai.py` (`prepare_propose_*`); `db/models/authoring.py` (`AuthoringAiRun`); `ai/protocols.py` (`AuthoringAIProvider`) | `test_b10_authoring_ai.py` (propose + no overwrite teacher material) | **VERIFIED** |
+| PEV-004 | AI-Proposed Answer Key & Rubric | B10+B11 | Authoring runs; curriculum suggest proposal-only + human apply; answer/rubric REVIEW_REQUIRED | `test_b10_authoring_ai.py`; `test_b11_release_blockers.py` (curriculum gate) | **VERIFIED** |
 
 ### Tenancy, roster, RBAC
 
@@ -140,7 +154,7 @@ PEV-035, 036, 037, 038, 041, 043, 044–046, 048–051, 054–059.
 | PEV | Name | Phase | Code evidence | Test evidence | Status |
 |-----|------|-------|---------------|---------------|--------|
 | PEV-024 | Complete Audit History | A1+B10 | `db/models/audit.py`; `services/audit.py` | A1 suite; `test_b10_audit_correlation.py` | **VERIFIED** |
-| PEV-060 | AI Execution Metadata | A2/B5+ | `AiExecutionRecord`; `ai/tracing.py` | A2/B5/B6/B9/B10 AI tests | **VERIFIED** |
+| PEV-060 | AI Execution Metadata | A2/B5+B11 | `AiExecutionRecord`; `ai/tracing.py`; `ai/execution_metadata.py` | A2/B5/B6/B9/B10/B11 AI tests (`test_b11_fixed_authoring_metadata_shape`) | **VERIFIED** |
 | PEV-061 | Separate Confidence Dimensions | B3–B6 | `identity` / `mapping` / `transcription` / `evaluation` confidence fields | B3–B6 tests; publication dimensional dump | **VERIFIED** |
 | PEV-062 | No Generic AI Confidence | B5–B7 | APIs/reports expose dimensional confidence only | B5–B7 suites / report builders | **VERIFIED** |
 | PEV-065 | No Whole-PDF LLM Reports | B7 | Ledger-backed `publication.py` builders; narrative from structured context | `test_b7_publication_reports.py` | **VERIFIED** |

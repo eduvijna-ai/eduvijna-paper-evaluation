@@ -12,6 +12,7 @@ from fastapi import HTTPException
 from sqlalchemy import func, inspect, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.execution_metadata import metadata_from_provider
 from app.ai.registry import get_authoring_provider
 from app.ai.tracing import canonical_input_hash, record_ai_execution, redacted_request_summary
 from app.ai.types import (
@@ -20,8 +21,8 @@ from app.ai.types import (
     AnswerKeyProposalInput,
     CurriculumMappingProposalInput,
     CurriculumNodeHint,
+    ProposedCurriculumMapping,
     ProposedQuestionNode,
-    QuestionPaperParseInput,
     QuestionPaperParseResult,
     RubricProposalInput,
 )
@@ -49,9 +50,16 @@ from app.services.academic_freeze import (
     rubric_version_audit_payload,
 )
 from app.services.audit import add_audit_event
+from app.services.question_paper_evidence import (
+    QuestionPaperEvidenceError,
+    build_parse_input_from_artifact,
+    evidence_trace_summary,
+)
 from app.services.rubric_reconciliation import reconcile_rubric
 
 logger = logging.getLogger(__name__)
+
+_ALLOWED_CURRICULUM_MAPPING_TYPES = frozenset({"PRIMARY", "SECONDARY", "LEARNING_OUTCOME", "SKILL"})
 
 
 class AuthoringAiError(RuntimeError):
@@ -112,9 +120,7 @@ def validate_question_tree(
             )
         code = node.stable_code.strip()
         if not code:
-            raise AuthoringAiError(
-                "QUESTION_TREE_INVALID_CODE", "stable_code must be non-empty"
-            )
+            raise AuthoringAiError("QUESTION_TREE_INVALID_CODE", "stable_code must be non-empty")
         if code in codes:
             raise AuthoringAiError(
                 "QUESTION_TREE_DUPLICATE_CODE",
@@ -162,9 +168,7 @@ def _tree_payload(result: QuestionPaperParseResult) -> dict[str, Any]:
 
 def _parse_roots_from_payload(payload: dict[str, Any] | None) -> list[ProposedQuestionNode]:
     if not payload or "roots" not in payload:
-        raise AuthoringAiError(
-            "QUESTION_TREE_EMPTY", "proposal_payload is missing roots"
-        )
+        raise AuthoringAiError("QUESTION_TREE_EMPTY", "proposal_payload is missing roots")
     parsed = QuestionPaperParseResult.model_validate(payload)
     return list(parsed.roots)
 
@@ -187,18 +191,14 @@ async def _get_assessment(
     db: AsyncSession, *, tenant_id: uuid.UUID, assessment_id: uuid.UUID
 ) -> Assessment:
     assessment = await db.scalar(
-        select(Assessment).where(
-            Assessment.id == assessment_id, Assessment.tenant_id == tenant_id
-        )
+        select(Assessment).where(Assessment.id == assessment_id, Assessment.tenant_id == tenant_id)
     )
     if assessment is None:
         raise AuthoringAiError("NOT_FOUND", "Assessment not found")
     return assessment
 
 
-async def _get_run(
-    db: AsyncSession, *, tenant_id: uuid.UUID, run_id: uuid.UUID
-) -> AuthoringAiRun:
+async def _get_run(db: AsyncSession, *, tenant_id: uuid.UUID, run_id: uuid.UUID) -> AuthoringAiRun:
     run = await db.scalar(
         select(AuthoringAiRun).where(
             AuthoringAiRun.id == run_id, AuthoringAiRun.tenant_id == tenant_id
@@ -223,9 +223,7 @@ async def get_latest_authoring_run_for_version(
     operation: str | None = None,
 ) -> AuthoringAiRun | None:
     """Return the newest authoring run for a tenant-scoped assessment version."""
-    await _get_version(
-        db, tenant_id=tenant_id, version_id=assessment_version_id
-    )
+    await _get_version(db, tenant_id=tenant_id, version_id=assessment_version_id)
     stmt = select(AuthoringAiRun).where(
         AuthoringAiRun.tenant_id == tenant_id,
         AuthoringAiRun.assessment_version_id == assessment_version_id,
@@ -316,12 +314,8 @@ async def prepare_parse_question_paper(
     requested_by: uuid.UUID,
     correlation_id: str | None = None,
 ) -> AuthoringAiRun:
-    version = await _get_version(
-        db, tenant_id=tenant_id, version_id=assessment_version_id
-    )
-    assessment = await _get_assessment(
-        db, tenant_id=tenant_id, assessment_id=version.assessment_id
-    )
+    version = await _get_version(db, tenant_id=tenant_id, version_id=assessment_version_id)
+    assessment = await _get_assessment(db, tenant_id=tenant_id, assessment_id=version.assessment_id)
     if assessment.status != "DRAFT" or version.status != "DRAFT":
         raise AuthoringAiError(
             "ASSESSMENT_NOT_DRAFT",
@@ -341,21 +335,40 @@ async def prepare_parse_question_paper(
             "Assessment version already has questions",
         )
 
-    artifact: AssessmentArtifact | None = None
-    if version.question_paper_artifact_id is not None:
-        artifact = await db.scalar(
-            select(AssessmentArtifact).where(
-                AssessmentArtifact.id == version.question_paper_artifact_id,
-                AssessmentArtifact.tenant_id == tenant_id,
-            )
+    if version.question_paper_artifact_id is None:
+        raise AuthoringAiError(
+            "QUESTION_PAPER_ARTIFACT_REQUIRED",
+            "Question paper parse requires an uploaded question-paper artifact",
+        )
+    artifact = await db.scalar(
+        select(AssessmentArtifact).where(
+            AssessmentArtifact.id == version.question_paper_artifact_id,
+            AssessmentArtifact.tenant_id == tenant_id,
+        )
+    )
+    if artifact is None:
+        raise AuthoringAiError(
+            "QUESTION_PAPER_ARTIFACT_REQUIRED",
+            "Question paper artifact not found for this assessment version",
+        )
+    if artifact.assessment_id != assessment.id or artifact.artifact_type != "QUESTION_PAPER":
+        raise AuthoringAiError(
+            "QUESTION_PAPER_ARTIFACT_REQUIRED",
+            "Linked artifact is not a valid question paper for this assessment",
+        )
+    if artifact.security_scan_status not in {"CLEAN", "NOT_CONFIGURED"}:
+        raise AuthoringAiError(
+            "QUESTION_PAPER_ARTIFACT_NOT_SCANNABLE",
+            "Question paper artifact is not scannable for authoring parse "
+            f"(status={artifact.security_scan_status})",
         )
 
     input_hash = canonical_input_hash(
         {
             "operation": "PARSE_QUESTION_PAPER",
             "assessment_version_id": str(version.id),
-            "artifact_id": str(artifact.id) if artifact else None,
-            "content_sha256": artifact.content_sha256 if artifact else None,
+            "artifact_id": str(artifact.id),
+            "content_sha256": artifact.content_sha256,
             "max_marks": str(version.max_marks),
         }
     )
@@ -365,9 +378,7 @@ async def prepare_parse_question_paper(
             AuthoringAiRun.assessment_version_id == version.id,
             AuthoringAiRun.operation == "PARSE_QUESTION_PAPER",
             AuthoringAiRun.input_hash == input_hash,
-            AuthoringAiRun.status.in_(
-                ("QUEUED", "RUNNING", "REVIEW_REQUIRED", "SUCCEEDED")
-            ),
+            AuthoringAiRun.status.in_(("QUEUED", "RUNNING", "REVIEW_REQUIRED", "SUCCEEDED")),
         )
     )
     if existing is not None:
@@ -377,7 +388,7 @@ async def prepare_parse_question_paper(
         tenant_id=tenant_id,
         assessment_id=assessment.id,
         assessment_version_id=version.id,
-        assessment_artifact_id=artifact.id if artifact else None,
+        assessment_artifact_id=artifact.id,
         operation="PARSE_QUESTION_PAPER",
         status="QUEUED",
         input_hash=input_hash,
@@ -390,9 +401,7 @@ async def prepare_parse_question_paper(
     return run
 
 
-async def run_parse_pipeline(
-    db: AsyncSession, *, tenant_id: uuid.UUID, run_id: uuid.UUID
-) -> None:
+async def run_parse_pipeline(db: AsyncSession, *, tenant_id: uuid.UUID, run_id: uuid.UUID) -> None:
     run = await _get_run(db, tenant_id=tenant_id, run_id=run_id)
     if run.operation != "PARSE_QUESTION_PAPER":
         raise AuthoringAiError("INVALID_OPERATION", "Run is not a parse operation")
@@ -401,9 +410,7 @@ async def run_parse_pipeline(
 
     provider = get_authoring_provider()
     if provider is None:
-        await mark_unavailable(
-            db, tenant_id=tenant_id, run=run, operation="parse_question_paper"
-        )
+        await mark_unavailable(db, tenant_id=tenant_id, run=run, operation="parse_question_paper")
         await db.commit()
         return
 
@@ -411,32 +418,72 @@ async def run_parse_pipeline(
     run.started_at = _utcnow()
     await db.flush()
 
-    version = await _get_version(
-        db, tenant_id=tenant_id, version_id=run.assessment_version_id
-    )
-    assessment = await _get_assessment(
-        db, tenant_id=tenant_id, assessment_id=run.assessment_id
-    )
-    artifact: AssessmentArtifact | None = None
-    if run.assessment_artifact_id is not None:
-        artifact = await db.scalar(
-            select(AssessmentArtifact).where(
-                AssessmentArtifact.id == run.assessment_artifact_id,
-                AssessmentArtifact.tenant_id == tenant_id,
-            )
+    version = await _get_version(db, tenant_id=tenant_id, version_id=run.assessment_version_id)
+    assessment = await _get_assessment(db, tenant_id=tenant_id, assessment_id=run.assessment_id)
+    if run.assessment_artifact_id is None:
+        run.status = "FAILED"
+        run.failure_code = "QUESTION_PAPER_ARTIFACT_REQUIRED"
+        run.failure_detail = "Parse run is missing assessment_artifact_id"
+        run.finished_at = _utcnow()
+        await db.commit()
+        return
+    artifact = await db.scalar(
+        select(AssessmentArtifact).where(
+            AssessmentArtifact.id == run.assessment_artifact_id,
+            AssessmentArtifact.tenant_id == tenant_id,
         )
-
-    ai_input = QuestionPaperParseInput(
-        assessment_id=assessment.id,
-        assessment_version_id=version.id,
-        assessment_title=assessment.title,
-        max_marks=version.max_marks,
-        assessment_artifact_id=artifact.id if artifact else None,
-        content_sha256=artifact.content_sha256 if artifact else None,
-        mime_type=artifact.mime_type if artifact else None,
-        original_filename=artifact.original_filename if artifact else None,
     )
+    if artifact is None:
+        run.status = "FAILED"
+        run.failure_code = "QUESTION_PAPER_ARTIFACT_REQUIRED"
+        run.failure_detail = "Parse run artifact not found"
+        run.finished_at = _utcnow()
+        await db.commit()
+        return
+
+    meta = metadata_from_provider(provider, "parse_question_paper")
     started = _utcnow()
+    try:
+        ai_input = build_parse_input_from_artifact(
+            assessment=assessment,
+            version=version,
+            artifact=artifact,
+        )
+    except QuestionPaperEvidenceError as exc:
+        run.status = "FAILED"
+        run.failure_code = exc.code
+        run.failure_detail = exc.message
+        run.finished_at = _utcnow()
+        await record_ai_execution(
+            db,
+            tenant_id=tenant_id,
+            operation="parse_question_paper",
+            status="FAILED",
+            provider=meta.provider,
+            model=meta.model,
+            model_version=meta.model_version,
+            prompt_template_version=meta.prompt_template_version,
+            request_summary=redacted_request_summary(
+                operation="parse_question_paper",
+                entity_ids={
+                    "authoring_ai_run_id": str(run.id),
+                    "assessment_version_id": str(version.id),
+                    "assessment_artifact_id": str(artifact.id),
+                },
+            ),
+            response_summary={"error_code": exc.code},
+            authoring_ai_run_id=run.id,
+            assessment_version_id=version.id,
+            assessment_artifact_id=run.assessment_artifact_id,
+            input_hash=run.input_hash,
+            error_class=exc.code,
+            started_at=started,
+            finished_at=_utcnow(),
+        )
+        await db.commit()
+        return
+
+    evidence_refs = evidence_trace_summary(list(ai_input.evidence_pages))
     try:
         result = await provider.parse_question_paper(ai_input)
         validate_question_tree(list(result.roots), assessment_max_marks=version.max_marks)
@@ -447,19 +494,25 @@ async def run_parse_pipeline(
             db,
             tenant_id=tenant_id,
             operation="parse_question_paper",
-            provider=provider.provider_name,
             status="SUCCEEDED",
+            provider=meta.provider,
+            model=meta.model,
+            model_version=meta.model_version,
+            prompt_template_version=meta.prompt_template_version,
             request_summary=redacted_request_summary(
                 operation="parse_question_paper",
                 entity_ids={
                     "authoring_ai_run_id": str(run.id),
                     "assessment_version_id": str(version.id),
+                    "assessment_artifact_id": str(artifact.id),
                 },
+                input_refs=evidence_refs,
             ),
             response_summary={"root_count": len(result.roots)},
             authoring_ai_run_id=run.id,
             assessment_version_id=version.id,
             assessment_artifact_id=run.assessment_artifact_id,
+            input_refs=evidence_refs,
             input_hash=run.input_hash,
             started_at=started,
             finished_at=_utcnow(),
@@ -474,15 +527,22 @@ async def run_parse_pipeline(
             db,
             tenant_id=tenant_id,
             operation="parse_question_paper",
-            provider=provider.provider_name,
             status="FAILED",
+            provider=meta.provider,
+            model=meta.model,
+            model_version=meta.model_version,
+            prompt_template_version=meta.prompt_template_version,
             request_summary=redacted_request_summary(
                 operation="parse_question_paper",
                 entity_ids={"authoring_ai_run_id": str(run.id)},
+                input_refs=evidence_refs,
             ),
             response_summary={"error_code": exc.code},
             authoring_ai_run_id=run.id,
             assessment_version_id=version.id,
+            assessment_artifact_id=run.assessment_artifact_id,
+            input_refs=evidence_refs,
+            input_hash=run.input_hash,
             error_class=exc.code,
             started_at=started,
             finished_at=_utcnow(),
@@ -494,6 +554,30 @@ async def run_parse_pipeline(
         run.failure_code = "AUTHORING_AI_FAILED"
         run.failure_detail = str(exc)[:500]
         run.finished_at = _utcnow()
+        await record_ai_execution(
+            db,
+            tenant_id=tenant_id,
+            operation="parse_question_paper",
+            status="FAILED",
+            provider=meta.provider,
+            model=meta.model,
+            model_version=meta.model_version,
+            prompt_template_version=meta.prompt_template_version,
+            request_summary=redacted_request_summary(
+                operation="parse_question_paper",
+                entity_ids={"authoring_ai_run_id": str(run.id)},
+                input_refs=evidence_refs,
+            ),
+            response_summary={"error_code": "AUTHORING_AI_FAILED"},
+            authoring_ai_run_id=run.id,
+            assessment_version_id=version.id,
+            assessment_artifact_id=run.assessment_artifact_id,
+            input_refs=evidence_refs,
+            input_hash=run.input_hash,
+            error_class="AUTHORING_AI_FAILED",
+            started_at=started,
+            finished_at=_utcnow(),
+        )
         await db.commit()
 
 
@@ -513,9 +597,7 @@ async def update_question_tree_proposal(
             "AUTHORING_RUN_NOT_EDITABLE",
             "Question tree proposal can only be edited while REVIEW_REQUIRED",
         )
-    version = await _get_version(
-        db, tenant_id=tenant_id, version_id=run.assessment_version_id
-    )
+    version = await _get_version(db, tenant_id=tenant_id, version_id=run.assessment_version_id)
     validate_question_tree(roots, assessment_max_marks=version.max_marks)
     payload = QuestionPaperParseResult(roots=roots, notes=notes).model_dump(mode="json")
     run.proposal_payload = payload
@@ -540,12 +622,8 @@ async def apply_question_tree(
             "AUTHORING_RUN_NOT_APPLICABLE",
             "Question tree can only be applied from REVIEW_REQUIRED",
         )
-    version = await _get_version(
-        db, tenant_id=tenant_id, version_id=run.assessment_version_id
-    )
-    assessment = await _get_assessment(
-        db, tenant_id=tenant_id, assessment_id=run.assessment_id
-    )
+    version = await _get_version(db, tenant_id=tenant_id, version_id=run.assessment_version_id)
+    assessment = await _get_assessment(db, tenant_id=tenant_id, assessment_id=run.assessment_id)
     if assessment.status != "DRAFT" or version.status != "DRAFT":
         raise AuthoringAiError(
             "ASSESSMENT_NOT_DRAFT", "Apply requires DRAFT assessment and version"
@@ -661,14 +739,10 @@ async def _assert_no_existing_material(
             select(AnswerKeyVersion).where(
                 AnswerKeyVersion.answer_key_id == key.id,
                 AnswerKeyVersion.question_version_id == question_version_id,
-                AnswerKeyVersion.status.in_(
-                    ("DRAFT", "REVIEW_REQUIRED", "APPROVED")
-                ),
+                AnswerKeyVersion.status.in_(("DRAFT", "REVIEW_REQUIRED", "APPROVED")),
             )
         )
-        if active is not None and (
-            active.source_type == "TEACHER" or active.status == "APPROVED"
-        ):
+        if active is not None and (active.source_type == "TEACHER" or active.status == "APPROVED"):
             raise AuthoringAiError(
                 "AUTHORING_MATERIAL_ALREADY_EXISTS",
                 "Teacher or approved answer key already exists for this question",
@@ -695,9 +769,7 @@ async def _assert_no_existing_material(
                 RubricVersion.status.in_(("DRAFT", "REVIEW_REQUIRED", "APPROVED")),
             )
         )
-        if active is not None and (
-            active.source_type == "TEACHER" or active.status == "APPROVED"
-        ):
+        if active is not None and (active.source_type == "TEACHER" or active.status == "APPROVED"):
             raise AuthoringAiError(
                 "AUTHORING_MATERIAL_ALREADY_EXISTS",
                 "Teacher or approved rubric already exists for this question",
@@ -726,9 +798,7 @@ async def prepare_propose_answer_key(
     version = await _get_version(db, tenant_id=tenant_id, version_id=version_id)
     if qv.assessment_version_id != version.id:
         raise AuthoringAiError("NOT_FOUND", "Question version not found")
-    assessment = await _get_assessment(
-        db, tenant_id=tenant_id, assessment_id=version.assessment_id
-    )
+    assessment = await _get_assessment(db, tenant_id=tenant_id, assessment_id=version.assessment_id)
     _ensure_mutable(assessment)
     await _assert_no_existing_material(
         db,
@@ -755,9 +825,7 @@ async def prepare_propose_answer_key(
             AuthoringAiRun.tenant_id == tenant_id,
             AuthoringAiRun.operation == "PROPOSE_ANSWER_KEY",
             AuthoringAiRun.input_hash == input_hash,
-            AuthoringAiRun.status.in_(
-                ("QUEUED", "RUNNING", "REVIEW_REQUIRED", "SUCCEEDED")
-            ),
+            AuthoringAiRun.status.in_(("QUEUED", "RUNNING", "REVIEW_REQUIRED", "SUCCEEDED")),
         )
     )
     if existing is not None:
@@ -792,9 +860,7 @@ async def run_propose_answer_key_pipeline(
 
     provider = get_authoring_provider()
     if provider is None:
-        await mark_unavailable(
-            db, tenant_id=tenant_id, run=run, operation="propose_answer_key"
-        )
+        await mark_unavailable(db, tenant_id=tenant_id, run=run, operation="propose_answer_key")
         await db.commit()
         return
 
@@ -806,12 +872,8 @@ async def run_propose_answer_key_pipeline(
     qv = await _get_question_version(
         db, tenant_id=tenant_id, question_version_id=run.question_version_id
     )
-    version = await _get_version(
-        db, tenant_id=tenant_id, version_id=run.assessment_version_id
-    )
-    assessment = await _get_assessment(
-        db, tenant_id=tenant_id, assessment_id=run.assessment_id
-    )
+    version = await _get_version(db, tenant_id=tenant_id, version_id=run.assessment_version_id)
+    assessment = await _get_assessment(db, tenant_id=tenant_id, assessment_id=run.assessment_id)
     question = await db.scalar(
         select(Question).where(Question.id == qv.question_id, Question.tenant_id == tenant_id)
     )
@@ -821,6 +883,7 @@ async def run_propose_answer_key_pipeline(
         instructions = run.proposal_payload.get("instructions")
 
     started = _utcnow()
+    meta = metadata_from_provider(provider, "propose_answer_key")
     try:
         await _assert_no_existing_material(
             db,
@@ -892,8 +955,11 @@ async def run_propose_answer_key_pipeline(
             db,
             tenant_id=tenant_id,
             operation="propose_answer_key",
-            provider=provider.provider_name,
             status="SUCCEEDED",
+            provider=meta.provider,
+            model=meta.model,
+            model_version=meta.model_version,
+            prompt_template_version=meta.prompt_template_version,
             request_summary=redacted_request_summary(
                 operation="propose_answer_key",
                 entity_ids={
@@ -915,6 +981,30 @@ async def run_propose_answer_key_pipeline(
         run.failure_code = exc.code
         run.failure_detail = exc.message
         run.finished_at = _utcnow()
+        await record_ai_execution(
+            db,
+            tenant_id=tenant_id,
+            operation="propose_answer_key",
+            status="FAILED",
+            provider=meta.provider,
+            model=meta.model,
+            model_version=meta.model_version,
+            prompt_template_version=meta.prompt_template_version,
+            request_summary=redacted_request_summary(
+                operation="propose_answer_key",
+                entity_ids={
+                    "authoring_ai_run_id": str(run.id),
+                    "question_version_id": str(qv.id),
+                },
+            ),
+            response_summary={"error_code": exc.code},
+            authoring_ai_run_id=run.id,
+            assessment_version_id=version.id,
+            input_hash=run.input_hash,
+            error_class=exc.code,
+            started_at=started,
+            finished_at=_utcnow(),
+        )
         await db.commit()
     except Exception as exc:  # noqa: BLE001
         logger.exception("answer key propose failed run_id=%s", run.id)
@@ -922,6 +1012,30 @@ async def run_propose_answer_key_pipeline(
         run.failure_code = "AUTHORING_AI_FAILED"
         run.failure_detail = str(exc)[:500]
         run.finished_at = _utcnow()
+        await record_ai_execution(
+            db,
+            tenant_id=tenant_id,
+            operation="propose_answer_key",
+            status="FAILED",
+            provider=meta.provider,
+            model=meta.model,
+            model_version=meta.model_version,
+            prompt_template_version=meta.prompt_template_version,
+            request_summary=redacted_request_summary(
+                operation="propose_answer_key",
+                entity_ids={
+                    "authoring_ai_run_id": str(run.id),
+                    "question_version_id": str(qv.id),
+                },
+            ),
+            response_summary={"error_code": "AUTHORING_AI_FAILED"},
+            authoring_ai_run_id=run.id,
+            assessment_version_id=version.id,
+            input_hash=run.input_hash,
+            error_class="AUTHORING_AI_FAILED",
+            started_at=started,
+            finished_at=_utcnow(),
+        )
         await db.commit()
 
 
@@ -942,9 +1056,7 @@ async def prepare_propose_rubric(
     version = await _get_version(db, tenant_id=tenant_id, version_id=version_id)
     if qv.assessment_version_id != version.id:
         raise AuthoringAiError("NOT_FOUND", "Question version not found")
-    assessment = await _get_assessment(
-        db, tenant_id=tenant_id, assessment_id=version.assessment_id
-    )
+    assessment = await _get_assessment(db, tenant_id=tenant_id, assessment_id=version.assessment_id)
     _ensure_mutable(assessment)
     await _assert_no_existing_material(
         db,
@@ -970,9 +1082,7 @@ async def prepare_propose_rubric(
             AuthoringAiRun.tenant_id == tenant_id,
             AuthoringAiRun.operation == "PROPOSE_RUBRIC",
             AuthoringAiRun.input_hash == input_hash,
-            AuthoringAiRun.status.in_(
-                ("QUEUED", "RUNNING", "REVIEW_REQUIRED", "SUCCEEDED")
-            ),
+            AuthoringAiRun.status.in_(("QUEUED", "RUNNING", "REVIEW_REQUIRED", "SUCCEEDED")),
         )
     )
     if existing is not None:
@@ -1007,9 +1117,7 @@ async def run_propose_rubric_pipeline(
 
     provider = get_authoring_provider()
     if provider is None:
-        await mark_unavailable(
-            db, tenant_id=tenant_id, run=run, operation="propose_rubric"
-        )
+        await mark_unavailable(db, tenant_id=tenant_id, run=run, operation="propose_rubric")
         await db.commit()
         return
 
@@ -1021,12 +1129,8 @@ async def run_propose_rubric_pipeline(
     qv = await _get_question_version(
         db, tenant_id=tenant_id, question_version_id=run.question_version_id
     )
-    version = await _get_version(
-        db, tenant_id=tenant_id, version_id=run.assessment_version_id
-    )
-    assessment = await _get_assessment(
-        db, tenant_id=tenant_id, assessment_id=run.assessment_id
-    )
+    version = await _get_version(db, tenant_id=tenant_id, version_id=run.assessment_version_id)
+    assessment = await _get_assessment(db, tenant_id=tenant_id, assessment_id=run.assessment_id)
     question = await db.scalar(
         select(Question).where(Question.id == qv.question_id, Question.tenant_id == tenant_id)
     )
@@ -1036,6 +1140,7 @@ async def run_propose_rubric_pipeline(
         instructions = run.proposal_payload.get("instructions")
 
     started = _utcnow()
+    meta = metadata_from_provider(provider, "propose_rubric")
     try:
         await _assert_no_existing_material(
             db,
@@ -1163,8 +1268,11 @@ async def run_propose_rubric_pipeline(
             db,
             tenant_id=tenant_id,
             operation="propose_rubric",
-            provider=provider.provider_name,
             status="SUCCEEDED",
+            provider=meta.provider,
+            model=meta.model,
+            model_version=meta.model_version,
+            prompt_template_version=meta.prompt_template_version,
             request_summary=redacted_request_summary(
                 operation="propose_rubric",
                 entity_ids={
@@ -1186,6 +1294,30 @@ async def run_propose_rubric_pipeline(
         run.failure_code = exc.code
         run.failure_detail = exc.message
         run.finished_at = _utcnow()
+        await record_ai_execution(
+            db,
+            tenant_id=tenant_id,
+            operation="propose_rubric",
+            status="FAILED",
+            provider=meta.provider,
+            model=meta.model,
+            model_version=meta.model_version,
+            prompt_template_version=meta.prompt_template_version,
+            request_summary=redacted_request_summary(
+                operation="propose_rubric",
+                entity_ids={
+                    "authoring_ai_run_id": str(run.id),
+                    "question_version_id": str(qv.id),
+                },
+            ),
+            response_summary={"error_code": exc.code},
+            authoring_ai_run_id=run.id,
+            assessment_version_id=version.id,
+            input_hash=run.input_hash,
+            error_class=exc.code,
+            started_at=started,
+            finished_at=_utcnow(),
+        )
         await db.commit()
     except Exception as exc:  # noqa: BLE001
         logger.exception("rubric propose failed run_id=%s", run.id)
@@ -1193,6 +1325,30 @@ async def run_propose_rubric_pipeline(
         run.failure_code = "AUTHORING_AI_FAILED"
         run.failure_detail = str(exc)[:500]
         run.finished_at = _utcnow()
+        await record_ai_execution(
+            db,
+            tenant_id=tenant_id,
+            operation="propose_rubric",
+            status="FAILED",
+            provider=meta.provider,
+            model=meta.model,
+            model_version=meta.model_version,
+            prompt_template_version=meta.prompt_template_version,
+            request_summary=redacted_request_summary(
+                operation="propose_rubric",
+                entity_ids={
+                    "authoring_ai_run_id": str(run.id),
+                    "question_version_id": str(qv.id),
+                },
+            ),
+            response_summary={"error_code": "AUTHORING_AI_FAILED"},
+            authoring_ai_run_id=run.id,
+            assessment_version_id=version.id,
+            input_hash=run.input_hash,
+            error_class="AUTHORING_AI_FAILED",
+            started_at=started,
+            finished_at=_utcnow(),
+        )
         await db.commit()
 
 
@@ -1209,12 +1365,8 @@ async def prepare_suggest_curriculum_mapping(
     qv = await _get_question_version(
         db, tenant_id=tenant_id, question_version_id=question_version_id
     )
-    version = await _get_version(
-        db, tenant_id=tenant_id, version_id=qv.assessment_version_id
-    )
-    assessment = await _get_assessment(
-        db, tenant_id=tenant_id, assessment_id=version.assessment_id
-    )
+    version = await _get_version(db, tenant_id=tenant_id, version_id=qv.assessment_version_id)
+    assessment = await _get_assessment(db, tenant_id=tenant_id, assessment_id=version.assessment_id)
     _ensure_mutable(assessment)
     resolved_curriculum = curriculum_id or assessment.curriculum_id
     question = await db.scalar(
@@ -1234,9 +1386,7 @@ async def prepare_suggest_curriculum_mapping(
             AuthoringAiRun.tenant_id == tenant_id,
             AuthoringAiRun.operation == "SUGGEST_CURRICULUM_MAPPING",
             AuthoringAiRun.input_hash == input_hash,
-            AuthoringAiRun.status.in_(
-                ("QUEUED", "RUNNING", "REVIEW_REQUIRED", "SUCCEEDED")
-            ),
+            AuthoringAiRun.status.in_(("QUEUED", "RUNNING", "REVIEW_REQUIRED", "SUCCEEDED")),
         )
     )
     if existing is not None:
@@ -1269,9 +1419,7 @@ async def run_suggest_curriculum_mapping_pipeline(
 ) -> None:
     run = await _get_run(db, tenant_id=tenant_id, run_id=run_id)
     if run.operation != "SUGGEST_CURRICULUM_MAPPING":
-        raise AuthoringAiError(
-            "INVALID_OPERATION", "Run is not a curriculum-mapping proposal"
-        )
+        raise AuthoringAiError("INVALID_OPERATION", "Run is not a curriculum-mapping proposal")
     if run.status in {"REVIEW_REQUIRED", "SUCCEEDED", "UNAVAILABLE"}:
         return
 
@@ -1294,13 +1442,9 @@ async def run_suggest_curriculum_mapping_pipeline(
     qv = await _get_question_version(
         db, tenant_id=tenant_id, question_version_id=run.question_version_id
     )
-    assessment = await _get_assessment(
-        db, tenant_id=tenant_id, assessment_id=run.assessment_id
-    )
+    assessment = await _get_assessment(db, tenant_id=tenant_id, assessment_id=run.assessment_id)
     curriculum_id = assessment.curriculum_id
-    if isinstance(run.proposal_payload, dict) and run.proposal_payload.get(
-        "curriculum_id"
-    ):
+    if isinstance(run.proposal_payload, dict) and run.proposal_payload.get("curriculum_id"):
         curriculum_id = uuid.UUID(str(run.proposal_payload["curriculum_id"]))
     nodes = list(
         (
@@ -1325,6 +1469,8 @@ async def run_suggest_curriculum_mapping_pipeline(
         instructions = run.proposal_payload.get("instructions")
 
     started = _utcnow()
+    meta = metadata_from_provider(provider, "suggest_curriculum_mapping")
+    candidate_node_ids = [str(n.id) for n in nodes]
     try:
         result = await provider.suggest_curriculum_mapping(
             CurriculumMappingProposalInput(
@@ -1344,33 +1490,30 @@ async def run_suggest_curriculum_mapping_pipeline(
                 instructions=instructions,
             )
         )
-        # Store proposal only — teacher applies mappings manually; do not auto-write.
-        # Optionally create mappings as REVIEW suggestions via payload.
-        created = 0
+        allowed_node_ids = {n.id for n in nodes}
         for mapping in result.mappings:
-            exists = await db.scalar(
-                select(QuestionCurriculumMapping).where(
-                    QuestionCurriculumMapping.tenant_id == tenant_id,
-                    QuestionCurriculumMapping.question_version_id == qv.id,
-                    QuestionCurriculumMapping.curriculum_node_id
-                    == mapping.curriculum_node_id,
-                    QuestionCurriculumMapping.mapping_type == mapping.mapping_type,
+            if mapping.curriculum_node_id not in allowed_node_ids:
+                raise AuthoringAiError(
+                    "AUTHORING_PROVIDER_INVALID_CURRICULUM_NODE",
+                    "Provider returned curriculum_node_id outside candidate allowlist",
                 )
-            )
-            if exists is not None:
-                continue
-            row = QuestionCurriculumMapping(
-                tenant_id=tenant_id,
-                question_version_id=qv.id,
-                curriculum_node_id=mapping.curriculum_node_id,
-                mapping_type=mapping.mapping_type,
-                weight=mapping.weight,
-            )
-            db.add(row)
-            created += 1
+            if mapping.mapping_type not in _ALLOWED_CURRICULUM_MAPPING_TYPES:
+                raise AuthoringAiError(
+                    "AUTHORING_PROVIDER_INVALID_CURRICULUM_NODE",
+                    f"Provider returned invalid mapping_type {mapping.mapping_type!r}",
+                )
+            if mapping.weight is not None and Decimal(mapping.weight) < Decimal("0"):
+                raise AuthoringAiError(
+                    "AUTHORING_PROVIDER_INVALID_CURRICULUM_NODE",
+                    "Provider returned mapping weight below zero",
+                )
+        # Proposal only — never write QuestionCurriculumMapping until explicit apply.
         run.proposal_payload = {
+            "curriculum_id": str(curriculum_id),
+            "stable_code": stable,
+            "instructions": instructions,
             "mappings": [m.model_dump(mode="json") for m in result.mappings],
-            "created_count": created,
+            "candidate_node_ids": candidate_node_ids,
         }
         run.status = "REVIEW_REQUIRED" if result.mappings else "SUCCEEDED"
         run.finished_at = _utcnow()
@@ -1378,8 +1521,11 @@ async def run_suggest_curriculum_mapping_pipeline(
             db,
             tenant_id=tenant_id,
             operation="suggest_curriculum_mapping",
-            provider=provider.provider_name,
             status="SUCCEEDED",
+            provider=meta.provider,
+            model=meta.model,
+            model_version=meta.model_version,
+            prompt_template_version=meta.prompt_template_version,
             request_summary=redacted_request_summary(
                 operation="suggest_curriculum_mapping",
                 entity_ids={
@@ -1387,13 +1533,47 @@ async def run_suggest_curriculum_mapping_pipeline(
                     "question_version_id": str(qv.id),
                 },
             ),
-            response_summary={
-                "mapping_count": len(result.mappings),
-                "created_count": created,
-            },
+            response_summary={"mapping_count": len(result.mappings)},
             authoring_ai_run_id=run.id,
             assessment_version_id=run.assessment_version_id,
             input_hash=run.input_hash,
+            started_at=started,
+            finished_at=_utcnow(),
+        )
+        await db.commit()
+    except AuthoringAiError as exc:
+        run.status = "FAILED"
+        run.failure_code = exc.code
+        run.failure_detail = exc.message
+        run.finished_at = _utcnow()
+        run.proposal_payload = {
+            "curriculum_id": str(curriculum_id) if curriculum_id else None,
+            "stable_code": stable,
+            "instructions": instructions,
+            "mappings": [],
+            "candidate_node_ids": candidate_node_ids,
+        }
+        await record_ai_execution(
+            db,
+            tenant_id=tenant_id,
+            operation="suggest_curriculum_mapping",
+            status="FAILED",
+            provider=meta.provider,
+            model=meta.model,
+            model_version=meta.model_version,
+            prompt_template_version=meta.prompt_template_version,
+            request_summary=redacted_request_summary(
+                operation="suggest_curriculum_mapping",
+                entity_ids={
+                    "authoring_ai_run_id": str(run.id),
+                    "question_version_id": str(qv.id),
+                },
+            ),
+            response_summary={"error_code": exc.code, "mapping_count": 0},
+            authoring_ai_run_id=run.id,
+            assessment_version_id=run.assessment_version_id,
+            input_hash=run.input_hash,
+            error_class=exc.code,
             started_at=started,
             finished_at=_utcnow(),
         )
@@ -1404,4 +1584,215 @@ async def run_suggest_curriculum_mapping_pipeline(
         run.failure_code = "AUTHORING_AI_FAILED"
         run.failure_detail = str(exc)[:500]
         run.finished_at = _utcnow()
+        await record_ai_execution(
+            db,
+            tenant_id=tenant_id,
+            operation="suggest_curriculum_mapping",
+            status="FAILED",
+            provider=meta.provider,
+            model=meta.model,
+            model_version=meta.model_version,
+            prompt_template_version=meta.prompt_template_version,
+            request_summary=redacted_request_summary(
+                operation="suggest_curriculum_mapping",
+                entity_ids={
+                    "authoring_ai_run_id": str(run.id),
+                    "question_version_id": str(qv.id),
+                },
+            ),
+            response_summary={"error_code": "AUTHORING_AI_FAILED"},
+            authoring_ai_run_id=run.id,
+            assessment_version_id=run.assessment_version_id,
+            input_hash=run.input_hash,
+            error_class="AUTHORING_AI_FAILED",
+            started_at=started,
+            finished_at=_utcnow(),
+        )
         await db.commit()
+
+
+def _validate_curriculum_mapping_proposals(
+    mappings: list[ProposedCurriculumMapping],
+    *,
+    candidate_node_ids: set[uuid.UUID],
+) -> None:
+    for mapping in mappings:
+        if mapping.curriculum_node_id not in candidate_node_ids:
+            raise AuthoringAiError(
+                "AUTHORING_PROVIDER_INVALID_CURRICULUM_NODE",
+                "Mapping curriculum_node_id is outside the original candidate allowlist",
+            )
+        if mapping.mapping_type not in _ALLOWED_CURRICULUM_MAPPING_TYPES:
+            raise AuthoringAiError(
+                "AUTHORING_PROVIDER_INVALID_CURRICULUM_NODE",
+                f"Invalid mapping_type {mapping.mapping_type!r}",
+            )
+        if mapping.weight is not None and Decimal(mapping.weight) < Decimal("0"):
+            raise AuthoringAiError(
+                "AUTHORING_PROVIDER_INVALID_CURRICULUM_NODE",
+                "Mapping weight must be >= 0",
+            )
+
+
+async def update_curriculum_mapping_proposal(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    run_id: uuid.UUID,
+    mappings: list[ProposedCurriculumMapping],
+) -> AuthoringAiRun:
+    run = await _get_run(db, tenant_id=tenant_id, run_id=run_id)
+    if run.operation != "SUGGEST_CURRICULUM_MAPPING":
+        raise AuthoringAiError("INVALID_OPERATION", "Run is not a curriculum-mapping proposal")
+    if run.status != "REVIEW_REQUIRED":
+        raise AuthoringAiError(
+            "AUTHORING_RUN_NOT_EDITABLE",
+            "Curriculum mapping proposal can only be edited while REVIEW_REQUIRED",
+        )
+    payload = run.proposal_payload if isinstance(run.proposal_payload, dict) else {}
+    candidate_raw = payload.get("candidate_node_ids") or []
+    try:
+        candidate_node_ids = {uuid.UUID(str(x)) for x in candidate_raw}
+    except (TypeError, ValueError) as exc:
+        raise AuthoringAiError(
+            "AUTHORING_PROVIDER_INVALID_CURRICULUM_NODE",
+            "proposal_payload candidate_node_ids is invalid",
+        ) from exc
+    _validate_curriculum_mapping_proposals(mappings, candidate_node_ids=candidate_node_ids)
+    run.proposal_payload = {
+        **payload,
+        "mappings": [m.model_dump(mode="json") for m in mappings],
+        "candidate_node_ids": [str(x) for x in candidate_node_ids],
+    }
+    await db.flush()
+    return run
+
+
+async def apply_curriculum_mappings(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    run_id: uuid.UUID,
+    applied_by: uuid.UUID,
+    selected_indices: list[int] | None = None,
+) -> AuthoringAiRun:
+    run = await _get_run(db, tenant_id=tenant_id, run_id=run_id)
+    if run.operation != "SUGGEST_CURRICULUM_MAPPING":
+        raise AuthoringAiError("INVALID_OPERATION", "Run is not a curriculum-mapping proposal")
+    if run.status == "SUCCEEDED":
+        return run
+    if run.status != "REVIEW_REQUIRED":
+        raise AuthoringAiError(
+            "AUTHORING_RUN_NOT_APPLICABLE",
+            "Curriculum mappings can only be applied from REVIEW_REQUIRED",
+        )
+    assessment = await _get_assessment(db, tenant_id=tenant_id, assessment_id=run.assessment_id)
+    _ensure_mutable(assessment)
+    if run.question_version_id is None:
+        raise AuthoringAiError("NOT_FOUND", "Question version not found")
+    qv = await _get_question_version(
+        db, tenant_id=tenant_id, question_version_id=run.question_version_id
+    )
+    if qv.assessment_version_id != run.assessment_version_id:
+        raise AuthoringAiError(
+            "NOT_FOUND",
+            "Question version no longer belongs to this assessment version",
+        )
+
+    payload = run.proposal_payload if isinstance(run.proposal_payload, dict) else {}
+    if not payload.get("curriculum_id"):
+        raise AuthoringAiError(
+            "AUTHORING_RUN_NOT_APPLICABLE",
+            "Curriculum mapping proposal is missing curriculum_id",
+        )
+    curriculum_id = uuid.UUID(str(payload["curriculum_id"]))
+    try:
+        candidate_node_ids = {uuid.UUID(str(x)) for x in (payload.get("candidate_node_ids") or [])}
+    except (TypeError, ValueError) as exc:
+        raise AuthoringAiError(
+            "AUTHORING_PROVIDER_INVALID_CURRICULUM_NODE",
+            "proposal_payload candidate_node_ids is invalid",
+        ) from exc
+
+    raw_mappings = list(payload.get("mappings") or [])
+    if selected_indices is not None:
+        chosen: list[Any] = []
+        for index in selected_indices:
+            if index < 0 or index >= len(raw_mappings):
+                raise AuthoringAiError(
+                    "AUTHORING_RUN_NOT_APPLICABLE",
+                    f"selected_indices contains out-of-range index {index}",
+                )
+            chosen.append(raw_mappings[index])
+        raw_mappings = chosen
+
+    proposed = [ProposedCurriculumMapping.model_validate(item) for item in raw_mappings]
+    _validate_curriculum_mapping_proposals(proposed, candidate_node_ids=candidate_node_ids)
+
+    for mapping in proposed:
+        node = await db.scalar(
+            select(CurriculumNode).where(
+                CurriculumNode.id == mapping.curriculum_node_id,
+                CurriculumNode.tenant_id == tenant_id,
+                CurriculumNode.curriculum_id == curriculum_id,
+                CurriculumNode.status == "active",
+            )
+        )
+        if node is None or node.id not in candidate_node_ids:
+            raise AuthoringAiError(
+                "AUTHORING_PROVIDER_INVALID_CURRICULUM_NODE",
+                "Curriculum node is not an active allowlisted candidate",
+            )
+        exists = await db.scalar(
+            select(QuestionCurriculumMapping).where(
+                QuestionCurriculumMapping.tenant_id == tenant_id,
+                QuestionCurriculumMapping.question_version_id == qv.id,
+                QuestionCurriculumMapping.curriculum_node_id == mapping.curriculum_node_id,
+                QuestionCurriculumMapping.mapping_type == mapping.mapping_type,
+            )
+        )
+        if exists is not None:
+            continue
+        row = QuestionCurriculumMapping(
+            tenant_id=tenant_id,
+            question_version_id=qv.id,
+            curriculum_node_id=mapping.curriculum_node_id,
+            mapping_type=mapping.mapping_type,
+            weight=mapping.weight,
+        )
+        db.add(row)
+        await db.flush()
+        await _audit(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=applied_by,
+            entity=row,
+            action="created",
+            payload={
+                "action": "created",
+                "source": "authoring_ai_apply",
+                "authoring_ai_run_id": str(run.id),
+                "curriculum_node_id": str(mapping.curriculum_node_id),
+                "mapping_type": mapping.mapping_type,
+            },
+            correlation_id=run.correlation_id,
+        )
+
+    run.status = "SUCCEEDED"
+    run.finished_at = _utcnow()
+    await _audit(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=applied_by,
+        entity=run,
+        action="applied",
+        payload={
+            "action": "applied",
+            "authoring_ai_run_id": str(run.id),
+            "question_version_id": str(qv.id),
+            "applied_count": len(proposed),
+        },
+        correlation_id=run.correlation_id,
+    )
+    await db.flush()
+    return run

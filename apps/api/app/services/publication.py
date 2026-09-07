@@ -12,6 +12,7 @@ from typing import Any, Literal
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.execution_metadata import metadata_from_provider
 from app.ai.registry import get_narrative_provider
 from app.ai.tracing import canonical_input_hash, record_ai_execution, redacted_request_summary
 from app.ai.types import (
@@ -79,9 +80,7 @@ def _sha256_bytes(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _performance_band(
-    final: Decimal, max_mark: Decimal
-) -> Literal["full", "partial", "none"]:
+def _performance_band(final: Decimal, max_mark: Decimal) -> Literal["full", "partial", "none"]:
     if max_mark <= 0:
         return "none"
     if final >= max_mark:
@@ -238,14 +237,10 @@ def _rules_student_narrative(
     questions: list[StudentNarrativeQuestionContext],
 ) -> StudentNarrativeResult:
     strengths = [
-        f"Completed work on {q.question_code}."
-        for q in questions
-        if q.performance_band == "full"
+        f"Completed work on {q.question_code}." for q in questions if q.performance_band == "full"
     ] or ["Keep practicing clear solution structure."]
     improvements = [
-        f"Review {q.question_code}."
-        for q in questions
-        if q.performance_band != "full"
+        f"Review {q.question_code}." for q in questions if q.performance_band != "full"
     ] or ["Maintain accuracy on timed work."]
     return StudentNarrativeResult(
         strengths=strengths[:10],
@@ -492,9 +487,7 @@ async def _create_ledger_annotations(
             if region is not None:
                 break
         page_id = (
-            region.submission_page_id
-            if region
-            else (fallback_page.id if fallback_page else None)
+            region.submission_page_id if region else (fallback_page.id if fallback_page else None)
         )
         if page_id is None:
             continue
@@ -716,9 +709,7 @@ def build_teacher_report_payload(
                         "previous_score": _dec(a.previous_score),
                         "new_score": _dec(a.new_score),
                         "created_at": (
-                            a.created_at.isoformat()
-                            if a.created_at
-                            else generated_at.isoformat()
+                            a.created_at.isoformat() if a.created_at else generated_at.isoformat()
                         ),
                     }
                     for a in actions_by_qe.get(qe.id, [])
@@ -893,9 +884,7 @@ async def run_publication_pipeline(
             }
             for a in annotations
         ]
-        annotated_pdf = render_evaluated_paper(
-            page_bytes, ann_dicts, page_id_by_index=page_ids
-        )
+        annotated_pdf = render_evaluated_paper(page_bytes, ann_dicts, page_id_by_index=page_ids)
 
         # Context for reports
         assessment = await db.scalar(
@@ -916,11 +905,7 @@ async def run_publication_pipeline(
             )
         qv_ids = [qe.question_version_id for qe in qes]
         qvs = list(
-            (
-                await db.scalars(
-                    select(QuestionVersion).where(QuestionVersion.id.in_(qv_ids))
-                )
-            ).all()
+            (await db.scalars(select(QuestionVersion).where(QuestionVersion.id.in_(qv_ids)))).all()
         )
         qv_by_id = {qv.id: qv for qv in qvs}
         actions = list(
@@ -994,11 +979,11 @@ async def run_publication_pipeline(
                 parent_nar = await provider.generate_parent_summary(parent_input)
                 finished = datetime.now(UTC)
                 narrative_source = "FIXED" if provider.provider_name == "fixed" else "AI"
+                meta = metadata_from_provider(provider, "generate_student_explanation")
                 await record_ai_execution(
                     db,
                     tenant_id=tenant_id,
                     operation="generate_student_explanation",
-                    provider=provider.provider_name,
                     status="SUCCEEDED",
                     request_summary=redacted_request_summary(
                         operation="generate_student_explanation",
@@ -1014,15 +999,14 @@ async def run_publication_pipeline(
                     submission_id=submission.id,
                     evaluation_run_id=run.id,
                     published_result_id=published.id,
-                    model=(
-                        settings.ai_model_student_report
-                        if provider.provider_name == "openai"
-                        else "fixed"
-                    ),
                     input_hash=canonical_input_hash(student_input.model_dump(mode="json")),
                     latency_ms=int((finished - started).total_seconds() * 1000),
                     started_at=started,
                     finished_at=finished,
+                    provider=meta.provider,
+                    model=meta.model,
+                    model_version=meta.model_version,
+                    prompt_template_version=meta.prompt_template_version,
                 )
             except (ProviderUnavailable, Exception) as exc:  # noqa: BLE001
                 narrative_source = "RULES_FALLBACK"
@@ -1034,11 +1018,11 @@ async def run_publication_pipeline(
                     assessment_title=assessment.title,
                     overview=overview,
                 )
+                fail_meta = metadata_from_provider(provider, "generate_student_explanation")
                 await record_ai_execution(
                     db,
                     tenant_id=tenant_id,
                     operation="generate_student_explanation",
-                    provider=provider.provider_name if provider else "none",
                     status="FAILED",
                     request_summary=redacted_request_summary(
                         operation="generate_student_explanation",
@@ -1048,6 +1032,10 @@ async def run_publication_pipeline(
                     submission_id=submission.id,
                     published_result_id=published.id,
                     error_class=type(exc).__name__,
+                    provider=fail_meta.provider,
+                    model=fail_meta.model,
+                    model_version=fail_meta.model_version,
+                    prompt_template_version=fail_meta.prompt_template_version,
                 )
 
         # 8 teacher report (deterministic, full ledger)
@@ -1104,9 +1092,7 @@ async def run_publication_pipeline(
         for name, (data, filename) in artifacts.items():
             key = publication_export_key(tenant_id, submission.id, version, filename)
             digest = _sha256_bytes(data)
-            put = storage.put_export_bytes(
-                key=key, body=data, content_type="application/pdf"
-            )
+            put = storage.put_export_bytes(key=key, body=data, content_type="application/pdf")
             hashes[name] = digest
             keys[name] = put.key
             sizes[name] = put.byte_size
@@ -1147,12 +1133,8 @@ async def run_publication_pipeline(
     except Exception as exc:  # noqa: BLE001
         await db.rollback()
         job_row = await db.scalar(select(PipelineJob).where(PipelineJob.id == job_id))
-        pub_row = await db.scalar(
-            select(PublishedResult).where(PublishedResult.id == published_id)
-        )
-        sub_row = await db.scalar(
-            select(Submission).where(Submission.id == submission_id)
-        )
+        pub_row = await db.scalar(select(PublishedResult).where(PublishedResult.id == published_id))
+        sub_row = await db.scalar(select(Submission).where(Submission.id == submission_id))
         code = str(getattr(exc, "code", type(exc).__name__))[:100]
         detail = str(exc)[:4000]
         if job_row is not None:
@@ -1350,9 +1332,7 @@ async def publish_result(
     # Ensure ANALYTICS PipelineJob in the same transaction (B8).
     from app.services.analytics import ensure_analytics_job
 
-    analytics_job = await ensure_analytics_job(
-        db, tenant_id=tenant_id, published=published
-    )
+    analytics_job = await ensure_analytics_job(db, tenant_id=tenant_id, published=published)
     await db.flush()
     return published, analytics_job
 

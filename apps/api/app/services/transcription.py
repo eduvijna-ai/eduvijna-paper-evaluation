@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.execution_metadata import metadata_from_provider
 from app.ai.registry import get_structure_provider, structure_provider_active
 from app.ai.tracing import (
     canonical_input_hash,
@@ -307,11 +308,11 @@ async def run_transcription_pipeline(
                     response_summary = {"error": str(exc)[:200]}
 
                 finished = datetime.now(UTC)
+                meta = metadata_from_provider(provider, "transcribe_answer")
                 exec_row = await record_ai_execution(
                     db,
                     tenant_id=tenant_id,
                     operation="transcribe_answer",
-                    provider=provider.provider_name,
                     status=status,
                     request_summary=redacted_request_summary(
                         operation="transcribe_answer",
@@ -324,7 +325,6 @@ async def run_transcription_pipeline(
                     response_summary=response_summary,
                     submission_id=submission.id,
                     answer_region_id=region.id,
-                    model=settings.ai_model_transcription,
                     input_refs={
                         "crop_storage_key": crop_key,
                         "crop_content_sha256": crop_hash,
@@ -334,6 +334,10 @@ async def run_transcription_pipeline(
                     error_class=error_class,
                     started_at=started,
                     finished_at=finished,
+                    provider=meta.provider,
+                    model=meta.model,
+                    model_version=meta.model_version,
+                    prompt_template_version=meta.prompt_template_version,
                 )
 
                 if result is None:
@@ -341,9 +345,7 @@ async def run_transcription_pipeline(
 
                 max_version = await db.scalar(
                     select(
-                        func.coalesce(
-                            func.max(AnswerRegionTranscription.version_number), 0
-                        )
+                        func.coalesce(func.max(AnswerRegionTranscription.version_number), 0)
                     ).where(
                         AnswerRegionTranscription.tenant_id == tenant_id,
                         AnswerRegionTranscription.answer_region_id == region.id,
@@ -388,9 +390,7 @@ async def run_transcription_pipeline(
     except Exception as exc:
         await db.rollback()
         job = await db.scalar(select(PipelineJob).where(PipelineJob.id == job_id))
-        submission = await db.scalar(
-            select(Submission).where(Submission.id == submission_id)
-        )
+        submission = await db.scalar(select(Submission).where(Submission.id == submission_id))
         if job is not None and submission is not None:
             code = getattr(exc, "code", "TRANSCRIPTION_FAILED")
             message = getattr(exc, "message", str(exc))
@@ -508,9 +508,7 @@ async def build_transcription_workspace(
                 select(SubmissionPage).where(SubmissionPage.id == region.submission_page_id)
             )
             crop_url = (
-                f"/api/v1/answer-regions/{region.id}/crop"
-                if region.crop_storage_key
-                else None
+                f"/api/v1/answer-regions/{region.id}/crop" if region.crop_storage_key else None
             )
             page_url = (
                 f"/api/v1/submissions/{submission.id}/pages/{page.page_index}/image"

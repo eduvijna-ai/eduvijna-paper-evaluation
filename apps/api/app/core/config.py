@@ -209,6 +209,38 @@ class Settings(BaseSettings):
             "ai_model_curriculum_mapping_proposal",
         ),
     )
+    authoring_parse_max_pages: int = Field(
+        default=30,
+        validation_alias=AliasChoices(
+            "AUTHORING_PARSE_MAX_PAGES", "authoring_parse_max_pages"
+        ),
+        description="Hard max PDF pages accepted for question-paper parse evidence.",
+    )
+    authoring_parse_max_text_chars: int = Field(
+        default=40_000,
+        validation_alias=AliasChoices(
+            "AUTHORING_PARSE_MAX_TEXT_CHARS", "authoring_parse_max_text_chars"
+        ),
+    )
+    authoring_parse_max_page_text_chars: int = Field(
+        default=8_000,
+        validation_alias=AliasChoices(
+            "AUTHORING_PARSE_MAX_PAGE_TEXT_CHARS",
+            "authoring_parse_max_page_text_chars",
+        ),
+    )
+    authoring_parse_max_render_pixels: int = Field(
+        default=4_000_000,
+        validation_alias=AliasChoices(
+            "AUTHORING_PARSE_MAX_RENDER_PIXELS", "authoring_parse_max_render_pixels"
+        ),
+    )
+    authoring_parse_max_image_bytes: int = Field(
+        default=2_097_152,
+        validation_alias=AliasChoices(
+            "AUTHORING_PARSE_MAX_IMAGE_BYTES", "authoring_parse_max_image_bytes"
+        ),
+    )
     ai_request_timeout_seconds: int = Field(
         default=60,
         validation_alias=AliasChoices(
