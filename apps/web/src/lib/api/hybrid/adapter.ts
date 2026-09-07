@@ -106,6 +106,39 @@ export const HybridEduVijnaApi: ApiClient = {
   getAssessmentAnswerKey: (id) => AuthoringHttpApi.getAssessmentAnswerKey(id),
   getAssessmentCurriculumMap: (id) =>
     AuthoringHttpApi.getAssessmentCurriculumMap(id),
+  getLatestAssessmentVersion: (id) =>
+    AuthoringHttpApi.getLatestAssessmentVersion(id),
+  uploadQuestionPaper: (versionId, file) =>
+    AuthoringHttpApi.uploadQuestionPaper(versionId, file),
+  prepareQuestionPaperParse: (versionId) =>
+    AuthoringHttpApi.prepareQuestionPaperParse(versionId),
+  getLatestAuthoringAiRun: (versionId, operation) =>
+    AuthoringHttpApi.getLatestAuthoringAiRun(versionId, operation),
+  getAssessmentArtifact: (artifactId) =>
+    AuthoringHttpApi.getAssessmentArtifact(artifactId),
+  getAuthoringAiRun: (runId) => AuthoringHttpApi.getAuthoringAiRun(runId),
+  updateQuestionTreeProposal: (runId, tree) =>
+    AuthoringHttpApi.updateQuestionTreeProposal(runId, tree),
+  applyQuestionTreeProposal: (runId) =>
+    AuthoringHttpApi.applyQuestionTreeProposal(runId),
+  createTeacherAnswerKey: (input) =>
+    AuthoringHttpApi.createTeacherAnswerKey(input),
+  updateAnswerKey: (id, patch) => AuthoringHttpApi.updateAnswerKey(id, patch),
+  approveAnswerKey: (id) => AuthoringHttpApi.approveAnswerKey(id),
+  prepareAiAnswerKeyProposal: (input) =>
+    AuthoringHttpApi.prepareAiAnswerKeyProposal(input),
+  createTeacherRubric: (input) => AuthoringHttpApi.createTeacherRubric(input),
+  updateRubric: (id, patch) => AuthoringHttpApi.updateRubric(id, patch),
+  approveRubric: (id) => AuthoringHttpApi.approveRubric(id),
+  prepareAiRubricProposal: (input) =>
+    AuthoringHttpApi.prepareAiRubricProposal(input),
+  transitionAssessment: async (assessmentId, toStatus) => {
+    const row = await AuthoringHttpApi.transitionAssessment(
+      assessmentId,
+      toStatus,
+    );
+    return AuthoringHttpApi.getAssessment(row.id);
+  },
 
   listSubmissions: () => SubmissionHttpApi.listSubmissions(),
   getSubmission: (id) => SubmissionHttpApi.getSubmission(id),

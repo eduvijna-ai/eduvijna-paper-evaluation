@@ -5,18 +5,19 @@
 **Starting `develop` SHA:** `b960ca1af24f5b7c137cf5724e9126c25a553815`  
 **Starting `main` SHA:** `be5f10aef3cf536420adcffdb9302b6b3b6c0955`  
 **Migration:** `database/migrations/versions/20260907_0010_learning_recommendations_blueprint.py`  
-**Final feature SHA:** `_TBD_`  
-**CI run ID:** `_TBD_`  
-**Squash SHA:** `_TBD_`  
-**Final develop:** `_TBD_`  
+**Final feature SHA:** `484155350af5942410a0308b9f9889d3b79aa8bd`  
+**CI run ID:** `34107860817`  
+**Squash SHA:** `9f4f8f9fb3ece34fad08dd824e4052f47598c53d`  
+**Final develop:** `9f4f8f9fb3ece34fad08dd824e4052f47598c53d`  
 **Final main:** `be5f10aef3cf536420adcffdb9302b6b3b6c0955` (must remain unchanged)
 
 ```text
 CI: Infrastructure / Contracts / Backend / Frontend /
-Frontend E2E / Frontend E2E Real = _TBD_
+Frontend E2E / Frontend E2E Real = SUCCESS
 
+Feature branch: deleted
+Post-merge develop commit: none
 Do not push a post-merge docs commit to develop.
-Report squash SHA in the final Cursor report after merge.
 ```
 
 ## Scope (implemented)

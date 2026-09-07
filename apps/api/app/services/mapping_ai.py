@@ -24,7 +24,6 @@ from app.ai.types import (
 from app.core.config import Settings, get_settings
 from app.db.models import (
     AnswerRegion,
-    AuditEvent,
     QuestionAnswerMapping,
     QuestionAnswerMappingRegion,
     QuestionVersion,
@@ -32,6 +31,7 @@ from app.db.models import (
     SubmissionPage,
     SubmissionPageAnalysis,
 )
+from app.services.audit import add_audit_event
 
 
 async def apply_ai_mapping_proposals(
@@ -349,19 +349,18 @@ async def apply_ai_mapping_proposals(
         automated_mapping = True
 
     submission.mapping_confidence = map_result.mapping_confidence
-    db.add(
-        AuditEvent(
-            tenant_id=tenant_id,
-            actor_user_id=None,
-            entity_type="Submission",
-            entity_id=submission.id,
-            action="ai_mapping_proposals_applied",
-            payload_json={
-                "ai_region_count": region_count,
-                "ai_mapping_count": mapping_count,
-                "provider": provider.provider_name,
-            },
-        )
+    await add_audit_event(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=None,
+        entity_type="Submission",
+        entity_id=submission.id,
+        action="ai_mapping_proposals_applied",
+        after={
+            "ai_region_count": region_count,
+            "ai_mapping_count": mapping_count,
+            "provider": provider.provider_name,
+        },
     )
     return {
         "automated_region_detection_active": automated_region,

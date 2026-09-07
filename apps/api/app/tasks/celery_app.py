@@ -472,3 +472,145 @@ async def enqueue_improvement_blueprint(
     result = improvement_blueprint_task.delay(str(tenant_id), str(blueprint_id))
     task_id = getattr(result, "id", None)
     return str(task_id) if task_id is not None else None
+
+
+async def _authoring_parse_async(tenant_id: uuid.UUID, run_id: uuid.UUID) -> None:
+    from app.db.session import async_session_factory, engine
+    from app.services.authoring_ai import run_parse_pipeline
+
+    await engine.dispose()
+    async with async_session_factory() as db:
+        await run_parse_pipeline(db, tenant_id=tenant_id, run_id=run_id)
+
+
+def _authoring_parse_impl(tenant_id: str, run_id: str) -> dict[str, str]:
+    asyncio.run(_authoring_parse_async(uuid.UUID(tenant_id), uuid.UUID(run_id)))
+    return {"tenant_id": tenant_id, "run_id": run_id, "status": "ok"}
+
+
+authoring_parse_task = cast(
+    Any, celery_app.task(name="authoring.parse_question_paper")(_authoring_parse_impl)
+)
+
+
+async def enqueue_authoring_parse(
+    *,
+    tenant_id: uuid.UUID,
+    run_id: uuid.UUID,
+) -> str | None:
+    settings = get_settings()
+    if settings.celery_task_always_eager or bool(celery_app.conf.task_always_eager):
+        await _authoring_parse_async(tenant_id, run_id)
+        return f"eager:{run_id}"
+
+    result = authoring_parse_task.delay(str(tenant_id), str(run_id))
+    task_id = getattr(result, "id", None)
+    return str(task_id) if task_id is not None else None
+
+
+async def _authoring_answer_key_async(tenant_id: uuid.UUID, run_id: uuid.UUID) -> None:
+    from app.db.session import async_session_factory, engine
+    from app.services.authoring_ai import run_propose_answer_key_pipeline
+
+    await engine.dispose()
+    async with async_session_factory() as db:
+        await run_propose_answer_key_pipeline(db, tenant_id=tenant_id, run_id=run_id)
+
+
+def _authoring_answer_key_impl(tenant_id: str, run_id: str) -> dict[str, str]:
+    asyncio.run(_authoring_answer_key_async(uuid.UUID(tenant_id), uuid.UUID(run_id)))
+    return {"tenant_id": tenant_id, "run_id": run_id, "status": "ok"}
+
+
+authoring_answer_key_task = cast(
+    Any,
+    celery_app.task(name="authoring.propose_answer_key")(_authoring_answer_key_impl),
+)
+
+
+async def enqueue_authoring_answer_key(
+    *,
+    tenant_id: uuid.UUID,
+    run_id: uuid.UUID,
+) -> str | None:
+    settings = get_settings()
+    if settings.celery_task_always_eager or bool(celery_app.conf.task_always_eager):
+        await _authoring_answer_key_async(tenant_id, run_id)
+        return f"eager:{run_id}"
+
+    result = authoring_answer_key_task.delay(str(tenant_id), str(run_id))
+    task_id = getattr(result, "id", None)
+    return str(task_id) if task_id is not None else None
+
+
+async def _authoring_rubric_async(tenant_id: uuid.UUID, run_id: uuid.UUID) -> None:
+    from app.db.session import async_session_factory, engine
+    from app.services.authoring_ai import run_propose_rubric_pipeline
+
+    await engine.dispose()
+    async with async_session_factory() as db:
+        await run_propose_rubric_pipeline(db, tenant_id=tenant_id, run_id=run_id)
+
+
+def _authoring_rubric_impl(tenant_id: str, run_id: str) -> dict[str, str]:
+    asyncio.run(_authoring_rubric_async(uuid.UUID(tenant_id), uuid.UUID(run_id)))
+    return {"tenant_id": tenant_id, "run_id": run_id, "status": "ok"}
+
+
+authoring_rubric_task = cast(
+    Any, celery_app.task(name="authoring.propose_rubric")(_authoring_rubric_impl)
+)
+
+
+async def enqueue_authoring_rubric(
+    *,
+    tenant_id: uuid.UUID,
+    run_id: uuid.UUID,
+) -> str | None:
+    settings = get_settings()
+    if settings.celery_task_always_eager or bool(celery_app.conf.task_always_eager):
+        await _authoring_rubric_async(tenant_id, run_id)
+        return f"eager:{run_id}"
+
+    result = authoring_rubric_task.delay(str(tenant_id), str(run_id))
+    task_id = getattr(result, "id", None)
+    return str(task_id) if task_id is not None else None
+
+
+async def _authoring_mapping_async(tenant_id: uuid.UUID, run_id: uuid.UUID) -> None:
+    from app.db.session import async_session_factory, engine
+    from app.services.authoring_ai import run_suggest_curriculum_mapping_pipeline
+
+    await engine.dispose()
+    async with async_session_factory() as db:
+        await run_suggest_curriculum_mapping_pipeline(
+            db, tenant_id=tenant_id, run_id=run_id
+        )
+
+
+def _authoring_mapping_impl(tenant_id: str, run_id: str) -> dict[str, str]:
+    asyncio.run(_authoring_mapping_async(uuid.UUID(tenant_id), uuid.UUID(run_id)))
+    return {"tenant_id": tenant_id, "run_id": run_id, "status": "ok"}
+
+
+authoring_mapping_task = cast(
+    Any,
+    celery_app.task(name="authoring.suggest_curriculum_mapping")(
+        _authoring_mapping_impl
+    ),
+)
+
+
+async def enqueue_authoring_curriculum_mapping(
+    *,
+    tenant_id: uuid.UUID,
+    run_id: uuid.UUID,
+) -> str | None:
+    settings = get_settings()
+    if settings.celery_task_always_eager or bool(celery_app.conf.task_always_eager):
+        await _authoring_mapping_async(tenant_id, run_id)
+        return f"eager:{run_id}"
+
+    result = authoring_mapping_task.delay(str(tenant_id), str(run_id))
+    task_id = getattr(result, "id", None)
+    return str(task_id) if task_id is not None else None

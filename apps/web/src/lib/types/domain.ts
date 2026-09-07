@@ -1,5 +1,10 @@
 import type {
+  AssessmentArtifactScanStatus,
   AssessmentState,
+  AuthoringAiOperation,
+  AuthoringAiRunStatus,
+  AuthoringMaterialStatus,
+  AuthoringSourceType,
   CriterionDecision,
   CurriculumNodeType,
   ErrorCode,
@@ -12,13 +17,19 @@ import type {
   LearningRecommendationKind,
   LearningRecommendationStatus,
   MappingNodeState,
+  ProposedQuestionScoringMode,
   SubmissionState,
   TranscriptionState,
   UserRole,
 } from "./enums";
 
 export type {
+  AssessmentArtifactScanStatus,
   AssessmentState,
+  AuthoringAiOperation,
+  AuthoringAiRunStatus,
+  AuthoringMaterialStatus,
+  AuthoringSourceType,
   CriterionDecision,
   CurriculumNodeType,
   ErrorCode,
@@ -31,6 +42,7 @@ export type {
   LearningRecommendationKind,
   LearningRecommendationStatus,
   MappingNodeState,
+  ProposedQuestionScoringMode,
   SubmissionState,
   TranscriptionState,
   UserRole,
@@ -149,6 +161,10 @@ export interface RubricCriterion {
   description: string;
   max_marks: number;
   sort_order: number;
+  /** B10 live rubric version provenance */
+  rubric_version_id?: string;
+  source_type?: AuthoringSourceType | string;
+  status?: AuthoringMaterialStatus | string;
 }
 
 export interface AnswerKeyStep {
@@ -157,6 +173,68 @@ export interface AnswerKeyStep {
   step_index: number;
   content: string;
   marks: number;
+  /** B10 live answer-key provenance */
+  source_type?: AuthoringSourceType | string;
+  status?: AuthoringMaterialStatus | string;
+}
+
+/** B10 nested AI question-tree proposal node. */
+export interface ProposedQuestionNode {
+  stable_code: string;
+  display_label: string;
+  sequence: number;
+  prompt_text: string;
+  max_marks: string | number;
+  question_type: string;
+  scoring_mode: ProposedQuestionScoringMode | string;
+  instructions?: string | null;
+  children?: ProposedQuestionNode[];
+}
+
+export interface AssessmentArtifact {
+  id: string;
+  tenant_id: string;
+  assessment_id: string;
+  artifact_type: string;
+  original_filename: string;
+  mime_type: string;
+  byte_size: number;
+  content_sha256: string;
+  storage_key: string;
+  security_scan_status: AssessmentArtifactScanStatus | string;
+  uploaded_by?: string | null;
+  uploaded_at: string;
+  created_at?: string | null;
+}
+
+export interface AuthoringAiRun {
+  id: string;
+  tenant_id: string;
+  assessment_id: string;
+  assessment_version_id: string;
+  question_version_id?: string | null;
+  assessment_artifact_id?: string | null;
+  operation: AuthoringAiOperation | string;
+  status: AuthoringAiRunStatus | string;
+  input_hash: string;
+  proposal_payload?: {
+    roots?: ProposedQuestionNode[];
+    notes?: string | null;
+    answer_text_length?: number;
+    has_structured_answer?: boolean;
+    [key: string]: unknown;
+  } | null;
+  requested_by: string;
+  requested_at?: string | null;
+  started_at?: string | null;
+  finished_at?: string | null;
+  celery_task_id?: string | null;
+  answer_key_version_id?: string | null;
+  rubric_version_id?: string | null;
+  correlation_id?: string | null;
+  failure_code?: string | null;
+  failure_detail?: string | null;
+  enqueue_error?: string | null;
 }
 
 export interface CriterionDecisionRow {

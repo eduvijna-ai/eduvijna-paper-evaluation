@@ -20,7 +20,6 @@ from app.core.config import get_settings
 from app.db.models import (
     Assessment,
     AssessmentVersion,
-    AuditEvent,
     Institution,
     PipelineJob,
     Student,
@@ -28,7 +27,9 @@ from app.db.models import (
     SubmissionPage,
 )
 from app.db.session import get_db_session
+from app.services.audit import add_audit_event
 from app.services.storage import ObjectStorage, StorageImmutabilityError, raw_object_key
+from app.services.upload_scanner import get_upload_scanner
 from app.services.upload_validation import validate_and_buffer_upload
 from app.tasks import enqueue_mapping_preparation, enqueue_page_normalization
 
@@ -51,15 +52,14 @@ async def _audit(
     action: str,
     payload: dict[str, Any],
 ) -> None:
-    db.add(
-        AuditEvent(
-            tenant_id=auth.tenant_id,
-            actor_user_id=auth.user_id,
-            entity_type=entity.__class__.__name__,
-            entity_id=entity.id,
-            action=action,
-            payload_json=payload,
-        )
+    await add_audit_event(
+        db,
+        tenant_id=auth.tenant_id,
+        actor_user_id=auth.user_id,
+        entity_type=entity.__class__.__name__,
+        entity_id=entity.id,
+        action=action,
+        after=payload,
     )
 
 
@@ -185,6 +185,25 @@ async def upload_submission(
     validated = await validate_and_buffer_upload(
         file, max_bytes=settings.submission_upload_max_bytes
     )
+
+    scanner = get_upload_scanner(settings)
+    scan = await scanner.scan(
+        filename=validated.filename,
+        mime_type=validated.mime_type,
+        content=validated.body,
+    )
+    if scan.status == "REJECTED":
+        raise _http_error(
+            422,
+            "MALWARE_DETECTED",
+            "Upload rejected by security scanner",
+        )
+    if scan.status == "ERROR":
+        raise _http_error(
+            502,
+            "UPLOAD_SCAN_FAILED",
+            "Upload security scan failed",
+        )
 
     duplicate = await db.scalar(
         select(Submission.id).where(

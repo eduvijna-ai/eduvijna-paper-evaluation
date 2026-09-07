@@ -168,10 +168,16 @@ jobs:
         run: |
           cp .env.example .env
           echo "AI_PROVIDER_VISION=fixed" >> .env
+          echo "AI_PROVIDER_TEXT=fixed" >> .env
+          echo "AI_PROVIDER_AUTHORING=fixed" >> .env
+          echo "UPLOAD_SCANNER=fixed" >> .env
       - name: Start real backend stack
         run: docker compose up -d --build postgres redis minio api worker
         env:
           AI_PROVIDER_VISION: fixed
+          AI_PROVIDER_TEXT: fixed
+          AI_PROVIDER_AUTHORING: fixed
+          UPLOAD_SCANNER: fixed
       - name: Migrate real backend database
         run: docker compose exec -T api python -m alembic -c alembic.ini upgrade head
       - name: Seed deterministic demo data

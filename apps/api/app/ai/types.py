@@ -122,12 +122,75 @@ class RegionMappingResult(BaseModel):
         return _conf(v)
 
 
-class TranscriptionSegment(BaseModel):
+TranscriptionSegmentKind = Literal["TEXT", "MATH", "TABLE", "DIAGRAM"]
+
+MAX_TABLE_ROWS = 40
+MAX_TABLE_COLS = 20
+MAX_TABLE_CELL_LENGTH = 500
+
+
+class TranscriptionTable(BaseModel):
+    """Rectangular table payload for TABLE transcription segments (PEV-013)."""
+
     model_config = ConfigDict(extra="forbid")
 
-    text: str = Field(max_length=2000)
+    rows: list[list[str]] = Field(min_length=1, max_length=MAX_TABLE_ROWS)
+
+    @model_validator(mode="after")
+    def _rectangular_and_bounds(self) -> TranscriptionTable:
+        ncols = len(self.rows[0])
+        if ncols < 1 or ncols > MAX_TABLE_COLS:
+            raise ValueError(
+                f"table must have between 1 and {MAX_TABLE_COLS} columns"
+            )
+        for row in self.rows:
+            if len(row) != ncols:
+                raise ValueError("table must be rectangular")
+            for cell in row:
+                if len(cell) > MAX_TABLE_CELL_LENGTH:
+                    raise ValueError(
+                        f"table cell exceeds max length {MAX_TABLE_CELL_LENGTH}"
+                    )
+        return self
+
+
+class TranscriptionSegment(BaseModel):
+    """Structured work segment. Legacy `{text: ...}` remains valid (kind defaults TEXT)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: TranscriptionSegmentKind = "TEXT"
+    step_index: int | None = Field(default=None, ge=0)
+    text: str | None = Field(default=None, max_length=2000)
+    latex: str | None = Field(default=None, max_length=5000)
+    table: TranscriptionTable | None = None
+    diagram_description: str | None = Field(default=None, max_length=5000)
+    confidence: Decimal | None = None
     start: float | None = None
     end: float | None = None
+
+    @field_validator("confidence")
+    @classmethod
+    def _segment_confidence(cls, v: Decimal | None) -> Decimal | None:
+        if v is None:
+            return v
+        return _conf(v)
+
+    @model_validator(mode="after")
+    def _kind_payload(self) -> TranscriptionSegment:
+        if self.kind == "TEXT":
+            if self.text is None:
+                raise ValueError("TEXT segment requires text")
+        elif self.kind == "MATH":
+            if self.latex is None and (self.text is None or self.text == ""):
+                raise ValueError("MATH segment requires latex or text")
+        elif self.kind == "TABLE":
+            if self.table is None:
+                raise ValueError("TABLE segment requires table")
+        elif self.kind == "DIAGRAM":
+            if not self.diagram_description:
+                raise ValueError("DIAGRAM segment requires diagram_description")
+        return self
 
 
 class TranscriptionInput(BaseModel):
@@ -537,6 +600,151 @@ class ImprovementBlueprintAIResult(BaseModel):
     title: str | None = Field(default=None, max_length=255)
     item_prose: list[ImprovementBlueprintItemProse] = Field(
         default_factory=list, max_length=40
+    )
+
+
+# --- B10 authoring AI contracts (bounded trees / proposals) ---
+
+MAX_AUTHORING_TREE_DEPTH = 6
+MAX_AUTHORING_TREE_NODES = 200
+MAX_AUTHORING_PROMPT_LEN = 10_000
+MAX_AUTHORING_ANSWER_LEN = 20_000
+MAX_AUTHORING_CRITERIA = 40
+MAX_AUTHORING_MAPPINGS = 20
+
+
+class ProposedQuestionNode(BaseModel):
+    """Nested question proposal node. Children encode hierarchy (no parent id cycles)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    stable_code: str = Field(min_length=1, max_length=100)
+    display_label: str = Field(min_length=1, max_length=100)
+    sequence: int = Field(ge=0, le=10_000)
+    prompt_text: str = Field(min_length=1, max_length=MAX_AUTHORING_PROMPT_LEN)
+    max_marks: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
+    question_type: str = Field(min_length=1, max_length=64)
+    scoring_mode: Literal["LEAF_SCORABLE", "CONTAINER_DERIVED"]
+    instructions: str | None = Field(default=None, max_length=5000)
+    children: list[ProposedQuestionNode] = Field(
+        default_factory=list, max_length=MAX_AUTHORING_TREE_NODES
+    )
+
+
+class QuestionPaperParseInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    assessment_id: uuid.UUID
+    assessment_version_id: uuid.UUID
+    assessment_title: str = Field(max_length=255)
+    max_marks: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
+    assessment_artifact_id: uuid.UUID | None = None
+    content_sha256: str | None = Field(default=None, min_length=64, max_length=64)
+    mime_type: str | None = Field(default=None, max_length=128)
+    original_filename: str | None = Field(default=None, max_length=512)
+
+
+class QuestionPaperParseResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    roots: list[ProposedQuestionNode] = Field(
+        min_length=1, max_length=MAX_AUTHORING_TREE_NODES
+    )
+    notes: str | None = Field(default=None, max_length=2000)
+
+
+class AnswerKeyProposalInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    assessment_version_id: uuid.UUID
+    question_version_id: uuid.UUID
+    stable_code: str = Field(max_length=100)
+    display_label: str = Field(max_length=100)
+    prompt_text: str = Field(max_length=MAX_AUTHORING_PROMPT_LEN)
+    max_marks: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
+    question_type: str = Field(max_length=64)
+    instructions: str | None = Field(default=None, max_length=500)
+
+
+class AnswerKeyProposalResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    answer_text: str = Field(min_length=1, max_length=MAX_AUTHORING_ANSWER_LEN)
+    structured_answer: dict[str, Any] | None = None
+
+
+class ProposedRubricCriterion(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    criterion_code: str = Field(min_length=1, max_length=100)
+    description: str = Field(min_length=1, max_length=5000)
+    max_marks: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
+    sequence: int = Field(ge=0, le=10_000)
+    scoring_mode: Literal["ADDITIVE", "DEDUCTIVE", "ALL_OR_NOTHING"] = "ADDITIVE"
+    partial_credit_allowed: bool = False
+    ecf_policy: Literal["NONE", "ALLOW_METHOD_CREDIT", "CUSTOM_REVIEW"] = "NONE"
+    accepted_equivalents: list[str] = Field(default_factory=list, max_length=50)
+
+
+class RubricProposalInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    assessment_version_id: uuid.UUID
+    question_version_id: uuid.UUID
+    stable_code: str = Field(max_length=100)
+    display_label: str = Field(max_length=100)
+    prompt_text: str = Field(max_length=MAX_AUTHORING_PROMPT_LEN)
+    max_marks: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
+    question_type: str = Field(max_length=64)
+    answer_text: str | None = Field(default=None, max_length=MAX_AUTHORING_ANSWER_LEN)
+    instructions: str | None = Field(default=None, max_length=500)
+
+
+class RubricProposalResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str = Field(min_length=1, max_length=255)
+    criteria: list[ProposedRubricCriterion] = Field(
+        min_length=1, max_length=MAX_AUTHORING_CRITERIA
+    )
+
+
+class CurriculumNodeHint(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    curriculum_node_id: uuid.UUID
+    code: str = Field(max_length=100)
+    name: str = Field(max_length=255)
+    node_type: str = Field(max_length=64)
+
+
+class CurriculumMappingProposalInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    question_version_id: uuid.UUID
+    curriculum_id: uuid.UUID
+    prompt_text: str = Field(max_length=MAX_AUTHORING_PROMPT_LEN)
+    stable_code: str = Field(max_length=100)
+    candidate_nodes: list[CurriculumNodeHint] = Field(
+        default_factory=list, max_length=100
+    )
+    instructions: str | None = Field(default=None, max_length=500)
+
+
+class ProposedCurriculumMapping(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    curriculum_node_id: uuid.UUID
+    mapping_type: Literal["PRIMARY", "SECONDARY", "LEARNING_OUTCOME", "SKILL"]
+    weight: Decimal | None = Field(default=None, ge=0, max_digits=10, decimal_places=2)
+    rationale: str | None = Field(default=None, max_length=2000)
+
+
+class CurriculumMappingProposalResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    mappings: list[ProposedCurriculumMapping] = Field(
+        default_factory=list, max_length=MAX_AUTHORING_MAPPINGS
     )
 
 

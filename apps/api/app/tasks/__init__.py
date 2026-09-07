@@ -2,8 +2,16 @@
 
 from app.tasks.celery_app import (
     analytics_task,
+    authoring_answer_key_task,
+    authoring_mapping_task,
+    authoring_parse_task,
+    authoring_rubric_task,
     celery_app,
     enqueue_analytics,
+    enqueue_authoring_answer_key,
+    enqueue_authoring_curriculum_mapping,
+    enqueue_authoring_parse,
+    enqueue_authoring_rubric,
     enqueue_evaluation,
     enqueue_identity_extraction,
     enqueue_improvement_blueprint,
@@ -24,8 +32,16 @@ from app.tasks.celery_app import (
 
 __all__ = [
     "analytics_task",
+    "authoring_answer_key_task",
+    "authoring_mapping_task",
+    "authoring_parse_task",
+    "authoring_rubric_task",
     "celery_app",
     "enqueue_analytics",
+    "enqueue_authoring_answer_key",
+    "enqueue_authoring_curriculum_mapping",
+    "enqueue_authoring_parse",
+    "enqueue_authoring_rubric",
     "enqueue_evaluation",
     "enqueue_identity_extraction",
     "enqueue_improvement_blueprint",

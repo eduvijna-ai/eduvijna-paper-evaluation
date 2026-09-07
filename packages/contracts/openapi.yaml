@@ -517,24 +517,161 @@ paths:
       operationId: deleteQuestionCurriculumMapping
       security: [{ bearerAuth: [] }]
       responses: { "204": { description: Mapping deleted } }
+  /api/v1/assessment-versions/{id}/question-paper:
+    post:
+      operationId: uploadAssessmentQuestionPaper
+      summary: Upload question paper artifact for a DRAFT assessment version (PEV-002 / PEV-069)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Assessment artifact stored after scan hook
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssessmentArtifact" }
+        "409":
+          description: Version not DRAFT or question structure already exists
+        "422":
+          description: Validation or malware rejection
+  /api/v1/assessment-versions/{id}/question-paper/parse:
+    post:
+      operationId: parseQuestionPaper
+      summary: Enqueue AI parse of uploaded question paper into a proposed tree (PEV-002)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200":
+          description: Authoring AI run (QUEUED / REVIEW_REQUIRED / …)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthoringAiRun" }
+        "503":
+          description: AI_PROVIDER_UNAVAILABLE when AI_PROVIDER_AUTHORING is unset
+  /api/v1/assessment-versions/{id}/authoring-ai-runs/latest:
+    get:
+      operationId: getLatestAuthoringAiRun
+      summary: Latest authoring AI run for an assessment version (optional operation filter)
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: "#/components/parameters/Id"
+        - name: operation
+          in: query
+          required: false
+          schema:
+            $ref: "#/components/schemas/AuthoringAiOperation"
+      responses:
+        "200":
+          description: Latest matching authoring AI run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthoringAiRun" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/assessment-artifacts/{id}:
+    get:
+      operationId: getAssessmentArtifact
+      summary: Tenant-scoped assessment artifact metadata (no storage credentials)
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200":
+          description: Assessment artifact metadata
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AssessmentArtifact" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/authoring-ai-runs/{id}:
+    get:
+      operationId: getAuthoringAiRun
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200":
+          description: Authoring AI run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthoringAiRun" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/authoring-ai-runs/{id}/question-tree-proposal:
+    put:
+      operationId: updateQuestionTreeProposal
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/QuestionTreeProposalInput" }
+      responses:
+        "200":
+          description: Updated proposal payload
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthoringAiRun" }
+  /api/v1/authoring-ai-runs/{id}/apply-question-tree:
+    post:
+      operationId: applyQuestionTree
+      summary: Materialize a REVIEW_REQUIRED parse proposal into Question / QuestionVersion rows
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: "#/components/parameters/Id" }]
+      responses:
+        "200":
+          description: Applied authoring run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthoringAiRun" }
   /api/v1/ai/proposals/answer-key:
     post:
       operationId: proposeAnswerKey
+      summary: B10 AI answer-key proposal (PEV-004); requires AI_PROVIDER_AUTHORING
       security: [{ bearerAuth: [] }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/AnswerKeyProposalRequest" } } } }
-      responses: { "503": { description: AI provider unavailable; no content fabricated } }
+      responses:
+        "200":
+          description: Authoring AI run for answer-key proposal
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthoringAiRun" }
+        "503":
+          description: AI provider unavailable; no content fabricated
   /api/v1/ai/proposals/rubric:
     post:
       operationId: proposeRubric
+      summary: B10 AI rubric proposal (PEV-004); requires AI_PROVIDER_AUTHORING
       security: [{ bearerAuth: [] }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/RubricProposalRequest" } } } }
-      responses: { "503": { description: AI provider unavailable; no content fabricated } }
+      responses:
+        "200":
+          description: Authoring AI run for rubric proposal
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthoringAiRun" }
+        "503":
+          description: AI provider unavailable; no content fabricated
   /api/v1/ai/proposals/curriculum-mapping:
     post:
       operationId: suggestCurriculumMapping
+      summary: B10 AI curriculum-mapping suggestion; requires AI_PROVIDER_AUTHORING
       security: [{ bearerAuth: [] }]
       requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/CurriculumMappingProposalRequest" } } } }
-      responses: { "503": { description: AI provider unavailable; no content fabricated } }
+      responses:
+        "200":
+          description: Authoring AI run for curriculum-mapping suggestion
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AuthoringAiRun" }
+        "503":
+          description: AI provider unavailable; no content fabricated
   /api/v1/submissions:
     get:
       operationId: listSubmissions
@@ -1803,6 +1940,129 @@ components:
         question_type: { type: string }
         scoring_mode: { type: string, enum: [LEAF_SCORABLE, CONTAINER_DERIVED] }
         instructions: { type: [string, "null"] }
+    AssessmentArtifact:
+      type: object
+      description: Immutable assessment source artifact (B10 / PEV-002)
+      required:
+        [
+          id,
+          tenant_id,
+          assessment_id,
+          artifact_type,
+          original_filename,
+          mime_type,
+          byte_size,
+          content_sha256,
+          storage_key,
+          security_scan_status,
+          uploaded_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        artifact_type: { type: string, enum: [QUESTION_PAPER] }
+        original_filename: { type: string }
+        mime_type: { type: string }
+        byte_size: { type: integer }
+        content_sha256: { type: string, minLength: 64, maxLength: 64 }
+        storage_key: { type: string }
+        security_scan_status:
+          type: string
+          enum: [NOT_CONFIGURED, CLEAN, REJECTED, ERROR]
+        uploaded_by: { type: [string, "null"], format: uuid }
+        uploaded_at: { type: string, format: date-time }
+        created_at: { type: [string, "null"], format: date-time }
+    ProposedQuestionNode:
+      type: object
+      description: See packages/contracts/schemas/question-paper-parse.schema.json
+      additionalProperties: false
+      required:
+        [
+          stable_code,
+          display_label,
+          sequence,
+          prompt_text,
+          max_marks,
+          question_type,
+          scoring_mode,
+        ]
+      properties:
+        stable_code: { type: string, minLength: 1, maxLength: 100 }
+        display_label: { type: string, minLength: 1, maxLength: 100 }
+        sequence: { type: integer, minimum: 0, maximum: 10000 }
+        prompt_text: { type: string, minLength: 1, maxLength: 10000 }
+        max_marks: { type: number, minimum: 0 }
+        question_type: { type: string, minLength: 1, maxLength: 64 }
+        scoring_mode: { type: string, enum: [LEAF_SCORABLE, CONTAINER_DERIVED] }
+        instructions: { type: [string, "null"], maxLength: 5000 }
+        children:
+          type: array
+          maxItems: 200
+          items: { $ref: "#/components/schemas/ProposedQuestionNode" }
+    QuestionTreeProposalInput:
+      type: object
+      additionalProperties: false
+      required: [roots]
+      properties:
+        roots:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items: { $ref: "#/components/schemas/ProposedQuestionNode" }
+        notes: { type: [string, "null"], maxLength: 2000 }
+    AuthoringAiOperation:
+      type: string
+      enum:
+        [
+          PARSE_QUESTION_PAPER,
+          PROPOSE_ANSWER_KEY,
+          PROPOSE_RUBRIC,
+          SUGGEST_CURRICULUM_MAPPING,
+        ]
+    AuthoringAiRun:
+      type: object
+      description: Durable B10 authoring AI job (PEV-002 / PEV-004)
+      required:
+        [
+          id,
+          tenant_id,
+          assessment_id,
+          assessment_version_id,
+          operation,
+          status,
+          input_hash,
+          requested_by,
+          requested_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        question_version_id: { type: [string, "null"], format: uuid }
+        assessment_artifact_id: { type: [string, "null"], format: uuid }
+        operation:
+          $ref: "#/components/schemas/AuthoringAiOperation"
+        status:
+          type: string
+          enum:
+            [QUEUED, RUNNING, REVIEW_REQUIRED, SUCCEEDED, FAILED, UNAVAILABLE]
+        input_hash: { type: string }
+        proposal_payload: { type: [object, "null"], additionalProperties: true }
+        requested_by: { type: string, format: uuid }
+        requested_at: { type: string, format: date-time }
+        started_at: { type: [string, "null"], format: date-time }
+        finished_at: { type: [string, "null"], format: date-time }
+        celery_task_id: { type: [string, "null"] }
+        answer_key_version_id: { type: [string, "null"], format: uuid }
+        rubric_version_id: { type: [string, "null"], format: uuid }
+        correlation_id: { type: [string, "null"], maxLength: 100 }
+        failure_code: { type: [string, "null"] }
+        failure_detail: { type: [string, "null"] }
+        enqueue_error: { type: [string, "null"] }
+        created_at: { type: [string, "null"], format: date-time }
+        updated_at: { type: [string, "null"], format: date-time }
     AnswerKeyProposalRequest:
       type: object
       additionalProperties: false
@@ -2191,9 +2451,30 @@ components:
     TranscriptionSegment:
       type: object
       additionalProperties: false
-      required: [text]
       properties:
-        text: { type: string, maxLength: 2000 }
+        kind:
+          type: string
+          enum: [TEXT, MATH, TABLE, DIAGRAM]
+          default: TEXT
+        step_index: { type: [integer, "null"], minimum: 0 }
+        text: { type: [string, "null"], maxLength: 2000 }
+        latex: { type: [string, "null"], maxLength: 5000 }
+        table:
+          type: [object, "null"]
+          additionalProperties: false
+          required: [rows]
+          properties:
+            rows:
+              type: array
+              minItems: 1
+              maxItems: 40
+              items:
+                type: array
+                minItems: 1
+                maxItems: 20
+                items: { type: string, maxLength: 500 }
+        diagram_description: { type: [string, "null"], maxLength: 5000 }
+        confidence: { type: [number, "null"], minimum: 0, maximum: 1 }
         start: { type: [number, "null"] }
         end: { type: [number, "null"] }
     AnswerRegionTranscription:

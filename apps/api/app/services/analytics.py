@@ -15,7 +15,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import (
     Assessment,
-    AuditEvent,
     CurriculumNode,
     EvaluationRun,
     MasteryEvidence,
@@ -29,6 +28,7 @@ from app.db.models import (
     Student,
 )
 from app.db.models.mastery import ALGORITHM_VERSION_B8_V1
+from app.services.audit import add_audit_event
 from app.services.mastery_derivation import (
     ALGORITHM_VERSION,
     aggregate_signal,
@@ -103,18 +103,17 @@ async def ensure_analytics_job(
     )
     db.add(job)
     await db.flush()
-    db.add(
-        AuditEvent(
-            tenant_id=tenant_id,
-            actor_user_id=None,
-            entity_type="PublishedResult",
-            entity_id=published.id,
-            action="analytics_job_ensured",
-            payload_json={
-                "pipeline_job_id": str(job.id),
-                "algorithm_version": ALGORITHM_VERSION,
-            },
-        )
+    await add_audit_event(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=None,
+        entity_type="PublishedResult",
+        entity_id=published.id,
+        action="analytics_job_ensured",
+        after={
+            "pipeline_job_id": str(job.id),
+            "algorithm_version": ALGORITHM_VERSION,
+        },
     )
     await db.flush()
     return job
@@ -201,15 +200,14 @@ async def materialize_published_result(
         job.finished_at = datetime.now(UTC)
         job.error_code = None
         job.error_detail = None
-        db.add(
-            AuditEvent(
-                tenant_id=tenant_id,
-                actor_user_id=None,
-                entity_type="PublishedResult",
-                entity_id=published.id,
-                action="analytics_materialized",
-                payload_json={"algorithm_version": ALGORITHM_VERSION},
-            )
+        await add_audit_event(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=None,
+            entity_type="PublishedResult",
+            entity_id=published.id,
+            action="analytics_materialized",
+            after={"algorithm_version": ALGORITHM_VERSION},
         )
         await db.commit()
     except Exception as exc:  # noqa: BLE001 — durable failure metadata

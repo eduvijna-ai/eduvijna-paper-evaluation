@@ -20,13 +20,13 @@ from app.ai.types import IdentityExtractionInput, ProviderUnavailable
 from app.core.config import Settings, get_settings
 from app.db.models import (
     Assessment,
-    AuditEvent,
     PipelineJob,
     Student,
     Submission,
     SubmissionIdentityCandidate,
     SubmissionPage,
 )
+from app.services.audit import add_audit_event
 
 
 class IdentityPipelineError(RuntimeError):
@@ -76,15 +76,14 @@ async def run_identity_extraction(
             submission.identity_confidence = Decimal("0.0000")
             job.status = "SUCCEEDED"
             job.finished_at = datetime.now(UTC)
-            db.add(
-                AuditEvent(
-                    tenant_id=tenant_id,
-                    actor_user_id=None,
-                    entity_type="Submission",
-                    entity_id=submission.id,
-                    action="identity_provider_unavailable",
-                    payload_json={"provider": "none"},
-                )
+            await add_audit_event(
+                db,
+                tenant_id=tenant_id,
+                actor_user_id=None,
+                entity_type="Submission",
+                entity_id=submission.id,
+                action="identity_provider_unavailable",
+                after={"provider": "none"},
             )
             await db.commit()
             return
@@ -224,19 +223,18 @@ async def run_identity_extraction(
             job.error_code = None
             job.error_detail = None
         job.finished_at = finished
-        db.add(
-            AuditEvent(
-                tenant_id=tenant_id,
-                actor_user_id=None,
-                entity_type="Submission",
-                entity_id=submission.id,
-                action="identity_extraction_finished",
-                payload_json={
-                    "status": status,
-                    "execution_id": str(exec_row.id),
-                    "provider": provider.provider_name,
-                },
-            )
+        await add_audit_event(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=None,
+            entity_type="Submission",
+            entity_id=submission.id,
+            action="identity_extraction_finished",
+            after={
+                "status": status,
+                "execution_id": str(exec_row.id),
+                "provider": provider.provider_name,
+            },
         )
         await db.commit()
     except Exception as exc:

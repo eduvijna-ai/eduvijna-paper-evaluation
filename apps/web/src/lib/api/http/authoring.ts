@@ -24,7 +24,13 @@ import {
   rubricCriterionApiToView,
   type AssessmentFormValues,
 } from "@/lib/api/mappers/authoring";
+import type {
+  AssessmentArtifact,
+  AuthoringAiRun,
+  ProposedQuestionNode,
+} from "@/lib/types/domain";
 import { httpRequest } from "./client";
+import { isApiError } from "./errors";
 
 function latestVersion(versions: A2AssessmentVersion[]): A2AssessmentVersion | undefined {
   return [...versions].sort((a, b) => b.version_number - a.version_number)[0];
@@ -41,6 +47,62 @@ function latestByQuestion<T extends { question_version_id: string; version_numbe
     }
   }
   return [...latest.values()];
+}
+
+function asId(value: unknown): string {
+  return String(value ?? "");
+}
+
+function authoringRunApiToView(raw: Record<string, unknown>): AuthoringAiRun {
+  return {
+    id: asId(raw.id),
+    tenant_id: asId(raw.tenant_id),
+    assessment_id: asId(raw.assessment_id),
+    assessment_version_id: asId(raw.assessment_version_id),
+    question_version_id: raw.question_version_id
+      ? asId(raw.question_version_id)
+      : null,
+    assessment_artifact_id: raw.assessment_artifact_id
+      ? asId(raw.assessment_artifact_id)
+      : null,
+    operation: String(raw.operation ?? ""),
+    status: String(raw.status ?? ""),
+    input_hash: String(raw.input_hash ?? ""),
+    proposal_payload: (raw.proposal_payload as AuthoringAiRun["proposal_payload"]) ?? null,
+    requested_by: asId(raw.requested_by),
+    requested_at: raw.requested_at ? String(raw.requested_at) : null,
+    started_at: raw.started_at ? String(raw.started_at) : null,
+    finished_at: raw.finished_at ? String(raw.finished_at) : null,
+    celery_task_id: raw.celery_task_id ? String(raw.celery_task_id) : null,
+    answer_key_version_id: raw.answer_key_version_id
+      ? asId(raw.answer_key_version_id)
+      : null,
+    rubric_version_id: raw.rubric_version_id
+      ? asId(raw.rubric_version_id)
+      : null,
+    correlation_id: raw.correlation_id ? String(raw.correlation_id) : null,
+    failure_code: raw.failure_code ? String(raw.failure_code) : null,
+    failure_detail: raw.failure_detail ? String(raw.failure_detail) : null,
+    enqueue_error: raw.enqueue_error ? String(raw.enqueue_error) : null,
+  };
+}
+
+function artifactApiToView(raw: Record<string, unknown>): AssessmentArtifact {
+  return {
+    id: asId(raw.id),
+    tenant_id: asId(raw.tenant_id),
+    assessment_id: asId(raw.assessment_id),
+    artifact_type: String(raw.artifact_type ?? "QUESTION_PAPER"),
+    original_filename: String(raw.original_filename ?? ""),
+    mime_type: String(raw.mime_type ?? ""),
+    byte_size: Number(raw.byte_size ?? 0),
+    content_sha256: String(raw.content_sha256 ?? ""),
+    storage_key: String(raw.storage_key ?? ""),
+    security_scan_status: String(raw.security_scan_status ?? "NOT_CONFIGURED"),
+    uploaded_by: raw.uploaded_by ? asId(raw.uploaded_by) : null,
+    uploaded_at: String(raw.uploaded_at ?? ""),
+    created_at: raw.created_at ? String(raw.created_at) : null,
+  };
 }
 
 async function listVersions(assessmentId: string): Promise<A2AssessmentVersion[]> {
@@ -116,6 +178,14 @@ export const AuthoringHttpApi = {
     return assessmentApiToView(created, curriculum, 0);
   },
 
+  async getLatestAssessmentVersion(assessmentId: string) {
+    const version = latestVersion(await listVersions(assessmentId));
+    if (!version) {
+      throw new Error("Assessment has no version");
+    }
+    return version;
+  },
+
   async getAssessmentQuestions(id: string) {
     const { tree } = await latestQuestionTree(id);
     return questionTreeApiToView(tree, id);
@@ -147,7 +217,13 @@ export const AuthoringHttpApi = {
         const rows = await httpRequest<A2RubricCriterion[]>(
           `/api/v1/rubric-versions/${latest.id}/criteria`,
         );
-        return rows.map((row) => rubricCriterionApiToView(row, latest.question_version_id));
+        return rows.map((row) =>
+          rubricCriterionApiToView(row, latest.question_version_id, {
+            id: latest.id,
+            source_type: latest.source_type,
+            status: latest.status,
+          }),
+        );
       }),
     );
     return criteria.flat().sort((a, b) => a.sort_order - b.sort_order);
@@ -174,6 +250,267 @@ export const AuthoringHttpApi = {
     const nodeTitles = curriculumNodeTitleMap(curriculumTree);
     return questions.map((question, index) =>
       curriculumMappingsToView(question, mappings[index] ?? [], nodeTitles),
+    );
+  },
+
+  async uploadQuestionPaper(versionId: string, file: File): Promise<AssessmentArtifact> {
+    const form = new FormData();
+    form.append("file", file, file.name);
+    const row = await httpRequest<Record<string, unknown>>(
+      `/api/v1/assessment-versions/${versionId}/question-paper`,
+      { method: "POST", formData: form },
+    );
+    return artifactApiToView(row);
+  },
+
+  async prepareQuestionPaperParse(versionId: string): Promise<AuthoringAiRun> {
+    const row = await httpRequest<Record<string, unknown>>(
+      `/api/v1/assessment-versions/${versionId}/question-paper/parse`,
+      { method: "POST" },
+    );
+    return authoringRunApiToView(row);
+  },
+
+  async getLatestAuthoringAiRun(
+    versionId: string,
+    operation?: string,
+  ): Promise<AuthoringAiRun | null> {
+    const query = operation
+      ? `?operation=${encodeURIComponent(operation)}`
+      : "";
+    try {
+      const row = await httpRequest<Record<string, unknown>>(
+        `/api/v1/assessment-versions/${versionId}/authoring-ai-runs/latest${query}`,
+      );
+      return authoringRunApiToView(row);
+    } catch (err) {
+      if (isApiError(err) && err.status === 404) return null;
+      throw err;
+    }
+  },
+
+  async getAssessmentArtifact(artifactId: string): Promise<AssessmentArtifact> {
+    const row = await httpRequest<Record<string, unknown>>(
+      `/api/v1/assessment-artifacts/${artifactId}`,
+    );
+    return artifactApiToView(row);
+  },
+
+  async getAuthoringAiRun(runId: string): Promise<AuthoringAiRun> {
+    const row = await httpRequest<Record<string, unknown>>(
+      `/api/v1/authoring-ai-runs/${runId}`,
+    );
+    return authoringRunApiToView(row);
+  },
+
+  async updateQuestionTreeProposal(
+    runId: string,
+    tree: { roots: ProposedQuestionNode[]; notes?: string | null },
+  ): Promise<AuthoringAiRun> {
+    const row = await httpRequest<Record<string, unknown>>(
+      `/api/v1/authoring-ai-runs/${runId}/question-tree-proposal`,
+      {
+        method: "PUT",
+        body: {
+          roots: tree.roots,
+          notes: tree.notes ?? null,
+        },
+      },
+    );
+    return authoringRunApiToView(row);
+  },
+
+  async applyQuestionTreeProposal(runId: string): Promise<AuthoringAiRun> {
+    const row = await httpRequest<Record<string, unknown>>(
+      `/api/v1/authoring-ai-runs/${runId}/apply-question-tree`,
+      { method: "POST" },
+    );
+    return authoringRunApiToView(row);
+  },
+
+  async createTeacherAnswerKey(input: {
+    assessmentId: string;
+    assessmentVersionId: string;
+    questionVersionId: string;
+    answerText: string;
+  }) {
+    return httpRequest<A2AnswerKeyVersion>(
+      `/api/v1/assessments/${input.assessmentId}/answer-key-versions`,
+      {
+        method: "POST",
+        body: {
+          assessment_version_id: input.assessmentVersionId,
+          question_version_id: input.questionVersionId,
+          answer_text: input.answerText,
+          source_type: "TEACHER",
+          status: "DRAFT",
+        },
+      },
+    );
+  },
+
+  async updateAnswerKey(
+    answerKeyVersionId: string,
+    patch: { answerText?: string; status?: "DRAFT" | "REVIEW_REQUIRED" },
+  ) {
+    return httpRequest<A2AnswerKeyVersion>(
+      `/api/v1/answer-key-versions/${answerKeyVersionId}`,
+      {
+        method: "PATCH",
+        body: {
+          ...(patch.answerText !== undefined
+            ? { answer_text: patch.answerText }
+            : {}),
+          ...(patch.status !== undefined ? { status: patch.status } : {}),
+        },
+      },
+    );
+  },
+
+  async approveAnswerKey(answerKeyVersionId: string) {
+    return httpRequest<A2AnswerKeyVersion>(
+      `/api/v1/answer-key-versions/${answerKeyVersionId}/approve`,
+      { method: "POST" },
+    );
+  },
+
+  async prepareAiAnswerKeyProposal(input: {
+    questionVersionId: string;
+    assessmentVersionId?: string;
+    instructions?: string;
+  }): Promise<AuthoringAiRun> {
+    const row = await httpRequest<Record<string, unknown>>(
+      "/api/v1/ai/proposals/answer-key",
+      {
+        method: "POST",
+        body: {
+          question_version_id: input.questionVersionId,
+          ...(input.assessmentVersionId
+            ? { assessment_version_id: input.assessmentVersionId }
+            : {}),
+          ...(input.instructions ? { instructions: input.instructions } : {}),
+        },
+      },
+    );
+    return authoringRunApiToView(row);
+  },
+
+  async createTeacherRubric(input: {
+    assessmentId: string;
+    questionVersionId: string;
+    title: string;
+    criteria: Array<{
+      criterionCode: string;
+      description: string;
+      maxMarks: number | string;
+      sequence: number;
+      scoringMode?: "ADDITIVE" | "DEDUCTIVE" | "ALL_OR_NOTHING";
+      partialCreditAllowed?: boolean;
+    }>;
+  }) {
+    const rubric = await httpRequest<A2Rubric>(
+      `/api/v1/assessments/${input.assessmentId}/rubrics`,
+      {
+        method: "POST",
+        body: {
+          question_version_id: input.questionVersionId,
+          title: input.title,
+          provenance: "TEACHER",
+        },
+      },
+    );
+    const version = await httpRequest<A2RubricVersion>(
+      `/api/v1/rubrics/${rubric.id}/versions`,
+      {
+        method: "POST",
+        body: {
+          question_version_id: input.questionVersionId,
+          source_type: "TEACHER",
+          status: "DRAFT",
+        },
+      },
+    );
+    const criteria = [];
+    for (const criterion of input.criteria) {
+      const created = await httpRequest<A2RubricCriterion>(
+        `/api/v1/rubric-versions/${version.id}/criteria`,
+        {
+          method: "POST",
+          body: {
+            criterion_code: criterion.criterionCode,
+            description: criterion.description,
+            max_marks:
+              typeof criterion.maxMarks === "number"
+                ? criterion.maxMarks.toFixed(2)
+                : criterion.maxMarks,
+            sequence: criterion.sequence,
+            scoring_mode: criterion.scoringMode ?? "ADDITIVE",
+            partial_credit_allowed: criterion.partialCreditAllowed ?? false,
+            ecf_policy: "NONE",
+          },
+        },
+      );
+      criteria.push(created);
+    }
+    return { rubric, version, criteria };
+  },
+
+  async updateRubric(
+    rubricVersionId: string,
+    patch: {
+      questionVersionId: string;
+      status?: "DRAFT" | "REVIEW_REQUIRED";
+      sourceType?: "TEACHER" | "IMPORTED";
+    },
+  ) {
+    return httpRequest<A2RubricVersion>(
+      `/api/v1/rubric-versions/${rubricVersionId}`,
+      {
+        method: "PATCH",
+        body: {
+          question_version_id: patch.questionVersionId,
+          source_type: patch.sourceType ?? "TEACHER",
+          status: patch.status ?? "DRAFT",
+        },
+      },
+    );
+  },
+
+  async approveRubric(rubricVersionId: string) {
+    return httpRequest<A2RubricVersion>(
+      `/api/v1/rubric-versions/${rubricVersionId}/approve`,
+      { method: "POST" },
+    );
+  },
+
+  async prepareAiRubricProposal(input: {
+    questionVersionId: string;
+    assessmentVersionId?: string;
+    instructions?: string;
+  }): Promise<AuthoringAiRun> {
+    const row = await httpRequest<Record<string, unknown>>(
+      "/api/v1/ai/proposals/rubric",
+      {
+        method: "POST",
+        body: {
+          question_version_id: input.questionVersionId,
+          ...(input.assessmentVersionId
+            ? { assessment_version_id: input.assessmentVersionId }
+            : {}),
+          ...(input.instructions ? { instructions: input.instructions } : {}),
+        },
+      },
+    );
+    return authoringRunApiToView(row);
+  },
+
+  async transitionAssessment(assessmentId: string, toStatus: string) {
+    return httpRequest<A2Assessment>(
+      `/api/v1/assessments/${assessmentId}/transition`,
+      {
+        method: "POST",
+        body: { to_status: toStatus },
+      },
     );
   },
 };
