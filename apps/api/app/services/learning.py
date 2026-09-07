@@ -929,12 +929,10 @@ async def get_learning_workspace(
                 .limit(1)
             )
             if bp is not None:
-                latest_blueprint = {
-                    "id": str(bp.id),
-                    "version_number": bp.version_number,
-                    "status": bp.status,
-                    "title": bp.title,
-                }
+                latest_blueprint = await get_improvement_assessment(
+                    db, tenant_id=tenant_id, blueprint_id=bp.id
+                )
+                latest_blueprint["is_stale"] = is_stale
 
     display = (
         getattr(student, "full_name", None)

@@ -707,37 +707,58 @@ test.describe("B9 live learning + improvement blueprint (real API)", () => {
     const genBp = page.getByTestId("generate-improvement-blueprint");
     if (await genBp.count()) {
       await genBp.click();
-    } else {
-      const ws = await request.get(
-        `${apiBase}/api/v1/learning/students/${studentId}?curriculum_id=${curriculumId}`,
-        { headers },
-      );
-      expect(ws.ok()).toBeTruthy();
-      const body = (await ws.json()) as {
-        latest_run?: { id?: string };
-        latest_plan?: { run_id?: string };
-      };
-      const rid = body.latest_plan?.run_id ?? body.latest_run?.id;
-      expect(rid).toBeTruthy();
-      const prepBp = await request.post(
-        `${apiBase}/api/v1/learning/plan-runs/${rid}/improvement-blueprints/prepare`,
-        { headers },
-      );
-      expect([200, 409]).toContain(prepBp.status());
-      await page.reload();
     }
 
     await expect
       .poll(
         async () => {
-          await page.reload();
-          const state = page.getByTestId("blueprint-state");
-          if ((await state.count()) === 0) return "missing";
-          return ((await state.textContent()) ?? "").trim();
+          const ws = await request.get(
+            `${apiBase}/api/v1/learning/students/${studentId}?curriculum_id=${curriculumId}`,
+            { headers },
+          );
+          if (!ws.ok()) return `ws:${ws.status()}`;
+          const body = (await ws.json()) as {
+            latest_run?: { id?: string };
+            latest_plan?: { run_id?: string; id?: string };
+            latest_improvement_blueprint?: {
+              id?: string;
+              status?: string;
+              failure_code?: string | null;
+            } | null;
+          };
+          const existing = body.latest_improvement_blueprint;
+          if (existing?.status === "PENDING_APPROVAL") return "PENDING_APPROVAL";
+          if (existing?.status === "FAILED") {
+            return `FAILED:${existing.failure_code ?? "?"}`;
+          }
+          if (existing?.status === "GENERATING" || existing?.status === "DRAFT") {
+            return existing.status;
+          }
+          const rid =
+            body.latest_plan?.run_id ?? body.latest_plan?.id ?? body.latest_run?.id;
+          if (!rid) return "no-run";
+          const prepBp = await request.post(
+            `${apiBase}/api/v1/learning/plan-runs/${rid}/improvement-blueprints/prepare`,
+            { headers },
+          );
+          if (![200, 409].includes(prepBp.status())) {
+            return `prepBp:${prepBp.status()}:${await prepBp.text()}`;
+          }
+          const prepBody = (await prepBp.json()) as {
+            status?: string;
+            improvement_assessment_id?: string;
+          };
+          return prepBody.status ?? "prepared";
         },
         { timeout: 180_000 },
       )
-      .toMatch(/PENDING APPROVAL/i);
+      .toBe("PENDING_APPROVAL");
+
+    await page.reload();
+    await expect(page.getByTestId("blueprint-state")).toContainText(
+      /PENDING APPROVAL/i,
+      { timeout: 30_000 },
+    );
 
     await expect(page.getByTestId("blueprint-live-copy")).toContainText(
       /freezes this improvement-assessment blueprint/i,
