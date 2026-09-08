@@ -165,6 +165,12 @@ test.describe("CVB frontend smoke — 15 flows", () => {
     await expect(page.getByTestId("student-analytics-page")).toBeVisible({
       timeout: 15_000,
     });
+    await expect(page.getByTestId("b12-longitudinal-mastery")).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByTestId("b12-repeated-errors")).toBeVisible();
+    await expect(page.getByTestId("b12-recoverable-marks")).toBeVisible();
+    await expect(page.getByTestId("b12-mistake-notebook")).toBeVisible();
   });
 
   test("14. adaptive learning", async ({ page }) => {

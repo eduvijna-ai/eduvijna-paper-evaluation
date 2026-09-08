@@ -30,7 +30,7 @@ function isLiveSubmissionId(id: string): boolean {
  * - Transcription review → B5 HTTP
  * - Evaluation ledger review → B6 HTTP
  * - Publication + reports → B7 HTTP
- * - Analytics → B8 HTTP
+ * - Analytics → B8 HTTP (+ B12 longitudinal when live)
  * - Learning + improvement blueprints → B9 HTTP
  *
  * Components use `api` only — they must not inspect mock vs HTTP.
@@ -485,6 +485,87 @@ export const HybridEduVijnaApi: ApiClient = {
     }
     throw new ApiError({
       message: "Analytics materialization is only available for live analytics.",
+      status: 404,
+      kind: "not_found",
+      code: "ANALYTICS_NOT_LIVE",
+    });
+  },
+  getStudentMasteryState: async (studentId) => {
+    if (getApiCapabilities().analytics === "live") {
+      return AnalyticsHttpApi.getStudentMasteryState(studentId);
+    }
+    if (isLiveSubmissionId(studentId)) {
+      throw new ApiError({
+        message: "B12 longitudinal mastery is not available for live student IDs in mock mode.",
+        status: 404,
+        kind: "not_found",
+        code: "B12_MOCK_DEMO_ONLY",
+      });
+    }
+    return MockEduVijnaApi.getStudentMasteryState(studentId);
+  },
+  getStudentMasteryTrend: async (studentId, options) => {
+    if (getApiCapabilities().analytics === "live") {
+      return AnalyticsHttpApi.getStudentMasteryTrend(studentId, options);
+    }
+    if (isLiveSubmissionId(studentId)) {
+      throw new ApiError({
+        message: "B12 mastery trend is not available for live student IDs in mock mode.",
+        status: 404,
+        kind: "not_found",
+        code: "B12_MOCK_DEMO_ONLY",
+      });
+    }
+    return MockEduVijnaApi.getStudentMasteryTrend(studentId, options);
+  },
+  getStudentRepeatedErrors: async (studentId) => {
+    if (getApiCapabilities().analytics === "live") {
+      return AnalyticsHttpApi.getStudentRepeatedErrors(studentId);
+    }
+    if (isLiveSubmissionId(studentId)) {
+      throw new ApiError({
+        message: "B12 repeated errors are not available for live student IDs in mock mode.",
+        status: 404,
+        kind: "not_found",
+        code: "B12_MOCK_DEMO_ONLY",
+      });
+    }
+    return MockEduVijnaApi.getStudentRepeatedErrors(studentId);
+  },
+  getStudentRecoverableMarks: async (studentId) => {
+    if (getApiCapabilities().analytics === "live") {
+      return AnalyticsHttpApi.getStudentRecoverableMarks(studentId);
+    }
+    if (isLiveSubmissionId(studentId)) {
+      throw new ApiError({
+        message: "B12 recoverable marks are not available for live student IDs in mock mode.",
+        status: 404,
+        kind: "not_found",
+        code: "B12_MOCK_DEMO_ONLY",
+      });
+    }
+    return MockEduVijnaApi.getStudentRecoverableMarks(studentId);
+  },
+  getStudentMistakeNotebook: async (studentId) => {
+    if (getApiCapabilities().analytics === "live") {
+      return AnalyticsHttpApi.getStudentMistakeNotebook(studentId);
+    }
+    if (isLiveSubmissionId(studentId)) {
+      throw new ApiError({
+        message: "B12 mistake notebook is not available for live student IDs in mock mode.",
+        status: 404,
+        kind: "not_found",
+        code: "B12_MOCK_DEMO_ONLY",
+      });
+    }
+    return MockEduVijnaApi.getStudentMistakeNotebook(studentId);
+  },
+  rebuildStudentB12: async (studentId) => {
+    if (getApiCapabilities().analytics === "live") {
+      return AnalyticsHttpApi.rebuildStudentB12(studentId);
+    }
+    throw new ApiError({
+      message: "B12 rebuild is only available for live analytics.",
       status: 404,
       kind: "not_found",
       code: "ANALYTICS_NOT_LIVE",

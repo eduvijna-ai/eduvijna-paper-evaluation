@@ -1341,6 +1341,83 @@ paths:
         "409":
           description: Prepare requires PUBLISHED result
           content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/analytics/students/{id}/mastery-state:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getStudentMasteryState
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Persisted longitudinal MasteryState (B12_V1 / PEV-037)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentMasteryState" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/analytics/students/{id}/mastery-trend:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getStudentMasteryTrend
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: curriculum_node_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Historical MasteryState snapshots ordered by effective published time (B12_V1)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentMasteryTrend" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/analytics/students/{id}/repeated-errors:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getStudentRepeatedErrors
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Recurring academic errors across distinct published results (B12_V1 / PEV-035)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentRepeatedErrors" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/analytics/students/{id}/recoverable-marks:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getStudentRecoverableMarks
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Potentially recoverable marks from final criterion ledger (B12_V1 / PEV-036)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentRecoverableMarks" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/analytics/students/{id}/mistake-notebook:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getStudentMistakeNotebook
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Persistent student mistake notebook (B12_V1 / PEV-038)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentMistakeNotebook" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/analytics/students/{id}/b12/rebuild:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: rebuildStudentB12Intelligence
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Deterministic idempotent B12 rebuild from immutable MasteryEvidence + published ledger
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/B12RebuildResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /api/v1/learning/students/{id}:
     parameters: [{ $ref: "#/components/parameters/Id" }]
     get:
@@ -3246,6 +3323,320 @@ components:
         celery_task_id: { type: [string, "null"] }
         enqueue_error: { type: [string, "null"] }
         algorithm_version: { type: string, enum: [B8_V1] }
+    StudentMasteryState:
+      type: object
+      description: See packages/contracts/schemas/mastery-state.schema.json
+      required: [student_id, items, algorithm_version, source, as_of]
+      properties:
+        student_id: { type: string, format: uuid }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/MasteryStateItem" }
+        algorithm_version: { type: string, enum: [B12_V1] }
+        source: { type: string, enum: [MASTERY_EVIDENCE] }
+        as_of: { type: string, format: date-time }
+    MasteryStateItem:
+      type: object
+      required:
+        [
+          curriculum_node_id,
+          curriculum_id,
+          code,
+          title,
+          node_type,
+          concept_mastery,
+          execution_accuracy,
+          concept_decisive_count,
+          execution_decisive_count,
+          concept_inconclusive_count,
+          execution_inconclusive_count,
+          evidence_count,
+          insufficient_concept_evidence,
+          insufficient_execution_evidence,
+          source_evidence_hash,
+          algorithm_version,
+          last_updated_at,
+        ]
+      properties:
+        id: { type: [string, "null"], format: uuid }
+        curriculum_node_id: { type: string, format: uuid }
+        curriculum_id: { type: string, format: uuid }
+        code: { type: string }
+        title: { type: string }
+        node_type: { type: string }
+        concept_mastery: { type: [number, "null"], minimum: 0, maximum: 1 }
+        execution_accuracy: { type: [number, "null"], minimum: 0, maximum: 1 }
+        concept_decisive_count: { type: integer, minimum: 0 }
+        execution_decisive_count: { type: integer, minimum: 0 }
+        concept_inconclusive_count: { type: integer, minimum: 0 }
+        execution_inconclusive_count: { type: integer, minimum: 0 }
+        evidence_count: { type: integer, minimum: 0 }
+        insufficient_concept_evidence: { type: boolean }
+        insufficient_execution_evidence: { type: boolean }
+        source_evidence_hash: { type: string }
+        algorithm_version: { type: string, enum: [B12_V1] }
+        last_updated_at: { type: string, format: date-time }
+    StudentMasteryTrend:
+      type: object
+      description: See packages/contracts/schemas/mastery-trend.schema.json
+      required: [student_id, points, algorithm_version, source, as_of]
+      properties:
+        student_id: { type: string, format: uuid }
+        curriculum_node_id: { type: [string, "null"], format: uuid }
+        points:
+          type: array
+          items: { $ref: "#/components/schemas/MasteryTrendPoint" }
+        algorithm_version: { type: string, enum: [B12_V1] }
+        source: { type: string, enum: [MASTERY_EVIDENCE] }
+        as_of: { type: string, format: date-time }
+    MasteryTrendPoint:
+      type: object
+      required:
+        [
+          curriculum_node_id,
+          curriculum_id,
+          code,
+          title,
+          published_result_id,
+          assessment_id,
+          assessment_code,
+          effective_at,
+          concept_mastery,
+          execution_accuracy,
+          concept_decisive_count,
+          execution_decisive_count,
+          evidence_count,
+          insufficient_concept_evidence,
+          insufficient_execution_evidence,
+          source_evidence_hash,
+          algorithm_version,
+        ]
+      properties:
+        curriculum_node_id: { type: string, format: uuid }
+        curriculum_id: { type: string, format: uuid }
+        code: { type: string }
+        title: { type: string }
+        published_result_id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_code: { type: string }
+        effective_at: { type: string, format: date-time }
+        concept_mastery: { type: [number, "null"], minimum: 0, maximum: 1 }
+        execution_accuracy: { type: [number, "null"], minimum: 0, maximum: 1 }
+        concept_decisive_count: { type: integer, minimum: 0 }
+        execution_decisive_count: { type: integer, minimum: 0 }
+        evidence_count: { type: integer, minimum: 0 }
+        insufficient_concept_evidence: { type: boolean }
+        insufficient_execution_evidence: { type: boolean }
+        source_evidence_hash: { type: string }
+        algorithm_version: { type: string, enum: [B12_V1] }
+    StudentRepeatedErrors:
+      type: object
+      description: See packages/contracts/schemas/repeated-errors.schema.json
+      required:
+        [student_id, items, recurrence_threshold, algorithm_version, source, as_of]
+      properties:
+        student_id: { type: string, format: uuid }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/RepeatedErrorItem" }
+        recurrence_threshold: { type: integer, enum: [2] }
+        algorithm_version: { type: string, enum: [B12_V1] }
+        source: { type: string, enum: [MASTERY_EVIDENCE] }
+        as_of: { type: string, format: date-time }
+    RepeatedErrorItem:
+      type: object
+      required:
+        [
+          error_code,
+          occurrence_count,
+          distinct_published_result_count,
+          distinct_assessment_count,
+          first_seen_at,
+          last_seen_at,
+          affected_question_evaluations,
+          curriculum_node_ids,
+        ]
+      properties:
+        error_code: { type: string }
+        occurrence_count: { type: integer, minimum: 1 }
+        distinct_published_result_count: { type: integer, minimum: 2 }
+        distinct_assessment_count: { type: integer, minimum: 1 }
+        first_seen_at: { type: string, format: date-time }
+        last_seen_at: { type: string, format: date-time }
+        affected_question_evaluations:
+          type: array
+          items:
+            type: object
+            required:
+              [
+                published_result_id,
+                assessment_id,
+                question_evaluation_id,
+                question_version_id,
+              ]
+            properties:
+              published_result_id: { type: string, format: uuid }
+              assessment_id: { type: string, format: uuid }
+              question_evaluation_id: { type: string, format: uuid }
+              question_version_id: { type: string, format: uuid }
+        curriculum_node_ids:
+          type: array
+          items: { type: string, format: uuid }
+    StudentRecoverableMarks:
+      type: object
+      description: See packages/contracts/schemas/recoverable-marks.schema.json
+      required:
+        [
+          student_id,
+          total_lost_marks,
+          attributed_potentially_recoverable_marks,
+          unattributed_lost_marks,
+          items,
+          disclaimer,
+          algorithm_version,
+          source,
+          as_of,
+        ]
+      properties:
+        student_id: { type: string, format: uuid }
+        total_lost_marks: { type: string }
+        attributed_potentially_recoverable_marks: { type: string }
+        unattributed_lost_marks: { type: string }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/RecoverableMarksItem" }
+        disclaimer:
+          type: string
+          enum:
+            - "Potentially recoverable marks are an analytical estimate from final criterion deductions, not guaranteed recovery."
+        algorithm_version: { type: string, enum: [B12_V1] }
+        source: { type: string, enum: [PUBLISHED_LEDGER] }
+        as_of: { type: string, format: date-time }
+    RecoverableMarksItem:
+      type: object
+      required:
+        [
+          error_code,
+          potentially_recoverable_marks,
+          occurrence_count,
+          percent_of_total_lost,
+          affected_references,
+        ]
+      properties:
+        error_code: { type: string }
+        potentially_recoverable_marks: { type: string }
+        occurrence_count: { type: integer, minimum: 1 }
+        percent_of_total_lost: { type: [number, "null"], minimum: 0, maximum: 100 }
+        affected_references:
+          type: array
+          items:
+            type: object
+            required:
+              [
+                published_result_id,
+                assessment_id,
+                question_evaluation_id,
+                criterion_evaluation_id,
+              ]
+            properties:
+              published_result_id: { type: string, format: uuid }
+              assessment_id: { type: string, format: uuid }
+              question_evaluation_id: { type: string, format: uuid }
+              criterion_evaluation_id: { type: string, format: uuid }
+    StudentMistakeNotebook:
+      type: object
+      description: See packages/contracts/schemas/mistake-notebook.schema.json
+      required: [student_id, entries, algorithm_version, source, as_of]
+      properties:
+        student_id: { type: string, format: uuid }
+        entries:
+          type: array
+          items: { $ref: "#/components/schemas/MistakeNotebookEntry" }
+        algorithm_version: { type: string, enum: [B12_V1] }
+        source: { type: string, enum: [PUBLISHED_LEDGER] }
+        as_of: { type: string, format: date-time }
+    MistakeNotebookEntry:
+      type: object
+      required:
+        [
+          id,
+          published_result_id,
+          assessment_id,
+          assessment_code,
+          submission_id,
+          question_evaluation_id,
+          question_version_id,
+          question_code,
+          academic_error_code,
+          final_score,
+          max_mark,
+          deduction_reasons,
+          first_divergence_step,
+          curriculum_nodes,
+          recommended_practice_kind,
+          linked_learning_recommendation_ids,
+          source_ledger_snapshot_hash,
+          algorithm_version,
+          materialized_at,
+          effective_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        published_result_id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_code: { type: string }
+        submission_id: { type: string, format: uuid }
+        question_evaluation_id: { type: string, format: uuid }
+        question_version_id: { type: string, format: uuid }
+        question_code: { type: string }
+        academic_error_code: { type: string }
+        final_score: { type: string }
+        max_mark: { type: string }
+        deduction_reasons:
+          type: array
+          items: { type: string }
+        first_divergence_step: { type: [string, "null"] }
+        curriculum_nodes:
+          type: array
+          items:
+            type: object
+            required: [id, code, title, node_type]
+            properties:
+              id: { type: string, format: uuid }
+              code: { type: string }
+              title: { type: string }
+              node_type: { type: string }
+        recommended_practice_kind:
+          type: string
+          enum: [CONCEPT_CHECK, EXECUTION_PRACTICE, PROCEDURE_PRACTICE]
+        linked_learning_recommendation_ids:
+          type: array
+          items: { type: string, format: uuid }
+        source_ledger_snapshot_hash: { type: string }
+        algorithm_version: { type: string, enum: [B12_V1] }
+        materialized_at: { type: string, format: date-time }
+        effective_at: { type: string, format: date-time }
+    B12RebuildResult:
+      type: object
+      description: See packages/contracts/schemas/b12-rebuild-result.schema.json
+      required:
+        [
+          student_id,
+          algorithm_version,
+          mastery_state_count,
+          snapshot_count,
+          notebook_entry_count,
+          source_evidence_hash,
+          source,
+        ]
+      properties:
+        student_id: { type: string, format: uuid }
+        algorithm_version: { type: string, enum: [B12_V1] }
+        mastery_state_count: { type: integer, minimum: 0 }
+        snapshot_count: { type: integer, minimum: 0 }
+        notebook_entry_count: { type: integer, minimum: 0 }
+        source_evidence_hash: { type: string }
+        source: { type: string, enum: [MASTERY_EVIDENCE] }
     LearningWorkspace:
       type: object
       description: Live B9 learning workspace

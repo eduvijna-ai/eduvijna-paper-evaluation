@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/mastery-trend.schema.json",
+  "title": "StudentMasteryTrend",
+  "description": "B12 historical MasteryState snapshots ordered by effective published time (PEV-037).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "student_id",
+    "points",
+    "algorithm_version",
+    "source",
+    "as_of"
+  ],
+  "properties": {
+    "student_id": { "type": "string", "format": "uuid" },
+    "curriculum_node_id": {
+      "type": ["string", "null"],
+      "format": "uuid",
+      "description": "Optional filter echoed when requested."
+    },
+    "points": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/trendPoint" }
+    },
+    "algorithm_version": { "type": "string", "const": "B12_V1" },
+    "source": { "type": "string", "const": "MASTERY_EVIDENCE" },
+    "as_of": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "trendPoint": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "curriculum_node_id",
+        "curriculum_id",
+        "code",
+        "title",
+        "published_result_id",
+        "assessment_id",
+        "assessment_code",
+        "effective_at",
+        "concept_mastery",
+        "execution_accuracy",
+        "concept_decisive_count",
+        "execution_decisive_count",
+        "evidence_count",
+        "insufficient_concept_evidence",
+        "insufficient_execution_evidence",
+        "source_evidence_hash",
+        "algorithm_version"
+      ],
+      "properties": {
+        "curriculum_node_id": { "type": "string", "format": "uuid" },
+        "curriculum_id": { "type": "string", "format": "uuid" },
+        "code": { "type": "string" },
+        "title": { "type": "string" },
+        "published_result_id": { "type": "string", "format": "uuid" },
+        "assessment_id": { "type": "string", "format": "uuid" },
+        "assessment_code": { "type": "string" },
+        "effective_at": { "type": "string", "format": "date-time" },
+        "concept_mastery": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "execution_accuracy": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "concept_decisive_count": { "type": "integer", "minimum": 0 },
+        "execution_decisive_count": { "type": "integer", "minimum": 0 },
+        "evidence_count": { "type": "integer", "minimum": 0 },
+        "insufficient_concept_evidence": { "type": "boolean" },
+        "insufficient_execution_evidence": { "type": "boolean" },
+        "source_evidence_hash": { "type": "string" },
+        "algorithm_version": { "type": "string", "const": "B12_V1" }
+      }
+    }
+  }
+}

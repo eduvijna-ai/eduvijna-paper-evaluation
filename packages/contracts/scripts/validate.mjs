@@ -42,6 +42,12 @@ const requiredPaths = [
   "/api/v1/authoring-ai-runs/{id}",
   "/api/v1/authoring-ai-runs/{id}/question-tree-proposal",
   "/api/v1/authoring-ai-runs/{id}/apply-question-tree",
+  "/api/v1/analytics/students/{id}/mastery-state",
+  "/api/v1/analytics/students/{id}/mastery-trend",
+  "/api/v1/analytics/students/{id}/repeated-errors",
+  "/api/v1/analytics/students/{id}/recoverable-marks",
+  "/api/v1/analytics/students/{id}/mistake-notebook",
+  "/api/v1/analytics/students/{id}/b12/rebuild",
 ];
 
 const schemaFiles = (await readdir(schemasDirectory))

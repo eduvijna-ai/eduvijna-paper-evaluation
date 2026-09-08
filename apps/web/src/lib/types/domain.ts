@@ -912,6 +912,190 @@ export interface AnalyticsMaterializationPrepareResult {
   algorithm_version: string;
 }
 
+/** B12 PEV-036 disclaimer (contract const). */
+export const B12_RECOVERABLE_MARKS_DISCLAIMER =
+  "Potentially recoverable marks are an analytical estimate from final criterion deductions, not guaranteed recovery.";
+
+export type B12AlgorithmVersion = "B12_V1";
+export type B12MasterySource = "MASTERY_EVIDENCE";
+export type B12LedgerSource = "PUBLISHED_LEDGER";
+export type B12RecommendedPracticeKind =
+  | "CONCEPT_CHECK"
+  | "EXECUTION_PRACTICE"
+  | "PROCEDURE_PRACTICE";
+
+/** B12 longitudinal MasteryState item (null mastery = insufficient decisive evidence). */
+export interface MasteryStateItem {
+  id: string | null;
+  curriculum_node_id: string;
+  curriculum_id: string;
+  code: string;
+  title: string;
+  node_type: string;
+  concept_mastery: number | null;
+  execution_accuracy: number | null;
+  concept_decisive_count: number;
+  execution_decisive_count: number;
+  concept_inconclusive_count: number;
+  execution_inconclusive_count: number;
+  evidence_count: number;
+  insufficient_concept_evidence: boolean;
+  insufficient_execution_evidence: boolean;
+  source_evidence_hash: string;
+  algorithm_version: B12AlgorithmVersion | string;
+  last_updated_at: string;
+}
+
+export interface StudentMasteryState {
+  student_id: string;
+  items: MasteryStateItem[];
+  algorithm_version: B12AlgorithmVersion | string;
+  source: B12MasterySource;
+  as_of: string;
+}
+
+export interface MasteryTrendPoint {
+  curriculum_node_id: string;
+  curriculum_id: string;
+  code: string;
+  title: string;
+  published_result_id: string;
+  assessment_id: string;
+  assessment_code: string;
+  effective_at: string;
+  concept_mastery: number | null;
+  execution_accuracy: number | null;
+  concept_decisive_count: number;
+  execution_decisive_count: number;
+  evidence_count: number;
+  insufficient_concept_evidence: boolean;
+  insufficient_execution_evidence: boolean;
+  source_evidence_hash: string;
+  algorithm_version: B12AlgorithmVersion | string;
+}
+
+export interface StudentMasteryTrend {
+  student_id: string;
+  curriculum_node_id: string | null;
+  points: MasteryTrendPoint[];
+  algorithm_version: B12AlgorithmVersion | string;
+  source: B12MasterySource;
+  as_of: string;
+}
+
+export interface RepeatedErrorAffectedQuestion {
+  published_result_id: string;
+  assessment_id: string;
+  question_evaluation_id: string;
+  question_version_id: string;
+}
+
+export interface RepeatedErrorItem {
+  error_code: string;
+  occurrence_count: number;
+  distinct_published_result_count: number;
+  distinct_assessment_count: number;
+  first_seen_at: string;
+  last_seen_at: string;
+  affected_question_evaluations: RepeatedErrorAffectedQuestion[];
+  curriculum_node_ids: string[];
+}
+
+export interface StudentRepeatedErrors {
+  student_id: string;
+  items: RepeatedErrorItem[];
+  recurrence_threshold: 2 | number;
+  algorithm_version: B12AlgorithmVersion | string;
+  source: B12MasterySource;
+  as_of: string;
+}
+
+export interface RecoverableMarksAffectedReference {
+  published_result_id: string;
+  assessment_id: string;
+  question_evaluation_id: string;
+  criterion_evaluation_id: string;
+}
+
+export interface RecoverableMarksItem {
+  error_code: string;
+  /** Decimal string from ledger. */
+  potentially_recoverable_marks: string;
+  occurrence_count: number;
+  percent_of_total_lost: number | null;
+  affected_references: RecoverableMarksAffectedReference[];
+}
+
+export interface StudentRecoverableMarks {
+  student_id: string;
+  /** Decimal strings — keep as strings in view types. */
+  total_lost_marks: string;
+  attributed_potentially_recoverable_marks: string;
+  unattributed_lost_marks: string;
+  items: RecoverableMarksItem[];
+  disclaimer: string;
+  algorithm_version: B12AlgorithmVersion | string;
+  source: B12LedgerSource;
+  as_of: string;
+}
+
+export interface MistakeNotebookCurriculumNode {
+  id: string;
+  code: string;
+  title: string;
+  node_type: string;
+}
+
+export interface MistakeNotebookEntry {
+  id: string;
+  published_result_id: string;
+  assessment_id: string;
+  assessment_code: string;
+  submission_id: string;
+  question_evaluation_id: string;
+  question_version_id: string;
+  question_code: string;
+  academic_error_code: string;
+  /** Decimal strings. */
+  final_score: string;
+  max_mark: string;
+  deduction_reasons: string[];
+  first_divergence_step: string | null;
+  curriculum_nodes: MistakeNotebookCurriculumNode[];
+  recommended_practice_kind: B12RecommendedPracticeKind | string;
+  linked_learning_recommendation_ids: string[];
+  source_ledger_snapshot_hash: string;
+  algorithm_version: B12AlgorithmVersion | string;
+  materialized_at: string;
+  effective_at: string;
+}
+
+export interface StudentMistakeNotebook {
+  student_id: string;
+  entries: MistakeNotebookEntry[];
+  algorithm_version: B12AlgorithmVersion | string;
+  source: B12LedgerSource;
+  as_of: string;
+}
+
+export interface B12RebuildResult {
+  student_id: string;
+  algorithm_version: B12AlgorithmVersion | string;
+  mastery_state_count: number;
+  snapshot_count: number;
+  notebook_entry_count: number;
+  source_evidence_hash: string;
+  source: B12MasterySource;
+}
+
+/** Format 0–1 mastery ratio; null = insufficient decisive evidence. */
+export function formatMasteryRatio(
+  value: number | null | undefined,
+): string {
+  if (value === null || value === undefined) return "Insufficient evidence";
+  return `${Math.round(value * 100)}%`;
+}
+
 export type AssessmentAnalyticsView =
   | AssessmentAnalytics
   | LiveAssessmentAnalytics;

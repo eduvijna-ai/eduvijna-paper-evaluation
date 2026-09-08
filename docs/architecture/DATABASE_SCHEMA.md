@@ -369,14 +369,16 @@ CREATE TABLE role_permissions (
 
 **Critical index:** `(tenant_id, submission_id, question_id)` on `question_evaluations`
 
-### 4.6 Publication (`0008`), analytics mastery evidence (`0009`), learning blueprint (`0010`), CVB release closure (`0011`)
+### 4.6 Publication (`0008`), analytics mastery evidence (`0009`), learning blueprint (`0010`), CVB release closure (`0011`), longitudinal mastery (`0012`)
 
 | Table | Key columns | Status |
 |-------|-------------|--------|
 | `published_results` | `tenant_id`, `submission_id`, scores, report keys, `ledger_snapshot_hash` | B7 live |
 | `annotations` | publication annotations | B7 live |
-| `mastery_evidence` | published-ledger evidence; `evidence_type`, `strength`, `algorithm_version=B8_V1` | **B8 live (B9 source)** |
-| `mastery_states` | longitudinal concept/execution aggregates | **Deferred** (AFTER_CLIENT_APPROVAL; not in B8/B9/B10) |
+| `mastery_evidence` | published-ledger evidence; `evidence_type`, `strength`, `algorithm_version=B8_V1`; **immutable** | **B8 live (B9/B12 source)** |
+| `mastery_states` | longitudinal concept/execution aggregates; nullable ratios; decisive/inconclusive counts; `algorithm_version=B12_V1` | **B12 live (`0012`)** |
+| `mastery_state_snapshots` | cumulative historical MasteryState per published result; `effective_at` | **B12 live (`0012`)** |
+| `mistake_notebook_entries` | per PR×QE×academic_error_code notebook; curriculum-only practice kinds | **B12 live (`0012`)** |
 | `learning_plan_runs` | student×curriculum versioned plan; hashes; `algorithm_version=B9_V1`; status | **B9 live** |
 | `learning_recommendations` | curriculum-constrained remediation; kind/priority/signals | **B9 live** |
 | `learning_recommendation_prerequisites` | ordered REQUIRED/RECOMMENDED edges | **B9 live** |
@@ -387,13 +389,13 @@ CREATE TABLE role_permissions (
 | `assessment_artifacts` | question-paper uploads; `content_sha256`, `storage_key`, `security_scan_status` | **B10 live** |
 | `authoring_ai_runs` | PARSE / PROPOSE_* / SUGGEST_*; `proposal_payload`, `correlation_id` | **B10 live** |
 
-`PipelineJob.stage` includes `PUBLICATION` (B7) and `ANALYTICS` (B8). **B9/B10 do not add LEARNING/AUTHORING PipelineJob stages** — learning and authoring use dedicated run tables + Celery task ids.
+`PipelineJob.stage` includes `PUBLICATION` (B7) and `ANALYTICS` (B8). **B9/B10 do not add LEARNING/AUTHORING PipelineJob stages** — learning and authoring use dedicated run tables + Celery task ids. B12 materializes after B8 evidence insert in the same ANALYTICS job (and via `POST .../b12/rebuild`).
 
 `ai_execution_records` gains optional `learning_plan_run_id` / `improvement_assessment_id` (migration `0010`) and `authoring_ai_run_id` plus optional assessment/artifact/key/rubric refs (migration `0011`).  
 `assessment_versions.question_paper_artifact_id` FK → `assessment_artifacts` (migration `0011`).  
 `authoring_ai_runs` holds optional `answer_key_version_id` / `rubric_version_id` for created drafts.
 
-Deferred (logical only; no tables): resource assignment, reassessment instantiation from approved blueprints, longitudinal MasteryState.
+Deferred (logical only; no tables): resource assignment (PEV-041), reassessment instantiation from approved blueprints (PEV-043), gold benchmark / AI regression (PEV-058/059).
 
 ### 4.7 AI tracing (`0008`)
 
@@ -463,3 +465,4 @@ Store S3 keys as `VARCHAR(512)`; never blob content in Postgres except small JSO
 | 0.2 | 2026-09-07 | B8 `mastery_evidence`; `mastery_states` deferred |
 | 0.3 | 2026-09-07 | B9 learning plan / recommendation / path / improvement blueprint tables (`0010`) |
 | 0.4 | 2026-09-07 | B10 `assessment_artifacts` + `authoring_ai_runs` (`0011`); authoring FKs on AI/key/rubric rows |
+| 0.5 | 2026-09-08 | B12 `mastery_states` / `mastery_state_snapshots` / `mistake_notebook_entries` live (`0012`); MasteryEvidence remains immutable B8 |

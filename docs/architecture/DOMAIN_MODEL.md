@@ -692,14 +692,16 @@ Released outputs after approval.
 
 ## 9. Learning Analytics
 
-### 9.1 MasteryEvidence `T` — **B8 live (B9 source)**
+### 9.1 MasteryEvidence `T` — **B8 live (B9 / B12 source)**
 
 Evidence row linking a **PUBLISHED** evaluation to a curriculum mastery signal.
 Algorithm version `B8_V1`. Derived deterministically from final human-approved ledger
 scores + taxonomy + A2 `QuestionCurriculumMapping` (exact `question_version_id`).
-No AI inference. See migration `20260907_0009`.
+No AI inference. Immutable. See migration `20260907_0009`.
 
-**B9 role:** sole evidence **source** for learning plans (`source_evidence_hash`). B9 never invents mastery from unpublished ledgers or AI.
+**B9 / B12 role:** sole evidence **source** for learning plans (`source_evidence_hash`)
+and longitudinal MasteryState / mistake notebook materialization. B9/B12 never invent
+mastery from unpublished ledgers or AI, and never mutate these rows.
 
 | Field | Type | Notes |
 |-------|------|-------|
@@ -717,27 +719,92 @@ No AI inference. See migration `20260907_0009`.
 
 ---
 
-### 9.2 MasteryState `T` — **AFTER_CLIENT_APPROVAL (deferred; not in B8/B9)**
+### 9.2 MasteryState `T` — **B12 live (APP-003 / PEV-037)**
 
-Aggregated longitudinal mastery per student × curriculum node.
-
-**B8/B9 deliberately do not create or update this table.** Current evidence profiles are
-API projections over immutable `MasteryEvidence` rows only (PEV-035/036/037/038 deferred).
-Logical entity retained for future longitudinal product work.
+Current longitudinal mastery aggregate per student × curriculum node, derived
+deterministically from immutable B8 `MasteryEvidence` (`algorithm_version = B12_V1`).
+No AI inference. Null ratio = insufficient decisive (STRONG/WEAK) evidence for that
+dimension; INCONCLUSIVE is counted separately and never treated as weakness.
+See migration `20260907_0012`.
 
 | Field | Type | Notes |
 |-------|------|-------|
 | `id` | UUID | PK |
 | `tenant_id` | UUID | |
 | `student_id` | UUID | |
+| `curriculum_id` | UUID | |
 | `curriculum_node_id` | UUID | |
-| `concept_mastery` | decimal | 0–1 |
-| `execution_accuracy` | decimal | 0–1 |
-| `evidence_count` | integer | |
+| `concept_mastery` | decimal \| null | Nullable 0..1; null = no decisive concept evidence |
+| `execution_accuracy` | decimal \| null | Nullable 0..1; null = no decisive execution evidence |
+| `concept_decisive_count` | integer | STRONG+WEAK concept evidence count |
+| `execution_decisive_count` | integer | STRONG+WEAK execution evidence count |
+| `concept_inconclusive_count` | integer | INCONCLUSIVE concept evidence (not in ratio) |
+| `execution_inconclusive_count` | integer | INCONCLUSIVE execution evidence (not in ratio) |
+| `evidence_count` | integer | Concept + execution evidence rows contributing |
+| `source_evidence_hash` | string | SHA-256 of sorted contributing evidence IDs |
+| `algorithm_version` | string | `B12_V1` |
 | `last_updated_at` | timestamptz | |
 | `created_at` | timestamptz | |
 
-**Unique:** `(tenant_id, student_id, curriculum_node_id)`
+**Unique:** `(tenant_id, student_id, curriculum_node_id, algorithm_version)`
+
+---
+
+### 9.2a MasteryStateSnapshot `T` — **B12 live (PEV-037 trend)**
+
+Historical cumulative mastery state at each published-result effective time
+(ordered by `published_at` / `created_at`). Same ratio/count semantics as
+`MasteryState`. Grain unique:
+`(tenant_id, student_id, curriculum_node_id, published_result_id, algorithm_version)`.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | UUID | PK |
+| `tenant_id` / `student_id` / `curriculum_id` / `curriculum_node_id` | UUID | |
+| `published_result_id` | UUID | Snapshot as-of this published result |
+| `assessment_id` | UUID | |
+| `concept_mastery` / `execution_accuracy` | decimal \| null | Same null semantics as MasteryState |
+| `concept_decisive_count` / `execution_decisive_count` | integer | |
+| `concept_inconclusive_count` / `execution_inconclusive_count` | integer | |
+| `evidence_count` | integer | |
+| `source_evidence_hash` | string | |
+| `algorithm_version` | string | `B12_V1` |
+| `effective_at` | timestamptz | Published effective time |
+| `created_at` | timestamptz | |
+
+---
+
+### 9.2b MistakeNotebookEntry `T` — **B12 live (PEV-038)**
+
+Persistent per-error notebook grain from published academic errors (review/system
+codes excluded). Practice kinds are curriculum-only
+(`CONCEPT_CHECK` / `EXECUTION_PRACTICE` / `PROCEDURE_PRACTICE`); may link ACTIVE
+B9 `LearningRecommendation` IDs when available. No open-web resources (PEV-041
+still deferred).
+
+Grain unique: `(tenant_id, student_id, published_result_id, question_evaluation_id,
+academic_error_code, algorithm_version)`.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | UUID | PK |
+| `tenant_id` / `student_id` | UUID | |
+| `published_result_id` / `assessment_id` / `submission_id` | UUID | |
+| `question_evaluation_id` / `question_version_id` | UUID | |
+| `academic_error_code` | string | Canonical academic taxonomy code |
+| `final_score` / `max_mark` | decimal | From final human-approved QE |
+| `deduction_reasons` | JSONB | |
+| `first_divergence_step` | text \| null | |
+| `curriculum_node_ids` | JSONB | Related node UUID strings |
+| `recommended_practice_kind` | enum | Curriculum-only practice kinds above |
+| `linked_learning_recommendation_ids` | JSONB | Optional B9 ACTIVE links |
+| `source_ledger_snapshot_hash` | string | |
+| `source_mastery_evidence_ids` | JSONB | Contributing B8 evidence IDs |
+| `algorithm_version` | string | `B12_V1` |
+| `materialized_at` / `effective_at` / `created_at` | timestamptz | |
+
+**Still deferred (not B12):** PEV-041 resource assignment, PEV-043 reassessment
+instantiation, PEV-058/059 gold benchmark / AI regression.
 
 ---
 
@@ -880,8 +947,8 @@ Tenant
       ├── ReviewAction
       └── PublishedResult
 
-Student ← MasteryEvidence / MasteryState(deferred) / LearningPlanRun
-      └── LearningRecommendation → LearningPathStep
+Student ← MasteryEvidence / MasteryState / MasteryStateSnapshot / MistakeNotebookEntry
+      └── LearningPlanRun → LearningRecommendation → LearningPathStep
       └── ImprovementAssessment (blueprint) → ImprovementAssessmentItem
 User ← UserRole → Role → Permission
 AuditEvent, AiExecutionRecord (cross-cutting)
@@ -907,3 +974,4 @@ AuditEvent, AiExecutionRecord (cross-cutting)
 | 0.1 | 2026-09-04 | Initial domain model contract for CVB |
 | 0.2 | 2026-09-07 | B8 MasteryEvidence live; MasteryState deferred |
 | 0.3 | 2026-09-07 | B9 LearningPlanRun / LearningRecommendation / ImprovementAssessment blueprint live; MasteryState, resource assignment, reassessment still deferred |
+| 0.4 | 2026-09-08 | B12 MasteryState / MasteryStateSnapshot / MistakeNotebookEntry live (APP-003 / PEV-035–038); PEV-041/043/058/059 still deferred |
