@@ -12,6 +12,7 @@ from app.api.v1 import (
     mapping,
     platform,
     publication,
+    resources,
     submissions,
     system,
     transcription,
@@ -32,3 +33,4 @@ api_router.include_router(evaluation.router, prefix="/api/v1")
 api_router.include_router(publication.router, prefix="/api/v1")
 api_router.include_router(analytics.router, prefix="/api/v1")
 api_router.include_router(learning.router, prefix="/api/v1")
+api_router.include_router(resources.router, prefix="/api/v1")

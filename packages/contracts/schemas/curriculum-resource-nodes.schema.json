@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/curriculum-resource-nodes.schema.json",
+  "title": "CurriculumResourceNodesReplace",
+  "description": "Replace curriculum-node mappings for a resource. Nodes must belong to the resource curriculum.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["curriculum_node_ids"],
+  "properties": {
+    "curriculum_node_ids": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "format": "uuid" }
+    }
+  }
+}

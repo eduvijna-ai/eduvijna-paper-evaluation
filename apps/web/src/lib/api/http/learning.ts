@@ -12,6 +12,10 @@ import type {
   LiveLearningWorkspace,
 } from "@/lib/types/domain";
 import { httpRequest } from "./client";
+import {
+  studentResourceAssignmentApiToView,
+  type B13StudentResourceAssignmentDto,
+} from "./resources";
 
 function asNumber(
   value: number | string | null | undefined,
@@ -58,6 +62,7 @@ export interface B9LearningWorkspaceDto {
   latest_plan?: B9LearningPlanDto | null;
   is_stale?: boolean;
   latest_improvement_blueprint?: B9ImprovementAssessmentDto | null;
+  resource_assignments?: B13StudentResourceAssignmentDto[];
 }
 
 export interface B9PlanRunDto {
@@ -430,6 +435,9 @@ export function learningWorkspaceApiToView(
     latest_improvement_blueprint: dto.latest_improvement_blueprint
       ? improvementAssessmentApiToView(dto.latest_improvement_blueprint)
       : null,
+    resource_assignments: (dto.resource_assignments ?? []).map(
+      studentResourceAssignmentApiToView,
+    ),
   };
 }
 

@@ -9,6 +9,10 @@ import type {
   Curriculum,
   CurriculumMapEntry,
   CurriculumNode,
+  CurriculumResource,
+  CurriculumResourceCreate,
+  CurriculumResourceList,
+  CurriculumResourceUpdate,
   DashboardSummary,
   EvaluationWorkspacePayload,
   IdentityReviewPayload,
@@ -38,6 +42,9 @@ import type {
   StudentMasteryTrend,
   StudentMistakeNotebook,
   StudentRecoverableMarks,
+  StudentResourceAssignment,
+  StudentResourceAssignmentCreate,
+  StudentResourceAssignmentList,
   StudentRepeatedErrors,
   B12RebuildResult,
   StudentReport,
@@ -427,4 +434,36 @@ export interface ApiClient {
     blueprintId: string,
     reason: string,
   ): Promise<LiveImprovementAssessment>;
+
+  /** B13 curriculum resource catalog + student assignments. */
+  listCurriculumResources?(filters?: {
+    curriculumId?: string;
+    status?: string;
+  }): Promise<CurriculumResourceList>;
+  getCurriculumResource?(id: string): Promise<CurriculumResource>;
+  createCurriculumResource?(
+    input: CurriculumResourceCreate,
+  ): Promise<CurriculumResource>;
+  updateCurriculumResource?(
+    id: string,
+    input: CurriculumResourceUpdate,
+  ): Promise<CurriculumResource>;
+  approveCurriculumResource?(id: string): Promise<CurriculumResource>;
+  activateCurriculumResource?(id: string): Promise<CurriculumResource>;
+  deactivateCurriculumResource?(id: string): Promise<CurriculumResource>;
+  replaceCurriculumResourceNodes?(
+    id: string,
+    nodeIds: string[],
+  ): Promise<CurriculumResource>;
+  listStudentResourceAssignments?(
+    studentId: string,
+    filters?: { curriculumId?: string; status?: string },
+  ): Promise<StudentResourceAssignmentList>;
+  assignStudentResource?(
+    studentId: string,
+    input: StudentResourceAssignmentCreate,
+  ): Promise<StudentResourceAssignment>;
+  cancelStudentResourceAssignment?(
+    assignmentId: string,
+  ): Promise<StudentResourceAssignment>;
 }

@@ -1418,6 +1418,143 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/B12RebuildResult" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/learning/resources:
+    get:
+      operationId: listCurriculumResources
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: curriculum_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [DRAFT, APPROVED, ACTIVE, DEACTIVATED]
+      responses:
+        "200":
+          description: Institution-approved curriculum resource catalog (B13)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurriculumResourceList" }
+    post:
+      operationId: createCurriculumResource
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CurriculumResourceCreate" }
+      responses:
+        "201":
+          description: Created DRAFT curriculum resource
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurriculumResource" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Duplicate code or invalid content_ref
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+        "422":
+          description: Validation error
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/learning/resources/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getCurriculumResource
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Curriculum resource detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurriculumResource" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateCurriculumResource
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CurriculumResourceUpdate" }
+      responses:
+        "200":
+          description: Updated curriculum resource
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurriculumResource" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Illegal status transition or open-web content_ref
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/learning/resources/{id}/approve:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: approveCurriculumResource
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Resource marked APPROVED
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurriculumResource" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Invalid status for approve
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/learning/resources/{id}/activate:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: activateCurriculumResource
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Resource marked ACTIVE (assignable)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurriculumResource" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Invalid status for activate
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/learning/resources/{id}/deactivate:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: deactivateCurriculumResource
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Resource deactivated; historical assignments retained
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurriculumResource" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Invalid status for deactivate
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/learning/resources/{id}/nodes:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    put:
+      operationId: replaceCurriculumResourceNodes
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CurriculumResourceNodesReplace" }
+      responses:
+        "200":
+          description: Node mappings replaced
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurriculumResource" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Foreign or inactive curriculum node
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
   /api/v1/learning/students/{id}:
     parameters: [{ $ref: "#/components/parameters/Id" }]
     get:
@@ -1430,11 +1567,65 @@ paths:
           schema: { type: string, format: uuid }
       responses:
         "200":
-          description: Live learning workspace for a student
+          description: Live learning workspace for a student (includes B13 assigned resources)
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LearningWorkspace" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/learning/students/{id}/resource-assignments:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: listStudentResourceAssignments
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: curriculum_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [ASSIGNED, CANCELLED] }
+      responses:
+        "200":
+          description: Student resource assignment list/history (B13)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentResourceAssignmentList" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      operationId: createStudentResourceAssignment
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StudentResourceAssignmentCreate" }
+      responses:
+        "200":
+          description: Created or idempotently reused ASSIGNED row
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentResourceAssignment" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Resource not ACTIVE, incompatible recommendation, or open-web rejection
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/learning/resource-assignments/{id}/cancel:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: cancelStudentResourceAssignment
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Assignment cancelled; historical row retained
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentResourceAssignment" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Already cancelled
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
   /api/v1/learning/students/{id}/prepare:
     parameters: [{ $ref: "#/components/parameters/Id" }]
     post:
@@ -3690,6 +3881,137 @@ components:
           type: [object, "null"]
           additionalProperties: true
         selection_required: { type: boolean }
+        resource_assignments:
+          type: array
+          description: B13 assigned catalog resources for the selected curriculum (ASSIGNED only)
+          items: { $ref: "#/components/schemas/StudentResourceAssignment" }
+    CurriculumResource:
+      type: object
+      description: See packages/contracts/schemas/curriculum-resource.schema.json
+      required:
+        [
+          id,
+          curriculum_id,
+          code,
+          title,
+          description,
+          resource_kind,
+          status,
+          content_ref,
+          curriculum_node_ids,
+          created_by,
+          approved_by,
+          approved_at,
+          created_at,
+          updated_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        curriculum_id: { type: string, format: uuid }
+        code: { type: string }
+        title: { type: string }
+        description: { type: [string, "null"] }
+        resource_kind:
+          type: string
+          enum: [PRACTICE_SET, WORKED_EXAMPLE, CONCEPT_NOTE, INTERNAL_PACKET]
+        status:
+          type: string
+          enum: [DRAFT, APPROVED, ACTIVE, DEACTIVATED]
+        content_ref: { type: string }
+        curriculum_node_ids:
+          type: array
+          items: { type: string, format: uuid }
+        created_by: { type: [string, "null"], format: uuid }
+        approved_by: { type: [string, "null"], format: uuid }
+        approved_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    CurriculumResourceList:
+      type: object
+      required: [items]
+      properties:
+        curriculum_id: { type: [string, "null"], format: uuid }
+        status_filter:
+          type: [string, "null"]
+          enum: [DRAFT, APPROVED, ACTIVE, DEACTIVATED, null]
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/CurriculumResource" }
+    CurriculumResourceCreate:
+      type: object
+      required: [curriculum_id, code, title, resource_kind, content_ref, curriculum_node_ids]
+      properties:
+        curriculum_id: { type: string, format: uuid }
+        code: { type: string }
+        title: { type: string }
+        description: { type: [string, "null"] }
+        resource_kind:
+          type: string
+          enum: [PRACTICE_SET, WORKED_EXAMPLE, CONCEPT_NOTE, INTERNAL_PACKET]
+        content_ref: { type: string }
+        curriculum_node_ids:
+          type: array
+          minItems: 1
+          items: { type: string, format: uuid }
+    CurriculumResourceUpdate:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: [string, "null"] }
+        resource_kind:
+          type: string
+          enum: [PRACTICE_SET, WORKED_EXAMPLE, CONCEPT_NOTE, INTERNAL_PACKET]
+        content_ref: { type: string }
+    CurriculumResourceNodesReplace:
+      type: object
+      required: [curriculum_node_ids]
+      properties:
+        curriculum_node_ids:
+          type: array
+          minItems: 1
+          items: { type: string, format: uuid }
+    StudentResourceAssignment:
+      type: object
+      description: See packages/contracts/schemas/student-resource-assignment.schema.json
+      required:
+        [
+          id,
+          student_id,
+          resource_id,
+          resource,
+          learning_recommendation_id,
+          status,
+          assigned_by,
+          assigned_at,
+          cancelled_at,
+          cancelled_by,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        student_id: { type: string, format: uuid }
+        resource_id: { type: string, format: uuid }
+        resource: { $ref: "#/components/schemas/CurriculumResource" }
+        learning_recommendation_id: { type: [string, "null"], format: uuid }
+        status: { type: string, enum: [ASSIGNED, CANCELLED] }
+        assigned_by: { type: [string, "null"], format: uuid }
+        assigned_at: { type: string, format: date-time }
+        cancelled_at: { type: [string, "null"], format: date-time }
+        cancelled_by: { type: [string, "null"], format: uuid }
+    StudentResourceAssignmentList:
+      type: object
+      required: [student_id, items]
+      properties:
+        student_id: { type: string, format: uuid }
+        curriculum_id: { type: [string, "null"], format: uuid }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/StudentResourceAssignment" }
+    StudentResourceAssignmentCreate:
+      type: object
+      required: [resource_id]
+      properties:
+        resource_id: { type: string, format: uuid }
+        learning_recommendation_id: { type: [string, "null"], format: uuid }
     LearningPrepareInput:
       type: object
       required: [curriculum_id]

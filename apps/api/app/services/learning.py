@@ -51,6 +51,7 @@ from app.services.learning_algorithm import (
     build_learning_plan_structure,
     reject_provider_urls,
 )
+from app.services.resources import list_assigned_for_workspace
 from app.services.storage import ObjectStorage, learning_blueprint_export_key
 
 logger = logging.getLogger(__name__)
@@ -910,6 +911,15 @@ async def get_learning_workspace(
                 )
                 latest_blueprint["is_stale"] = is_stale
 
+    resource_assignments: list[dict[str, Any]] = []
+    if selected_id is not None:
+        resource_assignments = await list_assigned_for_workspace(
+            db,
+            tenant_id=tenant_id,
+            student_id=student_id,
+            curriculum_id=selected_id,
+        )
+
     display = (
         getattr(student, "full_name", None)
         or getattr(student, "display_name", None)
@@ -928,6 +938,7 @@ async def get_learning_workspace(
         "is_stale": is_stale,
         "latest_improvement_blueprint": latest_blueprint,
         "selection_required": selected_id is None and len(available) > 1,
+        "resource_assignments": resource_assignments,
     }
 
 

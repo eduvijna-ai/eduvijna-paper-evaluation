@@ -779,8 +779,9 @@ Historical cumulative mastery state at each published-result effective time
 Persistent per-error notebook grain from published academic errors (review/system
 codes excluded). Practice kinds are curriculum-only
 (`CONCEPT_CHECK` / `EXECUTION_PRACTICE` / `PROCEDURE_PRACTICE`); may link ACTIVE
-B9 `LearningRecommendation` IDs when available. No open-web resources (PEV-041
-still deferred).
+B9 `LearningRecommendation` IDs when available. No open-web resources.
+Institution-approved catalog assignment is **B13 live** (PEV-041 / APP-004) —
+see §9.6 / §9.7; notebook practice kinds remain curriculum-constrained text only.
 
 Grain unique: `(tenant_id, student_id, published_result_id, question_evaluation_id,
 academic_error_code, algorithm_version)`.
@@ -803,8 +804,8 @@ academic_error_code, algorithm_version)`.
 | `algorithm_version` | string | `B12_V1` |
 | `materialized_at` / `effective_at` / `created_at` | timestamptz | |
 
-**Still deferred (not B12):** PEV-041 resource assignment, PEV-043 reassessment
-instantiation, PEV-058/059 gold benchmark / AI regression.
+**Still deferred (not B12/B13):** PEV-043 reassessment instantiation, PEV-058/059
+gold benchmark / AI regression. PEV-041 curriculum resource assignment is **B13 live**.
 
 ---
 
@@ -835,7 +836,8 @@ Does **not** reuse `PipelineJob`.
 ### 9.4 LearningRecommendation `T` — **B9 live (curriculum-constrained)**
 
 Curriculum-constrained remediation suggestion for one plan run. Targets and prerequisites
-must stay inside the selected curriculum. No external resource URLs (PEV-041 deferred).
+must stay inside the selected curriculum. No open-web URLs in recommendation payloads;
+institution-approved catalog assignment is separate (**B13** `StudentResourceAssignment`).
 
 | Field | Type | Notes |
 |-------|------|-------|
@@ -863,12 +865,61 @@ Related: `LearningRecommendationPrerequisite` (ordered REQUIRED/RECOMMENDED edge
 ### 9.5 ImprovementAssessment `T` / ImprovementAssessmentItem `T` — **B9 live (blueprint only)**
 
 Teacher-reviewed **blueprint** only. Approval does **not** create Assessment / Question /
-Submission reassessment entities (PEV-043 deferred). Resource assignment deferred (PEV-041).
+Submission reassessment entities (PEV-043 deferred). Resource catalog assignment is
+**B13 live** (PEV-041 / APP-004 / Issue #45) — see §9.6 / §9.7.
 
 | Entity | Key fields |
 |--------|------------|
 | **ImprovementAssessment** | `id`, `tenant_id`, `student_id`, `curriculum_id`, `learning_plan_run_id`, `version_number`, `title`, `status` (`DRAFT`…`APPROVED`/`REJECTED`/`FAILED`), hashes, `blueprint_storage_key` / `blueprint_sha256` / `blueprint_byte_size`, approve/reject metadata |
 | **ImprovementAssessmentItem** | `id`, `tenant_id`, `improvement_assessment_id`, `learning_recommendation_id`, `curriculum_node_id`, `item_code`, `template_kind`, `question_template_ref`, `focus`, `difficulty`, `suggested_marks` (advisory), `sort_order` |
+
+---
+
+### 9.6 CurriculumResource `T` / CurriculumResourceNode `T` — **B13 live (PEV-041 / APP-004)**
+
+Tenant-scoped, institution-approved practice catalog. `content_ref` is an opaque
+internal key — open-web URLs (`http://`, `https://`, `//`) are rejected. No open-web
+discovery. Lifecycle: `DRAFT` → `APPROVED` → `ACTIVE` (or `DEACTIVATED`).
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | UUID | PK |
+| `tenant_id` / `curriculum_id` | UUID | Unique with `code` |
+| `code` | string | Per-curriculum unique |
+| `title` / `description` | string / text \| null | |
+| `resource_kind` | enum | `PRACTICE_SET`, `WORKED_EXAMPLE`, `CONCEPT_NOTE`, `INTERNAL_PACKET` |
+| `status` | enum | `DRAFT`, `APPROVED`, `ACTIVE`, `DEACTIVATED` |
+| `content_ref` | string | Opaque internal catalog ref (not a public URL) |
+| `created_by` / `approved_by` / `approved_at` | UUID / timestamptz | |
+| `created_at` / `updated_at` | timestamptz | |
+
+**CurriculumResourceNode:** unique `(resource_id, curriculum_node_id)`; nodes must belong
+to the resource’s curriculum and tenant. At least one node required to create/approve.
+
+---
+
+### 9.7 StudentResourceAssignment `T` — **B13 live (PEV-041 / APP-004)**
+
+Assigns an **ACTIVE** `CurriculumResource` to a student. Optional link to an ACTIVE B9
+`LearningRecommendation` (same student; target node must be mapped on the resource).
+Assignment does **not** mutate B9 recommendations or B12 mastery/notebook rows.
+
+Idempotency (PostgreSQL partial unique, `NULLS NOT DISTINCT`):
+
+`(tenant_id, student_id, resource_id, learning_recommendation_id) WHERE status='ASSIGNED'`.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | UUID | PK |
+| `tenant_id` / `student_id` / `resource_id` | UUID | |
+| `learning_recommendation_id` | UUID \| null | Optional B9 link |
+| `status` | enum | `ASSIGNED`, `CANCELLED` |
+| `assigned_by` / `assigned_at` | UUID / timestamptz | |
+| `cancelled_by` / `cancelled_at` | UUID / timestamptz \| null | |
+| `created_at` | timestamptz | |
+
+**Still deferred after B13:** PEV-043 reassessment instantiation, PEV-058/059 gold
+benchmark / AI regression, all FUTURE_ENTERPRISE PEVs.
 
 ---
 
@@ -975,3 +1026,4 @@ AuditEvent, AiExecutionRecord (cross-cutting)
 | 0.2 | 2026-09-07 | B8 MasteryEvidence live; MasteryState deferred |
 | 0.3 | 2026-09-07 | B9 LearningPlanRun / LearningRecommendation / ImprovementAssessment blueprint live; MasteryState, resource assignment, reassessment still deferred |
 | 0.4 | 2026-09-08 | B12 MasteryState / MasteryStateSnapshot / MistakeNotebookEntry live (APP-003 / PEV-035–038); PEV-041/043/058/059 still deferred |
+| 0.5 | 2026-09-08 | B13 CurriculumResource / StudentResourceAssignment live (APP-004 / PEV-041 / Issue #45); PEV-043/058/059 still deferred |

@@ -182,6 +182,8 @@ test.describe("CVB frontend smoke — 15 flows", () => {
     await expect(
       page.getByTestId("curriculum-restriction-notice"),
     ).toContainText(/Recommendations restricted to student's curriculum/i);
+    await expect(page.getByTestId("b13-assigned-resources")).toBeVisible();
+    await expect(page.getByTestId("b13-assignment-row").first()).toBeVisible();
   });
 
   test("15. improvement assessment", async ({ page }) => {
