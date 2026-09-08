@@ -369,13 +369,13 @@ CREATE TABLE role_permissions (
 
 **Critical index:** `(tenant_id, submission_id, question_id)` on `question_evaluations`
 
-### 4.6 Publication (`0008`), analytics mastery evidence (`0009`), learning blueprint (`0010`), CVB release closure (`0011`), longitudinal mastery (`0012`), curriculum resources (`0013`)
+### 4.6 Publication (`0008`), analytics mastery evidence (`0009`), learning blueprint (`0010`), CVB release closure (`0011`), longitudinal mastery (`0012`), curriculum resources (`0013`), reassessment mastery (`0014`)
 
 | Table | Key columns | Status |
 |-------|-------------|--------|
 | `published_results` | `tenant_id`, `submission_id`, scores, report keys, `ledger_snapshot_hash` | B7 live |
 | `annotations` | publication annotations | B7 live |
-| `mastery_evidence` | published-ledger evidence; `evidence_type`, `strength`, `algorithm_version=B8_V1`; **immutable** | **B8 live (B9/B12 source)** |
+| `mastery_evidence` | published-ledger evidence; `evidence_type`, `strength`, `algorithm_version=B8_V1`; **immutable** | **B8 live (B9/B12/B14 source)** |
 | `mastery_states` | longitudinal concept/execution aggregates; nullable ratios; decisive/inconclusive counts; `algorithm_version=B12_V1` | **B12 live (`0012`)** |
 | `mastery_state_snapshots` | cumulative historical MasteryState per published result; `effective_at` | **B12 live (`0012`)** |
 | `mistake_notebook_entries` | per PR×QE×academic_error_code notebook; curriculum-only practice kinds | **B12 live (`0012`)** |
@@ -384,21 +384,26 @@ CREATE TABLE role_permissions (
 | `learning_recommendation_prerequisites` | ordered REQUIRED/RECOMMENDED edges | **B9 live** |
 | `learning_recommendation_evidence` | FK → `mastery_evidence` | **B9 live** |
 | `learning_path_steps` | ordered path steps (incl. MASTERY_CHECK) | **B9 live** |
-| `improvement_assessments` | blueprint header + artifact key/hash + approve/reject | **B9 live (blueprint only)** |
-| `improvement_assessment_items` | template items; no Assessment/Question FKs | **B9 live (blueprint only)** |
+| `improvement_assessments` | blueprint header + artifact key/hash + approve/reject | **B9 live (blueprint)** |
+| `improvement_assessment_items` | template items; instantiated via B14 (no Assessment FKs on items themselves) | **B9 live (blueprint)** |
 | `assessment_artifacts` | question-paper uploads; `content_sha256`, `storage_key`, `security_scan_status` | **B10 live** |
 | `authoring_ai_runs` | PARSE / PROPOSE_* / SUGGEST_*; `proposal_payload`, `correlation_id` | **B10 live** |
 | `curriculum_resources` | tenant×curriculum catalog; `code`, `resource_kind`, `status`, opaque `content_ref`; unique `(tenant_id, curriculum_id, code)` | **B13 live (`0013`)** |
 | `curriculum_resource_nodes` | resource ↔ curriculum_node mappings; unique `(resource_id, curriculum_node_id)` | **B13 live (`0013`)** |
 | `student_resource_assignments` | student assign/cancel of ACTIVE resource; optional `learning_recommendation_id`; partial unique ASSIGNED grain with `NULLS NOT DISTINCT` | **B13 live (`0013`)** |
+| `reassessments` | blueprint → Assessment link; statuses `CREATED`/`SUBMITTED`/`PUBLISHED`; unique `(tenant_id, improvement_assessment_id)`; `instantiation_hash`; `algorithm_version=B14_V1` | **B14 live (`0014`)** |
+| `reassessment_items` | blueprint item ↔ `question_version_id` + snapshots | **B14 live (`0014`)** |
+| `reassessment_mastery_deltas` | per-node B12 baseline/post/delta projection; unique `(tenant_id, reassessment_id, curriculum_node_id, algorithm_version)` | **B14 live (`0014`)** |
 
-`PipelineJob.stage` includes `PUBLICATION` (B7) and `ANALYTICS` (B8). **B9/B10/B13 do not add LEARNING/AUTHORING/RESOURCE PipelineJob stages** — learning and authoring use dedicated run tables + Celery task ids; B13 catalog/assignment is synchronous API. B12 materializes after B8 evidence insert in the same ANALYTICS job (and via `POST .../b12/rebuild`).
+`assessments.assessment_type` check constraint (`0014`): `EXAM` \| `IMPROVEMENT_REASSESSMENT`.
+
+`PipelineJob.stage` includes `PUBLICATION` (B7) and `ANALYTICS` (B8). **B9/B10/B13/B14 do not add LEARNING/AUTHORING/RESOURCE/REASSESSMENT PipelineJob stages** — learning and authoring use dedicated run tables + Celery task ids; B13 catalog/assignment and B14 instantiate/rebuild are API-driven. B12 materializes after B8 evidence insert in the same ANALYTICS job (and via `POST .../b12/rebuild`). B14 mastery fill runs **after** that B12 step in the same job (and via `POST .../reassessments/{id}/b14/rebuild`).
 
 `ai_execution_records` gains optional `learning_plan_run_id` / `improvement_assessment_id` (migration `0010`) and `authoring_ai_run_id` plus optional assessment/artifact/key/rubric refs (migration `0011`).  
 `assessment_versions.question_paper_artifact_id` FK → `assessment_artifacts` (migration `0011`).  
 `authoring_ai_runs` holds optional `answer_key_version_id` / `rubric_version_id` for created drafts.
 
-Deferred (logical only; no tables): reassessment instantiation from approved blueprints (PEV-043), gold benchmark / AI regression (PEV-058/059).
+Deferred (logical only; no tables): gold benchmark / AI regression (PEV-058/059).
 
 ### 4.7 AI tracing (`0008`)
 
@@ -470,3 +475,4 @@ Store S3 keys as `VARCHAR(512)`; never blob content in Postgres except small JSO
 | 0.4 | 2026-09-07 | B10 `assessment_artifacts` + `authoring_ai_runs` (`0011`); authoring FKs on AI/key/rubric rows |
 | 0.5 | 2026-09-08 | B12 `mastery_states` / `mastery_state_snapshots` / `mistake_notebook_entries` live (`0012`); MasteryEvidence remains immutable B8 |
 | 0.6 | 2026-09-08 | B13 `curriculum_resources` / `curriculum_resource_nodes` / `student_resource_assignments` live (`0013`); PEV-041 off deferred-only list |
+| 0.7 | 2026-09-08 | B14 `reassessments` / `reassessment_items` / `reassessment_mastery_deltas` live (`0014`); `assessments.assessment_type` CK; PEV-043 off deferred-only list |

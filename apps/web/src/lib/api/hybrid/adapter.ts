@@ -11,6 +11,7 @@ import { ReportsHttpApi } from "../http/reports";
 import { AnalyticsHttpApi } from "../http/analytics";
 import { LearningHttpApi } from "../http/learning";
 import { ResourcesHttpApi } from "../http/resources";
+import { ReassessmentHttpApi } from "../http/reassessment";
 import { ApiError } from "../http/errors";
 import { httpRequest } from "../http/client";
 import { getApiCapabilities } from "../capabilities";
@@ -31,6 +32,15 @@ function b13MockDemoOnly(message: string): never {
   });
 }
 
+function b14MockDemoOnly(message: string): never {
+  throw new ApiError({
+    message,
+    status: 404,
+    kind: "not_found",
+    code: "B14_MOCK_DEMO_ONLY",
+  });
+}
+
 /**
  * Hybrid domain routing (B9):
  * - Auth, Institution, Academic Years, Class Sections, Students, Import, Guardians → A1 HTTP
@@ -43,6 +53,7 @@ function b13MockDemoOnly(message: string): never {
  * - Analytics → B8 HTTP (+ B12 longitudinal when live)
  * - Learning + improvement blueprints → B9 HTTP
  * - Curriculum resources + assignments → B13 HTTP (mock demo fixtures only when learning is mock)
+ * - Reassessment mastery → B14 HTTP (mock demo fixtures only when learning is mock)
  *
  * Components use `api` only — they must not inspect mock vs HTTP.
  * Live learning errors must never silently fall back to mock.
@@ -795,5 +806,40 @@ export const HybridEduVijnaApi: ApiClient = {
       );
     }
     return MockEduVijnaApi.cancelStudentResourceAssignment!(assignmentId);
+  },
+
+  instantiateReassessment: async (blueprintId, items) => {
+    const payload = Array.isArray(items) ? { items } : items;
+    if (getApiCapabilities().learning === "live") {
+      return ReassessmentHttpApi.instantiateReassessment(blueprintId, payload);
+    }
+    if (isLiveSubmissionId(blueprintId)) {
+      b14MockDemoOnly(
+        "B14 instantiate is not available for live blueprint IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.instantiateReassessment(blueprintId, payload);
+  },
+  getReassessment: async (id) => {
+    if (getApiCapabilities().learning === "live") {
+      return ReassessmentHttpApi.getReassessment(id);
+    }
+    if (isLiveSubmissionId(id)) {
+      b14MockDemoOnly(
+        "B14 reassessments are not available for live IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.getReassessment(id);
+  },
+  rebuildReassessmentB14: async (id) => {
+    if (getApiCapabilities().learning === "live") {
+      return ReassessmentHttpApi.rebuildReassessmentB14(id);
+    }
+    if (isLiveSubmissionId(id)) {
+      b14MockDemoOnly(
+        "B14 rebuild is not available for live IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.rebuildReassessmentB14!(id);
   },
 };

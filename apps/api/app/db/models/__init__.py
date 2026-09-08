@@ -50,6 +50,11 @@ from app.db.models.mastery import (
     MistakeNotebookEntry,
 )
 from app.db.models.publication import Annotation, PublishedResult
+from app.db.models.reassessment import (
+    Reassessment,
+    ReassessmentItem,
+    ReassessmentMasteryDelta,
+)
 from app.db.models.resources import (
     CurriculumResource,
     CurriculumResourceNode,
@@ -105,6 +110,9 @@ __all__ = [
     "QuestionCurriculumMapping",
     "QuestionEvaluation",
     "QuestionVersion",
+    "Reassessment",
+    "ReassessmentItem",
+    "ReassessmentMasteryDelta",
     "ReviewAction",
     "Role",
     "RolePermission",

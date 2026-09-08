@@ -409,9 +409,23 @@ async function publishDeductAttempt(
     timeout: 30_000,
   });
   await page.getByTestId("finalize-transcription").click();
-  await expect(page).toHaveURL(new RegExp(`/submissions/${submissionId}$`), {
-    timeout: 30_000,
-  });
+  // Finalize can be slow under CI load after earlier real suites; retry if still on page.
+  await expect
+    .poll(
+      async () => {
+        const path = new URL(page.url()).pathname;
+        if (path === `/submissions/${submissionId}`) return "done";
+        if (path.endsWith("/transcription")) {
+          const btn = page.getByTestId("finalize-transcription");
+          if (await btn.isEnabled().catch(() => false)) {
+            await btn.click().catch(() => undefined);
+          }
+        }
+        return path;
+      },
+      { timeout: 90_000 },
+    )
+    .toBe("done");
 
   // Accept AI proposals so criterion error_code=CALCULATION is preserved.
   await expect

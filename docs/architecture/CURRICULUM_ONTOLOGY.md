@@ -126,8 +126,10 @@ from_node_id  ──prerequisite──▶  to_node_id
 **Repair-before-advance:** If weakness detected at node X, emit REQUIRED prerequisite
 repair / mastery-check steps before X itself. RECOMMENDED weak support does not block X.
 
-**ImprovementAssessment** in B9 is **blueprint-only** (teacher approve/reject). Actual
-reassessment creation from an approved blueprint is **deferred** (PEV-043).
+**ImprovementAssessment** in B9 is **blueprint-only** at approve/reject time. Actual
+reassessment creation from an approved blueprint is **B14 live** (PEV-043 / APP-005,
+migration `0014`) — instantiates `Assessment` (`IMPROVEMENT_REASSESSMENT`) without
+auto answer-key/rubric; mastery deltas project from B12 state/snapshots.
 
 ---
 
@@ -144,8 +146,8 @@ plans and B12 longitudinal mastery / mistake intelligence.
 `MasteryState` / `MasteryStateSnapshot` aggregates are **B12 live** (`B12_V1`, migration
 `0012`) — nullable decisive ratios with separate INCONCLUSIVE counts; see
 [DOMAIN_MODEL.md](./DOMAIN_MODEL.md). Curriculum resource catalog + student assignment
-are **B13 live** (PEV-041 / APP-004, migration `0013`). Reassessment (PEV-043) remains
-deferred.
+are **B13 live** (PEV-041 / APP-004, migration `0013`). Reassessment instantiation +
+mastery-delta projection are **B14 live** (PEV-043 / APP-005, migration `0014`).
 
 ---
 
@@ -164,10 +166,13 @@ deferred.
 | `GET /api/v1/curricula/{id}/tree` | Nested node tree |
 | `GET /api/v1/curricula/{id}/prerequisites` | Edge list |
 | `GET /api/v1/curriculum-nodes/{id}/ancestors` | Breadcrumb path |
-| `GET /api/v1/learning/students/{id}` | B9 learning workspace (curriculum-scoped; embeds B13 `resource_assignments`) |
+| `GET /api/v1/learning/students/{id}` | Learning workspace (embeds B13 `resource_assignments` + B14 `reassessments`) |
 | `POST /api/v1/learning/students/{id}/prepare` | B9 plan generation |
 | `GET/POST /api/v1/learning/resources` | B13 curriculum resource catalog |
 | `POST /api/v1/learning/students/{id}/resource-assignments` | B13 assign ACTIVE catalog resource |
+| `POST /api/v1/improvement-assessments/{id}/reassessment` | B14 instantiate APPROVED blueprint |
+| `GET /api/v1/reassessments/{id}` | B14 reassessment detail + mastery deltas |
+| `POST /api/v1/reassessments/{id}/b14/rebuild` | B14 mastery-delta rebuild |
 
 Full conventions: [API_CONVENTIONS.md](./API_CONVENTIONS.md).
 
@@ -182,3 +187,4 @@ Full conventions: [API_CONVENTIONS.md](./API_CONVENTIONS.md).
 | 0.3 | 2026-09-07 | B9 curriculum-constrained recommendations + blueprint-only improvement |
 | 0.4 | 2026-09-08 | B12 MasteryState live from B8 evidence; PEV-041/043 still deferred |
 | 0.5 | 2026-09-08 | B13 curriculum resource assignment live (PEV-041); PEV-043 still deferred |
+| 0.6 | 2026-09-08 | B14 reassessment + mastery delta live (PEV-043 / APP-005) |

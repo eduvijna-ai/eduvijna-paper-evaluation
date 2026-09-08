@@ -52,6 +52,10 @@ import {
   listStudentResourceAssignments,
   assignStudentResource,
   cancelStudentResourceAssignment,
+  getReassessment,
+  instantiateReassessment,
+  rebuildReassessmentB14,
+  listStudentReassessments,
   MockNotFoundError,
   rubrics,
   students,
@@ -610,6 +614,16 @@ export const MockEduVijnaApi: ApiClient = {
   },
   async cancelStudentResourceAssignment(assignmentId) {
     return mockCall(() => cancelStudentResourceAssignment(assignmentId));
+  },
+  async instantiateReassessment(blueprintId, items) {
+    const payload = Array.isArray(items) ? { items } : items;
+    return mockCall(() => instantiateReassessment(blueprintId, payload));
+  },
+  async getReassessment(id) {
+    return mockCall(() => getReassessment(id));
+  },
+  async rebuildReassessmentB14(id) {
+    return mockCall(() => rebuildReassessmentB14(id));
   },
 };
 

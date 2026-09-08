@@ -56,6 +56,9 @@ const requiredPaths = [
   "/api/v1/learning/resources/{id}/nodes",
   "/api/v1/learning/students/{id}/resource-assignments",
   "/api/v1/learning/resource-assignments/{id}/cancel",
+  "/api/v1/improvement-assessments/{id}/reassessment",
+  "/api/v1/reassessments/{id}",
+  "/api/v1/reassessments/{id}/b14/rebuild",
 ];
 
 const schemaFiles = (await readdir(schemasDirectory))

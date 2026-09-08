@@ -14,13 +14,21 @@ import {
   LearningPathStep,
   LiveLearningPathStepRow,
   LiveRecommendationCard,
+  ReassessmentsSection,
   TopicPriorityCard,
 } from "@/components/learning/LearningComponents";
 import { ErrorState, LoadingState } from "@/components/ui/FeedbackStates";
 import type {
   LiveLearningWorkspace,
+  Reassessment,
   StudentResourceAssignment,
 } from "@/lib/types/domain";
+import {
+  REASSESSMENT_ID,
+  REASSESSMENT_ID_CREATED,
+} from "@/lib/fixtures/b14-demo";
+
+const DEMO_STUDENT_ID = "student-demo-001";
 
 function evidenceReady(status: string): boolean {
   // B9 gate: only READY unlocks generation (PARTIAL/QUEUED/FAILED block).
@@ -148,6 +156,7 @@ function LiveAdaptiveLearningPage({ studentId }: { studentId: string }) {
   }
 
   const assignments = workspace.resource_assignments ?? [];
+  const reassessments = workspace.reassessments ?? [];
   const recommendations = workspace.latest_plan?.recommendations ?? [];
   const compatibleResources = (activeResourcesQuery.data?.items ?? []).filter(
     (resource) => {
@@ -169,6 +178,7 @@ function LiveAdaptiveLearningPage({ studentId }: { studentId: string }) {
       runStatus={runQuery.data?.status ?? workspace.latest_run?.status ?? null}
       onGenerate={() => prepareMutation.mutate()}
       assignments={assignments}
+      reassessments={reassessments}
       assignResources={compatibleResources}
       recommendations={recommendations.map((r) => ({
         id: r.id,
@@ -204,6 +214,7 @@ function LiveLearningWorkspaceView({
   runStatus,
   onGenerate,
   assignments,
+  reassessments,
   assignResources,
   recommendations,
   selectedResourceId,
@@ -225,6 +236,7 @@ function LiveLearningWorkspaceView({
   runStatus: string | null;
   onGenerate: () => void;
   assignments: StudentResourceAssignment[];
+  reassessments: Reassessment[];
   assignResources: Array<{
     id: string;
     code: string;
@@ -423,6 +435,8 @@ function LiveLearningWorkspaceView({
         cancelPending={cancelPending}
       />
 
+      <ReassessmentsSection reassessments={reassessments} />
+
       {showPlan && plan.path.length > 0 && (
         <section className="mt-6">
           <h2 className="mb-3 text-sm font-semibold text-slate-800">
@@ -493,6 +507,18 @@ function MockAdaptiveLearningPage({ studentId }: { studentId: string }) {
       void queryClient.invalidateQueries({
         queryKey: ["b13-student-assignments", studentId],
       });
+    },
+  });
+
+  const reassessmentsQuery = useQuery({
+    queryKey: ["b14-reassessments-mock", studentId],
+    queryFn: async () => {
+      if (studentId !== DEMO_STUDENT_ID) return [] as Reassessment[];
+      const rows = await Promise.all([
+        api.getReassessment(REASSESSMENT_ID),
+        api.getReassessment(REASSESSMENT_ID_CREATED),
+      ]);
+      return rows;
     },
   });
 
@@ -579,6 +605,13 @@ function MockAdaptiveLearningPage({ studentId }: { studentId: string }) {
         onRetry={() => void assignmentsQuery.refetch()}
         onCancel={(id) => cancelMutation.mutate(id)}
         cancelPending={cancelMutation.isPending}
+      />
+
+      <ReassessmentsSection
+        reassessments={reassessmentsQuery.data ?? []}
+        loading={reassessmentsQuery.isLoading}
+        error={reassessmentsQuery.isError}
+        onRetry={() => void reassessmentsQuery.refetch()}
       />
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1.2fr_0.8fr]">

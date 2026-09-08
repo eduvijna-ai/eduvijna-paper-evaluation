@@ -99,6 +99,10 @@ class Assessment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "status IN ('DRAFT','RUBRIC_REVIEW','READY','ACTIVE','CLOSED','ARCHIVED')",
             name="ck_assessments_status",
         ),
+        CheckConstraint(
+            "assessment_type IN ('EXAM','IMPROVEMENT_REASSESSMENT')",
+            name="ck_assessments_assessment_type",
+        ),
     )
 
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))

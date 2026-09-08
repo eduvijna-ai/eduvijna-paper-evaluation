@@ -18,6 +18,9 @@ import type {
   PaperPage,
   ParentReport,
   Question,
+  Reassessment,
+  ReassessmentInstantiateRequest,
+  B14RebuildResult,
   RubricCriterion,
   AnswerKeyStep,
   CurriculumMapEntry,
@@ -36,6 +39,22 @@ import type {
   TranscriptionWorkspacePayload,
 } from "@/lib/types/domain";
 import { B12_RECOVERABLE_MARKS_DISCLAIMER } from "@/lib/types/domain";
+import {
+  IMP_BLUEPRINT_ID,
+  IMP_ITEM_ID_1,
+  IMP_ITEM_ID_2,
+  REASSESSMENT_ID,
+  REASSESSMENT_ID_CREATED,
+} from "@/lib/fixtures/b14-demo";
+
+export {
+  REASSESSMENT_ID,
+  REASSESSMENT_ID_CREATED,
+  IMP_BLUEPRINT_ID,
+  IMP_ITEM_ID_1,
+  IMP_ITEM_ID_2,
+  getDemoApprovedBlueprintItems,
+} from "@/lib/fixtures/b14-demo";
 
 export const TENANT_ID = "tenant-demo-001";
 export const INSTITUTION_ID = "inst-demo-001";
@@ -1924,3 +1943,270 @@ export function cancelStudentResourceAssignment(
     assignment.resource;
   return { ...assignment, resource: cloneResource(resource) };
 }
+
+/** Demo-only B14 fixtures — never invent reassessments for live UUIDs. */
+export const REASSESSMENT_ASSESSMENT_ID = "assess-reassess-demo-001";
+
+const B14_AS_OF = "2026-09-08T12:00:00.000Z";
+
+function cloneReassessment(row: Reassessment): Reassessment {
+  return {
+    ...row,
+    items: row.items.map((i) => ({ ...i })),
+    mastery_deltas: row.mastery_deltas.map((d) => ({ ...d })),
+  };
+}
+
+let demoReassessments: Reassessment[] = [
+  {
+    id: REASSESSMENT_ID,
+    improvement_assessment_id: IMP_BLUEPRINT_ID,
+    blueprint_title: "Improvement Check — Calculus & Statistics",
+    blueprint_version_number: 1,
+    student_id: STUDENT_ID,
+    curriculum_id: CURRICULUM_ID,
+    assessment_id: REASSESSMENT_ASSESSMENT_ID,
+    assessment_status: "ACTIVE",
+    assessment_version_id: "assess-ver-reassess-demo-001",
+    submission_id: "sub-reassess-demo-001",
+    published_result_id: "pub-reassess-demo-001",
+    status: "PUBLISHED",
+    algorithm_version: "B14_V1",
+    instantiation_hash: "b".repeat(64),
+    baseline_captured_at: B14_AS_OF,
+    created_at: B14_AS_OF,
+    updated_at: B14_AS_OF,
+    items: [
+      {
+        id: "reassess-item-demo-001",
+        improvement_assessment_item_id: IMP_ITEM_ID_1,
+        question_version_id: "qv-reassess-demo-001",
+        curriculum_node_id: "node-concept-disc",
+        item_code_snapshot: "I1",
+        template_kind_snapshot: "CONCEPT_CHECK",
+        question_template_ref_snapshot: "tmpl://concept-check",
+      },
+      {
+        id: "reassess-item-demo-002",
+        improvement_assessment_item_id: IMP_ITEM_ID_2,
+        question_version_id: "qv-reassess-demo-002",
+        curriculum_node_id: "node-topic-sim",
+        item_code_snapshot: "I2",
+        template_kind_snapshot: "APPLICATION",
+        question_template_ref_snapshot: "tmpl://application",
+      },
+    ],
+    mastery_deltas: [
+      {
+        curriculum_node_id: "node-concept-disc",
+        baseline_concept_mastery: 0.25,
+        baseline_execution_accuracy: 0.4,
+        baseline_concept_decisive_count: 2,
+        baseline_execution_decisive_count: 2,
+        baseline_concept_inconclusive_count: 0,
+        baseline_execution_inconclusive_count: 0,
+        baseline_evidence_count: 2,
+        baseline_source_evidence_hash: "c".repeat(64),
+        post_snapshot_id: "snap-reassess-demo-001",
+        post_published_result_id: "pub-reassess-demo-001",
+        post_concept_mastery: 0.55,
+        post_execution_accuracy: 0.35,
+        post_concept_decisive_count: 3,
+        post_execution_decisive_count: 3,
+        post_concept_inconclusive_count: 0,
+        post_execution_inconclusive_count: 0,
+        post_evidence_count: 3,
+        post_source_evidence_hash: "d".repeat(64),
+        concept_delta: 0.3,
+        execution_delta: -0.05,
+        materialized_at: B14_AS_OF,
+        algorithm_version: "B14_V1",
+      },
+      {
+        curriculum_node_id: "node-topic-sim",
+        baseline_concept_mastery: null,
+        baseline_execution_accuracy: 0.5,
+        baseline_concept_decisive_count: 0,
+        baseline_execution_decisive_count: 1,
+        baseline_concept_inconclusive_count: 2,
+        baseline_execution_inconclusive_count: 0,
+        baseline_evidence_count: 2,
+        baseline_source_evidence_hash: "e".repeat(64),
+        post_snapshot_id: "snap-reassess-demo-002",
+        post_published_result_id: "pub-reassess-demo-001",
+        post_concept_mastery: null,
+        post_execution_accuracy: 0.7,
+        post_concept_decisive_count: 0,
+        post_execution_decisive_count: 2,
+        post_concept_inconclusive_count: 1,
+        post_execution_inconclusive_count: 0,
+        post_evidence_count: 2,
+        post_source_evidence_hash: "f".repeat(64),
+        concept_delta: null,
+        execution_delta: 0.2,
+        materialized_at: B14_AS_OF,
+        algorithm_version: "B14_V1",
+      },
+    ],
+  },
+  {
+    id: REASSESSMENT_ID_CREATED,
+    improvement_assessment_id: IMP_BLUEPRINT_ID,
+    blueprint_title: "Improvement Check — Calculus & Statistics",
+    blueprint_version_number: 1,
+    student_id: STUDENT_ID,
+    curriculum_id: CURRICULUM_ID,
+    assessment_id: "assess-reassess-demo-created",
+    assessment_status: "DRAFT",
+    assessment_version_id: "assess-ver-reassess-demo-created",
+    submission_id: null,
+    published_result_id: null,
+    status: "CREATED",
+    algorithm_version: "B14_V1",
+    instantiation_hash: "a".repeat(64),
+    baseline_captured_at: B14_AS_OF,
+    created_at: B14_AS_OF,
+    updated_at: B14_AS_OF,
+    items: [
+      {
+        id: "reassess-item-demo-created-001",
+        improvement_assessment_item_id: IMP_ITEM_ID_1,
+        question_version_id: "qv-reassess-demo-created-001",
+        curriculum_node_id: "node-concept-disc",
+        item_code_snapshot: "I1",
+        template_kind_snapshot: "CONCEPT_CHECK",
+        question_template_ref_snapshot: "tmpl://concept-check",
+      },
+    ],
+    mastery_deltas: [
+      {
+        curriculum_node_id: "node-concept-disc",
+        baseline_concept_mastery: 0.25,
+        baseline_execution_accuracy: 0.4,
+        baseline_concept_decisive_count: 2,
+        baseline_execution_decisive_count: 2,
+        baseline_concept_inconclusive_count: 0,
+        baseline_execution_inconclusive_count: 0,
+        baseline_evidence_count: 2,
+        baseline_source_evidence_hash: "g".repeat(64),
+        post_snapshot_id: null,
+        post_published_result_id: null,
+        post_concept_mastery: null,
+        post_execution_accuracy: null,
+        post_concept_decisive_count: null,
+        post_execution_decisive_count: null,
+        post_concept_inconclusive_count: null,
+        post_execution_inconclusive_count: null,
+        post_evidence_count: null,
+        post_source_evidence_hash: null,
+        concept_delta: null,
+        execution_delta: null,
+        materialized_at: null,
+        algorithm_version: "B14_V1",
+      },
+    ],
+  },
+];
+
+export function listStudentReassessments(studentId: string): Reassessment[] {
+  if (studentId !== STUDENT_ID && !students.some((s) => s.id === studentId)) {
+    throw new MockNotFoundError("Student not found");
+  }
+  return demoReassessments
+    .filter((r) => r.student_id === studentId)
+    .map(cloneReassessment);
+}
+
+export function getReassessment(id: string): Reassessment {
+  const found = demoReassessments.find((r) => r.id === id);
+  if (!found) {
+    throw new MockNotFoundError("Reassessment not found");
+  }
+  return cloneReassessment(found);
+}
+
+export function instantiateReassessment(
+  blueprintId: string,
+  input: ReassessmentInstantiateRequest,
+): Reassessment {
+  if (blueprintId !== IMP_BLUEPRINT_ID && !blueprintId.startsWith("imp-demo")) {
+    throw new MockNotFoundError("Improvement blueprint not found");
+  }
+  if (!input.items?.length) {
+    throw new MockNotFoundError("At least one item is required");
+  }
+  const now = new Date().toISOString();
+  const assessmentId = `assess-reassess-demo-${crypto.randomUUID().slice(0, 8)}`;
+  const created: Reassessment = {
+    id: `reassessment-demo-${crypto.randomUUID().slice(0, 8)}`,
+    improvement_assessment_id: blueprintId,
+    blueprint_title: "Improvement Check — Calculus & Statistics",
+    blueprint_version_number: 1,
+    student_id: STUDENT_ID,
+    curriculum_id: CURRICULUM_ID,
+    assessment_id: assessmentId,
+    assessment_status: "DRAFT",
+    assessment_version_id: `assess-ver-${assessmentId}`,
+    submission_id: null,
+    published_result_id: null,
+    status: "CREATED",
+    algorithm_version: "B14_V1",
+    instantiation_hash: "h".repeat(64),
+    baseline_captured_at: now,
+    created_at: now,
+    updated_at: now,
+    items: input.items.map((item, index) => ({
+      id: `reassess-item-new-${index}`,
+      improvement_assessment_item_id: item.improvement_assessment_item_id,
+      question_version_id: `qv-new-${index}`,
+      curriculum_node_id: "node-concept-disc",
+      item_code_snapshot: `I${index + 1}`,
+      template_kind_snapshot: "CONCEPT_CHECK",
+      question_template_ref_snapshot: null,
+    })),
+    mastery_deltas: [
+      {
+        curriculum_node_id: "node-concept-disc",
+        baseline_concept_mastery: 0.25,
+        baseline_execution_accuracy: 0.4,
+        baseline_concept_decisive_count: 1,
+        baseline_execution_decisive_count: 1,
+        baseline_concept_inconclusive_count: 0,
+        baseline_execution_inconclusive_count: 0,
+        baseline_evidence_count: 1,
+        baseline_source_evidence_hash: "i".repeat(64),
+        post_snapshot_id: null,
+        post_published_result_id: null,
+        post_concept_mastery: null,
+        post_execution_accuracy: null,
+        post_concept_decisive_count: null,
+        post_execution_decisive_count: null,
+        post_concept_inconclusive_count: null,
+        post_execution_inconclusive_count: null,
+        post_evidence_count: null,
+        post_source_evidence_hash: null,
+        concept_delta: null,
+        execution_delta: null,
+        materialized_at: null,
+        algorithm_version: "B14_V1",
+      },
+    ],
+  };
+  demoReassessments = [created, ...demoReassessments];
+  return cloneReassessment(created);
+}
+
+export function rebuildReassessmentB14(id: string): B14RebuildResult {
+  const found = demoReassessments.find((r) => r.id === id);
+  if (!found) {
+    throw new MockNotFoundError("Reassessment not found");
+  }
+  return {
+    reassessment_id: found.id,
+    algorithm_version: "B14_V1",
+    delta_count: found.mastery_deltas.length,
+    published_result_id: found.published_result_id,
+    source: "MASTERY_STATE_SNAPSHOT",
+  };
+}
+

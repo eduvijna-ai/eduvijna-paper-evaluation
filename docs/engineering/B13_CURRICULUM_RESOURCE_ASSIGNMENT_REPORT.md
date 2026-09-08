@@ -185,7 +185,7 @@ Local/CI pass counts: `_TBD_` at merge time.
 | Squash-merge to develop | `_TBD_` |
 | `main` unchanged | required `30c96af951ce418eb446beb7c35b679e3697b047` |
 | Issue #45 | `_TBD_` |
-| Issue #1 | remains OPEN (release to main is separate) |
+| Issue #1 | closed/completed during CVB release |
 
 ## Document control
 
