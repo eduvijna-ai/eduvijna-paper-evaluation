@@ -575,17 +575,26 @@ async function publishAttempt(
           if (qe.workflow_state === "ACCEPTED" || qe.workflow_state === "OVERRIDDEN") {
             continue;
           }
+          const maxMark = Number(
+            (qe as { max_mark?: number | string }).max_mark ?? score,
+          );
+          const clamped =
+            Number.isFinite(maxMark) && maxMark >= 0
+              ? Math.min(Math.max(0, score), maxMark)
+              : Math.max(0, score);
           const over = await request.post(
             `${apiBase}/api/v1/question-evaluations/${qe.id}/override`,
             {
               headers,
               data: {
-                score,
+                score: clamped,
                 reason: "B14 E2E override",
               },
             },
           );
-          if (![200, 409].includes(over.status())) return `override:${over.status()}`;
+          if (![200, 409].includes(over.status())) {
+            return `override:${over.status()}:${await over.text()}`;
+          }
         }
         const fin = await request.post(
           `${apiBase}/api/v1/submissions/${submissionId}/evaluation/finalize`,
