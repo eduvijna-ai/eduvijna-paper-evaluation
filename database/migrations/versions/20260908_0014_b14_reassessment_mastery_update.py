@@ -17,26 +17,9 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # Existing assessments must be EXAM-only before introducing the type CK.
-    conn = op.get_bind()
-    non_exam = conn.execute(
-        sa.text(
-            "SELECT COUNT(*) FROM assessments "
-            "WHERE assessment_type IS DISTINCT FROM 'EXAM'"
-        )
-    ).scalar()
-    if int(non_exam or 0) > 0:
-        raise RuntimeError(
-            "Cannot add ck_assessments_assessment_type: "
-            "non-EXAM assessment_type rows exist"
-        )
-
-    op.create_check_constraint(
-        "ck_assessments_assessment_type",
-        "assessments",
-        "assessment_type IN ('EXAM','IMPROVEMENT_REASSESSMENT')",
-    )
-
+    # B14 introduces IMPROVEMENT_REASSESSMENT as a server-assigned type for
+    # reassessments only. It must not narrow the existing general assessment_type
+    # domain, which remains institution/product extensible through the authoring API.
     op.create_table(
         "reassessments",
         sa.Column("id", sa.Uuid(), nullable=False),
@@ -294,6 +277,9 @@ def downgrade() -> None:
     op.drop_index("ix_reassessments_tenant_blueprint", table_name="reassessments")
     op.drop_index("ix_reassessments_tenant_student", table_name="reassessments")
     op.drop_table("reassessments")
-    op.drop_constraint(
-        "ck_assessments_assessment_type", "assessments", type_="check"
+    # Legacy copies of the original B14 migration may already have created this
+    # constraint. Make downgrade safe without ever reintroducing the restriction.
+    op.execute(
+        "ALTER TABLE assessments DROP CONSTRAINT IF EXISTS "
+        "ck_assessments_assessment_type"
     )

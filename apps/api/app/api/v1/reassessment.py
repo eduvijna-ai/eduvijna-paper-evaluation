@@ -7,7 +7,7 @@ import uuid
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.authorization import AuthContext, require_permissions
@@ -55,6 +55,8 @@ def _map_reassessment_error(exc: ReassessmentError) -> HTTPException:
 
 
 class ReassessmentItemIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     improvement_assessment_item_id: uuid.UUID
     prompt_text: str = Field(min_length=1, max_length=20000)
     max_marks: str
@@ -63,6 +65,8 @@ class ReassessmentItemIn(BaseModel):
 
 
 class ReassessmentInstantiateIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     items: list[ReassessmentItemIn] = Field(min_length=1)
 
 
