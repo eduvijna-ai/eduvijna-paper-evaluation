@@ -41,6 +41,17 @@ import {
   getStudentRecoverableMarks,
   getStudentRepeatedErrors,
   getStudentReport,
+  listCurriculumResources,
+  getCurriculumResource,
+  createCurriculumResource,
+  updateCurriculumResource,
+  approveCurriculumResource,
+  activateCurriculumResource,
+  deactivateCurriculumResource,
+  replaceCurriculumResourceNodes,
+  listStudentResourceAssignments,
+  assignStudentResource,
+  cancelStudentResourceAssignment,
   MockNotFoundError,
   rubrics,
   students,
@@ -566,6 +577,39 @@ export const MockEduVijnaApi: ApiClient = {
       workflow_state: "APPROVED" as const,
       teacher_notes: "Approved for student release.",
     });
+  },
+  async listCurriculumResources(filters) {
+    return mockCall(() => listCurriculumResources(filters));
+  },
+  async getCurriculumResource(id) {
+    return mockCall(() => getCurriculumResource(id));
+  },
+  async createCurriculumResource(input) {
+    return mockCall(() => createCurriculumResource(input));
+  },
+  async updateCurriculumResource(id, input) {
+    return mockCall(() => updateCurriculumResource(id, input));
+  },
+  async approveCurriculumResource(id) {
+    return mockCall(() => approveCurriculumResource(id));
+  },
+  async activateCurriculumResource(id) {
+    return mockCall(() => activateCurriculumResource(id));
+  },
+  async deactivateCurriculumResource(id) {
+    return mockCall(() => deactivateCurriculumResource(id));
+  },
+  async replaceCurriculumResourceNodes(id, nodeIds) {
+    return mockCall(() => replaceCurriculumResourceNodes(id, nodeIds));
+  },
+  async listStudentResourceAssignments(studentId, filters) {
+    return mockCall(() => listStudentResourceAssignments(studentId, filters));
+  },
+  async assignStudentResource(studentId, input) {
+    return mockCall(() => assignStudentResource(studentId, input));
+  },
+  async cancelStudentResourceAssignment(assignmentId) {
+    return mockCall(() => cancelStudentResourceAssignment(assignmentId));
   },
 };
 

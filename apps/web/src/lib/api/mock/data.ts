@@ -4,6 +4,10 @@ import type {
   AssessmentAnalytics,
   Curriculum,
   CurriculumNode,
+  CurriculumResource,
+  CurriculumResourceCreate,
+  CurriculumResourceList,
+  CurriculumResourceUpdate,
   DashboardSummary,
   EvaluationLedger,
   EvaluationWorkspacePayload,
@@ -24,6 +28,9 @@ import type {
   StudentMistakeNotebook,
   StudentRecoverableMarks,
   StudentRepeatedErrors,
+  StudentResourceAssignment,
+  StudentResourceAssignmentCreate,
+  StudentResourceAssignmentList,
   StudentReport,
   Submission,
   TranscriptionWorkspacePayload,
@@ -1656,4 +1663,264 @@ export function buildQuestionTree(assessmentId: string): Question[] {
     return nodes.map((n) => ({ ...n, children: attach(n.id) }));
   };
   return attach(null);
+}
+
+/** Demo-only B13 fixtures — never invent catalog data for live UUIDs. */
+export const RESOURCE_ID = "resource-demo-001";
+export const RESOURCE_ID_DRAFT = "resource-demo-draft";
+export const ASSIGNMENT_ID = "assignment-demo-001";
+
+const B13_AS_OF = "2026-09-07T12:00:00.000Z";
+
+let demoResources: CurriculumResource[] = [
+  {
+    id: RESOURCE_ID,
+    curriculum_id: CURRICULUM_ID,
+    code: "RES-DEMO-001",
+    title: "Discriminant practice packet",
+    description: "Institution-approved practice set for discriminant mastery",
+    resource_kind: "PRACTICE_SET",
+    status: "ACTIVE",
+    content_ref: "internal://catalog/demo-disc-practice",
+    curriculum_node_ids: ["node-concept-disc"],
+    created_by: null,
+    approved_by: null,
+    approved_at: B13_AS_OF,
+    created_at: B13_AS_OF,
+    updated_at: B13_AS_OF,
+  },
+  {
+    id: RESOURCE_ID_DRAFT,
+    curriculum_id: CURRICULUM_ID,
+    code: "RES-DEMO-DRAFT",
+    title: "Draft concept note",
+    description: null,
+    resource_kind: "CONCEPT_NOTE",
+    status: "DRAFT",
+    content_ref: "internal://catalog/demo-draft-note",
+    curriculum_node_ids: ["node-topic-sim"],
+    created_by: null,
+    approved_by: null,
+    approved_at: null,
+    created_at: B13_AS_OF,
+    updated_at: B13_AS_OF,
+  },
+];
+
+let demoAssignments: StudentResourceAssignment[] = [
+  {
+    id: ASSIGNMENT_ID,
+    student_id: STUDENT_ID,
+    resource_id: RESOURCE_ID,
+    resource: demoResources[0]!,
+    learning_recommendation_id: null,
+    status: "ASSIGNED",
+    assigned_by: null,
+    assigned_at: B13_AS_OF,
+    cancelled_at: null,
+    cancelled_by: null,
+  },
+];
+
+function cloneResource(r: CurriculumResource): CurriculumResource {
+  return { ...r, curriculum_node_ids: [...r.curriculum_node_ids] };
+}
+
+function findResourceOrThrow(id: string): CurriculumResource {
+  const found = demoResources.find((r) => r.id === id);
+  if (!found) {
+    throw new MockNotFoundError("Curriculum resource not found");
+  }
+  return found;
+}
+
+export function listCurriculumResources(filters?: {
+  curriculumId?: string;
+  status?: string;
+}): CurriculumResourceList {
+  let items = demoResources.map(cloneResource);
+  if (filters?.curriculumId) {
+    items = items.filter((r) => r.curriculum_id === filters.curriculumId);
+  }
+  if (filters?.status) {
+    items = items.filter((r) => r.status === filters.status);
+  }
+  return {
+    curriculum_id: filters?.curriculumId ?? null,
+    status_filter: filters?.status ?? null,
+    items,
+  };
+}
+
+export function getCurriculumResource(id: string): CurriculumResource {
+  return cloneResource(findResourceOrThrow(id));
+}
+
+export function createCurriculumResource(
+  input: CurriculumResourceCreate,
+): CurriculumResource {
+  if (/^https?:\/\//i.test(input.content_ref) || input.content_ref.startsWith("//")) {
+    throw new MockNotFoundError("content_ref must not be an open-web URL");
+  }
+  const now = new Date().toISOString();
+  const resource: CurriculumResource = {
+    id: `resource-demo-${crypto.randomUUID().slice(0, 8)}`,
+    curriculum_id: input.curriculum_id,
+    code: input.code,
+    title: input.title,
+    description: input.description ?? null,
+    resource_kind: input.resource_kind,
+    status: "DRAFT",
+    content_ref: input.content_ref,
+    curriculum_node_ids: [...input.curriculum_node_ids],
+    created_by: null,
+    approved_by: null,
+    approved_at: null,
+    created_at: now,
+    updated_at: now,
+  };
+  demoResources = [resource, ...demoResources];
+  return cloneResource(resource);
+}
+
+export function updateCurriculumResource(
+  id: string,
+  input: CurriculumResourceUpdate,
+): CurriculumResource {
+  const resource = findResourceOrThrow(id);
+  if (input.title !== undefined) resource.title = input.title;
+  if (input.description !== undefined) resource.description = input.description;
+  if (input.resource_kind !== undefined) resource.resource_kind = input.resource_kind;
+  if (input.content_ref !== undefined) resource.content_ref = input.content_ref;
+  resource.updated_at = new Date().toISOString();
+  return cloneResource(resource);
+}
+
+export function approveCurriculumResource(id: string): CurriculumResource {
+  const resource = findResourceOrThrow(id);
+  if (resource.status !== "DRAFT") {
+    throw new MockNotFoundError("Resource cannot be approved from current status");
+  }
+  resource.status = "APPROVED";
+  resource.approved_at = new Date().toISOString();
+  resource.updated_at = resource.approved_at;
+  return cloneResource(resource);
+}
+
+export function activateCurriculumResource(id: string): CurriculumResource {
+  const resource = findResourceOrThrow(id);
+  if (resource.status !== "APPROVED" && resource.status !== "DEACTIVATED") {
+    throw new MockNotFoundError("Resource cannot be activated from current status");
+  }
+  resource.status = "ACTIVE";
+  resource.updated_at = new Date().toISOString();
+  return cloneResource(resource);
+}
+
+export function deactivateCurriculumResource(id: string): CurriculumResource {
+  const resource = findResourceOrThrow(id);
+  if (resource.status !== "ACTIVE") {
+    throw new MockNotFoundError("Only ACTIVE resources can be deactivated");
+  }
+  resource.status = "DEACTIVATED";
+  resource.updated_at = new Date().toISOString();
+  return cloneResource(resource);
+}
+
+export function replaceCurriculumResourceNodes(
+  id: string,
+  nodeIds: string[],
+): CurriculumResource {
+  const resource = findResourceOrThrow(id);
+  resource.curriculum_node_ids = [...nodeIds];
+  resource.updated_at = new Date().toISOString();
+  return cloneResource(resource);
+}
+
+export function listStudentResourceAssignments(
+  studentId: string,
+  filters?: { curriculumId?: string; status?: string },
+): StudentResourceAssignmentList {
+  if (studentId !== STUDENT_ID && !students.some((s) => s.id === studentId)) {
+    throw new MockNotFoundError("Student not found");
+  }
+  let items = demoAssignments
+    .filter((a) => a.student_id === studentId)
+    .map((a) => ({
+      ...a,
+      resource: cloneResource(
+        demoResources.find((r) => r.id === a.resource_id) ?? a.resource,
+      ),
+    }));
+  if (filters?.curriculumId) {
+    items = items.filter(
+      (a) => a.resource.curriculum_id === filters.curriculumId,
+    );
+  }
+  if (filters?.status) {
+    items = items.filter((a) => a.status === filters.status);
+  }
+  return {
+    student_id: studentId,
+    curriculum_id: filters?.curriculumId ?? null,
+    items,
+  };
+}
+
+export function assignStudentResource(
+  studentId: string,
+  input: StudentResourceAssignmentCreate,
+): StudentResourceAssignment {
+  if (studentId !== STUDENT_ID && !students.some((s) => s.id === studentId)) {
+    throw new MockNotFoundError("Student not found");
+  }
+  const resource = findResourceOrThrow(input.resource_id);
+  if (resource.status !== "ACTIVE") {
+    throw new MockNotFoundError("Only ACTIVE resources can be assigned");
+  }
+  const existing = demoAssignments.find(
+    (a) =>
+      a.student_id === studentId &&
+      a.resource_id === input.resource_id &&
+      a.status === "ASSIGNED",
+  );
+  if (existing) {
+    return {
+      ...existing,
+      resource: cloneResource(resource),
+    };
+  }
+  const now = new Date().toISOString();
+  const assignment: StudentResourceAssignment = {
+    id: `assignment-demo-${crypto.randomUUID().slice(0, 8)}`,
+    student_id: studentId,
+    resource_id: resource.id,
+    resource: cloneResource(resource),
+    learning_recommendation_id: input.learning_recommendation_id ?? null,
+    status: "ASSIGNED",
+    assigned_by: null,
+    assigned_at: now,
+    cancelled_at: null,
+    cancelled_by: null,
+  };
+  demoAssignments = [assignment, ...demoAssignments];
+  return { ...assignment, resource: cloneResource(resource) };
+}
+
+export function cancelStudentResourceAssignment(
+  assignmentId: string,
+): StudentResourceAssignment {
+  const assignment = demoAssignments.find((a) => a.id === assignmentId);
+  if (!assignment) {
+    throw new MockNotFoundError("Resource assignment not found");
+  }
+  if (assignment.status === "CANCELLED") {
+    throw new MockNotFoundError("Assignment already cancelled");
+  }
+  assignment.status = "CANCELLED";
+  assignment.cancelled_at = new Date().toISOString();
+  const resource =
+    demoResources.find((r) => r.id === assignment.resource_id) ??
+    assignment.resource;
+  return { ...assignment, resource: cloneResource(resource) };
 }

@@ -7,6 +7,7 @@ import type {
   LiveImprovementAssessment,
   LiveLearningPathStep,
   LiveLearningRecommendation,
+  StudentResourceAssignment,
   TopicPriority,
 } from "@/lib/types/domain";
 import type { ErrorCode } from "@/lib/types/domain";
@@ -513,6 +514,196 @@ export function LiveImprovementBlueprintPanel({
             </div>
           )}
         </div>
+      )}
+    </div>
+  );
+}
+
+/** B13 assigned catalog resources — distinct from B9 recommendations. */
+export function AssignedResourcesSection({
+  assignments,
+  loading,
+  error,
+  onRetry,
+  onCancel,
+  cancelPending,
+}: {
+  assignments: StudentResourceAssignment[];
+  loading?: boolean;
+  error?: boolean;
+  onRetry?: () => void;
+  onCancel?: (assignmentId: string) => void;
+  cancelPending?: boolean;
+}) {
+  const active = assignments.filter((a) => a.status === "ASSIGNED");
+
+  return (
+    <section
+      data-testid="b13-assigned-resources"
+      className="mt-6 rounded-md border border-slate-200 bg-white p-4"
+    >
+      <h2 className="text-sm font-semibold text-slate-800">
+        Assigned catalog resources (B13)
+      </h2>
+      <p
+        data-testid="b13-recommendation-vs-assignment-note"
+        className="mt-1 text-xs text-slate-600"
+      >
+        Assigned catalog resources (B13) are institution-approved materials.
+        They are separate from B9 learning recommendations, which only prioritize
+        curriculum gaps.
+      </p>
+
+      {loading && (
+        <p className="mt-3 text-sm text-slate-600" data-testid="b13-assignments-loading">
+          Loading assignments…
+        </p>
+      )}
+      {error && (
+        <div className="mt-3 flex items-center gap-2 text-sm text-rose-700">
+          <span>Could not load assigned resources.</span>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="underline"
+              data-testid="b13-assignments-retry"
+            >
+              Retry
+            </button>
+          )}
+        </div>
+      )}
+      {!loading && !error && active.length === 0 && (
+        <p
+          data-testid="b13-assignments-empty"
+          className="mt-3 text-sm text-slate-600"
+        >
+          No catalog resources assigned yet.
+        </p>
+      )}
+      {!loading && !error && active.length > 0 && (
+        <ul className="mt-3 space-y-2">
+          {active.map((assignment) => (
+            <li
+              key={assignment.id}
+              data-testid="b13-assignment-row"
+              className="flex flex-wrap items-start justify-between gap-2 rounded-md border border-slate-100 bg-slate-50 px-3 py-2"
+            >
+              <div>
+                <div className="text-sm font-medium text-slate-900">
+                  {assignment.resource.title}
+                </div>
+                <div className="text-xs text-slate-600">
+                  {assignment.resource.code} · {assignment.resource.resource_kind}{" "}
+                  · {assignment.resource.content_ref}
+                </div>
+                {assignment.learning_recommendation_id && (
+                  <div className="mt-0.5 text-xs text-slate-500">
+                    Linked to recommendation {assignment.learning_recommendation_id}
+                  </div>
+                )}
+              </div>
+              {onCancel && (
+                <button
+                  type="button"
+                  data-testid="b13-cancel-assignment"
+                  disabled={cancelPending}
+                  onClick={() => onCancel(assignment.id)}
+                  className="rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-medium text-slate-800 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancel assignment
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+export function AssignResourcePanel({
+  resources,
+  recommendations,
+  selectedResourceId,
+  selectedRecommendationId,
+  onSelectResource,
+  onSelectRecommendation,
+  onAssign,
+  assigning,
+  errorMessage,
+}: {
+  resources: Array<{ id: string; code: string; title: string; status: string }>;
+  recommendations?: Array<{ id: string; code: string; title: string }>;
+  selectedResourceId: string;
+  selectedRecommendationId: string;
+  onSelectResource: (id: string) => void;
+  onSelectRecommendation: (id: string) => void;
+  onAssign: () => void;
+  assigning?: boolean;
+  errorMessage?: string | null;
+}) {
+  return (
+    <div
+      data-testid="b13-assign-resource"
+      className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3"
+    >
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-teal-800">
+        Assign catalog resource
+      </h3>
+      <p className="mt-1 text-xs text-slate-600">
+        Choose an ACTIVE institution catalog resource. No open-web URLs.
+      </p>
+      <div className="mt-2 flex flex-wrap items-end gap-3">
+        <label className="block text-xs text-slate-700">
+          Resource
+          <select
+            data-testid="b13-assign-resource-select"
+            className="mt-1 block min-w-[14rem] rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            value={selectedResourceId}
+            onChange={(e) => onSelectResource(e.target.value)}
+          >
+            <option value="">Select resource…</option>
+            {resources.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.code} · {r.title}
+              </option>
+            ))}
+          </select>
+        </label>
+        {recommendations && recommendations.length > 0 && (
+          <label className="block text-xs text-slate-700">
+            Link recommendation (optional)
+            <select
+              data-testid="b13-assign-recommendation-select"
+              className="mt-1 block min-w-[14rem] rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+              value={selectedRecommendationId}
+              onChange={(e) => onSelectRecommendation(e.target.value)}
+            >
+              <option value="">None</option>
+              {recommendations.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.code} · {r.title}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <button
+          type="button"
+          data-testid="b13-assign-resource-submit"
+          disabled={!selectedResourceId || assigning}
+          onClick={onAssign}
+          className="rounded-md bg-teal-800 px-3 py-2 text-sm font-medium text-white hover:bg-teal-900 disabled:opacity-50"
+        >
+          {assigning ? "Assigning…" : "Assign resource"}
+        </button>
+      </div>
+      {errorMessage && (
+        <p className="mt-2 text-sm text-rose-700" data-testid="b13-assign-error">
+          {errorMessage}
+        </p>
       )}
     </div>
   );

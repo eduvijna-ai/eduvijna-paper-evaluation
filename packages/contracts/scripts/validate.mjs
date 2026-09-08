@@ -48,6 +48,14 @@ const requiredPaths = [
   "/api/v1/analytics/students/{id}/recoverable-marks",
   "/api/v1/analytics/students/{id}/mistake-notebook",
   "/api/v1/analytics/students/{id}/b12/rebuild",
+  "/api/v1/learning/resources",
+  "/api/v1/learning/resources/{id}",
+  "/api/v1/learning/resources/{id}/approve",
+  "/api/v1/learning/resources/{id}/activate",
+  "/api/v1/learning/resources/{id}/deactivate",
+  "/api/v1/learning/resources/{id}/nodes",
+  "/api/v1/learning/students/{id}/resource-assignments",
+  "/api/v1/learning/resource-assignments/{id}/cancel",
 ];
 
 const schemaFiles = (await readdir(schemasDirectory))

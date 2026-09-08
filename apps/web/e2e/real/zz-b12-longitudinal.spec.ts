@@ -619,7 +619,9 @@ test.describe("B12 longitudinal mastery + mistake intelligence (real API)", () =
       timeout: 30_000,
     });
     await expect(page.getByTestId("concept-signals-section")).toBeVisible();
-    await expect(page.getByText(/Current evidence signals/i)).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Current evidence signals" }),
+    ).toBeVisible();
 
     await expect(page.getByTestId("b12-longitudinal-mastery")).toBeVisible({
       timeout: 30_000,

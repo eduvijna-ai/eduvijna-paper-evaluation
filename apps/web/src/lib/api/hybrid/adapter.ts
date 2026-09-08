@@ -10,6 +10,7 @@ import { PublicationHttpApi } from "../http/publication";
 import { ReportsHttpApi } from "../http/reports";
 import { AnalyticsHttpApi } from "../http/analytics";
 import { LearningHttpApi } from "../http/learning";
+import { ResourcesHttpApi } from "../http/resources";
 import { ApiError } from "../http/errors";
 import { httpRequest } from "../http/client";
 import { getApiCapabilities } from "../capabilities";
@@ -19,6 +20,15 @@ const LIVE_UUID_RE =
 
 function isLiveSubmissionId(id: string): boolean {
   return LIVE_UUID_RE.test(id) && !id.toLowerCase().includes("demo");
+}
+
+function b13MockDemoOnly(message: string): never {
+  throw new ApiError({
+    message,
+    status: 404,
+    kind: "not_found",
+    code: "B13_MOCK_DEMO_ONLY",
+  });
 }
 
 /**
@@ -32,6 +42,7 @@ function isLiveSubmissionId(id: string): boolean {
  * - Publication + reports → B7 HTTP
  * - Analytics → B8 HTTP (+ B12 longitudinal when live)
  * - Learning + improvement blueprints → B9 HTTP
+ * - Curriculum resources + assignments → B13 HTTP (mock demo fixtures only when learning is mock)
  *
  * Components use `api` only — they must not inspect mock vs HTTP.
  * Live learning errors must never silently fall back to mock.
@@ -667,5 +678,122 @@ export const HybridEduVijnaApi: ApiClient = {
       kind: "not_found",
       code: "LEARNING_NOT_LIVE",
     });
+  },
+
+  listCurriculumResources: async (filters) => {
+    if (getApiCapabilities().learning === "live") {
+      return ResourcesHttpApi.listCurriculumResources(filters);
+    }
+    return MockEduVijnaApi.listCurriculumResources!(filters);
+  },
+  getCurriculumResource: async (id) => {
+    if (getApiCapabilities().learning === "live") {
+      return ResourcesHttpApi.getCurriculumResource(id);
+    }
+    if (isLiveSubmissionId(id)) {
+      b13MockDemoOnly(
+        "B13 curriculum resources are not available for live IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.getCurriculumResource!(id);
+  },
+  createCurriculumResource: async (input) => {
+    if (getApiCapabilities().learning === "live") {
+      return ResourcesHttpApi.createCurriculumResource(input);
+    }
+    if (isLiveSubmissionId(input.curriculum_id)) {
+      b13MockDemoOnly(
+        "B13 create is not available for live curriculum IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.createCurriculumResource!(input);
+  },
+  updateCurriculumResource: async (id, input) => {
+    if (getApiCapabilities().learning === "live") {
+      return ResourcesHttpApi.updateCurriculumResource(id, input);
+    }
+    if (isLiveSubmissionId(id)) {
+      b13MockDemoOnly(
+        "B13 update is not available for live resource IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.updateCurriculumResource!(id, input);
+  },
+  approveCurriculumResource: async (id) => {
+    if (getApiCapabilities().learning === "live") {
+      return ResourcesHttpApi.approveCurriculumResource(id);
+    }
+    if (isLiveSubmissionId(id)) {
+      b13MockDemoOnly(
+        "B13 approve is not available for live resource IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.approveCurriculumResource!(id);
+  },
+  activateCurriculumResource: async (id) => {
+    if (getApiCapabilities().learning === "live") {
+      return ResourcesHttpApi.activateCurriculumResource(id);
+    }
+    if (isLiveSubmissionId(id)) {
+      b13MockDemoOnly(
+        "B13 activate is not available for live resource IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.activateCurriculumResource!(id);
+  },
+  deactivateCurriculumResource: async (id) => {
+    if (getApiCapabilities().learning === "live") {
+      return ResourcesHttpApi.deactivateCurriculumResource(id);
+    }
+    if (isLiveSubmissionId(id)) {
+      b13MockDemoOnly(
+        "B13 deactivate is not available for live resource IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.deactivateCurriculumResource!(id);
+  },
+  replaceCurriculumResourceNodes: async (id, nodeIds) => {
+    if (getApiCapabilities().learning === "live") {
+      return ResourcesHttpApi.replaceCurriculumResourceNodes(id, nodeIds);
+    }
+    if (isLiveSubmissionId(id)) {
+      b13MockDemoOnly(
+        "B13 node replace is not available for live resource IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.replaceCurriculumResourceNodes!(id, nodeIds);
+  },
+  listStudentResourceAssignments: async (studentId, filters) => {
+    if (getApiCapabilities().learning === "live") {
+      return ResourcesHttpApi.listStudentResourceAssignments(studentId, filters);
+    }
+    if (isLiveSubmissionId(studentId)) {
+      b13MockDemoOnly(
+        "B13 assignments are not available for live student IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.listStudentResourceAssignments!(studentId, filters);
+  },
+  assignStudentResource: async (studentId, input) => {
+    if (getApiCapabilities().learning === "live") {
+      return ResourcesHttpApi.assignStudentResource(studentId, input);
+    }
+    if (isLiveSubmissionId(studentId) || isLiveSubmissionId(input.resource_id)) {
+      b13MockDemoOnly(
+        "B13 assign is not available for live IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.assignStudentResource!(studentId, input);
+  },
+  cancelStudentResourceAssignment: async (assignmentId) => {
+    if (getApiCapabilities().learning === "live") {
+      return ResourcesHttpApi.cancelStudentResourceAssignment(assignmentId);
+    }
+    if (isLiveSubmissionId(assignmentId)) {
+      b13MockDemoOnly(
+        "B13 cancel is not available for live assignment IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.cancelStudentResourceAssignment!(assignmentId);
   },
 };

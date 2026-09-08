@@ -255,3 +255,29 @@ export const PROPOSED_QUESTION_SCORING_MODES = [
 ] as const;
 export type ProposedQuestionScoringMode =
   (typeof PROPOSED_QUESTION_SCORING_MODES)[number];
+
+/** B13 institution catalog resource kinds (no open-web discovery). */
+export const CURRICULUM_RESOURCE_KINDS = [
+  "PRACTICE_SET",
+  "WORKED_EXAMPLE",
+  "CONCEPT_NOTE",
+  "INTERNAL_PACKET",
+] as const;
+export type CurriculumResourceKind =
+  (typeof CURRICULUM_RESOURCE_KINDS)[number];
+
+export const CURRICULUM_RESOURCE_STATUSES = [
+  "DRAFT",
+  "APPROVED",
+  "ACTIVE",
+  "DEACTIVATED",
+] as const;
+export type CurriculumResourceStatus =
+  (typeof CURRICULUM_RESOURCE_STATUSES)[number];
+
+export const STUDENT_RESOURCE_ASSIGNMENT_STATUSES = [
+  "ASSIGNED",
+  "CANCELLED",
+] as const;
+export type StudentResourceAssignmentStatus =
+  (typeof STUDENT_RESOURCE_ASSIGNMENT_STATUSES)[number];

@@ -85,7 +85,7 @@ Mapped 1:1 from the 65 business capabilities in the architecture contract.
 | PEV-038 | Student Mistake Notebook | System shall build a persistent mistake notebook aggregating errors and corrections per student. | P1 | AFTER_CLIENT_APPROVAL | Notebook entries link to questions, error codes, and recommended practice. **Implemented in B12 (APP-003 / Issue #42)** — release state unchanged. | Adaptive Learning |
 | PEV-039 | Curriculum-Only Recommendations | System shall produce adaptive learning recommendations constrained to approved curriculum content only (no open-web sources). | P0 | BUILD_NOW | Recommendations reference curriculum nodes only; external URLs blocked by policy. | Adaptive Learning |
 | PEV-040 | Prerequisite-Aware Recommendations | Recommendations shall repair prerequisite gaps before advancing to dependent topics. | P0 | BUILD_NOW | Recommendation ordering respects prerequisite graph; gaps surfaced first. | Adaptive Learning / Curriculum |
-| PEV-041 | Curriculum Resource Assignment | System shall assign approved curriculum resources and practice materials to students. | P1 | AFTER_CLIENT_APPROVAL | Teacher or system assigns resource IDs from approved catalog per recommendation. | Adaptive Learning |
+| PEV-041 | Curriculum Resource Assignment | System shall assign approved curriculum resources and practice materials to students. | P1 | AFTER_CLIENT_APPROVAL | Teacher or system assigns resource IDs from approved catalog per recommendation. **Implemented in B13 (APP-004 / Issue #45)** — release state unchanged; no open-web discovery. | Adaptive Learning |
 | PEV-042 | Improvement Assessment Blueprint | System shall generate personalized improvement assessment blueprint targeting identified weaknesses. | P0 | BUILD_NOW | Blueprint lists question templates / concept targets; contract schema validated; not full auto-generation in CVB. | Adaptive Learning / AI |
 | PEV-043 | Reassessment & Mastery Update | System shall support reassessment after improvement work and update mastery accordingly. | P1 | AFTER_CLIENT_APPROVAL | Follow-up assessment links to blueprint; mastery delta computed and stored. | Adaptive Learning |
 | PEV-044 | Horizontal Grading | System shall support horizontal grading with multiple evaluators and workload distribution. | P2 | FUTURE_ENTERPRISE | Submissions assignable to evaluator pool; progress tracked per evaluator. | Enterprise Operations |
@@ -213,7 +213,8 @@ Cross-reference of mandated 30-day deliverables to requirement IDs.
 3. **Report generation guardrail:** PEV-065 applies to PEV-026, PEV-027, PEV-028 — reports use ledger + structured generation; LLM may assist phrasing per-section, not replace ledger.
 4. **Confidence model:** PEV-061 and PEV-062 together satisfy the business rule that confidence is meaningful and dimensional (business items 61–62).
 5. **Change control:** Altering release state or priority requires entry in `docs/FOUNDER_APPROVAL_LOG.md`.
-6. **APP-003 / B12 implementation:** PEV-035–038 remain `AFTER_CLIENT_APPROVAL` in Release State (planning gate). They are implemented on `develop` under B12 / Issue #42 per APP-003. The register has no separate implementation-status column; B8/B9 BUILD_NOW PEVs likewise were not re-labeled when shipped. PEV-041, PEV-043, PEV-058, PEV-059 remain deferred.
+6. **APP-003 / B12 implementation:** PEV-035–038 remain `AFTER_CLIENT_APPROVAL` in Release State (planning gate). They are implemented on `develop` under B12 / Issue #42 per APP-003. The register has no separate implementation-status column; B8/B9 BUILD_NOW PEVs likewise were not re-labeled when shipped.
+7. **APP-004 / B13 implementation:** PEV-041 remains `AFTER_CLIENT_APPROVAL` in Release State (planning gate). It is implemented on `develop` under B13 / Issue #45 per APP-004 (tenant-scoped approved catalog + assignment; no open-web discovery). PEV-043, PEV-058, PEV-059 remain deferred.
 
 ---
 
@@ -223,3 +224,4 @@ Cross-reference of mandated 30-day deliverables to requirement IDs.
 |---------|------|--------|--------|
 | 0.1 | 2026-09-04 | Cursor A (bootstrap) | Initial register — 78 requirements, zero dropped |
 | 0.2 | 2026-09-08 | Cursor | Annotate PEV-035–038 Acceptance Intent as B12/APP-003 implemented; release state unchanged |
+| 0.3 | 2026-09-08 | Cursor | Annotate PEV-041 Acceptance Intent as B13/APP-004 / Issue #45 implemented; release state unchanged; PEV-043/058/059 still deferred |

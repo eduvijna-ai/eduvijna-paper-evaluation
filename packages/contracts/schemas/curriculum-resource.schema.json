@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/curriculum-resource.schema.json",
+  "title": "CurriculumResource",
+  "description": "B13 institution-approved, tenant-scoped curriculum resource/practice material (PEV-041 / APP-004). No open-web discovery.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "curriculum_id",
+    "code",
+    "title",
+    "description",
+    "resource_kind",
+    "status",
+    "content_ref",
+    "curriculum_node_ids",
+    "created_by",
+    "approved_by",
+    "approved_at",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "curriculum_id": { "type": "string", "format": "uuid" },
+    "code": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "title": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "description": { "type": ["string", "null"], "maxLength": 4000 },
+    "resource_kind": {
+      "type": "string",
+      "enum": [
+        "PRACTICE_SET",
+        "WORKED_EXAMPLE",
+        "CONCEPT_NOTE",
+        "INTERNAL_PACKET"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["DRAFT", "APPROVED", "ACTIVE", "DEACTIVATED"]
+    },
+    "content_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Opaque internal catalog reference. Must not be an http(s) URL."
+    },
+    "curriculum_node_ids": {
+      "type": "array",
+      "items": { "type": "string", "format": "uuid" }
+    },
+    "created_by": { "type": ["string", "null"], "format": "uuid" },
+    "approved_by": { "type": ["string", "null"], "format": "uuid" },
+    "approved_at": { "type": ["string", "null"], "format": "date-time" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}

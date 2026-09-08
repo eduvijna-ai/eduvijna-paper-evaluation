@@ -369,7 +369,7 @@ CREATE TABLE role_permissions (
 
 **Critical index:** `(tenant_id, submission_id, question_id)` on `question_evaluations`
 
-### 4.6 Publication (`0008`), analytics mastery evidence (`0009`), learning blueprint (`0010`), CVB release closure (`0011`), longitudinal mastery (`0012`)
+### 4.6 Publication (`0008`), analytics mastery evidence (`0009`), learning blueprint (`0010`), CVB release closure (`0011`), longitudinal mastery (`0012`), curriculum resources (`0013`)
 
 | Table | Key columns | Status |
 |-------|-------------|--------|
@@ -388,14 +388,17 @@ CREATE TABLE role_permissions (
 | `improvement_assessment_items` | template items; no Assessment/Question FKs | **B9 live (blueprint only)** |
 | `assessment_artifacts` | question-paper uploads; `content_sha256`, `storage_key`, `security_scan_status` | **B10 live** |
 | `authoring_ai_runs` | PARSE / PROPOSE_* / SUGGEST_*; `proposal_payload`, `correlation_id` | **B10 live** |
+| `curriculum_resources` | tenant×curriculum catalog; `code`, `resource_kind`, `status`, opaque `content_ref`; unique `(tenant_id, curriculum_id, code)` | **B13 live (`0013`)** |
+| `curriculum_resource_nodes` | resource ↔ curriculum_node mappings; unique `(resource_id, curriculum_node_id)` | **B13 live (`0013`)** |
+| `student_resource_assignments` | student assign/cancel of ACTIVE resource; optional `learning_recommendation_id`; partial unique ASSIGNED grain with `NULLS NOT DISTINCT` | **B13 live (`0013`)** |
 
-`PipelineJob.stage` includes `PUBLICATION` (B7) and `ANALYTICS` (B8). **B9/B10 do not add LEARNING/AUTHORING PipelineJob stages** — learning and authoring use dedicated run tables + Celery task ids. B12 materializes after B8 evidence insert in the same ANALYTICS job (and via `POST .../b12/rebuild`).
+`PipelineJob.stage` includes `PUBLICATION` (B7) and `ANALYTICS` (B8). **B9/B10/B13 do not add LEARNING/AUTHORING/RESOURCE PipelineJob stages** — learning and authoring use dedicated run tables + Celery task ids; B13 catalog/assignment is synchronous API. B12 materializes after B8 evidence insert in the same ANALYTICS job (and via `POST .../b12/rebuild`).
 
 `ai_execution_records` gains optional `learning_plan_run_id` / `improvement_assessment_id` (migration `0010`) and `authoring_ai_run_id` plus optional assessment/artifact/key/rubric refs (migration `0011`).  
 `assessment_versions.question_paper_artifact_id` FK → `assessment_artifacts` (migration `0011`).  
 `authoring_ai_runs` holds optional `answer_key_version_id` / `rubric_version_id` for created drafts.
 
-Deferred (logical only; no tables): resource assignment (PEV-041), reassessment instantiation from approved blueprints (PEV-043), gold benchmark / AI regression (PEV-058/059).
+Deferred (logical only; no tables): reassessment instantiation from approved blueprints (PEV-043), gold benchmark / AI regression (PEV-058/059).
 
 ### 4.7 AI tracing (`0008`)
 
@@ -466,3 +469,4 @@ Store S3 keys as `VARCHAR(512)`; never blob content in Postgres except small JSO
 | 0.3 | 2026-09-07 | B9 learning plan / recommendation / path / improvement blueprint tables (`0010`) |
 | 0.4 | 2026-09-07 | B10 `assessment_artifacts` + `authoring_ai_runs` (`0011`); authoring FKs on AI/key/rubric rows |
 | 0.5 | 2026-09-08 | B12 `mastery_states` / `mastery_state_snapshots` / `mistake_notebook_entries` live (`0012`); MasteryEvidence remains immutable B8 |
+| 0.6 | 2026-09-08 | B13 `curriculum_resources` / `curriculum_resource_nodes` / `student_resource_assignments` live (`0013`); PEV-041 off deferred-only list |

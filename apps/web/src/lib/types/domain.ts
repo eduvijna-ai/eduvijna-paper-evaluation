@@ -12,12 +12,15 @@ import type {
   IdentityMatchState,
   ImprovementBlueprintState,
   ImprovementTemplateKind,
+  CurriculumResourceKind,
+  CurriculumResourceStatus,
   LearningPathStepKind,
   LearningPlanRunStatus,
   LearningRecommendationKind,
   LearningRecommendationStatus,
   MappingNodeState,
   ProposedQuestionScoringMode,
+  StudentResourceAssignmentStatus,
   SubmissionState,
   TranscriptionState,
   UserRole,
@@ -32,6 +35,8 @@ export type {
   AuthoringSourceType,
   CriterionDecision,
   CurriculumNodeType,
+  CurriculumResourceKind,
+  CurriculumResourceStatus,
   ErrorCode,
   EvaluationWorkflowState,
   IdentityMatchState,
@@ -43,6 +48,7 @@ export type {
   LearningRecommendationStatus,
   MappingNodeState,
   ProposedQuestionScoringMode,
+  StudentResourceAssignmentStatus,
   SubmissionState,
   TranscriptionState,
   UserRole,
@@ -1266,6 +1272,76 @@ export interface LiveLearningPlan {
   };
 }
 
+/** B13 institution-approved curriculum catalog resource (PEV-041). */
+export interface CurriculumResource {
+  id: string;
+  curriculum_id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  resource_kind: CurriculumResourceKind | string;
+  status: CurriculumResourceStatus | string;
+  content_ref: string;
+  curriculum_node_ids: string[];
+  created_by: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CurriculumResourceList {
+  curriculum_id: string | null;
+  status_filter: CurriculumResourceStatus | string | null;
+  items: CurriculumResource[];
+}
+
+export interface CurriculumResourceCreate {
+  curriculum_id: string;
+  code: string;
+  title: string;
+  description?: string | null;
+  resource_kind: CurriculumResourceKind | string;
+  content_ref: string;
+  curriculum_node_ids: string[];
+}
+
+export interface CurriculumResourceUpdate {
+  title?: string;
+  description?: string | null;
+  resource_kind?: CurriculumResourceKind | string;
+  content_ref?: string;
+}
+
+export interface CurriculumResourceNodesReplace {
+  curriculum_node_ids: string[];
+}
+
+/** B13 persistent student assignment — distinct from B9 LearningRecommendation. */
+export interface StudentResourceAssignment {
+  id: string;
+  student_id: string;
+  resource_id: string;
+  resource: CurriculumResource;
+  learning_recommendation_id: string | null;
+  status: StudentResourceAssignmentStatus | string;
+  assigned_by: string | null;
+  assigned_at: string;
+  cancelled_at: string | null;
+  cancelled_by: string | null;
+}
+
+export interface StudentResourceAssignmentList {
+  student_id: string;
+  curriculum_id: string | null;
+  items: StudentResourceAssignment[];
+}
+
+export interface StudentResourceAssignmentCreate {
+  resource_id: string;
+  learning_recommendation_id?: string | null;
+}
+
 export interface LiveLearningWorkspace {
   student: LiveStudentSummary;
   available_curricula: LiveLearningCurriculumOption[];
@@ -1279,6 +1355,8 @@ export interface LiveLearningWorkspace {
   latest_plan: LiveLearningPlan | null;
   is_stale: boolean;
   latest_improvement_blueprint: LiveImprovementAssessment | null;
+  /** B13 assigned catalog resources (ASSIGNED only when from workspace). */
+  resource_assignments?: StudentResourceAssignment[];
 }
 
 export interface LearningPlanPrepareResult {

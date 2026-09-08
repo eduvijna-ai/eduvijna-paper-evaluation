@@ -59,6 +59,7 @@ PERMISSION_CODES: Final = (
     "learning:generate",
     "learning:review",
     "learning:approve",
+    "learning:assign",
 )
 
 ROLE_PERMISSION_MAP: Final = {
@@ -99,6 +100,7 @@ ROLE_PERMISSION_MAP: Final = {
             "learning:generate",
             "learning:review",
             "learning:approve",
+            "learning:assign",
         }
     ),
     "EVALUATOR": frozenset(

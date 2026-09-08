@@ -50,6 +50,11 @@ from app.db.models.mastery import (
     MistakeNotebookEntry,
 )
 from app.db.models.publication import Annotation, PublishedResult
+from app.db.models.resources import (
+    CurriculumResource,
+    CurriculumResourceNode,
+    StudentResourceAssignment,
+)
 from app.db.models.role import Permission, Role, RolePermission, UserRole
 from app.db.models.student import Guardian, ImportSession, Student, StudentGuardian
 from app.db.models.submission import PipelineJob, Submission, SubmissionPage
@@ -74,6 +79,8 @@ __all__ = [
     "Curriculum",
     "CurriculumNode",
     "CurriculumPrerequisite",
+    "CurriculumResource",
+    "CurriculumResourceNode",
     "EvaluationRun",
     "Guardian",
     "ImprovementAssessment",
@@ -106,6 +113,7 @@ __all__ = [
     "RubricVersion",
     "Student",
     "StudentGuardian",
+    "StudentResourceAssignment",
     "Submission",
     "SubmissionIdentityCandidate",
     "SubmissionPage",
