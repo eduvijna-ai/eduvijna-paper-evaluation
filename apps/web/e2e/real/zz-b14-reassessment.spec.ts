@@ -306,15 +306,17 @@ async function authorAkRubricForVersion(
   headers: Record<string, string>,
   assessmentId: string,
   versionId: string,
-): Promise<number> {
+): Promise<string[]> {
   const qs = await request.get(
     `${apiBase}/api/v1/assessment-versions/${versionId}/questions`,
     { headers },
   );
   expect(qs.ok()).toBeTruthy();
   const body = (await qs.json()) as
-    | Array<{ id: string; max_marks?: string }>
-    | { items?: Array<{ id: string; max_marks?: string }> };
+    | Array<{ id: string; max_marks?: string; display_label?: string }>
+    | {
+        items?: Array<{ id: string; max_marks?: string; display_label?: string }>;
+      };
   const questions = Array.isArray(body) ? body : (body.items ?? []);
   expect(questions.length).toBeGreaterThan(0);
 
@@ -387,7 +389,8 @@ async function authorAkRubricForVersion(
         .ok(),
     ).toBeTruthy();
   }
-  return questions.length;
+  // Mapping UI testids use display_label (QuestionTree → question.code).
+  return questions.map((q, index) => q.display_label || String(index + 1));
 }
 
 async function publishAttempt(
@@ -398,9 +401,10 @@ async function publishAttempt(
   assessmentId: string,
   studentId: string,
   pdf: Buffer,
-  questionCount: number,
+  questionCodes: string[],
   score = 4,
 ): Promise<string> {
+  const questionCount = questionCodes.length;
   const headers = { Authorization: `Bearer ${token}` };
 
   const upload = await request.post(`${apiBase}/api/v1/submissions`, {
@@ -465,9 +469,9 @@ async function publishAttempt(
     timeout: 30_000,
   });
 
-  for (let i = 0; i < questionCount; i += 1) {
+  for (let i = 0; i < questionCodes.length; i += 1) {
     if (i > 0) {
-      await page.getByTestId(`question-tree-item-${i + 1}`).click();
+      await page.getByTestId(`question-tree-item-${questionCodes[i]}`).click();
     }
     const aiBadge = page.getByTestId("region-ai-proposal-badge");
     if ((await aiBadge.count()) === 0) {
@@ -812,7 +816,7 @@ test.describe("B14 live reassessment mastery (real API)", () => {
       assessmentId,
       studentId,
       sourcePdf,
-      2,
+      ["1", "2"],
       1,
     );
 
@@ -884,7 +888,7 @@ test.describe("B14 live reassessment mastery (real API)", () => {
       ).toBe(false);
     }
 
-    const qCount = await authorAkRubricForVersion(
+    const questionCodes = await authorAkRubricForVersion(
       request,
       apiBase,
       headers,
@@ -918,7 +922,7 @@ test.describe("B14 live reassessment mastery (real API)", () => {
       reassessment.assessment_id,
       studentId,
       rePdf,
-      qCount,
+      questionCodes,
       5,
     );
 
