@@ -26,10 +26,25 @@ Copy this block for each new decision:
 
 | Date | Decision | Approver | Status | Notes |
 |------|----------|----------|--------|-------|
+| 2026-09-08 | **Approve third post-CVB AFTER_CLIENT_APPROVAL tranche: PEV-043.** Activates reassessment instantiation and mastery-delta tracking as bounded B14 work from `develop` after B13 completion. Reassessment must originate from an APPROVED B9 improvement-assessment blueprint, remain tenant/student/curriculum scoped, use the existing Assessment → Submission → evaluation ledger → human approval → publication pipeline, and derive mastery change only from published B8/B12 evidence rather than a second mastery algorithm. | Founder / Product Architect | APPROVED | APP-005. One Cursor implementation engineer owns backend + frontend + contracts + migration + tests + CI. PEV-058, PEV-059 and all FUTURE_ENTERPRISE requirements remain deferred. No auto-publication, no bypass of teacher/rubric/evaluation approval gates, and no feature merge to `main`. |
 | 2026-09-08 | **Approve second post-CVB AFTER_CLIENT_APPROVAL tranche: PEV-041.** Activates curriculum resource assignment as bounded B13 work from `develop` after B12 completion. Assignments must reference tenant-scoped, institution-approved curriculum resources/practice materials; no open-web discovery or arbitrary external resource assignment is authorized. | Founder / Product Architect | APPROVED | APP-004. One Cursor implementation engineer owns backend + frontend + contracts + migration + tests + CI. PEV-043, PEV-058, PEV-059 and all FUTURE_ENTERPRISE requirements remain deferred. `main` remains release-only and unchanged. |
 | 2026-09-07 | **Approve first post-CVB AFTER_CLIENT_APPROVAL tranche: PEV-035–038.** Activates repeated error analysis, recoverable marks analysis, longitudinal mastery tracking, and the persistent student mistake notebook as the first bounded post-CVB implementation tranche from `develop` after CVB v0.1 release completion. | Founder / Product Architect | APPROVED | APP-003. One Cursor implementation engineer owns backend + frontend + contracts + tests + CI. PEV-041, PEV-043, PEV-058, PEV-059 and all FUTURE_ENTERPRISE requirements remain deferred. `main` remains release-only. |
 | 2026-09-07 | **Approve CVB v0.1 release promotion.** Authorizes the independently re-audited BUILD_NOW release candidate on `develop` after B11: 59 VERIFIED / 0 BLOCKED, B11 squash `dd6bd64faf7ddcd089c94d7c32f748ec70109840`, with promotion to `main` through the release workflow after authoritative CI succeeds. Deferred requirements remain deferred and unchanged. | Founder / Product Architect | APPROVED | Release milestone approval. Record B11 evidence in the authorized release path; do not introduce new implementation scope. Issue #1 may close only after the `main` promotion is confirmed. |
 | 2026-09-04 | **Mandatory architecture contract for Day 1 bootstrap (CVB v0.1).** Approves: modular monolith; Python 3.12 + FastAPI + SQLAlchemy 2 async + Alembic + PostgreSQL 16; Redis + Celery async; S3-compatible storage (MinIO local); Next.js + React + TypeScript + Tailwind frontend stack; pnpm monorepo; SymPy + PyMuPDF; Docker Compose deployment. **Prohibits for CVB:** Kubernetes, Temporal, Kafka, microservices split, GraphQL, native mobile, Firebase, Supabase, serverless-only architecture. **Approves** core pipeline: source evidence → structured understanding → rubric decisions → evaluation ledger → human approval → published result → learning evidence. **Approves** tenant-aware data model from first migration; evaluation ledger as source of truth; immutable raw source papers; human approval required before publication; AI provider abstraction. **Approves** 30-day BUILD_NOW vertical slice per `docs/product/MASTER_PRODUCT_SCOPE.md` and requirements PEV-001 – PEV-078 in `docs/product/REQUIREMENTS_REGISTER.md`. **Approves** Cursor A/B ownership split per master scope §7. | Founder / Product Architect | APPROVED | Day 1 bootstrap foundation. ADRs ADR-001 through ADR-010 derive from this decision. Repository: `eduvijna/eduvijna-paper-evaluation`. No requirement from business context may be deleted — deferred items use AFTER_CLIENT_APPROVAL or FUTURE_ENTERPRISE only. |
+
+---
+
+## Detailed Entry — APP-005
+
+### APP-005 — Reassessment & Mastery Update Tranche
+
+| Field | Value |
+|-------|-------|
+| **Date** | 2026-09-08 |
+| **Decision** | Approve activation of PEV-043 as the third bounded `AFTER_CLIENT_APPROVAL` implementation tranche following B13 completion. B14 shall instantiate an APPROVED B9 `ImprovementAssessment` blueprint into a real, tenant-scoped reassessment that is explicitly linked to the blueprint, student, and curriculum, and shall expose the resulting mastery change after the reassessment reaches the existing PUBLISHED result boundary. |
+| **Approver** | Founder / Product Architect |
+| **Status** | APPROVED |
+| **Notes** | Implementation starts from the post-B13 `develop` SHA and follows `docs/engineering/DEVELOPMENT_WORKFLOW.md`: one Cursor implementation engineer, contract-first, backend + frontend + migration + tests + CI in one bounded feature PR to `develop`. Reassessment creation must be idempotent per approved blueprint and must not create a parallel grading/publication path. Generated or teacher-completed assessment content remains subject to existing authoring, answer-key, rubric, READY/ACTIVE, evaluation-ledger, human-approval, and publication gates. Mastery delta must be deterministic and auditable: capture the blueprint/reassessment baseline from existing B12 state/snapshots, then compare only against B12 state produced from immutable B8 evidence after the linked reassessment result is PUBLISHED. Do not manually rewrite `MasteryEvidence`, `MasteryState`, or historical snapshots; reuse B8/B12 materialization. Do not infer mastery from assignment completion or an unpublished reassessment. Preserve B13 resource-assignment semantics and all no-open-web constraints. PEV-058, PEV-059 and all FUTURE_ENTERPRISE requirements remain deferred. Do not merge feature work to `main`; a later founder-approved release milestone is required. |
 
 ---
 
@@ -102,6 +117,7 @@ Copy this block for each new decision:
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 0.5 | 2026-09-08 | Governance workflow | APP-005 activates post-B13 PEV-043 reassessment & mastery update tranche |
 | 0.4 | 2026-09-08 | Governance workflow | APP-004 activates post-CVB PEV-041 curriculum resource assignment tranche |
 | 0.3 | 2026-09-07 | Governance workflow | APP-003 activates first post-CVB PEV-035–038 tranche |
 | 0.2 | 2026-09-07 | Release workflow | APP-002 CVB v0.1 release promotion approval |
