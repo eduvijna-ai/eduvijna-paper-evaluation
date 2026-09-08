@@ -20,6 +20,7 @@ import type {
   LearningRecommendationStatus,
   MappingNodeState,
   ProposedQuestionScoringMode,
+  ReassessmentStatus,
   StudentResourceAssignmentStatus,
   SubmissionState,
   TranscriptionState,
@@ -48,6 +49,7 @@ export type {
   LearningRecommendationStatus,
   MappingNodeState,
   ProposedQuestionScoringMode,
+  ReassessmentStatus,
   StudentResourceAssignmentStatus,
   SubmissionState,
   TranscriptionState,
@@ -1342,6 +1344,89 @@ export interface StudentResourceAssignmentCreate {
   learning_recommendation_id?: string | null;
 }
 
+/** B14 reassessment item linkage (PEV-043). */
+export interface ReassessmentItem {
+  id: string;
+  improvement_assessment_item_id: string;
+  question_version_id: string;
+  curriculum_node_id: string;
+  item_code_snapshot: string;
+  template_kind_snapshot: string;
+  question_template_ref_snapshot: string | null;
+}
+
+/**
+ * B14 mastery baseline → post delta.
+ * Null mastery/delta means insufficient decisive evidence — never treat as 0.
+ */
+export interface ReassessmentMasteryDelta {
+  curriculum_node_id: string;
+  baseline_concept_mastery: number | null;
+  baseline_execution_accuracy: number | null;
+  baseline_concept_decisive_count: number;
+  baseline_execution_decisive_count: number;
+  baseline_concept_inconclusive_count: number;
+  baseline_execution_inconclusive_count: number;
+  baseline_evidence_count: number;
+  baseline_source_evidence_hash: string;
+  post_snapshot_id: string | null;
+  post_published_result_id: string | null;
+  post_concept_mastery: number | null;
+  post_execution_accuracy: number | null;
+  post_concept_decisive_count: number | null;
+  post_execution_decisive_count: number | null;
+  post_concept_inconclusive_count: number | null;
+  post_execution_inconclusive_count: number | null;
+  post_evidence_count: number | null;
+  post_source_evidence_hash: string | null;
+  concept_delta: number | null;
+  execution_delta: number | null;
+  materialized_at: string | null;
+  algorithm_version: string;
+}
+
+export interface Reassessment {
+  id: string;
+  improvement_assessment_id: string;
+  blueprint_title: string;
+  blueprint_version_number: number;
+  student_id: string;
+  curriculum_id: string;
+  assessment_id: string;
+  assessment_status: string;
+  assessment_version_id: string;
+  submission_id: string | null;
+  published_result_id: string | null;
+  status: ReassessmentStatus | string;
+  algorithm_version: string;
+  instantiation_hash: string;
+  baseline_captured_at: string;
+  created_at: string;
+  updated_at: string;
+  items: ReassessmentItem[];
+  mastery_deltas: ReassessmentMasteryDelta[];
+}
+
+export interface ReassessmentInstantiateItem {
+  improvement_assessment_item_id: string;
+  prompt_text: string;
+  max_marks: string;
+  question_type?: string | null;
+  instructions?: string | null;
+}
+
+export interface ReassessmentInstantiateRequest {
+  items: ReassessmentInstantiateItem[];
+}
+
+export interface B14RebuildResult {
+  reassessment_id: string;
+  algorithm_version: string;
+  delta_count: number;
+  published_result_id: string | null;
+  source: string;
+}
+
 export interface LiveLearningWorkspace {
   student: LiveStudentSummary;
   available_curricula: LiveLearningCurriculumOption[];
@@ -1357,6 +1442,8 @@ export interface LiveLearningWorkspace {
   latest_improvement_blueprint: LiveImprovementAssessment | null;
   /** B13 assigned catalog resources (ASSIGNED only when from workspace). */
   resource_assignments?: StudentResourceAssignment[];
+  /** B14 reassessment history (newest first). */
+  reassessments?: Reassessment[];
 }
 
 export interface LearningPlanPrepareResult {

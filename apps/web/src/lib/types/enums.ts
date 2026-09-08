@@ -281,3 +281,11 @@ export const STUDENT_RESOURCE_ASSIGNMENT_STATUSES = [
 ] as const;
 export type StudentResourceAssignmentStatus =
   (typeof STUDENT_RESOURCE_ASSIGNMENT_STATUSES)[number];
+
+/** B14 reassessment lifecycle (distinct from Assessment status). */
+export const REASSESSMENT_STATUSES = [
+  "CREATED",
+  "SUBMITTED",
+  "PUBLISHED",
+] as const;
+export type ReassessmentStatus = (typeof REASSESSMENT_STATUSES)[number];

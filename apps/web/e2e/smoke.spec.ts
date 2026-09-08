@@ -184,6 +184,8 @@ test.describe("CVB frontend smoke — 15 flows", () => {
     ).toContainText(/Recommendations restricted to student's curriculum/i);
     await expect(page.getByTestId("b13-assigned-resources")).toBeVisible();
     await expect(page.getByTestId("b13-assignment-row").first()).toBeVisible();
+    await expect(page.getByTestId("b14-reassessments-section")).toBeVisible();
+    await expect(page.getByTestId("b14-reassessment-row").first()).toBeVisible();
   });
 
   test("15. improvement assessment", async ({ page }) => {
@@ -195,5 +197,6 @@ test.describe("CVB frontend smoke — 15 flows", () => {
       page.getByTestId("improvement-assessment-blueprint"),
     ).toContainText(/Second Derivatives/i);
     await expect(page.getByTestId("approve-blueprint")).toBeVisible();
+    await expect(page.getByTestId("b14-create-reassessment")).toHaveCount(0);
   });
 });

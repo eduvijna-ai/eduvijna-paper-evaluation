@@ -324,6 +324,7 @@ Logical exam / test instance.
 | `code` | string | Unique per tenant |
 | `title` | string | |
 | `subject` | string | CVB: `Mathematics` |
+| `assessment_type` | enum | `EXAM` (default) \| `IMPROVEMENT_REASSESSMENT` (**B14**) |
 | `workflow_state` | enum | See [WORKFLOW_STATES.md](./WORKFLOW_STATES.md) |
 | `scheduled_at` | timestamptz | Optional |
 | `max_total_marks` | decimal | Denormalized sum |
@@ -804,8 +805,8 @@ academic_error_code, algorithm_version)`.
 | `algorithm_version` | string | `B12_V1` |
 | `materialized_at` / `effective_at` / `created_at` | timestamptz | |
 
-**Still deferred (not B12/B13):** PEV-043 reassessment instantiation, PEV-058/059
-gold benchmark / AI regression. PEV-041 curriculum resource assignment is **B13 live**.
+**Still deferred (not B12–B14):** PEV-058/059 gold benchmark / AI regression.
+PEV-041 curriculum resource assignment is **B13 live**. PEV-043 reassessment is **B14 live**.
 
 ---
 
@@ -862,10 +863,11 @@ Related: `LearningRecommendationPrerequisite` (ordered REQUIRED/RECOMMENDED edge
 
 ---
 
-### 9.5 ImprovementAssessment `T` / ImprovementAssessmentItem `T` — **B9 live (blueprint only)**
+### 9.5 ImprovementAssessment `T` / ImprovementAssessmentItem `T` — **B9 live (blueprint)**
 
-Teacher-reviewed **blueprint** only. Approval does **not** create Assessment / Question /
-Submission reassessment entities (PEV-043 deferred). Resource catalog assignment is
+Teacher-reviewed **blueprint**. Approval alone does **not** create Assessment / Question /
+Submission entities. Instantiation into a live reassessment Assessment is **B14**
+(PEV-043 / APP-005 / Issue #48) — see §9.8. Resource catalog assignment is
 **B13 live** (PEV-041 / APP-004 / Issue #45) — see §9.6 / §9.7.
 
 | Entity | Key fields |
@@ -918,8 +920,28 @@ Idempotency (PostgreSQL partial unique, `NULLS NOT DISTINCT`):
 | `cancelled_by` / `cancelled_at` | UUID / timestamptz \| null | |
 | `created_at` | timestamptz | |
 
-**Still deferred after B13:** PEV-043 reassessment instantiation, PEV-058/059 gold
-benchmark / AI regression, all FUTURE_ENTERPRISE PEVs.
+---
+
+### 9.8 Reassessment `T` / ReassessmentItem `T` / ReassessmentMasteryDelta `T` — **B14 live (PEV-043 / APP-005)**
+
+Instantiates an **APPROVED** B9 `ImprovementAssessment` into a real tenant-scoped
+`Assessment` (`assessment_type=IMPROVEMENT_REASSESSMENT`, starts `DRAFT`) with versioned
+questions mapped to blueprint curriculum nodes. Does **not** auto-create answer keys or
+rubrics. Single student attempt bind; mastery change is a **projection** from B12 state
+(baseline at instantiate) vs B12 snapshot after the linked result is PUBLISHED
+(`algorithm_version=B14_V1`). Delta = `post - baseline` when both non-null; else **null**
+(never zero-filled). B8 evidence and B12 aggregates are not rewritten.
+
+Idempotency: unique `(tenant_id, improvement_assessment_id)` + `instantiation_hash`
+(same hash → reuse; different content → conflict).
+
+| Entity | Key fields |
+|--------|------------|
+| **Reassessment** | `id`, `tenant_id`, `improvement_assessment_id`, `student_id`, `curriculum_id`, `assessment_id`, `assessment_version_id`, `submission_id` \| null, `published_result_id` \| null, `status` (`CREATED`/`SUBMITTED`/`PUBLISHED`), `instantiation_hash`, `baseline_captured_at`, `algorithm_version`, `created_by` |
+| **ReassessmentItem** | `id`, `tenant_id`, `reassessment_id`, `improvement_assessment_item_id`, `question_version_id`, `curriculum_node_id`, item/template snapshots |
+| **ReassessmentMasteryDelta** | baseline + post concept/execution fields, decisive/inconclusive counts, evidence hash, `concept_delta` / `execution_delta` (nullable), `post_snapshot_id`, `materialized_at`, `algorithm_version=B14_V1` |
+
+**Still deferred after B14:** PEV-058/059 gold benchmark / AI regression, all FUTURE_ENTERPRISE PEVs.
 
 ---
 
@@ -1001,6 +1023,7 @@ Tenant
 Student ← MasteryEvidence / MasteryState / MasteryStateSnapshot / MistakeNotebookEntry
       └── LearningPlanRun → LearningRecommendation → LearningPathStep
       └── ImprovementAssessment (blueprint) → ImprovementAssessmentItem
+      └── Reassessment → ReassessmentItem / ReassessmentMasteryDelta → Assessment (IMPROVEMENT_REASSESSMENT)
 User ← UserRole → Role → Permission
 AuditEvent, AiExecutionRecord (cross-cutting)
 ```
@@ -1027,3 +1050,4 @@ AuditEvent, AiExecutionRecord (cross-cutting)
 | 0.3 | 2026-09-07 | B9 LearningPlanRun / LearningRecommendation / ImprovementAssessment blueprint live; MasteryState, resource assignment, reassessment still deferred |
 | 0.4 | 2026-09-08 | B12 MasteryState / MasteryStateSnapshot / MistakeNotebookEntry live (APP-003 / PEV-035–038); PEV-041/043/058/059 still deferred |
 | 0.5 | 2026-09-08 | B13 CurriculumResource / StudentResourceAssignment live (APP-004 / PEV-041 / Issue #45); PEV-043/058/059 still deferred |
+| 0.6 | 2026-09-08 | B14 Reassessment / ReassessmentItem / ReassessmentMasteryDelta live (APP-005 / PEV-043 / Issue #48); PEV-058/059 still deferred |

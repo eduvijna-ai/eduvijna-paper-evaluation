@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/reassessment-list.schema.json",
+  "title": "ReassessmentList",
+  "description": "Student learning workspace reassessments collection (B14).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["student_id", "items"],
+  "properties": {
+    "student_id": { "type": "string", "format": "uuid" },
+    "items": {
+      "type": "array",
+      "items": { "$ref": "reassessment.schema.json" }
+    }
+  }
+}

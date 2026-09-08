@@ -13,6 +13,10 @@ import type {
 } from "@/lib/types/domain";
 import { httpRequest } from "./client";
 import {
+  reassessmentApiToView,
+  type B14ReassessmentDto,
+} from "./reassessment";
+import {
   studentResourceAssignmentApiToView,
   type B13StudentResourceAssignmentDto,
 } from "./resources";
@@ -63,6 +67,7 @@ export interface B9LearningWorkspaceDto {
   is_stale?: boolean;
   latest_improvement_blueprint?: B9ImprovementAssessmentDto | null;
   resource_assignments?: B13StudentResourceAssignmentDto[];
+  reassessments?: B14ReassessmentDto[];
 }
 
 export interface B9PlanRunDto {
@@ -438,6 +443,7 @@ export function learningWorkspaceApiToView(
     resource_assignments: (dto.resource_assignments ?? []).map(
       studentResourceAssignmentApiToView,
     ),
+    reassessments: (dto.reassessments ?? []).map(reassessmentApiToView),
   };
 }
 

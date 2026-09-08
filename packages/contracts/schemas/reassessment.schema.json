@@ -1,0 +1,195 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/reassessment.schema.json",
+  "title": "Reassessment",
+  "description": "B14 reassessment detail with item linkage and mastery baseline/post/delta (PEV-043 / APP-005).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "improvement_assessment_id",
+    "blueprint_title",
+    "blueprint_version_number",
+    "student_id",
+    "curriculum_id",
+    "assessment_id",
+    "assessment_status",
+    "assessment_version_id",
+    "submission_id",
+    "published_result_id",
+    "status",
+    "algorithm_version",
+    "instantiation_hash",
+    "baseline_captured_at",
+    "created_at",
+    "updated_at",
+    "items",
+    "mastery_deltas"
+  ],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "improvement_assessment_id": { "type": "string", "format": "uuid" },
+    "blueprint_title": { "type": "string" },
+    "blueprint_version_number": { "type": "integer", "minimum": 1 },
+    "student_id": { "type": "string", "format": "uuid" },
+    "curriculum_id": { "type": "string", "format": "uuid" },
+    "assessment_id": { "type": "string", "format": "uuid" },
+    "assessment_status": { "type": "string" },
+    "assessment_version_id": { "type": "string", "format": "uuid" },
+    "submission_id": { "type": ["string", "null"], "format": "uuid" },
+    "published_result_id": { "type": ["string", "null"], "format": "uuid" },
+    "status": {
+      "type": "string",
+      "enum": ["CREATED", "SUBMITTED", "PUBLISHED"]
+    },
+    "algorithm_version": { "type": "string", "const": "B14_V1" },
+    "instantiation_hash": { "type": "string" },
+    "baseline_captured_at": { "type": "string", "format": "date-time" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "items": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/reassessmentItem" }
+    },
+    "mastery_deltas": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/masteryDelta" }
+    }
+  },
+  "$defs": {
+    "reassessmentItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "improvement_assessment_item_id",
+        "question_version_id",
+        "curriculum_node_id",
+        "item_code_snapshot",
+        "template_kind_snapshot",
+        "question_template_ref_snapshot"
+      ],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "improvement_assessment_item_id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "question_version_id": { "type": "string", "format": "uuid" },
+        "curriculum_node_id": { "type": "string", "format": "uuid" },
+        "item_code_snapshot": { "type": "string" },
+        "template_kind_snapshot": { "type": "string" },
+        "question_template_ref_snapshot": { "type": ["string", "null"] }
+      }
+    },
+    "masteryDelta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "curriculum_node_id",
+        "baseline_concept_mastery",
+        "baseline_execution_accuracy",
+        "baseline_concept_decisive_count",
+        "baseline_execution_decisive_count",
+        "baseline_concept_inconclusive_count",
+        "baseline_execution_inconclusive_count",
+        "baseline_evidence_count",
+        "baseline_source_evidence_hash",
+        "post_snapshot_id",
+        "post_published_result_id",
+        "post_concept_mastery",
+        "post_execution_accuracy",
+        "post_concept_decisive_count",
+        "post_execution_decisive_count",
+        "post_concept_inconclusive_count",
+        "post_execution_inconclusive_count",
+        "post_evidence_count",
+        "post_source_evidence_hash",
+        "concept_delta",
+        "execution_delta",
+        "materialized_at",
+        "algorithm_version"
+      ],
+      "properties": {
+        "curriculum_node_id": { "type": "string", "format": "uuid" },
+        "baseline_concept_mastery": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Null = insufficient decisive evidence (not zero)."
+        },
+        "baseline_execution_accuracy": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "baseline_concept_decisive_count": { "type": "integer", "minimum": 0 },
+        "baseline_execution_decisive_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "baseline_concept_inconclusive_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "baseline_execution_inconclusive_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "baseline_evidence_count": { "type": "integer", "minimum": 0 },
+        "baseline_source_evidence_hash": { "type": "string" },
+        "post_snapshot_id": {
+          "type": ["string", "null"],
+          "format": "uuid"
+        },
+        "post_published_result_id": {
+          "type": ["string", "null"],
+          "format": "uuid"
+        },
+        "post_concept_mastery": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "post_execution_accuracy": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "post_concept_decisive_count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "post_execution_decisive_count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "post_concept_inconclusive_count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "post_execution_inconclusive_count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "post_evidence_count": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "post_source_evidence_hash": { "type": ["string", "null"] },
+        "concept_delta": {
+          "type": ["number", "null"],
+          "description": "post - baseline only when both non-null; else null."
+        },
+        "execution_delta": {
+          "type": ["number", "null"]
+        },
+        "materialized_at": {
+          "type": ["string", "null"],
+          "format": "date-time"
+        },
+        "algorithm_version": { "type": "string", "const": "B14_V1" }
+      }
+    }
+  }
+}

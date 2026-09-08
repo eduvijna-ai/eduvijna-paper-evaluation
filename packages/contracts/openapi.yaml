@@ -1720,6 +1720,56 @@ paths:
         "422":
           description: Invalid rejection reason
           content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/improvement-assessments/{id}/reassessment:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: instantiateReassessment
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReassessmentInstantiateRequest" }
+      responses:
+        "200":
+          description: Created or idempotently reused B14 reassessment (DRAFT Assessment)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Reassessment" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Stale blueprint, not APPROVED, or already instantiated with different payload
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+        "422":
+          description: Invalid item coverage or marks
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/reassessments/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getReassessment
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: B14 reassessment detail with mastery baseline/post/delta
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Reassessment" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/reassessments/{id}/b14/rebuild:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: rebuildReassessmentB14
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Idempotent B14 post/delta rebuild from existing B12 snapshots
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/B14RebuildResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Linked published result or exact B12 snapshot not ready
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
   /api/v1/submission-pages/{id}/answer-regions:
     parameters: [{ $ref: "#/components/parameters/Id" }]
     post:
@@ -3885,6 +3935,158 @@ components:
           type: array
           description: B13 assigned catalog resources for the selected curriculum (ASSIGNED only)
           items: { $ref: "#/components/schemas/StudentResourceAssignment" }
+        reassessments:
+          type: array
+          description: B14 reassessment history for the student (newest first)
+          items: { $ref: "#/components/schemas/Reassessment" }
+    ReassessmentInstantiateRequest:
+      type: object
+      description: See packages/contracts/schemas/reassessment-instantiate.schema.json
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [improvement_assessment_item_id, prompt_text, max_marks]
+            properties:
+              improvement_assessment_item_id: { type: string, format: uuid }
+              prompt_text: { type: string, minLength: 1 }
+              max_marks: { type: string }
+              question_type: { type: [string, "null"] }
+              instructions: { type: [string, "null"] }
+    Reassessment:
+      type: object
+      description: See packages/contracts/schemas/reassessment.schema.json
+      required:
+        [
+          id,
+          improvement_assessment_id,
+          blueprint_title,
+          blueprint_version_number,
+          student_id,
+          curriculum_id,
+          assessment_id,
+          assessment_status,
+          assessment_version_id,
+          submission_id,
+          published_result_id,
+          status,
+          algorithm_version,
+          instantiation_hash,
+          baseline_captured_at,
+          created_at,
+          updated_at,
+          items,
+          mastery_deltas,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        improvement_assessment_id: { type: string, format: uuid }
+        blueprint_title: { type: string }
+        blueprint_version_number: { type: integer }
+        student_id: { type: string, format: uuid }
+        curriculum_id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_status: { type: string }
+        assessment_version_id: { type: string, format: uuid }
+        submission_id: { type: [string, "null"], format: uuid }
+        published_result_id: { type: [string, "null"], format: uuid }
+        status: { type: string, enum: [CREATED, SUBMITTED, PUBLISHED] }
+        algorithm_version: { type: string, enum: [B14_V1] }
+        instantiation_hash: { type: string }
+        baseline_captured_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ReassessmentItem" }
+        mastery_deltas:
+          type: array
+          items: { $ref: "#/components/schemas/ReassessmentMasteryDelta" }
+    ReassessmentItem:
+      type: object
+      required:
+        [
+          id,
+          improvement_assessment_item_id,
+          question_version_id,
+          curriculum_node_id,
+          item_code_snapshot,
+          template_kind_snapshot,
+          question_template_ref_snapshot,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        improvement_assessment_item_id: { type: string, format: uuid }
+        question_version_id: { type: string, format: uuid }
+        curriculum_node_id: { type: string, format: uuid }
+        item_code_snapshot: { type: string }
+        template_kind_snapshot: { type: string }
+        question_template_ref_snapshot: { type: [string, "null"] }
+    ReassessmentMasteryDelta:
+      type: object
+      required:
+        [
+          curriculum_node_id,
+          baseline_concept_mastery,
+          baseline_execution_accuracy,
+          baseline_concept_decisive_count,
+          baseline_execution_decisive_count,
+          baseline_concept_inconclusive_count,
+          baseline_execution_inconclusive_count,
+          baseline_evidence_count,
+          baseline_source_evidence_hash,
+          post_snapshot_id,
+          post_published_result_id,
+          post_concept_mastery,
+          post_execution_accuracy,
+          post_concept_decisive_count,
+          post_execution_decisive_count,
+          post_concept_inconclusive_count,
+          post_execution_inconclusive_count,
+          post_evidence_count,
+          post_source_evidence_hash,
+          concept_delta,
+          execution_delta,
+          materialized_at,
+          algorithm_version,
+        ]
+      properties:
+        curriculum_node_id: { type: string, format: uuid }
+        baseline_concept_mastery: { type: [number, "null"], minimum: 0, maximum: 1 }
+        baseline_execution_accuracy: { type: [number, "null"], minimum: 0, maximum: 1 }
+        baseline_concept_decisive_count: { type: integer, minimum: 0 }
+        baseline_execution_decisive_count: { type: integer, minimum: 0 }
+        baseline_concept_inconclusive_count: { type: integer, minimum: 0 }
+        baseline_execution_inconclusive_count: { type: integer, minimum: 0 }
+        baseline_evidence_count: { type: integer, minimum: 0 }
+        baseline_source_evidence_hash: { type: string }
+        post_snapshot_id: { type: [string, "null"], format: uuid }
+        post_published_result_id: { type: [string, "null"], format: uuid }
+        post_concept_mastery: { type: [number, "null"], minimum: 0, maximum: 1 }
+        post_execution_accuracy: { type: [number, "null"], minimum: 0, maximum: 1 }
+        post_concept_decisive_count: { type: [integer, "null"], minimum: 0 }
+        post_execution_decisive_count: { type: [integer, "null"], minimum: 0 }
+        post_concept_inconclusive_count: { type: [integer, "null"], minimum: 0 }
+        post_execution_inconclusive_count: { type: [integer, "null"], minimum: 0 }
+        post_evidence_count: { type: [integer, "null"], minimum: 0 }
+        post_source_evidence_hash: { type: [string, "null"] }
+        concept_delta: { type: [number, "null"] }
+        execution_delta: { type: [number, "null"] }
+        materialized_at: { type: [string, "null"], format: date-time }
+        algorithm_version: { type: string, enum: [B14_V1] }
+    B14RebuildResult:
+      type: object
+      description: See packages/contracts/schemas/b14-rebuild-result.schema.json
+      required: [reassessment_id, algorithm_version, delta_count, published_result_id, source]
+      properties:
+        reassessment_id: { type: string, format: uuid }
+        algorithm_version: { type: string, enum: [B14_V1] }
+        delta_count: { type: integer, minimum: 0 }
+        published_result_id: { type: [string, "null"], format: uuid }
+        source: { type: string, enum: [MASTERY_STATE_SNAPSHOT] }
     CurriculumResource:
       type: object
       description: See packages/contracts/schemas/curriculum-resource.schema.json

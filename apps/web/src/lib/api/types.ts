@@ -34,6 +34,9 @@ import type {
   PublicationWorkspace,
   Question,
   QuestionAnswerMappingView,
+  Reassessment,
+  ReassessmentInstantiateRequest,
+  B14RebuildResult,
   RubricCriterion,
   Student,
   StudentAnalyticsView,
@@ -466,4 +469,12 @@ export interface ApiClient {
   cancelStudentResourceAssignment?(
     assignmentId: string,
   ): Promise<StudentResourceAssignment>;
+
+  /** B14 reassessment instantiation + mastery deltas. */
+  instantiateReassessment(
+    blueprintId: string,
+    items: ReassessmentInstantiateRequest["items"] | ReassessmentInstantiateRequest,
+  ): Promise<Reassessment>;
+  getReassessment(id: string): Promise<Reassessment>;
+  rebuildReassessmentB14?(id: string): Promise<B14RebuildResult>;
 }

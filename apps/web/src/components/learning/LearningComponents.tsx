@@ -5,13 +5,29 @@ import type {
   ImprovementAssessmentBlueprint,
   LearningPathStepItem,
   LiveImprovementAssessment,
+  LiveImprovementAssessmentItem,
   LiveLearningPathStep,
   LiveLearningRecommendation,
+  Reassessment,
+  ReassessmentMasteryDelta,
   StudentResourceAssignment,
   TopicPriority,
 } from "@/lib/types/domain";
 import type { ErrorCode } from "@/lib/types/domain";
 import { ErrorCategoryBadge } from "@/components/evaluation/ScoreComponents";
+import {
+  B14_INSUFFICIENT_EVIDENCE_LABEL,
+  defaultPromptForItem,
+  deltaTone,
+  deltaToneClass,
+  formatMasteryValue,
+  formatSignedDelta,
+  hasMaterializedPostEvidence,
+  reassessmentHasMaterializedDeltas,
+  suggestedMarksPrefill,
+} from "@/lib/helpers/b14-reassessment";
+import Link from "next/link";
+import { useState } from "react";
 
 export function ConceptMasteryBar({
   concept,
@@ -405,8 +421,8 @@ export function LiveImprovementBlueprintPanel({
             className="mt-1 text-sm text-slate-600"
           >
             Teacher approval freezes this improvement-assessment blueprint.
-            Creating or releasing a follow-up reassessment is not live in this
-            CVB phase.
+            After approval, instantiate a DRAFT reassessment assessment with
+            teacher-authored prompts and marks.
           </p>
         </div>
         <span
@@ -472,7 +488,9 @@ export function LiveImprovementBlueprintPanel({
           data-testid="blueprint-approved-notice"
           className="mt-4 rounded-md border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-900"
         >
-          Blueprint approved. Follow-up assessment creation is a later phase.
+          Blueprint approved. Instantiate a DRAFT reassessment assessment below
+          when ready; answer key, rubric, READY, evaluation, and publication
+          remain the existing workflow.
         </p>
       )}
 
@@ -706,5 +724,337 @@ export function AssignResourcePanel({
         </p>
       )}
     </div>
+  );
+}
+
+function MasteryDeltaRow({
+  label,
+  baseline,
+  post,
+  delta,
+}: {
+  label: string;
+  baseline: number | null;
+  post: number | null;
+  delta: number | null;
+}) {
+  const tone = deltaTone(delta);
+  return (
+    <div
+      data-testid="b14-mastery-delta"
+      className="rounded-md border border-slate-100 bg-slate-50 px-3 py-2 text-sm"
+    >
+      <div className="font-medium text-slate-800">{label}</div>
+      <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+        <span>
+          Baseline:{" "}
+          {baseline === null ? (
+            <span data-testid="b14-insufficient-evidence">
+              {B14_INSUFFICIENT_EVIDENCE_LABEL}
+            </span>
+          ) : (
+            formatMasteryValue(baseline)
+          )}
+        </span>
+        <span>→</span>
+        <span>
+          Post:{" "}
+          {post === null ? (
+            <span data-testid="b14-insufficient-evidence">
+              {B14_INSUFFICIENT_EVIDENCE_LABEL}
+            </span>
+          ) : (
+            formatMasteryValue(post)
+          )}
+        </span>
+        <span className={cn("font-semibold", deltaToneClass(tone))}>
+          Δ{" "}
+          {delta === null ? (
+            <span data-testid="b14-insufficient-evidence">
+              {B14_INSUFFICIENT_EVIDENCE_LABEL}
+            </span>
+          ) : (
+            formatSignedDelta(delta)
+          )}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function nodeLabelForDelta(
+  delta: ReassessmentMasteryDelta,
+  reassessment: Reassessment,
+): string {
+  const item = reassessment.items.find(
+    (i) => i.curriculum_node_id === delta.curriculum_node_id,
+  );
+  if (item) {
+    return `${item.item_code_snapshot} · ${delta.curriculum_node_id.slice(0, 8)}`;
+  }
+  return delta.curriculum_node_id;
+}
+
+/** B14 reassessment history — distinct from B9 recommendations and B13 resources. */
+export function ReassessmentsSection({
+  reassessments,
+  loading,
+  error,
+  onRetry,
+}: {
+  reassessments: Reassessment[];
+  loading?: boolean;
+  error?: boolean;
+  onRetry?: () => void;
+}) {
+  return (
+    <section
+      data-testid="b14-reassessments-section"
+      className="mt-6 rounded-md border border-slate-200 bg-white p-4"
+    >
+      <h2 className="text-sm font-semibold text-slate-800">Reassessment</h2>
+      <p className="mt-1 text-xs text-slate-600">
+        B14 mastery updates from published reassessments. Separate from B9
+        recommendations and B13 assigned catalog resources.
+      </p>
+
+      {loading && (
+        <p className="mt-3 text-sm text-slate-600">Loading reassessments…</p>
+      )}
+      {error && (
+        <div className="mt-3 flex items-center gap-2 text-sm text-rose-700">
+          <span>Could not load reassessments.</span>
+          {onRetry && (
+            <button type="button" onClick={onRetry} className="underline">
+              Retry
+            </button>
+          )}
+        </div>
+      )}
+      {!loading && !error && reassessments.length === 0 && (
+        <p className="mt-3 text-sm text-slate-600">No reassessments yet.</p>
+      )}
+      {!loading &&
+        !error &&
+        reassessments.map((row) => {
+          const materialized = reassessmentHasMaterializedDeltas(
+            row.mastery_deltas,
+          );
+          return (
+            <article
+              key={row.id}
+              data-testid="b14-reassessment-row"
+              className="mt-4 rounded-md border border-slate-200 px-3 py-3"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <div className="text-sm font-medium text-slate-900">
+                    {row.blueprint_title}
+                  </div>
+                  <div className="mt-0.5 text-xs text-slate-600">
+                    Status {row.status} · Assessment {row.assessment_status} ·{" "}
+                    <Link
+                      href={`/assessments/${row.assessment_id}`}
+                      className="text-teal-800 underline"
+                    >
+                      {row.assessment_id}
+                    </Link>
+                  </div>
+                </div>
+                <span className="rounded-md bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700 ring-1 ring-inset ring-slate-200">
+                  {row.status}
+                </span>
+              </div>
+
+              {!materialized && (
+                <p
+                  data-testid="b14-pre-publication-message"
+                  className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+                >
+                  Post-reassessment mastery evidence is not available until the
+                  linked assessment is published and analytics materialization
+                  completes.
+                </p>
+              )}
+
+              {materialized && (
+                <div className="mt-3 space-y-3">
+                  {row.mastery_deltas.map((delta) => (
+                    <div
+                      key={delta.curriculum_node_id}
+                      className="space-y-2"
+                      data-testid={`b14-node-${delta.curriculum_node_id}`}
+                    >
+                      <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        Node {nodeLabelForDelta(delta, row)}
+                        {!hasMaterializedPostEvidence(delta) ? (
+                          <span className="ml-2 font-normal normal-case text-slate-500">
+                            (awaiting post evidence)
+                          </span>
+                        ) : null}
+                      </div>
+                      <MasteryDeltaRow
+                        label="Concept"
+                        baseline={delta.baseline_concept_mastery}
+                        post={delta.post_concept_mastery}
+                        delta={delta.concept_delta}
+                      />
+                      <MasteryDeltaRow
+                        label="Execution"
+                        baseline={delta.baseline_execution_accuracy}
+                        post={delta.post_execution_accuracy}
+                        delta={delta.execution_delta}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </article>
+          );
+        })}
+    </section>
+  );
+}
+
+/** B14 create form — only render when blueprint status is APPROVED. */
+export function CreateReassessmentForm({
+  blueprintId,
+  items,
+  onSubmit,
+  submitting,
+  errorMessage,
+  created,
+}: {
+  blueprintId: string;
+  items: LiveImprovementAssessmentItem[];
+  onSubmit: (
+    drafts: Record<string, { prompt_text: string; max_marks: string }>,
+  ) => void;
+  submitting?: boolean;
+  errorMessage?: string | null;
+  created?: Reassessment | null;
+}) {
+  const [drafts, setDrafts] = useState<
+    Record<string, { prompt_text: string; max_marks: string }>
+  >(() => {
+    const initial: Record<string, { prompt_text: string; max_marks: string }> =
+      {};
+    for (const item of items) {
+      initial[item.id] = {
+        prompt_text: defaultPromptForItem(item),
+        max_marks: suggestedMarksPrefill(item),
+      };
+    }
+    return initial;
+  });
+
+  return (
+    <section
+      data-testid="b14-create-reassessment"
+      className="mt-6 rounded-md border border-slate-200 bg-white p-4"
+    >
+      <h2 className="text-sm font-semibold text-slate-800">
+        Create reassessment (B14)
+      </h2>
+      <p className="mt-1 text-xs text-slate-600">
+        Teacher-authored prompts and marks instantiate a DRAFT Assessment linked
+        to this APPROVED blueprint ({blueprintId}).
+      </p>
+
+      <div className="mt-4 space-y-4">
+        {items.map((item) => {
+          const draft = drafts[item.id] ?? {
+            prompt_text: defaultPromptForItem(item),
+            max_marks: suggestedMarksPrefill(item),
+          };
+          return (
+            <div
+              key={item.id}
+              data-testid={`b14-create-item-${item.item_code}`}
+              className="rounded-md border border-slate-100 bg-slate-50 p-3"
+            >
+              <div className="text-sm font-medium text-slate-900">
+                {item.item_code} · {item.node_code ?? item.curriculum_node_id}
+                {item.node_title ? ` · ${item.node_title}` : ""}
+              </div>
+              <div className="mt-1 text-xs text-slate-600">
+                {item.template_kind} · {item.focus} · {item.difficulty} ·
+                suggested marks {item.suggested_marks ?? "—"}
+              </div>
+              <label className="mt-3 block text-xs text-slate-700">
+                Prompt
+                <textarea
+                  data-testid={`b14-prompt-${item.item_code}`}
+                  rows={2}
+                  className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                  value={draft.prompt_text}
+                  onChange={(e) =>
+                    setDrafts((prev) => ({
+                      ...prev,
+                      [item.id]: { ...draft, prompt_text: e.target.value },
+                    }))
+                  }
+                />
+              </label>
+              <label className="mt-2 block text-xs text-slate-700">
+                Max marks
+                <input
+                  data-testid={`b14-marks-${item.item_code}`}
+                  type="text"
+                  className="mt-1 w-32 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+                  value={draft.max_marks}
+                  onChange={(e) =>
+                    setDrafts((prev) => ({
+                      ...prev,
+                      [item.id]: { ...draft, max_marks: e.target.value },
+                    }))
+                  }
+                />
+              </label>
+            </div>
+          );
+        })}
+      </div>
+
+      <button
+        type="button"
+        data-testid="b14-instantiate-submit"
+        disabled={submitting || items.length === 0}
+        onClick={() => onSubmit(drafts)}
+        className="mt-4 rounded-md bg-teal-800 px-3 py-2 text-sm font-medium text-white hover:bg-teal-900 disabled:opacity-50"
+      >
+        {submitting ? "Creating…" : "Instantiate reassessment"}
+      </button>
+
+      {errorMessage && (
+        <p className="mt-2 text-sm text-rose-700" data-testid="b14-create-error">
+          {errorMessage}
+        </p>
+      )}
+
+      {created && (
+        <div
+          data-testid="b14-create-success"
+          className="mt-4 rounded-md border border-teal-200 bg-teal-50 px-3 py-3 text-sm text-teal-900"
+        >
+          <p>
+            Reassessment <span className="font-medium">{created.id}</span>{" "}
+            created. Assessment{" "}
+            <Link
+              href={`/assessments/${created.assessment_id}`}
+              className="font-medium underline"
+              data-testid="b14-created-assessment-link"
+            >
+              {created.assessment_id}
+            </Link>{" "}
+            status {created.assessment_status || "DRAFT"}.
+          </p>
+          <p className="mt-2 text-xs text-teal-800">
+            Answer key, rubric, READY/ACTIVE, evaluation, and publication remain
+            the existing assessment workflow.
+          </p>
+        </div>
+      )}
+    </section>
   );
 }

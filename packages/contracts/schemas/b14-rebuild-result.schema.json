@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/b14-rebuild-result.schema.json",
+  "title": "B14RebuildResult",
+  "description": "Idempotent B14 post/delta rebuild from existing B12 exact-result snapshots.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "reassessment_id",
+    "algorithm_version",
+    "delta_count",
+    "published_result_id",
+    "source"
+  ],
+  "properties": {
+    "reassessment_id": { "type": "string", "format": "uuid" },
+    "algorithm_version": { "type": "string", "const": "B14_V1" },
+    "delta_count": { "type": "integer", "minimum": 0 },
+    "published_result_id": {
+      "type": ["string", "null"],
+      "format": "uuid"
+    },
+    "source": { "type": "string", "const": "MASTERY_STATE_SNAPSHOT" }
+  }
+}

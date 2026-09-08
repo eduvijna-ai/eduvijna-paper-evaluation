@@ -646,6 +646,21 @@ async def confirm_identity(
         "identity_confirmed",
         {"student_id": str(student.id), "actor": str(auth.user_id)},
     )
+    from app.services.reassessment import ReassessmentError, bind_submission_if_reassessment
+
+    try:
+        await bind_submission_if_reassessment(
+            db,
+            tenant_id=auth.tenant_id,
+            submission=item,
+            actor_user_id=auth.user_id,
+        )
+    except ReassessmentError as exc:
+        if exc.code == "REASSESSMENT_STUDENT_MISMATCH":
+            raise _http_error(409, exc.code, exc.message) from exc
+        if exc.code == "REASSESSMENT_ATTEMPT_BOUND":
+            raise _http_error(409, exc.code, exc.message) from exc
+        raise _http_error(400, exc.code, exc.message) from exc
     from app.api.v1.mapping import ensure_mapping_job_and_enqueue
 
     job = await ensure_mapping_job_and_enqueue(db, auth=auth, submission=item)
