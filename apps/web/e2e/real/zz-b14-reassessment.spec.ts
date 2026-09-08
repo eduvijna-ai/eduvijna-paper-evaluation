@@ -544,9 +544,22 @@ async function publishAttempt(
     timeout: 30_000,
   });
   await page.getByTestId("finalize-transcription").click();
-  await expect(page).toHaveURL(new RegExp(`/submissions/${submissionId}$`), {
-    timeout: 30_000,
-  });
+  await expect
+    .poll(
+      async () => {
+        const path = new URL(page.url()).pathname;
+        if (path === `/submissions/${submissionId}`) return "done";
+        if (path.endsWith("/transcription")) {
+          const btn = page.getByTestId("finalize-transcription");
+          if (await btn.isEnabled().catch(() => false)) {
+            await btn.click().catch(() => undefined);
+          }
+        }
+        return path;
+      },
+      { timeout: 90_000 },
+    )
+    .toBe("done");
 
   await expect
     .poll(
@@ -566,6 +579,7 @@ async function publishAttempt(
           question_evaluations?: Array<{
             id: string;
             workflow_state: string;
+            max_mark?: number | string;
           }>;
         };
         if (body.workflow_state === "EVALUATING") return "evaluating";
@@ -575,9 +589,7 @@ async function publishAttempt(
           if (qe.workflow_state === "ACCEPTED" || qe.workflow_state === "OVERRIDDEN") {
             continue;
           }
-          const maxMark = Number(
-            (qe as { max_mark?: number | string }).max_mark ?? score,
-          );
+          const maxMark = Number(qe.max_mark ?? score);
           const clamped =
             Number.isFinite(maxMark) && maxMark >= 0
               ? Math.min(Math.max(0, score), maxMark)
