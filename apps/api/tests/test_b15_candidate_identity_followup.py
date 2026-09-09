@@ -8,18 +8,18 @@ import uuid
 import pytest
 from sqlalchemy import func, select
 
-from app.ai.providers.benchmark import BenchmarkCandidateError, MODEL_PASS
+from app.ai.providers.benchmark import MODEL_PASS, BenchmarkCandidateError
 from app.ai.registry import (
-    get_benchmark_candidate_identity,
     get_benchmark_candidate_executor,
+    get_benchmark_candidate_identity,
     validate_benchmark_candidate_identity,
 )
 from app.core.config import get_settings
 from app.db.models import AiExecutionRecord, BenchmarkRegressionRun
 from app.db.session import async_session_factory
-from tests.test_b15_gold_benchmark_regression import _create_locked_version
 from tests.test_b3_submission_ingestion import _headers
 from tests.test_b7_publication_reports import api_client_publication
+from tests.test_b15_gold_benchmark_regression import _create_locked_version
 
 
 def _set_fixed_provider() -> None:
