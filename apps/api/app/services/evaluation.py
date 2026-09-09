@@ -1543,7 +1543,6 @@ async def finalize_evaluation(
                 f"Question {leaf.display_label} is not ACCEPTED or OVERRIDDEN",
             )
 
-    from app.db.models import ModerationPolicy
     from app.services.enterprise_ops import (
         active_moderation_policy,
         ensure_moderation_case_for_run,

@@ -23,6 +23,10 @@ from app.db.models import (
 from app.db.session import get_db_session
 from app.services.enterprise_ops import (
     EnterpriseOpsError,
+    _serialize_case,
+    _serialize_grievance,
+    _serialize_policy,
+    _serialize_pool,
     accept_grievance,
     activate_moderation_policy,
     activate_pool,
@@ -40,10 +44,6 @@ from app.services.enterprise_ops import (
     resolve_grievance,
     start_work_item,
     submit_work_item,
-    _serialize_case,
-    _serialize_grievance,
-    _serialize_policy,
-    _serialize_pool,
 )
 
 router = APIRouter(tags=["enterprise-operations"])

@@ -2852,7 +2852,7 @@ let demoPools: import("@/lib/types/domain").GradingPool[] = [
   },
 ];
 
-let demoWorkItems: import("@/lib/types/domain").GradingWorkItem[] = [
+const demoWorkItems: import("@/lib/types/domain").GradingWorkItem[] = [
   {
     id: GRADING_WORK_DEMO_ID,
     pool_id: GRADING_POOL_DEMO_ID,

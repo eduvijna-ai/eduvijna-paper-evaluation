@@ -13,16 +13,6 @@ from app.db.models.benchmark import (
     BenchmarkRegressionCaseResult,
     BenchmarkRegressionRun,
 )
-from app.db.models.enterprise_ops import (
-    GradingPool,
-    GradingPoolMember,
-    GradingWorkItem,
-    GrievanceCase,
-    ModerationAction,
-    ModerationCase,
-    ModerationPolicy,
-    ModerationStage,
-)
 from app.db.models.curriculum_assessment import (
     AiExecutionRecord,
     AnswerKey,
@@ -38,6 +28,16 @@ from app.db.models.curriculum_assessment import (
     Rubric,
     RubricCriterion,
     RubricVersion,
+)
+from app.db.models.enterprise_ops import (
+    GradingPool,
+    GradingPoolMember,
+    GradingWorkItem,
+    GrievanceCase,
+    ModerationAction,
+    ModerationCase,
+    ModerationPolicy,
+    ModerationStage,
 )
 from app.db.models.evaluation import (
     CriterionEvaluation,

@@ -664,7 +664,10 @@ async def pool_progress(
             )
         ).all()
     )
-    counts = {status: 0 for status in ["QUEUED", "IN_PROGRESS", "SUBMITTED", "RETURNED", "COMPLETED"]}
+    counts = {
+        status: 0
+        for status in ["QUEUED", "IN_PROGRESS", "SUBMITTED", "RETURNED", "COMPLETED"]
+    }
     for status, count in rows:
         counts[str(status)] = int(count)
     by_evaluator = list(
