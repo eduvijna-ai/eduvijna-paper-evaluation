@@ -2055,6 +2055,400 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/BenchmarkGateVerdict" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/operations/grading-pools:
+    get:
+      operationId: listGradingPools
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Grading pools
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GradingPoolList" }
+    post:
+      operationId: createGradingPool
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GradingPoolCreate" }
+      responses:
+        "200":
+          description: Created pool
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GradingPool" }
+  /api/v1/operations/grading-pools/{pool_id}:
+    parameters:
+      - name: pool_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getGradingPool
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Pool detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GradingPool" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/operations/grading-pools/{pool_id}/members:
+    parameters:
+      - name: pool_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: addGradingPoolMember
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GradingPoolMemberCreate" }
+      responses:
+        "200":
+          description: Member added
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GradingPoolMember" }
+  /api/v1/operations/grading-pools/{pool_id}/activate:
+    parameters:
+      - name: pool_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: activateGradingPool
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Pool activated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GradingPool" }
+  /api/v1/operations/grading-pools/{pool_id}/close:
+    parameters:
+      - name: pool_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: closeGradingPool
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Pool closed
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GradingPool" }
+  /api/v1/operations/grading-pools/{pool_id}/allocate:
+    parameters:
+      - name: pool_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: allocateGradingWork
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GradingAllocateRequest" }
+      responses:
+        "200":
+          description: Allocated work items
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GradingWorkItemList" }
+  /api/v1/operations/grading-pools/{pool_id}/assign:
+    parameters:
+      - name: pool_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: assignGradingWork
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GradingAssignRequest" }
+      responses:
+        "200":
+          description: Assigned work item
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GradingWorkItem" }
+  /api/v1/operations/grading-pools/{pool_id}/progress:
+    parameters:
+      - name: pool_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getGradingPoolProgress
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Pool progress
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GradingPoolProgress" }
+  /api/v1/operations/grading/my-queue:
+    get:
+      operationId: getMyGradingQueue
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Evaluator queue
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GradingWorkItemList" }
+  /api/v1/operations/grading/work-items/{work_item_id}/start:
+    parameters:
+      - name: work_item_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: startGradingWorkItem
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Work item started
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GradingWorkItem" }
+  /api/v1/operations/grading/work-items/{work_item_id}/submit:
+    parameters:
+      - name: work_item_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: submitGradingWorkItem
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Work item submitted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GradingWorkItem" }
+  /api/v1/operations/moderation-policies:
+    get:
+      operationId: listModerationPolicies
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Moderation policies
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ModerationPolicyList" }
+    post:
+      operationId: createModerationPolicy
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ModerationPolicyCreate" }
+      responses:
+        "200":
+          description: Created policy
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ModerationPolicy" }
+  /api/v1/operations/moderation-policies/{policy_id}/activate:
+    parameters:
+      - name: policy_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: activateModerationPolicy
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Policy activated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ModerationPolicy" }
+  /api/v1/operations/moderation-cases:
+    get:
+      operationId: listModerationCases
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Moderation cases
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ModerationCaseList" }
+  /api/v1/operations/moderation-cases/{case_id}:
+    parameters:
+      - name: case_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getModerationCase
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Case detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ModerationCase" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/operations/moderation-cases/{case_id}/decide:
+    parameters:
+      - name: case_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: decideModerationCase
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ModerationDecideRequest" }
+      responses:
+        "200":
+          description: Decision recorded
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ModerationCase" }
+  /api/v1/operations/grievances:
+    get:
+      operationId: listGrievances
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Grievance cases
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GrievanceCaseList" }
+    post:
+      operationId: createGrievance
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GrievanceCreateRequest" }
+      responses:
+        "200":
+          description: Grievance created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GrievanceCase" }
+  /api/v1/operations/grievances/{grievance_id}:
+    parameters:
+      - name: grievance_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getGrievance
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Grievance detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GrievanceCase" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/operations/grievances/{grievance_id}/accept:
+    parameters:
+      - name: grievance_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: acceptGrievance
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GrievanceDecideRequest" }
+      responses:
+        "200":
+          description: Grievance accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GrievanceCase" }
+  /api/v1/operations/grievances/{grievance_id}/reject:
+    parameters:
+      - name: grievance_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: rejectGrievance
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GrievanceDecideRequest" }
+      responses:
+        "200":
+          description: Grievance rejected
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GrievanceCase" }
+  /api/v1/operations/grievances/{grievance_id}/resolve:
+    parameters:
+      - name: grievance_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: resolveGrievance
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GrievanceResolveRequest" }
+      responses:
+        "200":
+          description: Grievance resolved
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GrievanceCase" }
   /api/v1/submission-pages/{id}/answer-regions:
     parameters: [{ $ref: "#/components/parameters/Id" }]
     post:
@@ -5076,3 +5470,228 @@ components:
         metrics: { type: object }
         threshold_snapshot: { $ref: "#/components/schemas/BenchmarkThresholdProfile" }
 
+
+    GradingPool:
+      type: object
+      additionalProperties: false
+      required: [id, assessment_id, assessment_version_id, grading_mode, status, allocation_strategy, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        grading_mode: { type: string, enum: [HORIZONTAL_QUESTION] }
+        status: { type: string, enum: [DRAFT, ACTIVE, CLOSED] }
+        allocation_strategy: { type: string, enum: [MANUAL, ROUND_ROBIN] }
+        created_by: { type: [string, "null"], format: uuid }
+        activated_by: { type: [string, "null"], format: uuid }
+        activated_at: { type: [string, "null"], format: date-time }
+        closed_by: { type: [string, "null"], format: uuid }
+        closed_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        member_count: { type: integer, minimum: 0 }
+    GradingPoolList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/GradingPool" }
+    GradingPoolCreate:
+      type: object
+      additionalProperties: false
+      required: [assessment_id, assessment_version_id, allocation_strategy]
+      properties:
+        assessment_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        allocation_strategy: { type: string, enum: [MANUAL, ROUND_ROBIN] }
+    GradingPoolMember:
+      type: object
+      additionalProperties: false
+      required: [id, pool_id, user_id, is_active]
+      properties:
+        id: { type: string, format: uuid }
+        pool_id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        is_active: { type: boolean }
+        capacity: { type: [integer, "null"], minimum: 1 }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    GradingPoolMemberCreate:
+      type: object
+      additionalProperties: false
+      required: [user_id]
+      properties:
+        user_id: { type: string, format: uuid }
+        capacity: { type: [integer, "null"], minimum: 1 }
+    GradingAllocateRequest:
+      type: object
+      additionalProperties: false
+      required: [evaluation_run_id]
+      properties:
+        evaluation_run_id: { type: string, format: uuid }
+    GradingAssignRequest:
+      type: object
+      additionalProperties: false
+      required: [question_evaluation_id, evaluator_user_id]
+      properties:
+        question_evaluation_id: { type: string, format: uuid }
+        evaluator_user_id: { type: string, format: uuid }
+    GradingWorkItem:
+      type: object
+      additionalProperties: false
+      required: [id, pool_id, submission_id, evaluation_run_id, question_evaluation_id, assigned_evaluator_id, status, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        pool_id: { type: string, format: uuid }
+        submission_id: { type: string, format: uuid }
+        evaluation_run_id: { type: string, format: uuid }
+        question_evaluation_id: { type: string, format: uuid }
+        assigned_evaluator_id: { type: string, format: uuid }
+        status: { type: string, enum: [QUEUED, IN_PROGRESS, SUBMITTED, RETURNED, COMPLETED] }
+        assigned_by: { type: [string, "null"], format: uuid }
+        assigned_at: { type: [string, "null"], format: date-time }
+        started_at: { type: [string, "null"], format: date-time }
+        submitted_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    GradingWorkItemList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/GradingWorkItem" }
+    GradingPoolProgress:
+      type: object
+      additionalProperties: false
+      required: [counts]
+      properties:
+        counts: { type: object, additionalProperties: { type: integer } }
+        by_evaluator: { type: array, items: { type: object } }
+    ModerationPolicy:
+      type: object
+      additionalProperties: false
+      required: [id, assessment_id, assessment_version_id, status, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        status: { type: string, enum: [DRAFT, ACTIVE, RETIRED] }
+        created_by: { type: [string, "null"], format: uuid }
+        activated_by: { type: [string, "null"], format: uuid }
+        activated_at: { type: [string, "null"], format: date-time }
+        retired_by: { type: [string, "null"], format: uuid }
+        retired_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    ModerationPolicyList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ModerationPolicy" }
+    ModerationPolicyCreate:
+      type: object
+      additionalProperties: false
+      required: [assessment_id, assessment_version_id, stages]
+      properties:
+        assessment_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        stages:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            additionalProperties: false
+            required: [stage_order, required_role, label]
+            properties:
+              stage_order: { type: integer, minimum: 1 }
+              required_role: { type: string, minLength: 1 }
+              label: { type: string, minLength: 1 }
+    ModerationCase:
+      type: object
+      additionalProperties: false
+      required: [id, policy_id, submission_id, evaluation_run_id, current_stage_order, status, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        policy_id: { type: string, format: uuid }
+        submission_id: { type: string, format: uuid }
+        evaluation_run_id: { type: string, format: uuid }
+        current_stage_order: { type: integer, minimum: 1 }
+        status: { type: string, enum: [PENDING, IN_PROGRESS, APPROVED, RETURNED, REJECTED] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        stages: { type: array, items: { type: object } }
+        actions: { type: array, items: { type: object } }
+    ModerationCaseList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ModerationCase" }
+    ModerationDecideRequest:
+      type: object
+      additionalProperties: false
+      required: [decision]
+      properties:
+        decision: { type: string, enum: [APPROVE, RETURN, REJECT] }
+        reason: { type: [string, "null"] }
+    GrievanceCase:
+      type: object
+      additionalProperties: false
+      required: [id, submission_id, original_published_result_id, original_evaluation_run_id, requester_reference, submitted_by, reason, status, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        submission_id: { type: string, format: uuid }
+        original_published_result_id: { type: string, format: uuid }
+        original_evaluation_run_id: { type: string, format: uuid }
+        requester_reference: { type: string, minLength: 1, maxLength: 255 }
+        submitted_by: { type: string, format: uuid }
+        reason: { type: string, minLength: 1 }
+        status: { type: string, enum: [SUBMITTED, UNDER_REVIEW, ACCEPTED, REJECTED, RE_EVALUATING, RESOLVED, CLOSED] }
+        decision_by: { type: [string, "null"], format: uuid }
+        decision_at: { type: [string, "null"], format: date-time }
+        decision_reason: { type: [string, "null"] }
+        reevaluation_run_id: { type: [string, "null"], format: uuid }
+        revised_published_result_id: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    GrievanceCaseList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/GrievanceCase" }
+    GrievanceCreateRequest:
+      type: object
+      additionalProperties: false
+      required: [published_result_id, requester_reference, reason]
+      properties:
+        published_result_id: { type: string, format: uuid }
+        requester_reference: { type: string, minLength: 1, maxLength: 255 }
+        reason: { type: string, minLength: 1 }
+    GrievanceDecideRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        decision_reason: { type: [string, "null"] }
+    GrievanceResolveRequest:
+      type: object
+      additionalProperties: false
+      required: [revised_published_result_id]
+      properties:
+        revised_published_result_id: { type: string, format: uuid }

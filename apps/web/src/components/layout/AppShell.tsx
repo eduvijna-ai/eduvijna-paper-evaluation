@@ -15,6 +15,7 @@ import {
   Upload,
   Users,
   GraduationCap,
+  Workflow,
 } from "lucide-react";
 import { clearSession, getSession } from "@/lib/auth/session";
 import { cn } from "@/lib/utils/cn";
@@ -47,6 +48,12 @@ const navItems = [
     label: "Quality benchmarks",
     icon: FlaskConical,
     testId: "nav-quality-benchmarks",
+  },
+  {
+    href: "/operations/grading",
+    label: "Operations",
+    icon: Workflow,
+    testId: "nav-operations",
   },
   {
     href: "/analytics/assessments/assess-demo-001",
@@ -163,7 +170,10 @@ export function Sidebar() {
         {navItems.map((item) => {
           const active =
             pathname === item.href ||
-            (item.href !== "/dashboard" && pathname.startsWith(item.href));
+            (item.href !== "/dashboard" &&
+              (item.testId === "nav-operations"
+                ? pathname.startsWith("/operations")
+                : pathname.startsWith(item.href)));
           const Icon = item.icon;
           return (
             <Link

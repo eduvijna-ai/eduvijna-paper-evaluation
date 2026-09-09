@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/grading-work-item.schema.json",
+  "title": "GradingWorkItem",
+  "description": "B16 question-level grading work item (PEV-044).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "pool_id",
+    "submission_id",
+    "evaluation_run_id",
+    "question_evaluation_id",
+    "assigned_evaluator_id",
+    "status",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "tenant_id": { "type": "string", "format": "uuid" },
+    "pool_id": { "type": "string", "format": "uuid" },
+    "submission_id": { "type": "string", "format": "uuid" },
+    "evaluation_run_id": { "type": "string", "format": "uuid" },
+    "question_evaluation_id": { "type": "string", "format": "uuid" },
+    "assigned_evaluator_id": { "type": "string", "format": "uuid" },
+    "status": {
+      "type": "string",
+      "enum": ["QUEUED", "IN_PROGRESS", "SUBMITTED", "RETURNED", "COMPLETED"]
+    },
+    "assigned_by": { "type": ["string", "null"], "format": "uuid" },
+    "assigned_at": { "type": ["string", "null"], "format": "date-time" },
+    "started_at": { "type": ["string", "null"], "format": "date-time" },
+    "submitted_at": { "type": ["string", "null"], "format": "date-time" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}

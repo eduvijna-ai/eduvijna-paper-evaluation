@@ -390,6 +390,17 @@ async def prepare_publication(
     )
     version_number = int(max_ver or 0) + 1
 
+    current_published = await db.scalar(
+        select(PublishedResult)
+        .where(
+            PublishedResult.tenant_id == tenant_id,
+            PublishedResult.submission_id == submission.id,
+            PublishedResult.status == "PUBLISHED",
+        )
+        .order_by(PublishedResult.version_number.desc())
+        .limit(1)
+    )
+
     result = PublishedResult(
         tenant_id=tenant_id,
         submission_id=submission.id,
@@ -403,6 +414,9 @@ async def prepare_publication(
         total_score=total,
         max_total_score=max_total,
         generated_by=actor_user_id,
+        supersedes_result_id=(
+            current_published.id if current_published is not None else None
+        ),
     )
     db.add(result)
     await db.flush()
