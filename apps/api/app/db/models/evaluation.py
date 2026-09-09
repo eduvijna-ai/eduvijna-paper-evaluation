@@ -39,6 +39,10 @@ class EvaluationRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "'QUEUED','RUNNING','REVIEW_REQUIRED','COMPLETED','FAILED','SUPERSEDED')",
             name="ck_evaluation_runs_status",
         ),
+        CheckConstraint(
+            "run_kind IN ('INITIAL','RE_EVALUATION')",
+            name="ck_evaluation_runs_run_kind",
+        ),
         Index("ix_evaluation_runs_tenant_submission", "tenant_id", "submission_id"),
     )
 
@@ -53,6 +57,13 @@ class EvaluationRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("assessment_versions.id", ondelete="RESTRICT")
     )
     run_number: Mapped[int] = mapped_column(Integer)
+    run_kind: Mapped[str] = mapped_column(String(32), default="INITIAL")
+    supersedes_run_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("evaluation_runs.id", ondelete="SET NULL"), nullable=True
+    )
+    grievance_case_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("grievance_cases.id", ondelete="SET NULL"), nullable=True
+    )
     status: Mapped[str] = mapped_column(String(32), default="QUEUED")
     provider: Mapped[str] = mapped_column(String(100))
     model: Mapped[str | None] = mapped_column(String(100), nullable=True)

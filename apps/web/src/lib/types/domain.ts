@@ -591,7 +591,90 @@ export type PublicationStatus =
   | "GENERATING"
   | "GENERATED"
   | "PUBLISHED"
-  | "FAILED";
+  | "FAILED"
+  | "SUPERSEDED";
+
+/** B16 horizontal grading pool. */
+export type GradingPoolStatus = "DRAFT" | "ACTIVE" | "CLOSED";
+export type GradingWorkItemStatus =
+  | "QUEUED"
+  | "IN_PROGRESS"
+  | "SUBMITTED"
+  | "RETURNED"
+  | "COMPLETED";
+export type ModerationCaseStatus =
+  | "PENDING"
+  | "IN_PROGRESS"
+  | "APPROVED"
+  | "RETURNED"
+  | "REJECTED";
+export type GrievanceStatus =
+  | "SUBMITTED"
+  | "UNDER_REVIEW"
+  | "ACCEPTED"
+  | "REJECTED"
+  | "RE_EVALUATING"
+  | "RESOLVED"
+  | "CLOSED";
+
+export interface GradingPool {
+  id: string;
+  assessment_id: string;
+  assessment_version_id: string;
+  grading_mode: string;
+  status: GradingPoolStatus;
+  allocation_strategy: "MANUAL" | "ROUND_ROBIN";
+  created_at: string;
+  updated_at: string;
+  member_count?: number;
+}
+
+export interface GradingWorkItem {
+  id: string;
+  pool_id: string;
+  submission_id: string;
+  evaluation_run_id: string;
+  question_evaluation_id: string;
+  assigned_evaluator_id: string;
+  status: GradingWorkItemStatus;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ModerationCase {
+  id: string;
+  policy_id: string;
+  submission_id: string;
+  evaluation_run_id: string;
+  current_stage_order: number;
+  status: ModerationCaseStatus;
+  created_at: string;
+  updated_at: string;
+  actions?: Array<{
+    id: string;
+    stage_order: number;
+    actor_user_id: string;
+    decision: "APPROVE" | "RETURN" | "REJECT";
+    reason: string | null;
+    created_at: string;
+  }>;
+}
+
+export interface GrievanceCase {
+  id: string;
+  submission_id: string;
+  original_published_result_id: string;
+  original_evaluation_run_id: string;
+  requester_reference: string;
+  submitted_by: string;
+  reason: string;
+  status: GrievanceStatus;
+  decision_reason: string | null;
+  reevaluation_run_id: string | null;
+  revised_published_result_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export type PublicationArtifactType =
   | "ANNOTATED_PDF"

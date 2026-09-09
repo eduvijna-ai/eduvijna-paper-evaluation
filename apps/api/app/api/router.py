@@ -7,6 +7,7 @@ from app.api.v1 import (
     authoring_read,
     benchmark,
     curriculum_assessment,
+    enterprise_ops,
     evaluation,
     health,
     learning,
@@ -38,3 +39,4 @@ api_router.include_router(learning.router, prefix="/api/v1")
 api_router.include_router(resources.router, prefix="/api/v1")
 api_router.include_router(reassessment.router, prefix="/api/v1")
 api_router.include_router(benchmark.router, prefix="/api/v1")
+api_router.include_router(enterprise_ops.router, prefix="/api/v1")

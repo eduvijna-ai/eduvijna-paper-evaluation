@@ -2831,3 +2831,226 @@ export function getBenchmarkGateVerdict(runId: string): BenchmarkGateVerdict {
   };
 }
 
+
+/** Demo-only B16 enterprise operations fixtures. */
+export const GRADING_POOL_DEMO_ID = "grading-pool-demo-001";
+export const GRADING_WORK_DEMO_ID = "grading-work-demo-001";
+export const MODERATION_CASE_DEMO_ID = "moderation-case-demo-001";
+export const GRIEVANCE_DEMO_ID = "grievance-demo-001";
+
+let demoPools: import("@/lib/types/domain").GradingPool[] = [
+  {
+    id: GRADING_POOL_DEMO_ID,
+    assessment_id: "assess-demo-001",
+    assessment_version_id: "assess-version-demo-001",
+    grading_mode: "HORIZONTAL_QUESTION",
+    status: "ACTIVE",
+    allocation_strategy: "ROUND_ROBIN",
+    created_at: "2026-09-01T10:00:00.000Z",
+    updated_at: "2026-09-01T10:00:00.000Z",
+    member_count: 2,
+  },
+];
+
+const demoWorkItems: import("@/lib/types/domain").GradingWorkItem[] = [
+  {
+    id: GRADING_WORK_DEMO_ID,
+    pool_id: GRADING_POOL_DEMO_ID,
+    submission_id: "sub-demo-001",
+    evaluation_run_id: "eval-run-demo-001",
+    question_evaluation_id: "qe-demo-001",
+    assigned_evaluator_id: "user-admin-001",
+    status: "QUEUED",
+    created_at: "2026-09-01T10:05:00.000Z",
+    updated_at: "2026-09-01T10:05:00.000Z",
+  },
+];
+
+let demoModerationCases: import("@/lib/types/domain").ModerationCase[] = [
+  {
+    id: MODERATION_CASE_DEMO_ID,
+    policy_id: "moderation-policy-demo-001",
+    submission_id: "sub-demo-002",
+    evaluation_run_id: "eval-run-demo-002",
+    current_stage_order: 1,
+    status: "PENDING",
+    created_at: "2026-09-01T11:00:00.000Z",
+    updated_at: "2026-09-01T11:00:00.000Z",
+    actions: [],
+  },
+];
+
+let demoGrievances: import("@/lib/types/domain").GrievanceCase[] = [
+  {
+    id: GRIEVANCE_DEMO_ID,
+    submission_id: "sub-demo-003",
+    original_published_result_id: "pub-demo-001",
+    original_evaluation_run_id: "eval-run-demo-003",
+    requester_reference: "parent-of-student-demo",
+    submitted_by: "user-admin-001",
+    reason: "Request recheck of Q2 marking",
+    status: "SUBMITTED",
+    decision_reason: null,
+    reevaluation_run_id: null,
+    revised_published_result_id: null,
+    created_at: "2026-09-01T12:00:00.000Z",
+    updated_at: "2026-09-01T12:00:00.000Z",
+  },
+];
+
+export function listGradingPools() {
+  return { items: [...demoPools] };
+}
+export function getGradingPool(poolId: string) {
+  const pool = demoPools.find((p) => p.id === poolId);
+  if (!pool) throw new MockNotFoundError("Grading pool not found");
+  return { ...pool };
+}
+export function createGradingPool(input: {
+  assessment_id: string;
+  assessment_version_id: string;
+  allocation_strategy: "MANUAL" | "ROUND_ROBIN";
+}) {
+  const now = new Date().toISOString();
+  const pool = {
+    id: `grading-pool-demo-${crypto.randomUUID().slice(0, 8)}`,
+    assessment_id: input.assessment_id,
+    assessment_version_id: input.assessment_version_id,
+    grading_mode: "HORIZONTAL_QUESTION",
+    status: "DRAFT" as const,
+    allocation_strategy: input.allocation_strategy,
+    created_at: now,
+    updated_at: now,
+    member_count: 0,
+  };
+  demoPools = [pool, ...demoPools];
+  return pool;
+}
+export function activateGradingPool(poolId: string) {
+  const pool = getGradingPool(poolId);
+  pool.status = "ACTIVE";
+  pool.updated_at = new Date().toISOString();
+  demoPools = demoPools.map((p) => (p.id === poolId ? pool : p));
+  return pool;
+}
+export function closeGradingPool(poolId: string) {
+  const pool = getGradingPool(poolId);
+  pool.status = "CLOSED";
+  pool.updated_at = new Date().toISOString();
+  demoPools = demoPools.map((p) => (p.id === poolId ? pool : p));
+  return pool;
+}
+export function getGradingPoolProgress(_poolId: string) {
+  return {
+    counts: {
+      QUEUED: demoWorkItems.filter((w) => w.status === "QUEUED").length,
+      IN_PROGRESS: demoWorkItems.filter((w) => w.status === "IN_PROGRESS").length,
+      SUBMITTED: demoWorkItems.filter((w) => w.status === "SUBMITTED").length,
+      RETURNED: demoWorkItems.filter((w) => w.status === "RETURNED").length,
+      COMPLETED: demoWorkItems.filter((w) => w.status === "COMPLETED").length,
+    },
+  };
+}
+export function myGradingQueue() {
+  return { items: [...demoWorkItems] };
+}
+export function startGradingWorkItem(workItemId: string) {
+  const item = demoWorkItems.find((w) => w.id === workItemId);
+  if (!item) throw new MockNotFoundError("Work item not found");
+  item.status = "IN_PROGRESS";
+  item.updated_at = new Date().toISOString();
+  return { ...item };
+}
+export function submitGradingWorkItem(workItemId: string) {
+  const item = demoWorkItems.find((w) => w.id === workItemId);
+  if (!item) throw new MockNotFoundError("Work item not found");
+  item.status = "SUBMITTED";
+  item.updated_at = new Date().toISOString();
+  return { ...item };
+}
+export function listModerationCases() {
+  return { items: [...demoModerationCases] };
+}
+export function getModerationCase(caseId: string) {
+  const row = demoModerationCases.find((c) => c.id === caseId);
+  if (!row) throw new MockNotFoundError("Moderation case not found");
+  return { ...row, actions: [...(row.actions ?? [])] };
+}
+export function decideModerationCase(
+  caseId: string,
+  input: { decision: "APPROVE" | "RETURN" | "REJECT"; reason?: string | null },
+) {
+  const row = getModerationCase(caseId);
+  if (input.decision === "RETURN" || input.decision === "REJECT") {
+    if (!input.reason?.trim()) {
+      throw new MockNotFoundError("RETURN/REJECT require a reason");
+    }
+  }
+  const now = new Date().toISOString();
+  const action = {
+    id: `mod-action-${crypto.randomUUID().slice(0, 8)}`,
+    stage_order: row.current_stage_order,
+    actor_user_id: "user-admin-001",
+    decision: input.decision,
+    reason: input.reason ?? null,
+    created_at: now,
+  };
+  row.actions = [...(row.actions ?? []), action];
+  if (input.decision === "RETURN") row.status = "RETURNED";
+  else if (input.decision === "REJECT") row.status = "REJECTED";
+  else row.status = "APPROVED";
+  row.updated_at = now;
+  demoModerationCases = demoModerationCases.map((c) =>
+    c.id === caseId ? row : c,
+  );
+  return row;
+}
+export function listGrievances() {
+  return { items: [...demoGrievances] };
+}
+export function getGrievance(id: string) {
+  const row = demoGrievances.find((g) => g.id === id);
+  if (!row) throw new MockNotFoundError("Grievance not found");
+  return { ...row };
+}
+export function createGrievance(input: {
+  published_result_id: string;
+  requester_reference: string;
+  reason: string;
+}) {
+  const now = new Date().toISOString();
+  const row: import("@/lib/types/domain").GrievanceCase = {
+    id: `grievance-demo-${crypto.randomUUID().slice(0, 8)}`,
+    submission_id: "sub-demo-003",
+    original_published_result_id: input.published_result_id,
+    original_evaluation_run_id: "eval-run-demo-003",
+    requester_reference: input.requester_reference,
+    submitted_by: "user-admin-001",
+    reason: input.reason,
+    status: "SUBMITTED",
+    decision_reason: null,
+    reevaluation_run_id: null,
+    revised_published_result_id: null,
+    created_at: now,
+    updated_at: now,
+  };
+  demoGrievances = [row, ...demoGrievances];
+  return row;
+}
+export function acceptGrievance(id: string, decision_reason?: string | null) {
+  const row = getGrievance(id);
+  row.status = "RE_EVALUATING";
+  row.decision_reason = decision_reason ?? null;
+  row.reevaluation_run_id = `eval-run-re-${crypto.randomUUID().slice(0, 8)}`;
+  row.updated_at = new Date().toISOString();
+  demoGrievances = demoGrievances.map((g) => (g.id === id ? row : g));
+  return row;
+}
+export function rejectGrievance(id: string, decision_reason: string) {
+  const row = getGrievance(id);
+  row.status = "REJECTED";
+  row.decision_reason = decision_reason;
+  row.updated_at = new Date().toISOString();
+  demoGrievances = demoGrievances.map((g) => (g.id === id ? row : g));
+  return row;
+}

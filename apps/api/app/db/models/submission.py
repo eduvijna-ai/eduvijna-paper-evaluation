@@ -37,7 +37,7 @@ class Submission(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "workflow_state IN ("
             "'UPLOADED','PROCESSING','IDENTITY_REVIEW','MAPPING_REVIEW',"
             "'READY_FOR_EVALUATION','EVALUATING','EVALUATION_REVIEW',"
-            "'APPROVED','PUBLISHED','FAILED')",
+            "'MODERATION_REVIEW','APPROVED','PUBLISHED','FAILED')",
             name="ck_submissions_workflow_state",
         ),
         CheckConstraint(

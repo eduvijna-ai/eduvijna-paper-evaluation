@@ -530,4 +530,65 @@ export interface ApiClient {
     runId: string,
   ): Promise<BenchmarkRegressionCaseResultList>;
   getBenchmarkGateVerdict?(runId: string): Promise<BenchmarkGateVerdict>;
+
+  /** B16 enterprise grading / moderation / grievance. */
+  listGradingPools?(): Promise<{ items: import("@/lib/types/domain").GradingPool[] }>;
+  getGradingPool?(
+    poolId: string,
+  ): Promise<import("@/lib/types/domain").GradingPool>;
+  createGradingPool?(input: {
+    assessment_id: string;
+    assessment_version_id: string;
+    allocation_strategy: "MANUAL" | "ROUND_ROBIN";
+  }): Promise<import("@/lib/types/domain").GradingPool>;
+  activateGradingPool?(
+    poolId: string,
+  ): Promise<import("@/lib/types/domain").GradingPool>;
+  closeGradingPool?(
+    poolId: string,
+  ): Promise<import("@/lib/types/domain").GradingPool>;
+  getGradingPoolProgress?(
+    poolId: string,
+  ): Promise<{ counts: Record<string, number> }>;
+  myGradingQueue?(): Promise<{
+    items: import("@/lib/types/domain").GradingWorkItem[];
+  }>;
+  startGradingWorkItem?(
+    workItemId: string,
+  ): Promise<import("@/lib/types/domain").GradingWorkItem>;
+  submitGradingWorkItem?(
+    workItemId: string,
+  ): Promise<import("@/lib/types/domain").GradingWorkItem>;
+  listModerationCases?(): Promise<{
+    items: import("@/lib/types/domain").ModerationCase[];
+  }>;
+  getModerationCase?(
+    caseId: string,
+  ): Promise<import("@/lib/types/domain").ModerationCase>;
+  decideModerationCase?(
+    caseId: string,
+    input: {
+      decision: "APPROVE" | "RETURN" | "REJECT";
+      reason?: string | null;
+    },
+  ): Promise<import("@/lib/types/domain").ModerationCase>;
+  listGrievances?(): Promise<{
+    items: import("@/lib/types/domain").GrievanceCase[];
+  }>;
+  getGrievance?(
+    id: string,
+  ): Promise<import("@/lib/types/domain").GrievanceCase>;
+  createGrievance?(input: {
+    published_result_id: string;
+    requester_reference: string;
+    reason: string;
+  }): Promise<import("@/lib/types/domain").GrievanceCase>;
+  acceptGrievance?(
+    id: string,
+    decision_reason?: string | null,
+  ): Promise<import("@/lib/types/domain").GrievanceCase>;
+  rejectGrievance?(
+    id: string,
+    decision_reason: string,
+  ): Promise<import("@/lib/types/domain").GrievanceCase>;
 }

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/moderation-policy.schema.json",
+  "title": "ModerationPolicy",
+  "description": "B16 configurable moderation policy (PEV-045).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "assessment_id",
+    "assessment_version_id",
+    "status",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "tenant_id": { "type": "string", "format": "uuid" },
+    "assessment_id": { "type": "string", "format": "uuid" },
+    "assessment_version_id": { "type": "string", "format": "uuid" },
+    "status": { "type": "string", "enum": ["DRAFT", "ACTIVE", "RETIRED"] },
+    "created_by": { "type": ["string", "null"], "format": "uuid" },
+    "activated_by": { "type": ["string", "null"], "format": "uuid" },
+    "activated_at": { "type": ["string", "null"], "format": "date-time" },
+    "retired_by": { "type": ["string", "null"], "format": "uuid" },
+    "retired_at": { "type": ["string", "null"], "format": "date-time" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "stages": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/stage" }
+    }
+  },
+  "$defs": {
+    "stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["stage_order", "required_role", "label"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "stage_order": { "type": "integer", "minimum": 1 },
+        "required_role": { "type": "string", "minLength": 1 },
+        "label": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}
