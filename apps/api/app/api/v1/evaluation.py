@@ -176,10 +176,16 @@ async def accept_qe(
         raise _http_error(404, "NOT_FOUND", "Resource not found")
     try:
         qe = await accept_question_evaluation(
-            db, tenant_id=auth.tenant_id, user_id=auth.user_id, qe=qe
+            db,
+            tenant_id=auth.tenant_id,
+            user_id=auth.user_id,
+            qe=qe,
+            actor_roles=auth.roles,
+            actor_permissions=auth.permissions,
         )
     except EvaluationError as exc:
-        raise _http_error(409, exc.code, exc.message) from exc
+        status = 403 if exc.code == "GRADING_ASSIGNMENT_FORBIDDEN" else 409
+        raise _http_error(status, exc.code, exc.message) from exc
     await db.commit()
     return await get_question_evaluation(db, tenant_id=auth.tenant_id, qe_id=qe.id)
 
@@ -213,9 +219,12 @@ async def override_qe(
                 for c in payload.criterion_finals
             ],
             valid_alternative=payload.valid_alternative,
+            actor_roles=auth.roles,
+            actor_permissions=auth.permissions,
         )
     except EvaluationError as exc:
-        raise _http_error(409, exc.code, exc.message) from exc
+        status = 403 if exc.code == "GRADING_ASSIGNMENT_FORBIDDEN" else 409
+        raise _http_error(status, exc.code, exc.message) from exc
     await db.commit()
     return await get_question_evaluation(db, tenant_id=auth.tenant_id, qe_id=qe.id)
 
@@ -242,9 +251,12 @@ async def feedback_qe(
             user_id=auth.user_id,
             qe=qe,
             feedback=payload.feedback,
+            actor_roles=auth.roles,
+            actor_permissions=auth.permissions,
         )
     except EvaluationError as exc:
-        raise _http_error(409, exc.code, exc.message) from exc
+        status = 403 if exc.code == "GRADING_ASSIGNMENT_FORBIDDEN" else 409
+        raise _http_error(status, exc.code, exc.message) from exc
     await db.commit()
     return await get_question_evaluation(db, tenant_id=auth.tenant_id, qe_id=qe.id)
 
@@ -271,9 +283,12 @@ async def escalate_qe(
             user_id=auth.user_id,
             qe=qe,
             reason=payload.reason,
+            actor_roles=auth.roles,
+            actor_permissions=auth.permissions,
         )
     except EvaluationError as exc:
-        raise _http_error(409, exc.code, exc.message) from exc
+        status = 403 if exc.code == "GRADING_ASSIGNMENT_FORBIDDEN" else 409
+        raise _http_error(status, exc.code, exc.message) from exc
     await db.commit()
     return await get_question_evaluation(db, tenant_id=auth.tenant_id, qe_id=qe.id)
 

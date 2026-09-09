@@ -20,6 +20,15 @@ from app.db.session import async_session_factory
 
 ADMIN_EMAIL = "admin@demo.eduvijna.local"
 ADMIN_PASSWORD = "DemoAdmin!2026"
+DEMO_USER_PASSWORD = "DemoUser!2026"
+
+# B16.1 enterprise ops demo users (idempotent; demo seed CLI only).
+ENTERPRISE_DEMO_USERS: tuple[tuple[str, str, str], ...] = (
+    ("evaluator-a@demo.eduvijna.local", "Demo Evaluator A", "EVALUATOR"),
+    ("evaluator-b@demo.eduvijna.local", "Demo Evaluator B", "EVALUATOR"),
+    ("moderator@demo.eduvijna.local", "Demo Moderator", "MODERATOR"),
+    ("hod@demo.eduvijna.local", "Demo HOD", "HOD"),
+)
 
 
 async def seed() -> None:
@@ -103,6 +112,29 @@ async def seed() -> None:
                     role_id=roles["INSTITUTION_ADMIN"].id,
                 )
             )
+
+        for email, display_name, role_code in ENTERPRISE_DEMO_USERS:
+            enterprise_user = await db.scalar(
+                select(User).where(User.tenant_id == tenant.id, User.email == email)
+            )
+            if enterprise_user is None:
+                enterprise_user = User(
+                    tenant_id=tenant.id,
+                    email=email,
+                    display_name=display_name,
+                    password_hash=hash_password(DEMO_USER_PASSWORD),
+                )
+                db.add(enterprise_user)
+                await db.flush()
+                db.add(
+                    UserRole(
+                        tenant_id=tenant.id,
+                        user_id=enterprise_user.id,
+                        role_id=roles[role_code].id,
+                    )
+                )
+                print(f"Seeded enterprise user {email} ({role_code})")
+
         year = await db.scalar(
             select(AcademicYear).where(
                 AcademicYear.tenant_id == tenant.id, AcademicYear.name == "2026-27"
