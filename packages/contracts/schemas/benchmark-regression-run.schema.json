@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/benchmark-regression-run.schema.json",
+  "title": "BenchmarkRegressionRun",
+  "description": "B15 isolated AI regression run against a locked gold dataset version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "dataset_version_id",
+    "status",
+    "verdict",
+    "idempotency_key",
+    "candidate_provider",
+    "candidate_model",
+    "candidate_model_version",
+    "candidate_prompt_template_version",
+    "candidate_config",
+    "threshold_snapshot",
+    "aggregate_metrics",
+    "initiated_by",
+    "started_at",
+    "finished_at",
+    "failure_code",
+    "failure_detail",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "dataset_version_id": { "type": "string", "format": "uuid" },
+    "status": {
+      "type": "string",
+      "enum": ["QUEUED", "RUNNING", "PASSED", "FAILED", "ERROR"]
+    },
+    "verdict": { "type": "string", "enum": ["PASS", "FAIL", "PENDING"] },
+    "idempotency_key": { "type": ["string", "null"], "maxLength": 128 },
+    "candidate_provider": { "type": "string" },
+    "candidate_model": { "type": "string" },
+    "candidate_model_version": { "type": "string" },
+    "candidate_prompt_template_version": { "type": "string" },
+    "candidate_config": { "type": "object" },
+    "threshold_snapshot": { "$ref": "benchmark-threshold-profile.schema.json" },
+    "aggregate_metrics": { "type": "object" },
+    "initiated_by": { "type": ["string", "null"], "format": "uuid" },
+    "started_at": { "type": ["string", "null"], "format": "date-time" },
+    "finished_at": { "type": ["string", "null"], "format": "date-time" },
+    "failure_code": { "type": ["string", "null"] },
+    "failure_detail": { "type": ["string", "null"] },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}

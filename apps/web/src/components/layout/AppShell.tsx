@@ -6,6 +6,7 @@ import {
   BookOpen,
   ClipboardList,
   FileStack,
+  FlaskConical,
   LayoutDashboard,
   Library,
   LineChart,
@@ -40,6 +41,12 @@ const navItems = [
     label: "Resource catalog",
     icon: Library,
     testId: "nav-resource-catalog",
+  },
+  {
+    href: "/quality/benchmarks",
+    label: "Quality benchmarks",
+    icon: FlaskConical,
+    testId: "nav-quality-benchmarks",
   },
   {
     href: "/analytics/assessments/assess-demo-001",

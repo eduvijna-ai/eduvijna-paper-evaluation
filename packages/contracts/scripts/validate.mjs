@@ -59,6 +59,18 @@ const requiredPaths = [
   "/api/v1/improvement-assessments/{id}/reassessment",
   "/api/v1/reassessments/{id}",
   "/api/v1/reassessments/{id}/b14/rebuild",
+  "/api/v1/quality/benchmark-datasets",
+  "/api/v1/quality/benchmark-datasets/{dataset_id}",
+  "/api/v1/quality/benchmark-datasets/{dataset_id}/versions",
+  "/api/v1/quality/benchmark-versions/{version_id}",
+  "/api/v1/quality/benchmark-versions/{version_id}/eligible-sources",
+  "/api/v1/quality/benchmark-versions/{version_id}/cases",
+  "/api/v1/quality/benchmark-versions/{version_id}/cases/{case_id}",
+  "/api/v1/quality/benchmark-versions/{version_id}/lock",
+  "/api/v1/quality/benchmark-versions/{version_id}/regression-runs",
+  "/api/v1/quality/regression-runs/{run_id}",
+  "/api/v1/quality/regression-runs/{run_id}/case-results",
+  "/api/v1/quality/regression-runs/{run_id}/gate",
 ];
 
 const schemaFiles = (await readdir(schemasDirectory))

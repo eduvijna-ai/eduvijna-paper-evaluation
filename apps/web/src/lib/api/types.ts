@@ -6,6 +6,21 @@ import type {
   Assessment,
   AssessmentAnalyticsView,
   AuthSession,
+  BenchmarkCase,
+  BenchmarkCaseCreate,
+  BenchmarkCaseList,
+  BenchmarkDataset,
+  BenchmarkDatasetCreate,
+  BenchmarkDatasetList,
+  BenchmarkEligibleSources,
+  BenchmarkGateVerdict,
+  BenchmarkRegressionCaseResultList,
+  BenchmarkRegressionRun,
+  BenchmarkRegressionRunCreate,
+  BenchmarkRegressionRunList,
+  BenchmarkVersion,
+  BenchmarkVersionCreate,
+  BenchmarkVersionList,
   Curriculum,
   CurriculumMapEntry,
   CurriculumNode,
@@ -477,4 +492,42 @@ export interface ApiClient {
   ): Promise<Reassessment>;
   getReassessment(id: string): Promise<Reassessment>;
   rebuildReassessmentB14?(id: string): Promise<B14RebuildResult>;
+
+  /** B15 gold benchmark curation + isolated AI regression. */
+  listBenchmarkDatasets?(): Promise<BenchmarkDatasetList>;
+  getBenchmarkDataset?(id: string): Promise<BenchmarkDataset>;
+  createBenchmarkDataset?(
+    input: BenchmarkDatasetCreate,
+  ): Promise<BenchmarkDataset>;
+  listBenchmarkVersions?(datasetId: string): Promise<BenchmarkVersionList>;
+  createBenchmarkVersion?(
+    datasetId: string,
+    input?: BenchmarkVersionCreate,
+  ): Promise<BenchmarkVersion>;
+  getBenchmarkVersion?(versionId: string): Promise<BenchmarkVersion>;
+  listBenchmarkEligibleSources?(
+    versionId: string,
+  ): Promise<BenchmarkEligibleSources>;
+  listBenchmarkCases?(versionId: string): Promise<BenchmarkCaseList>;
+  addBenchmarkCase?(
+    versionId: string,
+    input: BenchmarkCaseCreate,
+  ): Promise<BenchmarkCase>;
+  removeBenchmarkCase?(
+    versionId: string,
+    caseId: string,
+  ): Promise<BenchmarkCase>;
+  lockBenchmarkVersion?(versionId: string): Promise<BenchmarkVersion>;
+  listBenchmarkRegressionRuns?(
+    versionId: string,
+  ): Promise<BenchmarkRegressionRunList>;
+  startBenchmarkRegressionRun?(
+    versionId: string,
+    input: BenchmarkRegressionRunCreate,
+  ): Promise<BenchmarkRegressionRun>;
+  getBenchmarkRegressionRun?(runId: string): Promise<BenchmarkRegressionRun>;
+  listBenchmarkRegressionCaseResults?(
+    runId: string,
+  ): Promise<BenchmarkRegressionCaseResultList>;
+  getBenchmarkGateVerdict?(runId: string): Promise<BenchmarkGateVerdict>;
 }

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/benchmark-version.schema.json",
+  "title": "BenchmarkVersion",
+  "description": "B15 gold benchmark dataset version (DRAFT or LOCKED).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "dataset_id",
+    "version_number",
+    "status",
+    "threshold_profile_snapshot",
+    "case_count",
+    "content_hash",
+    "locked_by",
+    "locked_at",
+    "created_by",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "dataset_id": { "type": "string", "format": "uuid" },
+    "version_number": { "type": "integer", "minimum": 1 },
+    "status": { "type": "string", "enum": ["DRAFT", "LOCKED"] },
+    "threshold_profile_snapshot": { "$ref": "benchmark-threshold-profile.schema.json" },
+    "case_count": { "type": "integer", "minimum": 0 },
+    "content_hash": { "type": ["string", "null"] },
+    "locked_by": { "type": ["string", "null"], "format": "uuid" },
+    "locked_at": { "type": ["string", "null"], "format": "date-time" },
+    "created_by": { "type": ["string", "null"], "format": "uuid" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}

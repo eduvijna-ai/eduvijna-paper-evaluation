@@ -1770,6 +1770,291 @@ paths:
         "409":
           description: Linked published result or exact B12 snapshot not ready
           content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/quality/benchmark-datasets:
+    get:
+      operationId: listBenchmarkDatasets
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Tenant benchmark datasets
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkDatasetList" }
+    post:
+      operationId: createBenchmarkDataset
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BenchmarkDatasetCreate" }
+      responses:
+        "200":
+          description: Created benchmark dataset
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkDataset" }
+        "409":
+          description: Dataset code conflict
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/quality/benchmark-datasets/{dataset_id}:
+    parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getBenchmarkDataset
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Benchmark dataset detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkDataset" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/quality/benchmark-datasets/{dataset_id}/versions:
+    parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listBenchmarkVersions
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Dataset versions
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkVersionList" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      operationId: createBenchmarkVersion
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BenchmarkVersionCreate" }
+      responses:
+        "200":
+          description: Created DRAFT version with default thresholds
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkVersion" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/quality/benchmark-versions/{version_id}:
+    parameters:
+      - name: version_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getBenchmarkVersion
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Benchmark version detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkVersion" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/quality/benchmark-versions/{version_id}/eligible-sources:
+    parameters:
+      - name: version_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listBenchmarkEligibleSources
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: PUBLISHED + human-final eligible sources
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkEligibleSources" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/quality/benchmark-versions/{version_id}/cases:
+    parameters:
+      - name: version_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listBenchmarkCases
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Gold cases for version
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkCaseList" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      operationId: addBenchmarkCase
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BenchmarkCaseCreate" }
+      responses:
+        "200":
+          description: Created or idempotently reused gold case
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkCase" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Version locked or source ineligible
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/quality/benchmark-versions/{version_id}/cases/{case_id}:
+    parameters:
+      - name: version_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: case_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      operationId: removeBenchmarkCase
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Case removed (DRAFT only)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, removed]
+                properties:
+                  id: { type: string, format: uuid }
+                  removed: { type: boolean }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Version locked
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/quality/benchmark-versions/{version_id}/lock:
+    parameters:
+      - name: version_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: lockBenchmarkVersion
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Locked version (idempotent for same content hash)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkVersion" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Empty version or lock conflict
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/quality/benchmark-versions/{version_id}/regression-runs:
+    parameters:
+      - name: version_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listBenchmarkRegressionRuns
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Regression runs for version
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkRegressionRunList" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      operationId: startBenchmarkRegressionRun
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BenchmarkRegressionRunCreate" }
+      responses:
+        "200":
+          description: Started or idempotently reused regression run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkRegressionRun" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Version not locked or unsupported candidate
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/quality/regression-runs/{run_id}:
+    parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getBenchmarkRegressionRun
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Regression run detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkRegressionRun" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/quality/regression-runs/{run_id}/case-results:
+    parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listBenchmarkRegressionCaseResults
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Per-case regression results
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkRegressionCaseResultList" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/quality/regression-runs/{run_id}/gate:
+    parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: evaluateBenchmarkReleaseGate
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Release gate verdict
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkGateVerdict" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /api/v1/submission-pages/{id}/answer-regions:
     parameters: [{ $ref: "#/components/parameters/Id" }]
     post:
@@ -4443,4 +4728,351 @@ components:
       required: [reason]
       properties:
         reason: { type: string, minLength: 1, maxLength: 2000 }
+    BenchmarkThresholdProfile:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          profile_code,
+          algorithm_version,
+          max_missing_output_rate,
+          max_mean_abs_score_error,
+          min_exact_score_agreement_rate,
+          min_taxonomy_agreement_rate,
+          max_safety_invariant_failure_rate,
+          score_tolerance,
+        ]
+      properties:
+        profile_code: { type: string }
+        algorithm_version: { type: string }
+        max_missing_output_rate: { type: number, minimum: 0, maximum: 1 }
+        max_mean_abs_score_error: { type: number, minimum: 0 }
+        min_exact_score_agreement_rate: { type: number, minimum: 0, maximum: 1 }
+        min_taxonomy_agreement_rate: { type: number, minimum: 0, maximum: 1 }
+        max_safety_invariant_failure_rate: { type: number, minimum: 0, maximum: 1 }
+        score_tolerance: { type: number, minimum: 0 }
+    BenchmarkDataset:
+      type: object
+      additionalProperties: false
+      required: [id, code, title, description, created_by, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+        title: { type: string }
+        description: { type: [string, "null"] }
+        created_by: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    BenchmarkDatasetCreate:
+      type: object
+      additionalProperties: false
+      required: [code, title]
+      properties:
+        code: { type: string, minLength: 1, maxLength: 100 }
+        title: { type: string, minLength: 1, maxLength: 255 }
+        description: { type: [string, "null"], maxLength: 4000 }
+    BenchmarkDatasetList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BenchmarkDataset" }
+    BenchmarkVersion:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          dataset_id,
+          version_number,
+          status,
+          threshold_profile_snapshot,
+          case_count,
+          content_hash,
+          locked_by,
+          locked_at,
+          created_by,
+          created_at,
+          updated_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        dataset_id: { type: string, format: uuid }
+        version_number: { type: integer, minimum: 1 }
+        status: { type: string, enum: [DRAFT, LOCKED] }
+        threshold_profile_snapshot: { $ref: "#/components/schemas/BenchmarkThresholdProfile" }
+        case_count: { type: integer, minimum: 0 }
+        content_hash: { type: [string, "null"] }
+        locked_by: { type: [string, "null"], format: uuid }
+        locked_at: { type: [string, "null"], format: date-time }
+        created_by: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    BenchmarkVersionCreate:
+      type: object
+      additionalProperties: false
+      properties:
+        threshold_profile_snapshot:
+          oneOf:
+            - { $ref: "#/components/schemas/BenchmarkThresholdProfile" }
+            - { type: "null" }
+    BenchmarkVersionList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BenchmarkVersion" }
+    BenchmarkCase:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          dataset_version_id,
+          published_result_id,
+          evaluation_run_id,
+          question_evaluation_id,
+          question_version_id,
+          rubric_version_id,
+          assessment_version_id,
+          expected_final_marks,
+          expected_max_marks,
+          expected_error_codes,
+          source_ledger_hash,
+          evidence_hash,
+          adjudicated_by,
+          adjudicated_at,
+          replay_fixture,
+          created_at,
+          updated_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        dataset_version_id: { type: string, format: uuid }
+        published_result_id: { type: string, format: uuid }
+        evaluation_run_id: { type: string, format: uuid }
+        question_evaluation_id: { type: string, format: uuid }
+        question_version_id: { type: string, format: uuid }
+        rubric_version_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        expected_final_marks: { type: number }
+        expected_max_marks: { type: number }
+        expected_error_codes:
+          type: array
+          items: { type: string }
+        source_ledger_hash: { type: string }
+        evidence_hash: { type: string }
+        adjudicated_by: { type: [string, "null"], format: uuid }
+        adjudicated_at: { type: string, format: date-time }
+        replay_fixture: { type: object }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    BenchmarkCaseCreate:
+      type: object
+      additionalProperties: false
+      required: [published_result_id, question_evaluation_id]
+      properties:
+        published_result_id: { type: string, format: uuid }
+        question_evaluation_id: { type: string, format: uuid }
+    BenchmarkCaseList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BenchmarkCase" }
+    BenchmarkEligibleSources:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              [
+                published_result_id,
+                evaluation_run_id,
+                submission_id,
+                assessment_version_id,
+                ledger_snapshot_hash,
+                question_evaluations,
+              ]
+            properties:
+              published_result_id: { type: string, format: uuid }
+              evaluation_run_id: { type: string, format: uuid }
+              submission_id: { type: string, format: uuid }
+              assessment_version_id: { type: string, format: uuid }
+              ledger_snapshot_hash: { type: string }
+              question_evaluations:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    [
+                      question_evaluation_id,
+                      question_version_id,
+                      workflow_state,
+                      final_human_approved_score,
+                      max_mark,
+                      error_codes,
+                    ]
+                  properties:
+                    question_evaluation_id: { type: string, format: uuid }
+                    question_version_id: { type: string, format: uuid }
+                    workflow_state: { type: string, enum: [ACCEPTED, OVERRIDDEN] }
+                    final_human_approved_score: { type: number }
+                    max_mark: { type: number }
+                    error_codes:
+                      type: array
+                      items: { type: string }
+    BenchmarkRegressionRun:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          dataset_version_id,
+          status,
+          verdict,
+          idempotency_key,
+          candidate_provider,
+          candidate_model,
+          candidate_model_version,
+          candidate_prompt_template_version,
+          candidate_config,
+          threshold_snapshot,
+          aggregate_metrics,
+          initiated_by,
+          started_at,
+          finished_at,
+          failure_code,
+          failure_detail,
+          created_at,
+          updated_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        dataset_version_id: { type: string, format: uuid }
+        status: { type: string, enum: [QUEUED, RUNNING, PASSED, FAILED, ERROR] }
+        verdict: { type: string, enum: [PASS, FAIL, PENDING] }
+        idempotency_key: { type: [string, "null"] }
+        candidate_provider: { type: string }
+        candidate_model: { type: string }
+        candidate_model_version: { type: string }
+        candidate_prompt_template_version: { type: string }
+        candidate_config: { type: object }
+        threshold_snapshot: { $ref: "#/components/schemas/BenchmarkThresholdProfile" }
+        aggregate_metrics: { type: object }
+        initiated_by: { type: [string, "null"], format: uuid }
+        started_at: { type: [string, "null"], format: date-time }
+        finished_at: { type: [string, "null"], format: date-time }
+        failure_code: { type: [string, "null"] }
+        failure_detail: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    BenchmarkRegressionRunCreate:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          candidate_provider,
+          candidate_model,
+          candidate_model_version,
+          candidate_prompt_template_version,
+        ]
+      properties:
+        candidate_provider: { type: string, minLength: 1, maxLength: 100 }
+        candidate_model: { type: string, minLength: 1, maxLength: 100 }
+        candidate_model_version: { type: string, minLength: 1, maxLength: 100 }
+        candidate_prompt_template_version: { type: string, minLength: 1, maxLength: 100 }
+        candidate_config: { type: [object, "null"] }
+        idempotency_key: { type: [string, "null"], maxLength: 128 }
+    BenchmarkRegressionRunList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BenchmarkRegressionRun" }
+    BenchmarkRegressionCaseResult:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          regression_run_id,
+          benchmark_case_id,
+          missing_output,
+          actual_marks,
+          actual_error_codes,
+          score_abs_error,
+          exact_score_match,
+          taxonomy_match,
+          safety_invariant_failed,
+          diff,
+          ai_execution_record_id,
+          created_at,
+          updated_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        regression_run_id: { type: string, format: uuid }
+        benchmark_case_id: { type: string, format: uuid }
+        missing_output: { type: boolean }
+        actual_marks: { type: [number, "null"] }
+        actual_error_codes:
+          type: array
+          items: { type: string }
+        score_abs_error: { type: [number, "null"] }
+        exact_score_match: { type: boolean }
+        taxonomy_match: { type: [boolean, "null"] }
+        safety_invariant_failed: { type: boolean }
+        diff: { type: object }
+        ai_execution_record_id: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    BenchmarkRegressionCaseResultList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BenchmarkRegressionCaseResult" }
+    BenchmarkGateVerdict:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          verdict,
+          passed,
+          run_id,
+          candidate_provider,
+          candidate_model,
+          candidate_model_version,
+          candidate_prompt_template_version,
+          metrics,
+          threshold_snapshot,
+        ]
+      properties:
+        verdict: { type: string, enum: [PASS, FAIL, PENDING] }
+        passed: { type: boolean }
+        run_id: { type: string, format: uuid }
+        status: { type: string, enum: [QUEUED, RUNNING, PASSED, FAILED, ERROR] }
+        candidate_provider: { type: string }
+        candidate_model: { type: string }
+        candidate_model_version: { type: string }
+        candidate_prompt_template_version: { type: string }
+        metrics: { type: object }
+        threshold_snapshot: { $ref: "#/components/schemas/BenchmarkThresholdProfile" }
 

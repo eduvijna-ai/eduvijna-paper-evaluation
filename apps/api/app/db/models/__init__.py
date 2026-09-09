@@ -6,6 +6,13 @@ from app.db.models.ai_structure import (
 )
 from app.db.models.audit import AuditEvent
 from app.db.models.authoring import AssessmentArtifact, AuthoringAiRun
+from app.db.models.benchmark import (
+    BenchmarkCase,
+    BenchmarkDataset,
+    BenchmarkDatasetVersion,
+    BenchmarkRegressionCaseResult,
+    BenchmarkRegressionRun,
+)
 from app.db.models.curriculum_assessment import (
     AiExecutionRecord,
     AnswerKey,
@@ -79,6 +86,11 @@ __all__ = [
     "AssessmentVersion",
     "AuditEvent",
     "AuthoringAiRun",
+    "BenchmarkCase",
+    "BenchmarkDataset",
+    "BenchmarkDatasetVersion",
+    "BenchmarkRegressionCaseResult",
+    "BenchmarkRegressionRun",
     "ClassSection",
     "CriterionEvaluation",
     "Curriculum",

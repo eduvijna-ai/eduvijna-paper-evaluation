@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/benchmark-gate-verdict.schema.json",
+  "title": "BenchmarkGateVerdict",
+  "description": "B15 release-gate evaluation for a completed regression run.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "verdict",
+    "passed",
+    "run_id",
+    "candidate_provider",
+    "candidate_model",
+    "candidate_model_version",
+    "candidate_prompt_template_version",
+    "metrics",
+    "threshold_snapshot"
+  ],
+  "properties": {
+    "verdict": { "type": "string", "enum": ["PASS", "FAIL", "PENDING"] },
+    "passed": { "type": "boolean" },
+    "run_id": { "type": "string", "format": "uuid" },
+    "status": {
+      "type": "string",
+      "enum": ["QUEUED", "RUNNING", "PASSED", "FAILED", "ERROR"]
+    },
+    "candidate_provider": { "type": "string" },
+    "candidate_model": { "type": "string" },
+    "candidate_model_version": { "type": "string" },
+    "candidate_prompt_template_version": { "type": "string" },
+    "metrics": { "type": "object" },
+    "threshold_snapshot": { "$ref": "benchmark-threshold-profile.schema.json" }
+  }
+}
