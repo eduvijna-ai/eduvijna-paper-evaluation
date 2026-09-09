@@ -8,7 +8,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import nulls_last, select
+from sqlalchemy import delete, nulls_last, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -164,6 +164,20 @@ async def materialize_b12_for_student(
         )
         await db.execute(stmt)
         mastery_state_count += 1
+
+    # Drop stale current-state rows no longer backed by PUBLISHED evidence.
+    # Historical snapshots/evidence remain for audit; only current MasteryState
+    # is pruned so superseded-only nodes do not remain visible.
+    stale_filter = [
+        MasteryState.tenant_id == tenant_id,
+        MasteryState.student_id == student_id,
+        MasteryState.algorithm_version == ALGORITHM_VERSION_B12_V1,
+    ]
+    if current_states:
+        stale_filter.append(
+            MasteryState.curriculum_node_id.notin_(list(current_states.keys()))
+        )
+    await db.execute(delete(MasteryState).where(*stale_filter))
 
     # --- Historical snapshots per published result (cumulative) ---
     pr_ids = {e.published_result_id for e in evidence}
@@ -494,10 +508,19 @@ async def get_student_mastery_trend(
     if student is None:
         raise B12Error("NOT_FOUND", "Student not found")
 
-    q = select(MasteryStateSnapshot).where(
-        MasteryStateSnapshot.tenant_id == tenant_id,
-        MasteryStateSnapshot.student_id == student_id,
-        MasteryStateSnapshot.algorithm_version == ALGORITHM_VERSION_B12_V1,
+    q = (
+        select(MasteryStateSnapshot)
+        .join(
+            PublishedResult,
+            PublishedResult.id == MasteryStateSnapshot.published_result_id,
+        )
+        .where(
+            MasteryStateSnapshot.tenant_id == tenant_id,
+            MasteryStateSnapshot.student_id == student_id,
+            MasteryStateSnapshot.algorithm_version == ALGORITHM_VERSION_B12_V1,
+            PublishedResult.tenant_id == tenant_id,
+            PublishedResult.status == "PUBLISHED",
+        )
     )
     if curriculum_node_id is not None:
         q = q.where(MasteryStateSnapshot.curriculum_node_id == curriculum_node_id)
@@ -848,10 +871,16 @@ async def get_student_mistake_notebook(
         (
             await db.scalars(
                 select(MistakeNotebookEntry)
+                .join(
+                    PublishedResult,
+                    PublishedResult.id == MistakeNotebookEntry.published_result_id,
+                )
                 .where(
                     MistakeNotebookEntry.tenant_id == tenant_id,
                     MistakeNotebookEntry.student_id == student_id,
                     MistakeNotebookEntry.algorithm_version == ALGORITHM_VERSION_B12_V1,
+                    PublishedResult.tenant_id == tenant_id,
+                    PublishedResult.status == "PUBLISHED",
                 )
                 .order_by(
                     MistakeNotebookEntry.effective_at.desc(),

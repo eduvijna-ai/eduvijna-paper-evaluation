@@ -55,3 +55,45 @@ Release state remains **FUTURE_ENTERPRISE** (unchanged).
 ## Deferred (not in APP-008)
 
 PEV-048, PEV-049, PEV-050, PEV-051, PEV-054, PEV-055, PEV-056, PEV-057.
+
+---
+
+## B16.1 remediation (APP-008 / Issue #62)
+
+**Branch:** `b16/fix-enterprise-governance-invariants`  
+**Baseline `develop` SHA:** `dbfc6bc7084ae12cfcdebe302ada89efe78c0fae` (B16 squash)  
+**`main` SHA (unchanged):** `50fc217ab54ea7c526994b98266a1914accc8d34`  
+**Migration head:** unchanged `20260909_0017_b16_enterprise_grading_moderation_grievance`  
+**Final feature SHA / CI / squash:** recorded at merge time
+
+### Independent-audit findings addressed
+
+1. **Ownership gap:** B16 work-item APIs enforced assignment, but authoritative B6 ledger mutations (`accept` / `override` / `feedback` / `escalate`) authorized primarily via `evaluation:review`, allowing cross-assignment bypass.
+2. **Superseded B12 projections:** Historical `MasteryStateSnapshot` / `MistakeNotebookEntry` rows for SUPERSEDED V1 could still appear on current read APIs; current `MasteryState` did not prune stale nodes.
+3. **Real E2E smoke:** Prior real suite only checked operations endpoint/page reachability, not the B16 lifecycle.
+
+### Ownership remediation (Blocker A)
+
+* Shared policy: `apps/api/app/services/grading_access.py`
+* Enforced inside `evaluation` service mutation boundary for all four review actions
+* Governing work-item statuses: `QUEUED`, `IN_PROGRESS`, `SUBMITTED`, `RETURNED` (not `COMPLETED`)
+* Governance override: roles `{INSTITUTION_ADMIN, EXAM_CONTROLLER, HOD, ACADEMIC_COORDINATOR}` **and** permission `grading:manage` (not `evaluation:review` alone; not EVALUATOR/TEACHER)
+* Stable error: `GRADING_ASSIGNMENT_FORBIDDEN` (HTTP 403); foreign tenant → `NOT_FOUND`
+* Legacy path unchanged when no governing work item exists
+
+### Superseded projection remediation (Blocker B)
+
+* Current mastery-trend and mistake-notebook reads join `PublishedResult` and require `status == PUBLISHED`
+* Materialize deletes stale current `MasteryState` rows no longer backed by PUBLISHED evidence
+* Historical ledger/evidence/snapshot/notebook rows retained for audit
+* Regression: `test_b16_1_grievance_v1_v2_no_double_count_b12`; B15 locked-case compatibility: `test_b16_1_b15_locked_case_survives_supersession`
+
+### Real lifecycle E2E (Blocker C)
+
+* Replaced `zz-b13b-operations.spec.ts` with `zz-b16-enterprise-ops.spec.ts`
+* Exercises: horizontal pool → ownership 403 → evaluator submit → moderation RETURN/APPROVE → V1 publish → grievance RE_EVALUATION → V2 publish / V1 SUPERSEDED → analytics/B12 single-attempt assertions
+* Demo seed users (CI/local only): evaluator-a/b, moderator, hod
+
+### Classification
+
+PEV-044 / PEV-045 / PEV-046 remain **FUTURE_ENTERPRISE**. No PEV-048+. No `main` promotion.
