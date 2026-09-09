@@ -36,7 +36,7 @@ class PublishedResult(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="uq_published_results_tenant_submission_version",
         ),
         CheckConstraint(
-            "status IN ('READY','GENERATING','GENERATED','PUBLISHED','FAILED')",
+            "status IN ('READY','GENERATING','GENERATED','PUBLISHED','FAILED','SUPERSEDED')",
             name="ck_published_results_status",
         ),
         Index("ix_published_results_tenant_submission", "tenant_id", "submission_id"),

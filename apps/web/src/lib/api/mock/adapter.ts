@@ -72,6 +72,23 @@ import {
   getBenchmarkRegressionRun,
   listBenchmarkRegressionCaseResults,
   getBenchmarkGateVerdict,
+  listGradingPools,
+  getGradingPool,
+  createGradingPool,
+  activateGradingPool,
+  closeGradingPool,
+  getGradingPoolProgress,
+  myGradingQueue,
+  startGradingWorkItem,
+  submitGradingWorkItem,
+  listModerationCases,
+  getModerationCase,
+  decideModerationCase,
+  listGrievances,
+  getGrievance,
+  createGrievance,
+  acceptGrievance,
+  rejectGrievance,
   MockNotFoundError,
   rubrics,
   students,
@@ -688,6 +705,57 @@ export const MockEduVijnaApi: ApiClient = {
   },
   async getBenchmarkGateVerdict(runId) {
     return mockCall(() => getBenchmarkGateVerdict(runId));
+  },
+  async listGradingPools() {
+    return mockCall(() => listGradingPools());
+  },
+  async getGradingPool(poolId) {
+    return mockCall(() => getGradingPool(poolId));
+  },
+  async createGradingPool(input) {
+    return mockCall(() => createGradingPool(input));
+  },
+  async activateGradingPool(poolId) {
+    return mockCall(() => activateGradingPool(poolId));
+  },
+  async closeGradingPool(poolId) {
+    return mockCall(() => closeGradingPool(poolId));
+  },
+  async getGradingPoolProgress(poolId) {
+    return mockCall(() => getGradingPoolProgress(poolId));
+  },
+  async myGradingQueue() {
+    return mockCall(() => myGradingQueue());
+  },
+  async startGradingWorkItem(workItemId) {
+    return mockCall(() => startGradingWorkItem(workItemId));
+  },
+  async submitGradingWorkItem(workItemId) {
+    return mockCall(() => submitGradingWorkItem(workItemId));
+  },
+  async listModerationCases() {
+    return mockCall(() => listModerationCases());
+  },
+  async getModerationCase(caseId) {
+    return mockCall(() => getModerationCase(caseId));
+  },
+  async decideModerationCase(caseId, input) {
+    return mockCall(() => decideModerationCase(caseId, input));
+  },
+  async listGrievances() {
+    return mockCall(() => listGrievances());
+  },
+  async getGrievance(id) {
+    return mockCall(() => getGrievance(id));
+  },
+  async createGrievance(input) {
+    return mockCall(() => createGrievance(input));
+  },
+  async acceptGrievance(id, decision_reason) {
+    return mockCall(() => acceptGrievance(id, decision_reason));
+  },
+  async rejectGrievance(id, decision_reason) {
+    return mockCall(() => rejectGrievance(id, decision_reason));
   },
 };
 

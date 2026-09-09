@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/grievance-case.schema.json",
+  "title": "GrievanceCase",
+  "description": "B16 formal grievance / re-evaluation case (PEV-046).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "submission_id",
+    "original_published_result_id",
+    "original_evaluation_run_id",
+    "requester_reference",
+    "submitted_by",
+    "reason",
+    "status",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "tenant_id": { "type": "string", "format": "uuid" },
+    "submission_id": { "type": "string", "format": "uuid" },
+    "original_published_result_id": { "type": "string", "format": "uuid" },
+    "original_evaluation_run_id": { "type": "string", "format": "uuid" },
+    "requester_reference": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "submitted_by": { "type": "string", "format": "uuid" },
+    "reason": { "type": "string", "minLength": 1 },
+    "status": {
+      "type": "string",
+      "enum": [
+        "SUBMITTED",
+        "UNDER_REVIEW",
+        "ACCEPTED",
+        "REJECTED",
+        "RE_EVALUATING",
+        "RESOLVED",
+        "CLOSED"
+      ]
+    },
+    "decision_by": { "type": ["string", "null"], "format": "uuid" },
+    "decision_at": { "type": ["string", "null"], "format": "date-time" },
+    "decision_reason": { "type": ["string", "null"] },
+    "reevaluation_run_id": { "type": ["string", "null"], "format": "uuid" },
+    "revised_published_result_id": { "type": ["string", "null"], "format": "uuid" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}

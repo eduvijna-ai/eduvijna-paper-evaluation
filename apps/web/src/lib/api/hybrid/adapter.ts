@@ -13,6 +13,7 @@ import { LearningHttpApi } from "../http/learning";
 import { ResourcesHttpApi } from "../http/resources";
 import { ReassessmentHttpApi } from "../http/reassessment";
 import { BenchmarkHttpApi } from "../http/benchmark";
+import { OperationsHttpApi } from "../http/operations";
 import { ApiError } from "../http/errors";
 import { httpRequest } from "../http/client";
 import { getApiCapabilities } from "../capabilities";
@@ -1022,5 +1023,108 @@ export const HybridEduVijnaApi: ApiClient = {
       );
     }
     return MockEduVijnaApi.getBenchmarkGateVerdict!(runId);
+  },
+
+  listGradingPools: async () => {
+    if (getApiCapabilities().operations === "live") {
+      return OperationsHttpApi.listGradingPools();
+    }
+    return MockEduVijnaApi.listGradingPools!();
+  },
+  getGradingPool: async (poolId) => {
+    if (getApiCapabilities().operations === "live") {
+      return OperationsHttpApi.getGradingPool(poolId);
+    }
+    return MockEduVijnaApi.getGradingPool!(poolId);
+  },
+  createGradingPool: async (input) => {
+    if (getApiCapabilities().operations === "live") {
+      return OperationsHttpApi.createGradingPool(input);
+    }
+    return MockEduVijnaApi.createGradingPool!(input);
+  },
+  activateGradingPool: async (poolId) => {
+    if (getApiCapabilities().operations === "live") {
+      return OperationsHttpApi.activateGradingPool(poolId);
+    }
+    return MockEduVijnaApi.activateGradingPool!(poolId);
+  },
+  closeGradingPool: async (poolId) => {
+    if (getApiCapabilities().operations === "live") {
+      return OperationsHttpApi.closeGradingPool(poolId);
+    }
+    return MockEduVijnaApi.closeGradingPool!(poolId);
+  },
+  getGradingPoolProgress: async (poolId) => {
+    if (getApiCapabilities().operations === "live") {
+      return OperationsHttpApi.getGradingPoolProgress(poolId);
+    }
+    return MockEduVijnaApi.getGradingPoolProgress!(poolId);
+  },
+  myGradingQueue: async () => {
+    if (getApiCapabilities().operations === "live") {
+      return OperationsHttpApi.myGradingQueue();
+    }
+    return MockEduVijnaApi.myGradingQueue!();
+  },
+  startGradingWorkItem: async (workItemId) => {
+    if (getApiCapabilities().operations === "live") {
+      return OperationsHttpApi.startGradingWorkItem(workItemId);
+    }
+    return MockEduVijnaApi.startGradingWorkItem!(workItemId);
+  },
+  submitGradingWorkItem: async (workItemId) => {
+    if (getApiCapabilities().operations === "live") {
+      return OperationsHttpApi.submitGradingWorkItem(workItemId);
+    }
+    return MockEduVijnaApi.submitGradingWorkItem!(workItemId);
+  },
+  listModerationCases: async () => {
+    if (getApiCapabilities().operations === "live") {
+      return OperationsHttpApi.listModerationCases();
+    }
+    return MockEduVijnaApi.listModerationCases!();
+  },
+  getModerationCase: async (caseId) => {
+    if (getApiCapabilities().operations === "live") {
+      return OperationsHttpApi.getModerationCase(caseId);
+    }
+    return MockEduVijnaApi.getModerationCase!(caseId);
+  },
+  decideModerationCase: async (caseId, input) => {
+    if (getApiCapabilities().operations === "live") {
+      return OperationsHttpApi.decideModerationCase(caseId, input);
+    }
+    return MockEduVijnaApi.decideModerationCase!(caseId, input);
+  },
+  listGrievances: async () => {
+    if (getApiCapabilities().operations === "live") {
+      return OperationsHttpApi.listGrievances();
+    }
+    return MockEduVijnaApi.listGrievances!();
+  },
+  getGrievance: async (id) => {
+    if (getApiCapabilities().operations === "live") {
+      return OperationsHttpApi.getGrievance(id);
+    }
+    return MockEduVijnaApi.getGrievance!(id);
+  },
+  createGrievance: async (input) => {
+    if (getApiCapabilities().operations === "live") {
+      return OperationsHttpApi.createGrievance(input);
+    }
+    return MockEduVijnaApi.createGrievance!(input);
+  },
+  acceptGrievance: async (id, decision_reason) => {
+    if (getApiCapabilities().operations === "live") {
+      return OperationsHttpApi.acceptGrievance(id, decision_reason);
+    }
+    return MockEduVijnaApi.acceptGrievance!(id, decision_reason);
+  },
+  rejectGrievance: async (id, decision_reason) => {
+    if (getApiCapabilities().operations === "live") {
+      return OperationsHttpApi.rejectGrievance(id, decision_reason);
+    }
+    return MockEduVijnaApi.rejectGrievance!(id, decision_reason);
   },
 };

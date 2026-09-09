@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/moderation-case.schema.json",
+  "title": "ModerationCase",
+  "description": "B16 moderation case with immutable actions (PEV-045).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "policy_id",
+    "submission_id",
+    "evaluation_run_id",
+    "current_stage_order",
+    "status",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "tenant_id": { "type": "string", "format": "uuid" },
+    "policy_id": { "type": "string", "format": "uuid" },
+    "submission_id": { "type": "string", "format": "uuid" },
+    "evaluation_run_id": { "type": "string", "format": "uuid" },
+    "current_stage_order": { "type": "integer", "minimum": 1 },
+    "status": {
+      "type": "string",
+      "enum": ["PENDING", "IN_PROGRESS", "APPROVED", "RETURNED", "REJECTED"]
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "stages": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["stage_order", "required_role", "label"],
+        "properties": {
+          "stage_order": { "type": "integer", "minimum": 1 },
+          "required_role": { "type": "string" },
+          "label": { "type": "string" }
+        }
+      }
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "stage_order", "actor_user_id", "decision", "created_at"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "stage_order": { "type": "integer", "minimum": 1 },
+          "actor_user_id": { "type": "string", "format": "uuid" },
+          "decision": { "type": "string", "enum": ["APPROVE", "RETURN", "REJECT"] },
+          "reason": { "type": ["string", "null"] },
+          "created_at": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  }
+}

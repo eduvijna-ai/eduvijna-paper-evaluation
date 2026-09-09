@@ -45,6 +45,10 @@ from app.db.models import (
     Submission,
 )
 from app.services.audit import add_audit_event
+from app.services.grading_access import (
+    GradingAccessError,
+    assert_question_evaluation_review_allowed,
+)
 from app.services.math_verification import verify_math
 
 RULES_ENGINE_VERSION = "b6.0.0"
@@ -1247,15 +1251,47 @@ async def get_question_evaluation(
     return _dump_question_evaluation(qe, criteria)
 
 
+async def _enforce_grading_ownership(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    user_id: uuid.UUID,
+    qe: QuestionEvaluation,
+    actor_roles: frozenset[str] | None,
+    actor_permissions: frozenset[str] | None,
+) -> None:
+    try:
+        await assert_question_evaluation_review_allowed(
+            db,
+            tenant_id=tenant_id,
+            question_evaluation_id=qe.id,
+            actor_user_id=user_id,
+            actor_roles=actor_roles or frozenset(),
+            actor_permissions=actor_permissions or frozenset(),
+        )
+    except GradingAccessError as exc:
+        raise EvaluationError(exc.code, exc.message) from exc
+
+
 async def accept_question_evaluation(
     db: AsyncSession,
     *,
     tenant_id: uuid.UUID,
     user_id: uuid.UUID,
     qe: QuestionEvaluation,
+    actor_roles: frozenset[str] | None = None,
+    actor_permissions: frozenset[str] | None = None,
 ) -> QuestionEvaluation:
     if qe.tenant_id != tenant_id:
         raise EvaluationError("NOT_FOUND", "Question evaluation not found")
+    await _enforce_grading_ownership(
+        db,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        qe=qe,
+        actor_roles=actor_roles,
+        actor_permissions=actor_permissions,
+    )
     if qe.proposed_ai_score is None:
         raise EvaluationError(
             "NO_PROPOSAL",
@@ -1318,9 +1354,19 @@ async def override_question_evaluation(
     feedback: str | None = None,
     criterion_finals: list[dict[str, Any]] | None = None,
     valid_alternative: bool = False,
+    actor_roles: frozenset[str] | None = None,
+    actor_permissions: frozenset[str] | None = None,
 ) -> QuestionEvaluation:
     if qe.tenant_id != tenant_id:
         raise EvaluationError("NOT_FOUND", "Question evaluation not found")
+    await _enforce_grading_ownership(
+        db,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        qe=qe,
+        actor_roles=actor_roles,
+        actor_permissions=actor_permissions,
+    )
     if not reason or not reason.strip():
         raise EvaluationError("REASON_REQUIRED", "Override reason is required")
     if score < 0 or score > qe.max_mark:
@@ -1418,9 +1464,19 @@ async def feedback_question_evaluation(
     user_id: uuid.UUID,
     qe: QuestionEvaluation,
     feedback: str,
+    actor_roles: frozenset[str] | None = None,
+    actor_permissions: frozenset[str] | None = None,
 ) -> QuestionEvaluation:
     if qe.tenant_id != tenant_id:
         raise EvaluationError("NOT_FOUND", "Question evaluation not found")
+    await _enforce_grading_ownership(
+        db,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        qe=qe,
+        actor_roles=actor_roles,
+        actor_permissions=actor_permissions,
+    )
     if not feedback or not feedback.strip():
         raise EvaluationError("FEEDBACK_REQUIRED", "Feedback text is required")
 
@@ -1453,9 +1509,19 @@ async def escalate_question_evaluation(
     user_id: uuid.UUID,
     qe: QuestionEvaluation,
     reason: str,
+    actor_roles: frozenset[str] | None = None,
+    actor_permissions: frozenset[str] | None = None,
 ) -> QuestionEvaluation:
     if qe.tenant_id != tenant_id:
         raise EvaluationError("NOT_FOUND", "Question evaluation not found")
+    await _enforce_grading_ownership(
+        db,
+        tenant_id=tenant_id,
+        user_id=user_id,
+        qe=qe,
+        actor_roles=actor_roles,
+        actor_permissions=actor_permissions,
+    )
     if not reason or not reason.strip():
         raise EvaluationError("REASON_REQUIRED", "Escalation reason is required")
 
@@ -1542,6 +1608,43 @@ async def finalize_evaluation(
                 "REVIEW_INCOMPLETE",
                 f"Question {leaf.display_label} is not ACCEPTED or OVERRIDDEN",
             )
+
+    from app.services.enterprise_ops import (
+        active_moderation_policy,
+        ensure_moderation_case_for_run,
+    )
+
+    policy = await active_moderation_policy(
+        db,
+        tenant_id=tenant_id,
+        assessment_version_id=submission.assessment_version_id,
+    )
+    if policy is not None:
+        submission.workflow_state = "MODERATION_REVIEW"
+        run.status = "REVIEW_REQUIRED"
+        await ensure_moderation_case_for_run(
+            db,
+            tenant_id=tenant_id,
+            policy=policy,
+            submission=submission,
+            run=run,
+            actor_user_id=actor_user_id,
+        )
+        await add_audit_event(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=actor_user_id,
+            entity_type="Submission",
+            entity_id=submission.id,
+            action="evaluation_sent_to_moderation",
+            after={
+                "workflow_state": "MODERATION_REVIEW",
+                "evaluation_run_id": str(run.id),
+                "moderation_policy_id": str(policy.id),
+            },
+        )
+        await db.flush()
+        return submission
 
     submission.workflow_state = "APPROVED"
     run.status = "COMPLETED"

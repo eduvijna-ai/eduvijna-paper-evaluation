@@ -29,6 +29,16 @@ from app.db.models.curriculum_assessment import (
     RubricCriterion,
     RubricVersion,
 )
+from app.db.models.enterprise_ops import (
+    GradingPool,
+    GradingPoolMember,
+    GradingWorkItem,
+    GrievanceCase,
+    ModerationAction,
+    ModerationCase,
+    ModerationPolicy,
+    ModerationStage,
+)
 from app.db.models.evaluation import (
     CriterionEvaluation,
     EvaluationRun,
@@ -99,6 +109,10 @@ __all__ = [
     "CurriculumResource",
     "CurriculumResourceNode",
     "EvaluationRun",
+    "GradingPool",
+    "GradingPoolMember",
+    "GradingWorkItem",
+    "GrievanceCase",
     "Guardian",
     "ImprovementAssessment",
     "ImprovementAssessmentItem",
@@ -113,6 +127,10 @@ __all__ = [
     "MasteryState",
     "MasteryStateSnapshot",
     "MistakeNotebookEntry",
+    "ModerationAction",
+    "ModerationCase",
+    "ModerationPolicy",
+    "ModerationStage",
     "Permission",
     "PipelineJob",
     "PublishedResult",

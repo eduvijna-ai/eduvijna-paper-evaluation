@@ -24,6 +24,8 @@ export interface ApiCapabilities {
   learning: DomainCapability;
   /** B15 gold benchmark + AI regression quality workspace. */
   quality: DomainCapability;
+  /** B16 enterprise grading / moderation / grievance operations. */
+  operations: DomainCapability;
   /** Developer-facing transport badge only */
   showTransportBadge: boolean;
 }
@@ -48,6 +50,7 @@ export function getApiCapabilities(): ApiCapabilities {
       analytics: "live",
       learning: "live",
       quality: "live",
+      operations: "live",
       showTransportBadge: true,
     };
   }
@@ -68,6 +71,7 @@ export function getApiCapabilities(): ApiCapabilities {
     analytics: "mock",
     learning: "mock",
     quality: "mock",
+    operations: "mock",
     showTransportBadge: true,
   };
 }
