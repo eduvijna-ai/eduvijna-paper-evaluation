@@ -13,6 +13,7 @@ import asyncio
 import json
 import sys
 import uuid
+from typing import Any
 
 from sqlalchemy import select
 
@@ -48,7 +49,7 @@ async def _resolve_tenant_id(
         return run.tenant_id
 
 
-async def _run(run_id: uuid.UUID, tenant_id: uuid.UUID | None) -> dict:
+async def _run(run_id: uuid.UUID, tenant_id: uuid.UUID | None) -> dict[str, Any]:
     resolved_tenant = await _resolve_tenant_id(run_id=run_id, tenant_id=tenant_id)
     async with async_session_factory() as db:
         try:
