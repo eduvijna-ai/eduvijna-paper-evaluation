@@ -234,4 +234,4 @@ learning = live
 | GitHub Actions (six jobs) | `_TBD_` |
 | Squash-merge to develop | `_TBD_` |
 | `main` unchanged | required `be5f10aef3cf536420adcffdb9302b6b3b6c0955` |
-| Issue #1 | remains OPEN |
+| Issue #1 | CLOSED (CVB v0.1 release confirmed 2026-09-07; historical B9 text previously said OPEN) |

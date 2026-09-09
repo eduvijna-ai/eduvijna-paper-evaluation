@@ -6,20 +6,21 @@
 **Starting `main` SHA:** `30c96af951ce418eb446beb7c35b679e3697b047`  
 **Approval:** APP-006 / Issue #53  
 **Migration:** `database/migrations/versions/20260909_0016_b15_gold_benchmark_ai_regression.py`  
-**Final feature SHA:** `_TBD_`  
-**CI run ID:** `_TBD_`  
-**Squash SHA:** `_TBD_`  
-**Final develop:** `_TBD_`  
-**Final main:** `30c96af951ce418eb446beb7c35b679e3697b047` (must remain unchanged)
+**Final feature SHA:** `a019f41890a6338836f4797d3c1eeb4bf8bbe66b`  
+**CI run ID:** `34324303479`  
+**Squash SHA:** `5658e16527ff99dee23182729d6b2134e06200ed`  
+**Final develop (B15):** `5658e16527ff99dee23182729d6b2134e06200ed`  
+**B15.1 follow-up:** PR #56 feature `9f2a3537adce9c258a71fa864db5b2acbf495c45` / CI `34331383763` / squash `a3905bdce04a684af4cf2b1617a183540ed0a264`  
+**Final main:** `30c96af951ce418eb446beb7c35b679e3697b047` (unchanged at B15/B15.1 merge)
 
 ```text
 CI: Infrastructure / Contracts / Backend / Frontend /
-Frontend E2E / Frontend E2E Real = _TBD_
+Frontend E2E / Frontend E2E Real = SUCCESS (run 34324303479; B15.1 run 34331383763)
 
-Feature branch: _TBD_
-Post-merge develop commit: _TBD_
+Feature branch: deleted after squash-merge of PR #54 (B15.1 branch deleted after PR #56)
+Post-merge develop commit: none
 Do not push a post-merge docs commit to develop.
-No main change.
+No main change at B15 merge time.
 ```
 
 ## Scope (implemented)
@@ -121,20 +122,23 @@ Provider abstraction only; mandatory CI never requires live third-party AI crede
 
 | Check | Status |
 |-------|--------|
-| Backend pytest | `_TBD_` |
-| Frontend Vitest | `_TBD_` |
-| Mock Playwright | `_TBD_` |
-| Real Playwright (incl. B15) | `_TBD_` |
-| Contracts validate | `_TBD_` |
-| Ruff / mypy --strict | `_TBD_` |
-| docker compose config | `_TBD_` |
-| GitHub Actions (six jobs) | `_TBD_` |
-| Squash-merge to develop | `_TBD_` |
-| `main` unchanged | required `30c96af951ce418eb446beb7c35b679e3697b047` |
-| Issue #53 | `_TBD_` |
+| Backend pytest | 218 passed (CI run 34324303479); 224 after B15.1 (34331383763) |
+| Frontend Vitest | 205 passed |
+| Mock Playwright | 20 passed |
+| Real Playwright (incl. B15) | 15 passed |
+| Contracts validate | SUCCESS |
+| Ruff / mypy --strict | SUCCESS |
+| docker compose config | SUCCESS |
+| GitHub Actions (six jobs) | SUCCESS — runs `34324303479` / `34331383763` |
+| Squash-merge to develop | `5658e16527ff99dee23182729d6b2134e06200ed` (PR #54); B15.1 `a3905bdce04a684af4cf2b1617a183540ed0a264` (PR #56) |
+| `main` unchanged | `30c96af951ce418eb446beb7c35b679e3697b047` |
+| Issue #53 | CLOSED |
+| Issue #55 (B15.1) | CLOSED |
+| Issue #1 | CLOSED (CVB v0.1 release; closed 2026-09-07) |
 
 ## Document control
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2 | 2026-09-09 | Fill merge-time evidence from GitHub (PR #54/#56) for Post-CVB Phase 1 release reconciliation |
 | 0.1 | 2026-09-09 | Initial B15 engineering report from implementation on feature branch |
