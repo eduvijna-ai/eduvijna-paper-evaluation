@@ -1217,9 +1217,10 @@ test.describe("B16.1 enterprise grading / moderation / grievance (real API)", ()
       { headers: admin.headers },
     );
     expect(trend.ok()).toBeTruthy();
-    const trendPoints = ((await trend.json()) as {
-      points: Array<{ published_result_id: string }>;
-    }).points;
+    const trendBody = (await trend.json()) as {
+      points?: Array<{ published_result_id: string }>;
+    };
+    const trendPoints = trendBody.points ?? [];
     const trendIds = new Set(trendPoints.map((p) => p.published_result_id));
 
     const notebook = await request.get(
@@ -1227,9 +1228,11 @@ test.describe("B16.1 enterprise grading / moderation / grievance (real API)", ()
       { headers: admin.headers },
     );
     expect(notebook.ok()).toBeTruthy();
-    const notebookItems = ((await notebook.json()) as {
-      items: Array<{ published_result_id: string }>;
-    }).items;
+    const notebookBody = (await notebook.json()) as {
+      entries?: Array<{ published_result_id: string }>;
+      items?: Array<{ published_result_id: string }>;
+    };
+    const notebookItems = notebookBody.entries ?? notebookBody.items ?? [];
 
     // At least one current B12 projection must exclude superseded V1.
     const trendExcludesV1 = !trendIds.has(v1Prid);
@@ -1237,5 +1240,7 @@ test.describe("B16.1 enterprise grading / moderation / grievance (real API)", ()
       (i) => i.published_result_id === v1Prid,
     );
     expect(trendExcludesV1 || notebookExcludesV1).toBeTruthy();
-  });
-});
+    if (trendPoints.length > 0) {
+      expect(trendIds.has(v2Prid)).toBeTruthy();
+      expect(trendExcludesV1).toBeTruthy();
+    }
