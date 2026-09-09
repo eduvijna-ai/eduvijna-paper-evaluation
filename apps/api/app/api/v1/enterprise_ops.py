@@ -42,6 +42,7 @@ from app.services.enterprise_ops import (
     pool_progress,
     reject_grievance,
     resolve_grievance,
+    retire_moderation_policy,
     start_work_item,
     submit_work_item,
 )
@@ -373,6 +374,23 @@ async def api_activate_policy(
 ) -> dict[str, Any]:
     try:
         return await activate_moderation_policy(
+            db,
+            tenant_id=auth.tenant_id,
+            policy_id=policy_id,
+            actor_user_id=auth.user_id,
+        )
+    except EnterpriseOpsError as exc:
+        raise _map_error(exc) from exc
+
+
+@router.post("/operations/moderation-policies/{policy_id}/retire")
+async def api_retire_policy(
+    policy_id: uuid.UUID,
+    db: Db,
+    auth: AuthContext = Depends(require_permissions("moderation:manage")),
+) -> dict[str, Any]:
+    try:
+        return await retire_moderation_policy(
             db,
             tenant_id=auth.tenant_id,
             policy_id=policy_id,

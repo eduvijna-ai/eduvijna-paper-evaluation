@@ -803,6 +803,33 @@ async def activate_moderation_policy(
     return _serialize_policy(policy)
 
 
+async def retire_moderation_policy(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    policy_id: uuid.UUID,
+    actor_user_id: uuid.UUID,
+) -> dict[str, Any]:
+    policy = await _get_policy(db, tenant_id=tenant_id, policy_id=policy_id)
+    if policy.status != "ACTIVE":
+        raise EnterpriseOpsError("INVALID_POLICY_STATE", "Only ACTIVE policies retire")
+    policy.status = "RETIRED"
+    policy.retired_by = actor_user_id
+    policy.retired_at = datetime.now(UTC)
+    await add_audit_event(
+        db,
+        tenant_id=tenant_id,
+        actor_user_id=actor_user_id,
+        entity_type="ModerationPolicy",
+        entity_id=policy.id,
+        action="moderation_policy_retired",
+        after=_serialize_policy(policy),
+    )
+    await db.flush()
+    await db.refresh(policy)
+    return _serialize_policy(policy)
+
+
 async def decide_moderation(
     db: AsyncSession,
     *,

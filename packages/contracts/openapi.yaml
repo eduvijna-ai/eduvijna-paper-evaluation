@@ -2294,6 +2294,22 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ModerationPolicy" }
+  /api/v1/operations/moderation-policies/{policy_id}/retire:
+    parameters:
+      - name: policy_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: retireModerationPolicy
+      tags: [enterprise-operations]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Policy retired
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ModerationPolicy" }
   /api/v1/operations/moderation-cases:
     get:
       operationId: listModerationCases

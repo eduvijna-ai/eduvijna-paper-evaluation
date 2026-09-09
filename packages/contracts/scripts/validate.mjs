@@ -84,6 +84,7 @@ const requiredPaths = [
   "/api/v1/operations/grading/work-items/{work_item_id}/submit",
   "/api/v1/operations/moderation-policies",
   "/api/v1/operations/moderation-policies/{policy_id}/activate",
+  "/api/v1/operations/moderation-policies/{policy_id}/retire",
   "/api/v1/operations/moderation-cases",
   "/api/v1/operations/moderation-cases/{case_id}",
   "/api/v1/operations/moderation-cases/{case_id}/decide",
