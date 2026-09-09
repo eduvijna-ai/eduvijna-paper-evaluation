@@ -50,13 +50,15 @@ async def api_client_publication(
 
     celery_app.conf.task_always_eager = True
     ObjectStorage(get_settings()).ensure_bucket()
-    async with AsyncClient(
-        transport=ASGITransport(app=create_app()), base_url="http://test"
-    ) as client:
-        yield client
-    os.environ["AI_PROVIDER_VISION"] = "none"
-    os.environ["AI_PROVIDER_TEXT"] = "none"
-    get_settings.cache_clear()
+    try:
+        async with AsyncClient(
+            transport=ASGITransport(app=create_app()), base_url="http://test"
+        ) as client:
+            yield client
+    finally:
+        os.environ["AI_PROVIDER_VISION"] = "none"
+        os.environ["AI_PROVIDER_TEXT"] = "none"
+        get_settings.cache_clear()
 
 
 async def _to_approved(

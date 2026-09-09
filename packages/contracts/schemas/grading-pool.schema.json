@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/grading-pool.schema.json",
+  "title": "GradingPool",
+  "description": "B16 horizontal grading pool (PEV-044).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "assessment_id",
+    "assessment_version_id",
+    "grading_mode",
+    "status",
+    "allocation_strategy",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "tenant_id": { "type": "string", "format": "uuid" },
+    "assessment_id": { "type": "string", "format": "uuid" },
+    "assessment_version_id": { "type": "string", "format": "uuid" },
+    "grading_mode": { "type": "string", "enum": ["HORIZONTAL_QUESTION"] },
+    "status": { "type": "string", "enum": ["DRAFT", "ACTIVE", "CLOSED"] },
+    "allocation_strategy": { "type": "string", "enum": ["MANUAL", "ROUND_ROBIN"] },
+    "created_by": { "type": ["string", "null"], "format": "uuid" },
+    "activated_by": { "type": ["string", "null"], "format": "uuid" },
+    "activated_at": { "type": ["string", "null"], "format": "date-time" },
+    "closed_by": { "type": ["string", "null"], "format": "uuid" },
+    "closed_at": { "type": ["string", "null"], "format": "date-time" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" },
+    "member_count": { "type": "integer", "minimum": 0 },
+    "members": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/member" }
+    }
+  },
+  "$defs": {
+    "member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "pool_id", "user_id", "is_active"],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "pool_id": { "type": "string", "format": "uuid" },
+        "user_id": { "type": "string", "format": "uuid" },
+        "is_active": { "type": "boolean" },
+        "capacity": { "type": ["integer", "null"], "minimum": 1 },
+        "created_at": { "type": "string", "format": "date-time" },
+        "updated_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

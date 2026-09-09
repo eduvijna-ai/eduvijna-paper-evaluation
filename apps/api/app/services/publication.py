@@ -362,6 +362,7 @@ async def prepare_publication(
         .where(
             PublishedResult.tenant_id == tenant_id,
             PublishedResult.submission_id == submission.id,
+            PublishedResult.evaluation_run_id == run.id,
             PublishedResult.ledger_snapshot_hash == snapshot_hash,
             PublishedResult.status.in_(["READY", "GENERATING", "GENERATED", "PUBLISHED"]),
         )
@@ -390,6 +391,17 @@ async def prepare_publication(
     )
     version_number = int(max_ver or 0) + 1
 
+    current_published = await db.scalar(
+        select(PublishedResult)
+        .where(
+            PublishedResult.tenant_id == tenant_id,
+            PublishedResult.submission_id == submission.id,
+            PublishedResult.status == "PUBLISHED",
+        )
+        .order_by(PublishedResult.version_number.desc())
+        .limit(1)
+    )
+
     result = PublishedResult(
         tenant_id=tenant_id,
         submission_id=submission.id,
@@ -403,6 +415,9 @@ async def prepare_publication(
         total_score=total,
         max_total_score=max_total,
         generated_by=actor_user_id,
+        supersedes_result_id=(
+            current_published.id if current_published is not None else None
+        ),
     )
     db.add(result)
     await db.flush()
@@ -1303,6 +1318,28 @@ async def publish_result(
             )
 
     now = datetime.now(UTC)
+    if published.supersedes_result_id is not None:
+        prior = await db.scalar(
+            select(PublishedResult).where(
+                PublishedResult.id == published.supersedes_result_id,
+                PublishedResult.tenant_id == tenant_id,
+            )
+        )
+        if prior is not None and prior.status == "PUBLISHED":
+            prior.status = "SUPERSEDED"
+            await add_audit_event(
+                db,
+                tenant_id=tenant_id,
+                actor_user_id=actor_user_id,
+                entity_type="PublishedResult",
+                entity_id=prior.id,
+                action="publication_superseded",
+                after={
+                    "status": "SUPERSEDED",
+                    "superseded_by": str(published.id),
+                },
+            )
+
     published.status = "PUBLISHED"
     published.published_by = actor_user_id
     published.published_at = now
@@ -1437,6 +1474,9 @@ def _dump_published(result: PublishedResult) -> dict[str, Any]:
         "evaluation_run_id": str(result.evaluation_run_id),
         "version_number": result.version_number,
         "status": result.status,
+        "supersedes_result_id": (
+            str(result.supersedes_result_id) if result.supersedes_result_id else None
+        ),
         "ledger_snapshot_hash": result.ledger_snapshot_hash,
         "total_score": _dec(result.total_score),
         "max_total_score": _dec(result.max_total_score),

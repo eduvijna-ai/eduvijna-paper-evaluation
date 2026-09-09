@@ -29,6 +29,7 @@ const submissionLabels: Record<SubmissionState, StatusVisual> = {
   READY_FOR_EVALUATION: { label: "Ready for evaluation", tone: "info" },
   EVALUATING: { label: "Evaluating", tone: "info" },
   EVALUATION_REVIEW: { label: "Evaluation review", tone: "warning" },
+  MODERATION_REVIEW: { label: "Moderation review", tone: "warning" },
   APPROVED: { label: "Approved", tone: "success" },
   PUBLISHED: { label: "Published", tone: "success" },
   FAILED: { label: "Failed", tone: "danger" },

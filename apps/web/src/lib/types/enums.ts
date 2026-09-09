@@ -18,6 +18,7 @@ export const SUBMISSION_STATES = [
   "READY_FOR_EVALUATION",
   "EVALUATING",
   "EVALUATION_REVIEW",
+  "MODERATION_REVIEW",
   "APPROVED",
   "PUBLISHED",
   "FAILED",
@@ -308,3 +309,48 @@ export type BenchmarkRunStatus = (typeof BENCHMARK_RUN_STATUSES)[number];
 /** B15 regression / release-gate verdict. */
 export const BENCHMARK_VERDICTS = ["PASS", "FAIL", "PENDING"] as const;
 export type BenchmarkVerdict = (typeof BENCHMARK_VERDICTS)[number];
+
+/** B16 publication effective-current vs historical superseded. */
+export const PUBLICATION_STATUSES = [
+  "READY",
+  "GENERATING",
+  "GENERATED",
+  "PUBLISHED",
+  "FAILED",
+  "SUPERSEDED",
+] as const;
+export type PublicationStatusEnum = (typeof PUBLICATION_STATUSES)[number];
+
+export const GRADING_POOL_STATUSES = ["DRAFT", "ACTIVE", "CLOSED"] as const;
+export type GradingPoolStatusEnum = (typeof GRADING_POOL_STATUSES)[number];
+
+export const GRADING_WORK_ITEM_STATUSES = [
+  "QUEUED",
+  "IN_PROGRESS",
+  "SUBMITTED",
+  "RETURNED",
+  "COMPLETED",
+] as const;
+export type GradingWorkItemStatusEnum =
+  (typeof GRADING_WORK_ITEM_STATUSES)[number];
+
+export const MODERATION_CASE_STATUSES = [
+  "PENDING",
+  "IN_PROGRESS",
+  "APPROVED",
+  "RETURNED",
+  "REJECTED",
+] as const;
+export type ModerationCaseStatusEnum =
+  (typeof MODERATION_CASE_STATUSES)[number];
+
+export const GRIEVANCE_STATUSES = [
+  "SUBMITTED",
+  "UNDER_REVIEW",
+  "ACCEPTED",
+  "REJECTED",
+  "RE_EVALUATING",
+  "RESOLVED",
+  "CLOSED",
+] as const;
+export type GrievanceStatusEnum = (typeof GRIEVANCE_STATUSES)[number];
