@@ -263,7 +263,7 @@ class EvaluationBenchmarkAdapter:
     ) -> BenchmarkCandidateOutput:
         del expected_final_marks, expected_max_marks, expected_error_codes
         request = replay_fixture_to_rubric_input(replay_fixture)
-        meta = metadata_from_provider(self._provider, "gold_benchmark_evaluate")
+        meta = metadata_from_provider(self._provider, "evaluate_rubric")
         try:
             result = await self._provider.evaluate_rubric(request)
         except ProviderUnavailable as exc:
