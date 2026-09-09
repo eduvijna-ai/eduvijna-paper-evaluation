@@ -257,7 +257,8 @@ def validate_benchmark_candidate_identity(
         )
         raise BenchmarkCandidateError(
             "BENCHMARK_CANDIDATE_IDENTITY_MISMATCH",
-            f"Requested benchmark candidate identity does not match executable metadata ({details})",
+            "Requested benchmark candidate identity does not match executable "
+            f"metadata ({details})",
         )
     return metadata
 
