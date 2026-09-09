@@ -1244,3 +1244,5 @@ test.describe("B16.1 enterprise grading / moderation / grievance (real API)", ()
       expect(trendIds.has(v2Prid)).toBeTruthy();
       expect(trendExcludesV1).toBeTruthy();
     }
+  });
+});
