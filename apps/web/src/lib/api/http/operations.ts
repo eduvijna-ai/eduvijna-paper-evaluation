@@ -1,5 +1,6 @@
 /** B16 enterprise operations HTTP adapter. */
 
+import type { GrievanceStatus } from "@/lib/types/domain";
 import { httpRequest } from "./client";
 
 export interface GradingPoolDto {
@@ -53,7 +54,7 @@ export interface GrievanceCaseDto {
   requester_reference: string;
   submitted_by: string;
   reason: string;
-  status: string;
+  status: GrievanceStatus;
   decision_reason: string | null;
   reevaluation_run_id: string | null;
   revised_published_result_id: string | null;
