@@ -13,6 +13,16 @@ from app.db.models.benchmark import (
     BenchmarkRegressionCaseResult,
     BenchmarkRegressionRun,
 )
+from app.db.models.enterprise_ops import (
+    GradingPool,
+    GradingPoolMember,
+    GradingWorkItem,
+    GrievanceCase,
+    ModerationAction,
+    ModerationCase,
+    ModerationPolicy,
+    ModerationStage,
+)
 from app.db.models.curriculum_assessment import (
     AiExecutionRecord,
     AnswerKey,
@@ -99,6 +109,10 @@ __all__ = [
     "CurriculumResource",
     "CurriculumResourceNode",
     "EvaluationRun",
+    "GradingPool",
+    "GradingPoolMember",
+    "GradingWorkItem",
+    "GrievanceCase",
     "Guardian",
     "ImprovementAssessment",
     "ImprovementAssessmentItem",
@@ -113,6 +127,10 @@ __all__ = [
     "MasteryState",
     "MasteryStateSnapshot",
     "MistakeNotebookEntry",
+    "ModerationAction",
+    "ModerationCase",
+    "ModerationPolicy",
+    "ModerationStage",
     "Permission",
     "PipelineJob",
     "PublishedResult",

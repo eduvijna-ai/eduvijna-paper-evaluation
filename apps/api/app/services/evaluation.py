@@ -1543,6 +1543,44 @@ async def finalize_evaluation(
                 f"Question {leaf.display_label} is not ACCEPTED or OVERRIDDEN",
             )
 
+    from app.db.models import ModerationPolicy
+    from app.services.enterprise_ops import (
+        active_moderation_policy,
+        ensure_moderation_case_for_run,
+    )
+
+    policy = await active_moderation_policy(
+        db,
+        tenant_id=tenant_id,
+        assessment_version_id=submission.assessment_version_id,
+    )
+    if policy is not None:
+        submission.workflow_state = "MODERATION_REVIEW"
+        run.status = "REVIEW_REQUIRED"
+        await ensure_moderation_case_for_run(
+            db,
+            tenant_id=tenant_id,
+            policy=policy,
+            submission=submission,
+            run=run,
+            actor_user_id=actor_user_id,
+        )
+        await add_audit_event(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=actor_user_id,
+            entity_type="Submission",
+            entity_id=submission.id,
+            action="evaluation_sent_to_moderation",
+            after={
+                "workflow_state": "MODERATION_REVIEW",
+                "evaluation_run_id": str(run.id),
+                "moderation_policy_id": str(policy.id),
+            },
+        )
+        await db.flush()
+        return submission
+
     submission.workflow_state = "APPROVED"
     run.status = "COMPLETED"
     run.finished_at = datetime.now(UTC)

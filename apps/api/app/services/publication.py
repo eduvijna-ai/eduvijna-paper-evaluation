@@ -1303,6 +1303,28 @@ async def publish_result(
             )
 
     now = datetime.now(UTC)
+    if published.supersedes_result_id is not None:
+        prior = await db.scalar(
+            select(PublishedResult).where(
+                PublishedResult.id == published.supersedes_result_id,
+                PublishedResult.tenant_id == tenant_id,
+            )
+        )
+        if prior is not None and prior.status == "PUBLISHED":
+            prior.status = "SUPERSEDED"
+            await add_audit_event(
+                db,
+                tenant_id=tenant_id,
+                actor_user_id=actor_user_id,
+                entity_type="PublishedResult",
+                entity_id=prior.id,
+                action="publication_superseded",
+                after={
+                    "status": "SUPERSEDED",
+                    "superseded_by": str(published.id),
+                },
+            )
+
     published.status = "PUBLISHED"
     published.published_by = actor_user_id
     published.published_at = now
