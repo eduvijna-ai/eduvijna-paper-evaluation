@@ -96,4 +96,18 @@ PEV-048, PEV-049, PEV-050, PEV-051, PEV-054, PEV-055, PEV-056, PEV-057.
 
 ### Classification
 
-PEV-044 / PEV-045 / PEV-046 remain **FUTURE_ENTERPRISE**. No PEV-048+. No `main` promotion.
+PEV-044 / PEV-045 / PEV-046 remain **FUTURE_ENTERPRISE**. No PEV-048+.
+
+---
+
+## APP-009 release approval (promotion only)
+
+**Issue:** #64  
+**Decision:** Founder approves promotion of independently accepted APP-008 / B16 + B16.1 (PEV-044–046) from `develop` to `main`.  
+**Status:** APPROVED  
+**Milestone:** Enterprise Operations Release / APP-009  
+
+Starting develop: `801f1ea119d2d35b50e642518bf5da3e7d74ad0a`  
+Expected main until promotion: `50fc217ab54ea7c526994b98266a1914accc8d34`  
+
+Release promotion only — no new implementation; classifications unchanged; PEV-048–051 and PEV-054–057 remain deferred; exact-tree snapshot mandatory (main/develop histories intentionally diverge).
