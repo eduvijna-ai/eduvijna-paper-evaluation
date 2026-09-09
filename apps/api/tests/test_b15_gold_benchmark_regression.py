@@ -16,7 +16,6 @@ from app.ai.providers.benchmark import (
     MODEL_REGRESS,
     FixedBenchmarkProvider,
 )
-from app.cli.regression_gate import main as regression_gate_main
 from app.core.authorization import AuthContext
 from app.core.config import get_settings
 from app.core.security import JwtAuthProvider
@@ -420,14 +419,22 @@ async def test_b15_lock_immutability_and_idempotent() -> None:
             },
         )
         assert add.status_code == 409
-        assert add.json()["detail"]["code"] == "BENCHMARK_VERSION_LOCKED"
+        add_body = add.json()
+        add_code = add_body.get("error", {}).get("code") or (
+            add_body.get("detail") or {}
+        ).get("code")
+        assert add_code == "BENCHMARK_VERSION_LOCKED"
 
         remove = await client.delete(
             f"/api/v1/quality/benchmark-versions/{version_id}/cases/{case_id}",
             headers=headers,
         )
         assert remove.status_code == 409
-
+        remove_body = remove.json()
+        remove_code = remove_body.get("error", {}).get("code") or (
+            remove_body.get("detail") or {}
+        ).get("code")
+        assert remove_code == "BENCHMARK_VERSION_LOCKED"
 
 @pytest.mark.asyncio
 async def test_b15_tenant_isolation_404() -> None:
@@ -723,6 +730,12 @@ async def test_b15_audit_events_present() -> None:
 
 @pytest.mark.asyncio
 async def test_b15_cli_gate_exit_code() -> None:
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    api_root = Path(__file__).resolve().parents[1]
+
     async with api_client_publication(text_provider="none") as client:
         headers = await _headers(client)
         ctx = await _create_locked_version(client, headers, code="CLI-01")
@@ -739,8 +752,34 @@ async def test_b15_cli_gate_exit_code() -> None:
         )
         assert fail_run.status_code == 200, fail_run.text
 
-        assert regression_gate_main(["--run-id", pass_run.json()["id"]]) == 0
-        assert regression_gate_main(["--run-id", fail_run.json()["id"]]) == 1
+        pass_proc = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "app.cli.regression_gate",
+                "--run-id",
+                pass_run.json()["id"],
+            ],
+            cwd=str(api_root),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        fail_proc = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "app.cli.regression_gate",
+                "--run-id",
+                fail_run.json()["id"],
+            ],
+            cwd=str(api_root),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert pass_proc.returncode == 0, pass_proc.stdout + pass_proc.stderr
+        assert fail_proc.returncode == 1, fail_proc.stdout + fail_proc.stderr
 
         async with async_session_factory() as db:
             tenant_id = await db.scalar(
