@@ -10,6 +10,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.providers.benchmark import BenchmarkCandidateError
+from app.ai.registry import validate_benchmark_candidate_identity
 from app.core.authorization import AuthContext, require_permissions
 from app.db.session import get_db_session
 from app.services.benchmark import (
@@ -43,6 +45,7 @@ _CONFLICT_CODES = {
     "BENCHMARK_CASE_INELIGIBLE",
     "BENCHMARK_CANDIDATE_UNSUPPORTED",
     "BENCHMARK_CANDIDATE_UNCONFIGURED",
+    "BENCHMARK_CANDIDATE_IDENTITY_MISMATCH",
     "BENCHMARK_REPLAY_INVALID",
     "BENCHMARK_IDEMPOTENCY_CONFLICT",
 }
@@ -318,18 +321,26 @@ async def post_benchmark_regression_run(
     auth: AuthContext = Depends(require_permissions("quality:manage")),
 ) -> dict[str, Any]:
     try:
+        canonical = validate_benchmark_candidate_identity(
+            candidate_provider=body.candidate_provider,
+            candidate_model=body.candidate_model,
+            candidate_model_version=body.candidate_model_version,
+            candidate_prompt_template_version=body.candidate_prompt_template_version,
+        )
         result = await start_regression_run(
             db,
             tenant_id=auth.tenant_id,
             actor_user_id=auth.user_id,
             version_id=version_id,
-            candidate_provider=body.candidate_provider,
-            candidate_model=body.candidate_model,
-            candidate_model_version=body.candidate_model_version,
-            candidate_prompt_template_version=body.candidate_prompt_template_version,
+            candidate_provider=canonical.provider,
+            candidate_model=canonical.model,
+            candidate_model_version=canonical.model_version,
+            candidate_prompt_template_version=canonical.prompt_template_version,
             candidate_config=body.candidate_config,
             idempotency_key=body.idempotency_key,
         )
+    except BenchmarkCandidateError as exc:
+        raise _map_benchmark_error(BenchmarkError(exc.code, exc.message)) from exc
     except BenchmarkError as exc:
         raise _map_benchmark_error(exc) from exc
     await db.commit()
