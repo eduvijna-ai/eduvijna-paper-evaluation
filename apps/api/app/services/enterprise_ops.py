@@ -68,8 +68,8 @@ def _serialize_pool(pool: GradingPool) -> dict[str, Any]:
         "activated_at": pool.activated_at.isoformat() if pool.activated_at else None,
         "closed_by": str(pool.closed_by) if pool.closed_by else None,
         "closed_at": pool.closed_at.isoformat() if pool.closed_at else None,
-        "created_at": pool.created_at.isoformat(),
-        "updated_at": pool.updated_at.isoformat(),
+        "created_at": pool.created_at.isoformat() if pool.created_at else None,
+        "updated_at": pool.updated_at.isoformat() if pool.updated_at else None,
     }
 
 
@@ -87,8 +87,8 @@ def _serialize_work(item: GradingWorkItem) -> dict[str, Any]:
         "assigned_at": item.assigned_at.isoformat() if item.assigned_at else None,
         "started_at": item.started_at.isoformat() if item.started_at else None,
         "submitted_at": item.submitted_at.isoformat() if item.submitted_at else None,
-        "created_at": item.created_at.isoformat(),
-        "updated_at": item.updated_at.isoformat(),
+        "created_at": item.created_at.isoformat() if item.created_at else None,
+        "updated_at": item.updated_at.isoformat() if item.updated_at else None,
     }
 
 
@@ -104,8 +104,8 @@ def _serialize_policy(policy: ModerationPolicy) -> dict[str, Any]:
         "activated_at": policy.activated_at.isoformat() if policy.activated_at else None,
         "retired_by": str(policy.retired_by) if policy.retired_by else None,
         "retired_at": policy.retired_at.isoformat() if policy.retired_at else None,
-        "created_at": policy.created_at.isoformat(),
-        "updated_at": policy.updated_at.isoformat(),
+        "created_at": policy.created_at.isoformat() if policy.created_at else None,
+        "updated_at": policy.updated_at.isoformat() if policy.updated_at else None,
     }
 
 
@@ -118,8 +118,8 @@ def _serialize_case(case: ModerationCase) -> dict[str, Any]:
         "evaluation_run_id": str(case.evaluation_run_id),
         "current_stage_order": case.current_stage_order,
         "status": case.status,
-        "created_at": case.created_at.isoformat(),
-        "updated_at": case.updated_at.isoformat(),
+        "created_at": case.created_at.isoformat() if case.created_at else None,
+        "updated_at": case.updated_at.isoformat() if case.updated_at else None,
     }
 
 
@@ -145,8 +145,8 @@ def _serialize_grievance(case: GrievanceCase) -> dict[str, Any]:
             if case.revised_published_result_id
             else None
         ),
-        "created_at": case.created_at.isoformat(),
-        "updated_at": case.updated_at.isoformat(),
+        "created_at": case.created_at.isoformat() if case.created_at else None,
+        "updated_at": case.updated_at.isoformat() if case.updated_at else None,
     }
 
 
@@ -223,6 +223,8 @@ async def ensure_moderation_case_for_run(
         status="PENDING",
     )
     db.add(case)
+    await db.flush()
+    await db.refresh(case)
     await add_audit_event(
         db,
         tenant_id=tenant_id,
@@ -232,7 +234,6 @@ async def ensure_moderation_case_for_run(
         action="moderation_case_created",
         after=_serialize_case(case),
     )
-    await db.flush()
     return case
 
 
@@ -258,6 +259,8 @@ async def create_grading_pool(
         created_by=actor_user_id,
     )
     db.add(pool)
+    await db.flush()
+    await db.refresh(pool)
     await add_audit_event(
         db,
         tenant_id=tenant_id,
@@ -267,8 +270,6 @@ async def create_grading_pool(
         action="grading_pool_created",
         after=_serialize_pool(pool),
     )
-    await db.flush()
-    await db.refresh(pool)
     return _serialize_pool(pool)
 
 
@@ -1052,6 +1053,8 @@ async def create_grievance(
         status="SUBMITTED",
     )
     db.add(case)
+    await db.flush()
+    await db.refresh(case)
     await add_audit_event(
         db,
         tenant_id=tenant_id,
@@ -1061,8 +1064,6 @@ async def create_grievance(
         action="grievance_created",
         after=_serialize_grievance(case),
     )
-    await db.flush()
-    await db.refresh(case)
     return _serialize_grievance(case)
 
 

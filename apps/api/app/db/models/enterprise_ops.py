@@ -15,6 +15,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -252,7 +253,7 @@ class ModerationAction(UUIDPrimaryKeyMixin, Base):
     decision: Mapped[str] = mapped_column(String(32))
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default="now()"
+        DateTime(timezone=True), server_default=func.now(), nullable=False
     )
 
 

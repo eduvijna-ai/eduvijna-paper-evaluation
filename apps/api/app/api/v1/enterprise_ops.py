@@ -140,7 +140,7 @@ async def api_create_pool(
     auth: AuthContext = Depends(require_permissions("grading:manage")),
 ) -> dict[str, Any]:
     try:
-        return await create_grading_pool(
+        result = await create_grading_pool(
             db,
             tenant_id=auth.tenant_id,
             assessment_id=body.assessment_id,
@@ -150,6 +150,8 @@ async def api_create_pool(
         )
     except EnterpriseOpsError as exc:
         raise _map_error(exc) from exc
+    await db.commit()
+    return result
 
 
 @router.get("/operations/grading-pools")
@@ -193,7 +195,7 @@ async def api_add_member(
     auth: AuthContext = Depends(require_permissions("grading:manage")),
 ) -> dict[str, Any]:
     try:
-        return await add_pool_member(
+        result = await add_pool_member(
             db,
             tenant_id=auth.tenant_id,
             pool_id=pool_id,
@@ -203,6 +205,8 @@ async def api_add_member(
         )
     except EnterpriseOpsError as exc:
         raise _map_error(exc) from exc
+    await db.commit()
+    return result
 
 
 @router.post("/operations/grading-pools/{pool_id}/activate")
@@ -212,11 +216,13 @@ async def api_activate_pool(
     auth: AuthContext = Depends(require_permissions("grading:manage")),
 ) -> dict[str, Any]:
     try:
-        return await activate_pool(
+        result = await activate_pool(
             db, tenant_id=auth.tenant_id, pool_id=pool_id, actor_user_id=auth.user_id
         )
     except EnterpriseOpsError as exc:
         raise _map_error(exc) from exc
+    await db.commit()
+    return result
 
 
 @router.post("/operations/grading-pools/{pool_id}/close")
@@ -226,11 +232,13 @@ async def api_close_pool(
     auth: AuthContext = Depends(require_permissions("grading:manage")),
 ) -> dict[str, Any]:
     try:
-        return await close_pool(
+        result = await close_pool(
             db, tenant_id=auth.tenant_id, pool_id=pool_id, actor_user_id=auth.user_id
         )
     except EnterpriseOpsError as exc:
         raise _map_error(exc) from exc
+    await db.commit()
+    return result
 
 
 @router.post("/operations/grading-pools/{pool_id}/allocate")
@@ -248,9 +256,10 @@ async def api_allocate(
             evaluation_run_id=body.evaluation_run_id,
             actor_user_id=auth.user_id,
         )
-        return {"items": items}
     except EnterpriseOpsError as exc:
         raise _map_error(exc) from exc
+    await db.commit()
+    return {"items": items}
 
 
 @router.post("/operations/grading-pools/{pool_id}/assign")
@@ -261,7 +270,7 @@ async def api_assign(
     auth: AuthContext = Depends(require_permissions("grading:manage")),
 ) -> dict[str, Any]:
     try:
-        return await assign_work_manual(
+        result = await assign_work_manual(
             db,
             tenant_id=auth.tenant_id,
             pool_id=pool_id,
@@ -271,6 +280,8 @@ async def api_assign(
         )
     except EnterpriseOpsError as exc:
         raise _map_error(exc) from exc
+    await db.commit()
+    return result
 
 
 @router.get("/operations/grading-pools/{pool_id}/progress")
@@ -303,7 +314,7 @@ async def api_start_work(
     auth: AuthContext = Depends(require_permissions("grading:work")),
 ) -> dict[str, Any]:
     try:
-        return await start_work_item(
+        result = await start_work_item(
             db,
             tenant_id=auth.tenant_id,
             work_item_id=work_item_id,
@@ -311,6 +322,8 @@ async def api_start_work(
         )
     except EnterpriseOpsError as exc:
         raise _map_error(exc) from exc
+    await db.commit()
+    return result
 
 
 @router.post("/operations/grading/work-items/{work_item_id}/submit")
@@ -320,7 +333,7 @@ async def api_submit_work(
     auth: AuthContext = Depends(require_permissions("grading:work")),
 ) -> dict[str, Any]:
     try:
-        return await submit_work_item(
+        result = await submit_work_item(
             db,
             tenant_id=auth.tenant_id,
             work_item_id=work_item_id,
@@ -328,6 +341,8 @@ async def api_submit_work(
         )
     except EnterpriseOpsError as exc:
         raise _map_error(exc) from exc
+    await db.commit()
+    return result
 
 
 @router.post("/operations/moderation-policies")
@@ -337,7 +352,7 @@ async def api_create_policy(
     auth: AuthContext = Depends(require_permissions("moderation:manage")),
 ) -> dict[str, Any]:
     try:
-        return await create_moderation_policy(
+        result = await create_moderation_policy(
             db,
             tenant_id=auth.tenant_id,
             assessment_id=body.assessment_id,
@@ -347,6 +362,8 @@ async def api_create_policy(
         )
     except EnterpriseOpsError as exc:
         raise _map_error(exc) from exc
+    await db.commit()
+    return result
 
 
 @router.get("/operations/moderation-policies")
@@ -373,7 +390,7 @@ async def api_activate_policy(
     auth: AuthContext = Depends(require_permissions("moderation:manage")),
 ) -> dict[str, Any]:
     try:
-        return await activate_moderation_policy(
+        result = await activate_moderation_policy(
             db,
             tenant_id=auth.tenant_id,
             policy_id=policy_id,
@@ -381,6 +398,8 @@ async def api_activate_policy(
         )
     except EnterpriseOpsError as exc:
         raise _map_error(exc) from exc
+    await db.commit()
+    return result
 
 
 @router.post("/operations/moderation-policies/{policy_id}/retire")
@@ -390,7 +409,7 @@ async def api_retire_policy(
     auth: AuthContext = Depends(require_permissions("moderation:manage")),
 ) -> dict[str, Any]:
     try:
-        return await retire_moderation_policy(
+        result = await retire_moderation_policy(
             db,
             tenant_id=auth.tenant_id,
             policy_id=policy_id,
@@ -398,6 +417,8 @@ async def api_retire_policy(
         )
     except EnterpriseOpsError as exc:
         raise _map_error(exc) from exc
+    await db.commit()
+    return result
 
 
 @router.get("/operations/moderation-cases")
@@ -471,7 +492,7 @@ async def api_get_case(
                 "actor_user_id": str(a.actor_user_id),
                 "decision": a.decision,
                 "reason": a.reason,
-                "created_at": a.created_at.isoformat(),
+                "created_at": a.created_at.isoformat() if a.created_at else None,
             }
             for a in actions
         ],
@@ -486,7 +507,7 @@ async def api_decide(
     auth: AuthContext = Depends(require_permissions("moderation:review")),
 ) -> dict[str, Any]:
     try:
-        return await decide_moderation(
+        result = await decide_moderation(
             db,
             tenant_id=auth.tenant_id,
             case_id=case_id,
@@ -497,6 +518,8 @@ async def api_decide(
         )
     except EnterpriseOpsError as exc:
         raise _map_error(exc) from exc
+    await db.commit()
+    return result
 
 
 @router.post("/operations/grievances")
@@ -506,7 +529,7 @@ async def api_create_grievance(
     auth: AuthContext = Depends(require_permissions("grievance:create")),
 ) -> dict[str, Any]:
     try:
-        return await create_grievance(
+        result = await create_grievance(
             db,
             tenant_id=auth.tenant_id,
             published_result_id=body.published_result_id,
@@ -516,6 +539,8 @@ async def api_create_grievance(
         )
     except EnterpriseOpsError as exc:
         raise _map_error(exc) from exc
+    await db.commit()
+    return result
 
 
 @router.get("/operations/grievances")
@@ -560,7 +585,7 @@ async def api_accept_grievance(
     auth: AuthContext = Depends(require_permissions("grievance:manage")),
 ) -> dict[str, Any]:
     try:
-        return await accept_grievance(
+        result = await accept_grievance(
             db,
             tenant_id=auth.tenant_id,
             grievance_id=grievance_id,
@@ -569,6 +594,8 @@ async def api_accept_grievance(
         )
     except EnterpriseOpsError as exc:
         raise _map_error(exc) from exc
+    await db.commit()
+    return result
 
 
 @router.post("/operations/grievances/{grievance_id}/reject")
@@ -581,7 +608,7 @@ async def api_reject_grievance(
     if not (body.decision_reason or "").strip():
         raise _http_error(400, "REASON_REQUIRED", "Reject requires a reason")
     try:
-        return await reject_grievance(
+        result = await reject_grievance(
             db,
             tenant_id=auth.tenant_id,
             grievance_id=grievance_id,
@@ -590,6 +617,8 @@ async def api_reject_grievance(
         )
     except EnterpriseOpsError as exc:
         raise _map_error(exc) from exc
+    await db.commit()
+    return result
 
 
 @router.post("/operations/grievances/{grievance_id}/resolve")
@@ -600,7 +629,7 @@ async def api_resolve_grievance(
     auth: AuthContext = Depends(require_permissions("grievance:manage")),
 ) -> dict[str, Any]:
     try:
-        return await resolve_grievance(
+        result = await resolve_grievance(
             db,
             tenant_id=auth.tenant_id,
             grievance_id=grievance_id,
@@ -609,3 +638,5 @@ async def api_resolve_grievance(
         )
     except EnterpriseOpsError as exc:
         raise _map_error(exc) from exc
+    await db.commit()
+    return result
