@@ -208,6 +208,8 @@ def upgrade() -> None:
         sa.Column("created_by", sa.Uuid(), nullable=True),
         sa.Column("activated_by", sa.Uuid(), nullable=True),
         sa.Column("activated_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("retired_by", sa.Uuid(), nullable=True),
+        sa.Column("retired_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -230,6 +232,7 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(["activated_by"], ["users.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["created_by"], ["users.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["retired_by"], ["users.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["tenant_id"], ["tenants.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )

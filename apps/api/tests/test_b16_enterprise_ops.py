@@ -133,7 +133,7 @@ async def _activate_moderation_policy(
         headers=headers,
         json={
             "assessment_id": data["assessment"]["id"],
-            "assessment_version_id": data["version"]["id"],
+            "assessment_version_id": data["version_id"],
             "stages": stages,
         },
     )
@@ -162,7 +162,7 @@ async def test_b16_pool_lifecycle_invalid_member_allocate_progress() -> None:
             headers=headers,
             json={
                 "assessment_id": data["assessment"]["id"],
-                "assessment_version_id": data["version"]["id"],
+                "assessment_version_id": data["version_id"],
                 "allocation_strategy": "ROUND_ROBIN",
             },
         )
