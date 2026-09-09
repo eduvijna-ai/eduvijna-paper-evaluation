@@ -289,3 +289,22 @@ export const REASSESSMENT_STATUSES = [
   "PUBLISHED",
 ] as const;
 export type ReassessmentStatus = (typeof REASSESSMENT_STATUSES)[number];
+
+/** B15 gold benchmark dataset version status. */
+export const BENCHMARK_VERSION_STATUSES = ["DRAFT", "LOCKED"] as const;
+export type BenchmarkVersionStatus =
+  (typeof BENCHMARK_VERSION_STATUSES)[number];
+
+/** B15 isolated AI regression run status. */
+export const BENCHMARK_RUN_STATUSES = [
+  "QUEUED",
+  "RUNNING",
+  "PASSED",
+  "FAILED",
+  "ERROR",
+] as const;
+export type BenchmarkRunStatus = (typeof BENCHMARK_RUN_STATUSES)[number];
+
+/** B15 regression / release-gate verdict. */
+export const BENCHMARK_VERDICTS = ["PASS", "FAIL", "PENDING"] as const;
+export type BenchmarkVerdict = (typeof BENCHMARK_VERDICTS)[number];

@@ -2,6 +2,23 @@ import type {
   AdaptiveLearningPlan,
   Assessment,
   AssessmentAnalytics,
+  BenchmarkCase,
+  BenchmarkCaseCreate,
+  BenchmarkCaseList,
+  BenchmarkDataset,
+  BenchmarkDatasetCreate,
+  BenchmarkDatasetList,
+  BenchmarkEligibleSources,
+  BenchmarkGateVerdict,
+  BenchmarkRegressionCaseResult,
+  BenchmarkRegressionCaseResultList,
+  BenchmarkRegressionRun,
+  BenchmarkRegressionRunCreate,
+  BenchmarkRegressionRunList,
+  BenchmarkThresholdProfile,
+  BenchmarkVersion,
+  BenchmarkVersionCreate,
+  BenchmarkVersionList,
   Curriculum,
   CurriculumNode,
   CurriculumResource,
@@ -2207,6 +2224,610 @@ export function rebuildReassessmentB14(id: string): B14RebuildResult {
     delta_count: found.mastery_deltas.length,
     published_result_id: found.published_result_id,
     source: "MASTERY_STATE_SNAPSHOT",
+  };
+}
+
+/** Demo-only B15 fixtures — never invent benchmark data for live UUIDs. */
+export const BENCHMARK_DATASET_ID = "benchmark-demo-001";
+export const BENCHMARK_VERSION_DRAFT_ID = "benchmark-version-demo-draft";
+export const BENCHMARK_VERSION_LOCKED_ID = "benchmark-version-demo-locked";
+export const BENCHMARK_CASE_ID = "benchmark-case-demo-001";
+export const BENCHMARK_RUN_PASS_ID = "benchmark-run-demo-pass";
+export const BENCHMARK_RUN_FAIL_ID = "benchmark-run-demo-fail";
+export const BENCHMARK_PUBLISHED_RESULT_ID = "published-result-demo-001";
+export const BENCHMARK_QE_ID = "question-eval-demo-001";
+export const BENCHMARK_EVAL_RUN_ID = "eval-run-demo-001";
+export const BENCHMARK_QUESTION_VERSION_ID = "question-version-demo-001";
+export const BENCHMARK_RUBRIC_VERSION_ID = "rubric-version-demo-001";
+export const BENCHMARK_ASSESSMENT_VERSION_ID = "assessment-version-demo-001";
+
+const B15_AS_OF = "2026-09-09T10:00:00.000Z";
+const B15_LOCKED_AT = "2026-09-09T11:00:00.000Z";
+
+export const B15_DEFAULT_THRESHOLDS: BenchmarkThresholdProfile = {
+  profile_code: "B15_DEFAULT_V1",
+  algorithm_version: "B15_V1",
+  max_missing_output_rate: 0,
+  max_mean_abs_score_error: 0.25,
+  min_exact_score_agreement_rate: 1,
+  min_taxonomy_agreement_rate: 1,
+  max_safety_invariant_failure_rate: 0,
+  score_tolerance: 0,
+};
+
+const B15_REPLAY_FIXTURE: Record<string, unknown> = {
+  question_version_id: BENCHMARK_QUESTION_VERSION_ID,
+  assessment_version_id: BENCHMARK_ASSESSMENT_VERSION_ID,
+  rubric_version_id: BENCHMARK_RUBRIC_VERSION_ID,
+  criterion_snapshot: [
+    {
+      id: "criterion-demo-001",
+      code: "C1",
+      label: "Method",
+      max_marks: "3.0000",
+      sequence: 1,
+    },
+    {
+      id: "criterion-demo-002",
+      code: "C2",
+      label: "Answer",
+      max_marks: "2.0000",
+      sequence: 2,
+    },
+  ],
+  transcription_text: "EXERCISE:PARTIAL anonymized answer text",
+  blank_flag: false,
+  unreadable_flag: false,
+  expected_final_marks: "3.5",
+  expected_max_marks: "5",
+  expected_error_codes: ["ARITHMETIC_ERROR"],
+  max_mark: "5",
+};
+
+let demoDatasets: BenchmarkDataset[] = [
+  {
+    id: BENCHMARK_DATASET_ID,
+    code: "GOLD-DEMO-001",
+    title: "Demo gold math set",
+    description: "Frozen human-final gold cases for isolated AI regression",
+    created_by: null,
+    created_at: B15_AS_OF,
+    updated_at: B15_AS_OF,
+  },
+];
+
+let demoVersions: BenchmarkVersion[] = [
+  {
+    id: BENCHMARK_VERSION_DRAFT_ID,
+    dataset_id: BENCHMARK_DATASET_ID,
+    version_number: 1,
+    status: "DRAFT",
+    threshold_profile_snapshot: { ...B15_DEFAULT_THRESHOLDS },
+    case_count: 0,
+    content_hash: null,
+    locked_by: null,
+    locked_at: null,
+    created_by: null,
+    created_at: B15_AS_OF,
+    updated_at: B15_AS_OF,
+  },
+  {
+    id: BENCHMARK_VERSION_LOCKED_ID,
+    dataset_id: BENCHMARK_DATASET_ID,
+    version_number: 2,
+    status: "LOCKED",
+    threshold_profile_snapshot: { ...B15_DEFAULT_THRESHOLDS },
+    case_count: 1,
+    content_hash: "a".repeat(64),
+    locked_by: "user-admin-001",
+    locked_at: B15_LOCKED_AT,
+    created_by: null,
+    created_at: B15_AS_OF,
+    updated_at: B15_LOCKED_AT,
+  },
+];
+
+let demoCases: BenchmarkCase[] = [
+  {
+    id: BENCHMARK_CASE_ID,
+    dataset_version_id: BENCHMARK_VERSION_LOCKED_ID,
+    published_result_id: BENCHMARK_PUBLISHED_RESULT_ID,
+    evaluation_run_id: BENCHMARK_EVAL_RUN_ID,
+    question_evaluation_id: BENCHMARK_QE_ID,
+    question_version_id: BENCHMARK_QUESTION_VERSION_ID,
+    rubric_version_id: BENCHMARK_RUBRIC_VERSION_ID,
+    assessment_version_id: BENCHMARK_ASSESSMENT_VERSION_ID,
+    expected_final_marks: 3.5,
+    expected_max_marks: 5,
+    expected_error_codes: ["ARITHMETIC_ERROR"],
+    source_ledger_hash: "b".repeat(64),
+    evidence_hash: "c".repeat(64),
+    adjudicated_by: "user-teacher-001",
+    adjudicated_at: B15_AS_OF,
+    replay_fixture: { ...B15_REPLAY_FIXTURE },
+    created_at: B15_AS_OF,
+    updated_at: B15_AS_OF,
+  },
+];
+
+const PASS_METRICS: Record<string, unknown> = {
+  case_count: 1,
+  missing_count: 0,
+  missing_output_rate: 0,
+  mean_abs_score_error: 0,
+  exact_score_agreement_rate: 1,
+  taxonomy_agreement_rate: 1,
+  safety_invariant_failure_rate: 0,
+  exact_match_count: 1,
+  taxonomy_match_count: 1,
+  taxonomy_applicable_count: 1,
+  safety_fail_count: 0,
+  verdict: "PASS",
+};
+
+const FAIL_METRICS: Record<string, unknown> = {
+  case_count: 1,
+  missing_count: 0,
+  missing_output_rate: 0,
+  mean_abs_score_error: 1,
+  exact_score_agreement_rate: 0,
+  taxonomy_agreement_rate: 0,
+  safety_invariant_failure_rate: 0,
+  exact_match_count: 0,
+  taxonomy_match_count: 0,
+  taxonomy_applicable_count: 1,
+  safety_fail_count: 0,
+  verdict: "FAIL",
+};
+
+let demoRuns: BenchmarkRegressionRun[] = [
+  {
+    id: BENCHMARK_RUN_PASS_ID,
+    dataset_version_id: BENCHMARK_VERSION_LOCKED_ID,
+    status: "PASSED",
+    verdict: "PASS",
+    idempotency_key: "demo-pass-key",
+    candidate_provider: "fixed",
+    candidate_model: "fixed-benchmark-pass",
+    candidate_model_version: "B15_V1",
+    candidate_prompt_template_version: "fixed-benchmark-v1",
+    candidate_config: {},
+    threshold_snapshot: { ...B15_DEFAULT_THRESHOLDS },
+    aggregate_metrics: { ...PASS_METRICS },
+    initiated_by: "user-admin-001",
+    started_at: B15_LOCKED_AT,
+    finished_at: B15_LOCKED_AT,
+    failure_code: null,
+    failure_detail: null,
+    created_at: B15_LOCKED_AT,
+    updated_at: B15_LOCKED_AT,
+  },
+  {
+    id: BENCHMARK_RUN_FAIL_ID,
+    dataset_version_id: BENCHMARK_VERSION_LOCKED_ID,
+    status: "FAILED",
+    verdict: "FAIL",
+    idempotency_key: "demo-fail-key",
+    candidate_provider: "fixed",
+    candidate_model: "fixed-benchmark-regress",
+    candidate_model_version: "B15_V1",
+    candidate_prompt_template_version: "fixed-benchmark-v1",
+    candidate_config: {},
+    threshold_snapshot: { ...B15_DEFAULT_THRESHOLDS },
+    aggregate_metrics: { ...FAIL_METRICS },
+    initiated_by: "user-admin-001",
+    started_at: B15_LOCKED_AT,
+    finished_at: B15_LOCKED_AT,
+    failure_code: null,
+    failure_detail: null,
+    created_at: B15_LOCKED_AT,
+    updated_at: B15_LOCKED_AT,
+  },
+];
+
+let demoCaseResults: BenchmarkRegressionCaseResult[] = [
+  {
+    id: "benchmark-case-result-demo-pass",
+    regression_run_id: BENCHMARK_RUN_PASS_ID,
+    benchmark_case_id: BENCHMARK_CASE_ID,
+    missing_output: false,
+    actual_marks: 3.5,
+    actual_error_codes: ["ARITHMETIC_ERROR"],
+    score_abs_error: 0,
+    exact_score_match: true,
+    taxonomy_match: true,
+    safety_invariant_failed: false,
+    diff: {
+      expected_final_marks: "3.5",
+      actual_marks: "3.5",
+      score_abs_error: "0",
+      expected_error_codes: ["ARITHMETIC_ERROR"],
+      actual_error_codes: ["ARITHMETIC_ERROR"],
+      safety_invariant_failed: false,
+    },
+    ai_execution_record_id: null,
+    created_at: B15_LOCKED_AT,
+    updated_at: B15_LOCKED_AT,
+  },
+  {
+    id: "benchmark-case-result-demo-fail",
+    regression_run_id: BENCHMARK_RUN_FAIL_ID,
+    benchmark_case_id: BENCHMARK_CASE_ID,
+    missing_output: false,
+    actual_marks: 4.5,
+    actual_error_codes: ["CONCEPT_ERROR"],
+    score_abs_error: 1,
+    exact_score_match: false,
+    taxonomy_match: false,
+    safety_invariant_failed: false,
+    diff: {
+      expected_final_marks: "3.5",
+      actual_marks: "4.5",
+      score_abs_error: "1",
+      expected_error_codes: ["ARITHMETIC_ERROR"],
+      actual_error_codes: ["CONCEPT_ERROR"],
+      safety_invariant_failed: false,
+    },
+    ai_execution_record_id: null,
+    created_at: B15_LOCKED_AT,
+    updated_at: B15_LOCKED_AT,
+  },
+];
+
+function cloneDataset(d: BenchmarkDataset): BenchmarkDataset {
+  return { ...d };
+}
+
+function cloneVersion(v: BenchmarkVersion): BenchmarkVersion {
+  return {
+    ...v,
+    threshold_profile_snapshot: { ...v.threshold_profile_snapshot },
+  };
+}
+
+function cloneCase(c: BenchmarkCase): BenchmarkCase {
+  return {
+    ...c,
+    expected_error_codes: [...c.expected_error_codes],
+    replay_fixture: { ...c.replay_fixture },
+  };
+}
+
+function cloneRun(r: BenchmarkRegressionRun): BenchmarkRegressionRun {
+  return {
+    ...r,
+    candidate_config: { ...r.candidate_config },
+    threshold_snapshot: { ...r.threshold_snapshot },
+    aggregate_metrics: { ...r.aggregate_metrics },
+  };
+}
+
+function cloneCaseResult(
+  r: BenchmarkRegressionCaseResult,
+): BenchmarkRegressionCaseResult {
+  return {
+    ...r,
+    actual_error_codes: [...r.actual_error_codes],
+    diff: { ...r.diff },
+  };
+}
+
+function findDatasetOrThrow(id: string): BenchmarkDataset {
+  const found = demoDatasets.find((d) => d.id === id);
+  if (!found) throw new MockNotFoundError("Benchmark dataset not found");
+  return found;
+}
+
+function findVersionOrThrow(id: string): BenchmarkVersion {
+  const found = demoVersions.find((v) => v.id === id);
+  if (!found) throw new MockNotFoundError("Benchmark version not found");
+  return found;
+}
+
+function findRunOrThrow(id: string): BenchmarkRegressionRun {
+  const found = demoRuns.find((r) => r.id === id);
+  if (!found) throw new MockNotFoundError("Benchmark regression run not found");
+  return found;
+}
+
+export function listBenchmarkDatasets(): BenchmarkDatasetList {
+  return { items: demoDatasets.map(cloneDataset) };
+}
+
+export function getBenchmarkDataset(id: string): BenchmarkDataset {
+  return cloneDataset(findDatasetOrThrow(id));
+}
+
+export function createBenchmarkDataset(
+  input: BenchmarkDatasetCreate,
+): BenchmarkDataset {
+  const now = new Date().toISOString();
+  const created: BenchmarkDataset = {
+    id: `benchmark-demo-${crypto.randomUUID().slice(0, 8)}`,
+    code: input.code,
+    title: input.title,
+    description: input.description ?? null,
+    created_by: null,
+    created_at: now,
+    updated_at: now,
+  };
+  demoDatasets = [created, ...demoDatasets];
+  return cloneDataset(created);
+}
+
+export function listBenchmarkVersions(
+  datasetId: string,
+): BenchmarkVersionList {
+  findDatasetOrThrow(datasetId);
+  return {
+    items: demoVersions
+      .filter((v) => v.dataset_id === datasetId)
+      .map(cloneVersion),
+  };
+}
+
+export function createBenchmarkVersion(
+  datasetId: string,
+  input?: BenchmarkVersionCreate,
+): BenchmarkVersion {
+  findDatasetOrThrow(datasetId);
+  const siblings = demoVersions.filter((v) => v.dataset_id === datasetId);
+  const nextNumber =
+    siblings.reduce((max, v) => Math.max(max, v.version_number), 0) + 1;
+  const now = new Date().toISOString();
+  const created: BenchmarkVersion = {
+    id: `benchmark-version-demo-${crypto.randomUUID().slice(0, 8)}`,
+    dataset_id: datasetId,
+    version_number: nextNumber,
+    status: "DRAFT",
+    threshold_profile_snapshot: {
+      ...B15_DEFAULT_THRESHOLDS,
+      ...(input?.threshold_profile_snapshot ?? {}),
+    },
+    case_count: 0,
+    content_hash: null,
+    locked_by: null,
+    locked_at: null,
+    created_by: null,
+    created_at: now,
+    updated_at: now,
+  };
+  demoVersions = [created, ...demoVersions];
+  return cloneVersion(created);
+}
+
+export function getBenchmarkVersion(versionId: string): BenchmarkVersion {
+  return cloneVersion(findVersionOrThrow(versionId));
+}
+
+export function listBenchmarkEligibleSources(
+  versionId: string,
+): BenchmarkEligibleSources {
+  findVersionOrThrow(versionId);
+  return {
+    items: [
+      {
+        published_result_id: BENCHMARK_PUBLISHED_RESULT_ID,
+        evaluation_run_id: BENCHMARK_EVAL_RUN_ID,
+        submission_id: SUBMISSION_ID,
+        assessment_version_id: BENCHMARK_ASSESSMENT_VERSION_ID,
+        ledger_snapshot_hash: "b".repeat(64),
+        question_evaluations: [
+          {
+            question_evaluation_id: BENCHMARK_QE_ID,
+            question_version_id: BENCHMARK_QUESTION_VERSION_ID,
+            workflow_state: "ACCEPTED",
+            final_human_approved_score: 3.5,
+            max_mark: 5,
+            error_codes: ["ARITHMETIC_ERROR"],
+          },
+        ],
+      },
+    ],
+  };
+}
+
+export function listBenchmarkCases(versionId: string): BenchmarkCaseList {
+  findVersionOrThrow(versionId);
+  return {
+    items: demoCases
+      .filter((c) => c.dataset_version_id === versionId)
+      .map(cloneCase),
+  };
+}
+
+export function addBenchmarkCase(
+  versionId: string,
+  input: BenchmarkCaseCreate,
+): BenchmarkCase {
+  const version = findVersionOrThrow(versionId);
+  if (version.status === "LOCKED") {
+    throw new MockNotFoundError("Benchmark version is locked");
+  }
+  const existing = demoCases.find(
+    (c) =>
+      c.dataset_version_id === versionId &&
+      c.published_result_id === input.published_result_id &&
+      c.question_evaluation_id === input.question_evaluation_id,
+  );
+  if (existing) return cloneCase(existing);
+
+  const now = new Date().toISOString();
+  const created: BenchmarkCase = {
+    id: `benchmark-case-demo-${crypto.randomUUID().slice(0, 8)}`,
+    dataset_version_id: versionId,
+    published_result_id: input.published_result_id,
+    evaluation_run_id: BENCHMARK_EVAL_RUN_ID,
+    question_evaluation_id: input.question_evaluation_id,
+    question_version_id: BENCHMARK_QUESTION_VERSION_ID,
+    rubric_version_id: BENCHMARK_RUBRIC_VERSION_ID,
+    assessment_version_id: BENCHMARK_ASSESSMENT_VERSION_ID,
+    expected_final_marks: 3.5,
+    expected_max_marks: 5,
+    expected_error_codes: ["ARITHMETIC_ERROR"],
+    source_ledger_hash: "b".repeat(64),
+    evidence_hash: "c".repeat(64),
+    adjudicated_by: null,
+    adjudicated_at: now,
+    replay_fixture: { ...B15_REPLAY_FIXTURE },
+    created_at: now,
+    updated_at: now,
+  };
+  demoCases = [created, ...demoCases];
+  version.case_count += 1;
+  version.updated_at = now;
+  return cloneCase(created);
+}
+
+export function removeBenchmarkCase(
+  versionId: string,
+  caseId: string,
+): BenchmarkCase {
+  const version = findVersionOrThrow(versionId);
+  if (version.status === "LOCKED") {
+    throw new MockNotFoundError("Benchmark version is locked");
+  }
+  const idx = demoCases.findIndex(
+    (c) => c.id === caseId && c.dataset_version_id === versionId,
+  );
+  if (idx < 0) throw new MockNotFoundError("Benchmark case not found");
+  const [removed] = demoCases.splice(idx, 1);
+  version.case_count = Math.max(0, version.case_count - 1);
+  version.updated_at = new Date().toISOString();
+  return cloneCase(removed!);
+}
+
+export function lockBenchmarkVersion(versionId: string): BenchmarkVersion {
+  const version = findVersionOrThrow(versionId);
+  if (version.status === "LOCKED") return cloneVersion(version);
+  if (version.case_count < 1) {
+    throw new MockNotFoundError("Cannot lock empty benchmark version");
+  }
+  const now = new Date().toISOString();
+  version.status = "LOCKED";
+  version.locked_by = "user-admin-001";
+  version.locked_at = now;
+  version.content_hash = "d".repeat(64);
+  version.updated_at = now;
+  return cloneVersion(version);
+}
+
+export function listBenchmarkRegressionRuns(
+  versionId: string,
+): BenchmarkRegressionRunList {
+  findVersionOrThrow(versionId);
+  return {
+    items: demoRuns
+      .filter((r) => r.dataset_version_id === versionId)
+      .map(cloneRun),
+  };
+}
+
+export function startBenchmarkRegressionRun(
+  versionId: string,
+  input: BenchmarkRegressionRunCreate,
+): BenchmarkRegressionRun {
+  const version = findVersionOrThrow(versionId);
+  if (version.status !== "LOCKED") {
+    throw new MockNotFoundError("Benchmark version must be locked");
+  }
+  const pass = input.candidate_model === "fixed-benchmark-pass";
+  const now = new Date().toISOString();
+  const runId = `benchmark-run-demo-${crypto.randomUUID().slice(0, 8)}`;
+  const caseId =
+    demoCases.find((c) => c.dataset_version_id === versionId)?.id ??
+    BENCHMARK_CASE_ID;
+  const gold = demoCases.find((c) => c.id === caseId);
+  const expectedMarks = gold?.expected_final_marks ?? 3.5;
+  const expectedCodes = gold?.expected_error_codes ?? ["ARITHMETIC_ERROR"];
+  const actualMarks = pass ? expectedMarks : expectedMarks + 1;
+  const actualCodes = pass ? expectedCodes : ["CONCEPT_ERROR"];
+
+  const run: BenchmarkRegressionRun = {
+    id: runId,
+    dataset_version_id: versionId,
+    status: pass ? "PASSED" : "FAILED",
+    verdict: pass ? "PASS" : "FAIL",
+    idempotency_key: input.idempotency_key ?? null,
+    candidate_provider: input.candidate_provider,
+    candidate_model: input.candidate_model,
+    candidate_model_version: input.candidate_model_version,
+    candidate_prompt_template_version: input.candidate_prompt_template_version,
+    candidate_config: { ...(input.candidate_config ?? {}) },
+    threshold_snapshot: {
+      ...B15_DEFAULT_THRESHOLDS,
+      ...version.threshold_profile_snapshot,
+    },
+    aggregate_metrics: pass ? { ...PASS_METRICS } : { ...FAIL_METRICS },
+    initiated_by: "user-admin-001",
+    started_at: now,
+    finished_at: now,
+    failure_code: null,
+    failure_detail: null,
+    created_at: now,
+    updated_at: now,
+  };
+  demoRuns = [run, ...demoRuns];
+  demoCaseResults = [
+    {
+      id: `benchmark-case-result-demo-${crypto.randomUUID().slice(0, 8)}`,
+      regression_run_id: runId,
+      benchmark_case_id: caseId,
+      missing_output: false,
+      actual_marks: actualMarks,
+      actual_error_codes: [...actualCodes],
+      score_abs_error: Math.abs(actualMarks - expectedMarks),
+      exact_score_match: pass,
+      taxonomy_match: pass,
+      safety_invariant_failed: false,
+      diff: {
+        expected_final_marks: String(expectedMarks),
+        actual_marks: String(actualMarks),
+        score_abs_error: String(Math.abs(actualMarks - expectedMarks)),
+        expected_error_codes: [...expectedCodes],
+        actual_error_codes: [...actualCodes],
+        safety_invariant_failed: false,
+      },
+      ai_execution_record_id: null,
+      created_at: now,
+      updated_at: now,
+    },
+    ...demoCaseResults,
+  ];
+  return cloneRun(run);
+}
+
+export function getBenchmarkRegressionRun(
+  runId: string,
+): BenchmarkRegressionRun {
+  return cloneRun(findRunOrThrow(runId));
+}
+
+export function listBenchmarkRegressionCaseResults(
+  runId: string,
+): BenchmarkRegressionCaseResultList {
+  findRunOrThrow(runId);
+  return {
+    items: demoCaseResults
+      .filter((r) => r.regression_run_id === runId)
+      .map(cloneCaseResult),
+  };
+}
+
+export function getBenchmarkGateVerdict(runId: string): BenchmarkGateVerdict {
+  const run = findRunOrThrow(runId);
+  const passed = run.verdict === "PASS" && run.status === "PASSED";
+  return {
+    verdict: run.verdict,
+    passed,
+    run_id: run.id,
+    status: run.status,
+    candidate_provider: run.candidate_provider,
+    candidate_model: run.candidate_model,
+    candidate_model_version: run.candidate_model_version,
+    candidate_prompt_template_version: run.candidate_prompt_template_version,
+    metrics: { ...run.aggregate_metrics },
+    threshold_snapshot: { ...run.threshold_snapshot },
   };
 }
 

@@ -1,0 +1,38 @@
+{
+  "cases": [
+    {
+      "id": "synthetic-gold-001",
+      "expected_final_marks": "3.5000",
+      "expected_max_marks": "5.0000",
+      "expected_error_codes": ["ARITHMETIC_ERROR"],
+      "replay_fixture": {
+        "question_version_id": "00000000-0000-4000-8000-000000000001",
+        "assessment_version_id": "00000000-0000-4000-8000-000000000002",
+        "rubric_version_id": "00000000-0000-4000-8000-000000000003",
+        "criterion_snapshot": [
+          {
+            "id": "00000000-0000-4000-8000-000000000010",
+            "code": "C1",
+            "label": "Method",
+            "max_marks": "3.0000",
+            "sequence": 1
+          },
+          {
+            "id": "00000000-0000-4000-8000-000000000011",
+            "code": "C2",
+            "label": "Answer",
+            "max_marks": "2.0000",
+            "sequence": 2
+          }
+        ],
+        "transcription_text": "EXERCISE:PARTIAL anonymized answer text",
+        "blank_flag": false,
+        "unreadable_flag": false,
+        "expected_final_marks": "3.5000",
+        "expected_max_marks": "5.0000",
+        "expected_error_codes": ["ARITHMETIC_ERROR"],
+        "max_mark": "5.0000"
+      }
+    }
+  ]
+}

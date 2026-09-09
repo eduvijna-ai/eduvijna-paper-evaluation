@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/benchmark-eligible-sources.schema.json",
+  "title": "BenchmarkEligibleSources",
+  "description": "PUBLISHED results with human-final ACCEPTED/OVERRIDDEN question evaluations eligible for gold curation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["items"],
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "published_result_id",
+          "evaluation_run_id",
+          "submission_id",
+          "assessment_version_id",
+          "ledger_snapshot_hash",
+          "question_evaluations"
+        ],
+        "properties": {
+          "published_result_id": { "type": "string", "format": "uuid" },
+          "evaluation_run_id": { "type": "string", "format": "uuid" },
+          "submission_id": { "type": "string", "format": "uuid" },
+          "assessment_version_id": { "type": "string", "format": "uuid" },
+          "ledger_snapshot_hash": { "type": "string" },
+          "question_evaluations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "question_evaluation_id",
+                "question_version_id",
+                "workflow_state",
+                "final_human_approved_score",
+                "max_mark",
+                "error_codes"
+              ],
+              "properties": {
+                "question_evaluation_id": { "type": "string", "format": "uuid" },
+                "question_version_id": { "type": "string", "format": "uuid" },
+                "workflow_state": {
+                  "type": "string",
+                  "enum": ["ACCEPTED", "OVERRIDDEN"]
+                },
+                "final_human_approved_score": { "type": "number" },
+                "max_mark": { "type": "number" },
+                "error_codes": {
+                  "type": "array",
+                  "items": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

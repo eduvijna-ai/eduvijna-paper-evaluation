@@ -56,6 +56,22 @@ import {
   instantiateReassessment,
   rebuildReassessmentB14,
   listStudentReassessments,
+  listBenchmarkDatasets,
+  getBenchmarkDataset,
+  createBenchmarkDataset,
+  listBenchmarkVersions,
+  createBenchmarkVersion,
+  getBenchmarkVersion,
+  listBenchmarkEligibleSources,
+  listBenchmarkCases,
+  addBenchmarkCase,
+  removeBenchmarkCase,
+  lockBenchmarkVersion,
+  listBenchmarkRegressionRuns,
+  startBenchmarkRegressionRun,
+  getBenchmarkRegressionRun,
+  listBenchmarkRegressionCaseResults,
+  getBenchmarkGateVerdict,
   MockNotFoundError,
   rubrics,
   students,
@@ -624,6 +640,54 @@ export const MockEduVijnaApi: ApiClient = {
   },
   async rebuildReassessmentB14(id) {
     return mockCall(() => rebuildReassessmentB14(id));
+  },
+  async listBenchmarkDatasets() {
+    return mockCall(() => listBenchmarkDatasets());
+  },
+  async getBenchmarkDataset(id) {
+    return mockCall(() => getBenchmarkDataset(id));
+  },
+  async createBenchmarkDataset(input) {
+    return mockCall(() => createBenchmarkDataset(input));
+  },
+  async listBenchmarkVersions(datasetId) {
+    return mockCall(() => listBenchmarkVersions(datasetId));
+  },
+  async createBenchmarkVersion(datasetId, input) {
+    return mockCall(() => createBenchmarkVersion(datasetId, input));
+  },
+  async getBenchmarkVersion(versionId) {
+    return mockCall(() => getBenchmarkVersion(versionId));
+  },
+  async listBenchmarkEligibleSources(versionId) {
+    return mockCall(() => listBenchmarkEligibleSources(versionId));
+  },
+  async listBenchmarkCases(versionId) {
+    return mockCall(() => listBenchmarkCases(versionId));
+  },
+  async addBenchmarkCase(versionId, input) {
+    return mockCall(() => addBenchmarkCase(versionId, input));
+  },
+  async removeBenchmarkCase(versionId, caseId) {
+    return mockCall(() => removeBenchmarkCase(versionId, caseId));
+  },
+  async lockBenchmarkVersion(versionId) {
+    return mockCall(() => lockBenchmarkVersion(versionId));
+  },
+  async listBenchmarkRegressionRuns(versionId) {
+    return mockCall(() => listBenchmarkRegressionRuns(versionId));
+  },
+  async startBenchmarkRegressionRun(versionId, input) {
+    return mockCall(() => startBenchmarkRegressionRun(versionId, input));
+  },
+  async getBenchmarkRegressionRun(runId) {
+    return mockCall(() => getBenchmarkRegressionRun(runId));
+  },
+  async listBenchmarkRegressionCaseResults(runId) {
+    return mockCall(() => listBenchmarkRegressionCaseResults(runId));
+  },
+  async getBenchmarkGateVerdict(runId) {
+    return mockCall(() => getBenchmarkGateVerdict(runId));
   },
 };
 

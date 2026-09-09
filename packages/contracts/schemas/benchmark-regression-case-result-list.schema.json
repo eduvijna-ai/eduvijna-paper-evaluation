@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/benchmark-regression-case-result-list.schema.json",
+  "title": "BenchmarkRegressionCaseResultList",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["items"],
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": { "$ref": "benchmark-regression-case-result.schema.json" }
+    }
+  }
+}

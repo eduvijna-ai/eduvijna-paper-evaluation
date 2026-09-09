@@ -12,6 +12,9 @@ import type {
   IdentityMatchState,
   ImprovementBlueprintState,
   ImprovementTemplateKind,
+  BenchmarkRunStatus,
+  BenchmarkVerdict,
+  BenchmarkVersionStatus,
   CurriculumResourceKind,
   CurriculumResourceStatus,
   LearningPathStepKind,
@@ -34,6 +37,9 @@ export type {
   AuthoringAiRunStatus,
   AuthoringMaterialStatus,
   AuthoringSourceType,
+  BenchmarkRunStatus,
+  BenchmarkVerdict,
+  BenchmarkVersionStatus,
   CriterionDecision,
   CurriculumNodeType,
   CurriculumResourceKind,
@@ -1425,6 +1431,187 @@ export interface B14RebuildResult {
   delta_count: number;
   published_result_id: string | null;
   source: string;
+}
+
+/** B15 release-gate threshold profile snapshot. */
+export interface BenchmarkThresholdProfile {
+  profile_code: string;
+  algorithm_version: string;
+  max_missing_output_rate: number;
+  max_mean_abs_score_error: number;
+  min_exact_score_agreement_rate: number;
+  min_taxonomy_agreement_rate: number;
+  max_safety_invariant_failure_rate: number;
+  score_tolerance: number;
+}
+
+/** B15 gold benchmark dataset (PEV-058). */
+export interface BenchmarkDataset {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BenchmarkDatasetList {
+  items: BenchmarkDataset[];
+}
+
+export interface BenchmarkDatasetCreate {
+  code: string;
+  title: string;
+  description?: string | null;
+}
+
+/** B15 gold benchmark dataset version (DRAFT or LOCKED). */
+export interface BenchmarkVersion {
+  id: string;
+  dataset_id: string;
+  version_number: number;
+  status: BenchmarkVersionStatus | string;
+  threshold_profile_snapshot: BenchmarkThresholdProfile | Record<string, unknown>;
+  case_count: number;
+  content_hash: string | null;
+  locked_by: string | null;
+  locked_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BenchmarkVersionList {
+  items: BenchmarkVersion[];
+}
+
+export interface BenchmarkVersionCreate {
+  threshold_profile_snapshot?: BenchmarkThresholdProfile | Record<string, unknown> | null;
+}
+
+/** B15 frozen gold case — no student PII. */
+export interface BenchmarkCase {
+  id: string;
+  dataset_version_id: string;
+  published_result_id: string;
+  evaluation_run_id: string;
+  question_evaluation_id: string;
+  question_version_id: string;
+  rubric_version_id: string;
+  assessment_version_id: string;
+  expected_final_marks: number;
+  expected_max_marks: number;
+  expected_error_codes: string[];
+  source_ledger_hash: string;
+  evidence_hash: string;
+  adjudicated_by: string | null;
+  adjudicated_at: string;
+  replay_fixture: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BenchmarkCaseList {
+  items: BenchmarkCase[];
+}
+
+export interface BenchmarkCaseCreate {
+  published_result_id: string;
+  question_evaluation_id: string;
+}
+
+export interface BenchmarkEligibleQuestionEvaluation {
+  question_evaluation_id: string;
+  question_version_id: string;
+  workflow_state: "ACCEPTED" | "OVERRIDDEN" | string;
+  final_human_approved_score: number;
+  max_mark: number;
+  error_codes: string[];
+}
+
+export interface BenchmarkEligibleSource {
+  published_result_id: string;
+  evaluation_run_id: string;
+  submission_id: string;
+  assessment_version_id: string;
+  ledger_snapshot_hash: string;
+  question_evaluations: BenchmarkEligibleQuestionEvaluation[];
+}
+
+export interface BenchmarkEligibleSources {
+  items: BenchmarkEligibleSource[];
+}
+
+/** B15 isolated AI regression run. */
+export interface BenchmarkRegressionRun {
+  id: string;
+  dataset_version_id: string;
+  status: BenchmarkRunStatus | string;
+  verdict: BenchmarkVerdict | string;
+  idempotency_key: string | null;
+  candidate_provider: string;
+  candidate_model: string;
+  candidate_model_version: string;
+  candidate_prompt_template_version: string;
+  candidate_config: Record<string, unknown>;
+  threshold_snapshot: BenchmarkThresholdProfile | Record<string, unknown>;
+  aggregate_metrics: Record<string, unknown>;
+  initiated_by: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  failure_code: string | null;
+  failure_detail: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BenchmarkRegressionRunList {
+  items: BenchmarkRegressionRun[];
+}
+
+export interface BenchmarkRegressionRunCreate {
+  candidate_provider: string;
+  candidate_model: string;
+  candidate_model_version: string;
+  candidate_prompt_template_version: string;
+  candidate_config?: Record<string, unknown> | null;
+  idempotency_key?: string | null;
+}
+
+/** Per-case isolated regression comparison against frozen gold. */
+export interface BenchmarkRegressionCaseResult {
+  id: string;
+  regression_run_id: string;
+  benchmark_case_id: string;
+  missing_output: boolean;
+  actual_marks: number | null;
+  actual_error_codes: string[];
+  score_abs_error: number | null;
+  exact_score_match: boolean;
+  taxonomy_match: boolean | null;
+  safety_invariant_failed: boolean;
+  diff: Record<string, unknown>;
+  ai_execution_record_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BenchmarkRegressionCaseResultList {
+  items: BenchmarkRegressionCaseResult[];
+}
+
+export interface BenchmarkGateVerdict {
+  verdict: BenchmarkVerdict | string;
+  passed: boolean;
+  run_id: string;
+  status?: BenchmarkRunStatus | string;
+  candidate_provider: string;
+  candidate_model: string;
+  candidate_model_version: string;
+  candidate_prompt_template_version: string;
+  metrics: Record<string, unknown>;
+  threshold_snapshot: BenchmarkThresholdProfile | Record<string, unknown>;
 }
 
 export interface LiveLearningWorkspace {

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from app.ai.protocols import (
     AuthoringAIProvider,
     EvaluationAIProvider,
@@ -152,11 +154,33 @@ def authoring_provider_active(settings: Settings | None = None) -> bool:
     return _authoring_mode(settings) not in {"", "none"}
 
 
+def get_benchmark_candidate_executor(
+    *,
+    candidate_provider: str,
+    candidate_model: str,
+    settings: Settings | None = None,
+) -> Any:
+    """Resolve a B15 gold-regression candidate through the provider registry.
+
+    CI fixtures (``fixed`` + ``fixed-benchmark-*``) stay credential-free.
+    Configured candidates use :func:`get_evaluation_provider` and never
+    invoke vendor SDKs from the benchmark domain layer.
+    """
+    from app.ai.providers.benchmark import resolve_benchmark_candidate
+
+    return resolve_benchmark_candidate(
+        candidate_provider=candidate_provider,
+        candidate_model=candidate_model,
+        settings=settings,
+    )
+
+
 __all__ = [
     "NoneNarrativeProvider",
     "authoring_provider_active",
     "evaluation_provider_active",
     "get_authoring_provider",
+    "get_benchmark_candidate_executor",
     "get_evaluation_provider",
     "get_learning_provider",
     "get_narrative_provider",

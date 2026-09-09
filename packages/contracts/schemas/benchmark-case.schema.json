@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/benchmark-case.schema.json",
+  "title": "BenchmarkCase",
+  "description": "B15 frozen gold case curated from a published human-final question evaluation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "dataset_version_id",
+    "published_result_id",
+    "evaluation_run_id",
+    "question_evaluation_id",
+    "question_version_id",
+    "rubric_version_id",
+    "assessment_version_id",
+    "expected_final_marks",
+    "expected_max_marks",
+    "expected_error_codes",
+    "source_ledger_hash",
+    "evidence_hash",
+    "adjudicated_by",
+    "adjudicated_at",
+    "replay_fixture",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "dataset_version_id": { "type": "string", "format": "uuid" },
+    "published_result_id": { "type": "string", "format": "uuid" },
+    "evaluation_run_id": { "type": "string", "format": "uuid" },
+    "question_evaluation_id": { "type": "string", "format": "uuid" },
+    "question_version_id": { "type": "string", "format": "uuid" },
+    "rubric_version_id": { "type": "string", "format": "uuid" },
+    "assessment_version_id": { "type": "string", "format": "uuid" },
+    "expected_final_marks": { "type": "number" },
+    "expected_max_marks": { "type": "number" },
+    "expected_error_codes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "source_ledger_hash": { "type": "string", "minLength": 1 },
+    "evidence_hash": { "type": "string", "minLength": 1 },
+    "adjudicated_by": { "type": ["string", "null"], "format": "uuid" },
+    "adjudicated_at": { "type": "string", "format": "date-time" },
+    "replay_fixture": {
+      "type": "object",
+      "description": "Frozen minimal rubric/transcription for isolated replay — no student PII."
+    },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}

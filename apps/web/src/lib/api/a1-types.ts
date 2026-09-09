@@ -115,4 +115,7 @@ export const A1_PERMISSIONS = {
   studentImport: "student:import",
   guardianRead: "guardian:read",
   guardianWrite: "guardian:write",
+  /** B15 quality benchmark (also granted on teacher/admin roles server-side). */
+  qualityRead: "quality:read",
+  qualityManage: "quality:manage",
 } as const;
