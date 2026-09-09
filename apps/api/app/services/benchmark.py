@@ -45,9 +45,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.providers.benchmark import (
-    FIXED_BENCHMARK_PROVIDER,
+    BenchmarkCandidateError,
     BenchmarkCandidateOutput,
-    resolve_fixed_benchmark_provider,
+    evaluate_benchmark_candidate,
 )
 from app.ai.tracing import (
     canonical_input_hash,
@@ -967,6 +967,29 @@ async def _record_isolated_execution(
     return record.id
 
 
+async def _validate_candidate_resolvable(
+    *,
+    candidate_provider: str,
+    candidate_model: str,
+) -> None:
+    """Fail fast before persisting a run when the candidate cannot be resolved."""
+    from app.ai.providers.benchmark import BenchmarkCandidateError
+    from app.ai.registry import get_benchmark_candidate_executor
+
+    try:
+        get_benchmark_candidate_executor(
+            candidate_provider=candidate_provider,
+            candidate_model=candidate_model,
+        )
+    except BenchmarkCandidateError:
+        raise
+    except ValueError as exc:
+        raise BenchmarkCandidateError(
+            "BENCHMARK_CANDIDATE_UNSUPPORTED",
+            str(exc),
+        ) from exc
+
+
 async def start_regression_run(
     db: AsyncSession,
     *,
@@ -997,18 +1020,14 @@ async def start_regression_run(
         if existing is not None:
             return serialize_run(existing)
 
-    if candidate_provider != FIXED_BENCHMARK_PROVIDER:
-        raise BenchmarkError(
-            "BENCHMARK_CANDIDATE_UNSUPPORTED",
-            f"Unsupported candidate provider: {candidate_provider}",
-        )
+    # Resolve candidate early so unsupported/unconfigured fail before creating a run.
     try:
-        provider = resolve_fixed_benchmark_provider(candidate_model=candidate_model)
-    except ValueError as exc:
-        raise BenchmarkError(
-            "BENCHMARK_CANDIDATE_UNSUPPORTED",
-            str(exc),
-        ) from exc
+        await _validate_candidate_resolvable(
+            candidate_provider=candidate_provider,
+            candidate_model=candidate_model,
+        )
+    except BenchmarkCandidateError as exc:
+        raise BenchmarkError(exc.code, exc.message) from exc
 
     cases = list(
         (
@@ -1074,12 +1093,17 @@ async def start_regression_run(
     case_metric_rows: list[dict[str, Any]] = []
     try:
         for case in cases:
-            output = provider.evaluate_gold_case(
-                case.replay_fixture or {},
-                expected_final_marks=case.expected_final_marks,
-                expected_max_marks=case.expected_max_marks,
-                expected_error_codes=list(case.expected_error_codes or []),
-            )
+            try:
+                output = await evaluate_benchmark_candidate(
+                    candidate_provider=candidate_provider,
+                    candidate_model=candidate_model,
+                    replay_fixture=case.replay_fixture or {},
+                    expected_final_marks=case.expected_final_marks,
+                    expected_max_marks=case.expected_max_marks,
+                    expected_error_codes=list(case.expected_error_codes or []),
+                )
+            except BenchmarkCandidateError as exc:
+                raise BenchmarkError(exc.code, exc.message) from exc
             compared = compare_case_output(
                 expected_final_marks=case.expected_final_marks,
                 expected_max_marks=case.expected_max_marks,
@@ -1116,6 +1140,17 @@ async def start_regression_run(
         run.verdict = str(metrics["verdict"])
         run.status = "PASSED" if metrics["passed"] else "FAILED"
         run.finished_at = _utcnow()
+    except BenchmarkError as exc:
+        run.status = "ERROR"
+        run.verdict = "FAIL"
+        run.failure_code = exc.code
+        run.failure_detail = exc.message[:2000]
+        run.finished_at = _utcnow()
+        run.aggregate_metrics = {
+            "case_count": len(case_metric_rows),
+            "error": True,
+            "failure_code": exc.code,
+        }
     except Exception as exc:  # noqa: BLE001 — isolate regression failures
         run.status = "ERROR"
         run.verdict = "FAIL"

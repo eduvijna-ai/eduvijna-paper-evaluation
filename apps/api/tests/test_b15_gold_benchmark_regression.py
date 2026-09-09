@@ -749,3 +749,319 @@ async def test_b15_cli_gate_exit_code() -> None:
                 run_id=uuid.UUID(pass_run.json()["id"]),
             )
             assert verdict["passed"] is True
+
+
+def test_b15_candidate_routing_uses_registry_abstraction() -> None:
+    from app.ai.providers.benchmark import (
+        EvaluationBenchmarkAdapter,
+        FixedBenchmarkProvider,
+        is_ci_fixture_candidate,
+    )
+    from app.ai.registry import get_benchmark_candidate_executor
+
+    assert is_ci_fixture_candidate(
+        candidate_provider="fixed", candidate_model=MODEL_PASS
+    )
+    fixture = get_benchmark_candidate_executor(
+        candidate_provider="fixed", candidate_model=MODEL_PASS
+    )
+    assert isinstance(fixture, FixedBenchmarkProvider)
+
+    get_settings.cache_clear()
+    # api_client_publication sets vision=fixed; mirror that for unit resolve
+    import os
+
+    os.environ["AI_PROVIDER_VISION"] = "fixed"
+    get_settings.cache_clear()
+    try:
+        configured = get_benchmark_candidate_executor(
+            candidate_provider="fixed",
+            candidate_model="fixed-structure",
+        )
+        assert isinstance(configured, EvaluationBenchmarkAdapter)
+        assert configured.provider_name == "fixed"
+    finally:
+        os.environ["AI_PROVIDER_VISION"] = "none"
+        get_settings.cache_clear()
+
+
+def test_b15_unsupported_and_unconfigured_candidates() -> None:
+    import os
+
+    from app.ai.providers.benchmark import BenchmarkCandidateError
+    from app.ai.registry import get_benchmark_candidate_executor
+
+    os.environ["AI_PROVIDER_VISION"] = "none"
+    get_settings.cache_clear()
+    with pytest.raises(BenchmarkCandidateError) as unconfigured:
+        get_benchmark_candidate_executor(
+            candidate_provider="openai",
+            candidate_model="gpt-4o-mini",
+        )
+    assert unconfigured.value.code == "BENCHMARK_CANDIDATE_UNCONFIGURED"
+
+    os.environ["AI_PROVIDER_VISION"] = "fixed"
+    get_settings.cache_clear()
+    try:
+        with pytest.raises(BenchmarkCandidateError) as mismatch:
+            get_benchmark_candidate_executor(
+                candidate_provider="openai",
+                candidate_model="gpt-4o-mini",
+            )
+        assert mismatch.value.code == "BENCHMARK_CANDIDATE_UNSUPPORTED"
+    finally:
+        os.environ["AI_PROVIDER_VISION"] = "none"
+        get_settings.cache_clear()
+
+
+@pytest.mark.asyncio
+async def test_b15_threshold_profile_runtime_validation() -> None:
+    async with api_client_publication(text_provider="none") as client:
+        headers = await _headers(client)
+        ds = await client.post(
+            "/api/v1/quality/benchmark-datasets",
+            headers=headers,
+            json={"code": "THR-01", "title": "Thresholds"},
+        )
+        assert ds.status_code == 200, ds.text
+        dataset_id = ds.json()["id"]
+
+        missing = await client.post(
+            f"/api/v1/quality/benchmark-datasets/{dataset_id}/versions",
+            headers=headers,
+            json={
+                "threshold_profile_snapshot": {
+                    "profile_code": "CUSTOM",
+                    # missing required fields
+                }
+            },
+        )
+        assert missing.status_code == 422, missing.text
+
+        extra = await client.post(
+            f"/api/v1/quality/benchmark-datasets/{dataset_id}/versions",
+            headers=headers,
+            json={
+                "threshold_profile_snapshot": {
+                    **B15_DEFAULT_THRESHOLDS,
+                    "unknown_field": True,
+                }
+            },
+        )
+        assert extra.status_code == 422, extra.text
+
+        negative = await client.post(
+            f"/api/v1/quality/benchmark-datasets/{dataset_id}/versions",
+            headers=headers,
+            json={
+                "threshold_profile_snapshot": {
+                    **B15_DEFAULT_THRESHOLDS,
+                    "score_tolerance": -0.1,
+                }
+            },
+        )
+        assert negative.status_code == 422, negative.text
+
+        out_of_range = await client.post(
+            f"/api/v1/quality/benchmark-datasets/{dataset_id}/versions",
+            headers=headers,
+            json={
+                "threshold_profile_snapshot": {
+                    **B15_DEFAULT_THRESHOLDS,
+                    "max_missing_output_rate": 1.5,
+                }
+            },
+        )
+        assert out_of_range.status_code == 422, out_of_range.text
+
+        custom = {
+            "profile_code": "CUSTOM_LOOSE_V1",
+            "algorithm_version": "B15_V1",
+            "max_missing_output_rate": 0.1,
+            "max_mean_abs_score_error": 2.0,
+            "min_exact_score_agreement_rate": 0.5,
+            "min_taxonomy_agreement_rate": 0.5,
+            "max_safety_invariant_failure_rate": 0.1,
+            "score_tolerance": 0.25,
+        }
+        ok = await client.post(
+            f"/api/v1/quality/benchmark-datasets/{dataset_id}/versions",
+            headers=headers,
+            json={"threshold_profile_snapshot": custom},
+        )
+        assert ok.status_code == 200, ok.text
+        assert ok.json()["threshold_profile_snapshot"] == custom
+
+        defaulted = await client.post(
+            f"/api/v1/quality/benchmark-datasets/{dataset_id}/versions",
+            headers=headers,
+            json={},
+        )
+        assert defaulted.status_code == 200, defaulted.text
+        assert (
+            defaulted.json()["threshold_profile_snapshot"]["profile_code"]
+            == "B15_DEFAULT_V1"
+        )
+
+
+@pytest.mark.asyncio
+async def test_b15_configured_evaluation_provider_path_isolated() -> None:
+    """Configured candidate uses EvaluationAIProvider via registry; no ledger writes."""
+    from app.db.models import AiExecutionRecord, CriterionEvaluation
+
+    async with api_client_publication(text_provider="none") as client:
+        headers = await _headers(client)
+        ctx = await _create_locked_version(client, headers, code="CFG-01")
+
+        async with async_session_factory() as db:
+            tenant_id = await db.scalar(
+                select(PublishedResult.tenant_id).where(
+                    PublishedResult.id == uuid.UUID(ctx["prid"])
+                )
+            )
+            assert tenant_id is not None
+            before_qe = int(
+                await db.scalar(
+                    select(func.count())
+                    .select_from(QuestionEvaluation)
+                    .where(QuestionEvaluation.tenant_id == tenant_id)
+                )
+                or 0
+            )
+            before_pr = int(
+                await db.scalar(
+                    select(func.count())
+                    .select_from(PublishedResult)
+                    .where(PublishedResult.tenant_id == tenant_id)
+                )
+                or 0
+            )
+            before_ce = int(
+                await db.scalar(
+                    select(func.count())
+                    .select_from(CriterionEvaluation)
+                    .where(CriterionEvaluation.tenant_id == tenant_id)
+                )
+                or 0
+            )
+            before_me = int(
+                await db.scalar(
+                    select(func.count())
+                    .select_from(MasteryEvidence)
+                    .where(MasteryEvidence.tenant_id == tenant_id)
+                )
+                or 0
+            )
+            before_ai = int(
+                await db.scalar(
+                    select(func.count())
+                    .select_from(AiExecutionRecord)
+                    .where(
+                        AiExecutionRecord.tenant_id == tenant_id,
+                        AiExecutionRecord.operation == "gold_benchmark_evaluate",
+                    )
+                )
+                or 0
+            )
+
+        run = await client.post(
+            f"/api/v1/quality/benchmark-versions/{ctx['version']['id']}/regression-runs",
+            headers=headers,
+            json={
+                "candidate_provider": "fixed",
+                "candidate_model": "fixed-structure",
+                "candidate_model_version": "B11_V1",
+                "candidate_prompt_template_version": "fixed-structure-evaluate_rubric-v1",
+                "candidate_config": {"path": "evaluation_provider"},
+            },
+        )
+        assert run.status_code == 200, run.text
+        body = run.json()
+        assert body["candidate_provider"] == "fixed"
+        assert body["candidate_model"] == "fixed-structure"
+        assert body["status"] in {"PASSED", "FAILED"}
+        assert body["verdict"] in {"PASS", "FAIL"}
+
+        unsupported = await client.post(
+            f"/api/v1/quality/benchmark-versions/{ctx['version']['id']}/regression-runs",
+            headers=headers,
+            json={
+                "candidate_provider": "openai",
+                "candidate_model": "gpt-4o-mini",
+                "candidate_model_version": "x",
+                "candidate_prompt_template_version": "x",
+            },
+        )
+        assert unsupported.status_code == 409, unsupported.text
+        err = unsupported.json()
+        code = (
+            err.get("error", {}).get("code")
+            or (err.get("detail") or {}).get("code")
+        )
+        assert code in {
+            "BENCHMARK_CANDIDATE_UNSUPPORTED",
+            "BENCHMARK_CANDIDATE_UNCONFIGURED",
+        }
+
+        async with async_session_factory() as db:
+            after_qe = int(
+                await db.scalar(
+                    select(func.count())
+                    .select_from(QuestionEvaluation)
+                    .where(QuestionEvaluation.tenant_id == tenant_id)
+                )
+                or 0
+            )
+            after_pr = int(
+                await db.scalar(
+                    select(func.count())
+                    .select_from(PublishedResult)
+                    .where(PublishedResult.tenant_id == tenant_id)
+                )
+                or 0
+            )
+            after_ce = int(
+                await db.scalar(
+                    select(func.count())
+                    .select_from(CriterionEvaluation)
+                    .where(CriterionEvaluation.tenant_id == tenant_id)
+                )
+                or 0
+            )
+            after_me = int(
+                await db.scalar(
+                    select(func.count())
+                    .select_from(MasteryEvidence)
+                    .where(MasteryEvidence.tenant_id == tenant_id)
+                )
+                or 0
+            )
+            after_ai = int(
+                await db.scalar(
+                    select(func.count())
+                    .select_from(AiExecutionRecord)
+                    .where(
+                        AiExecutionRecord.tenant_id == tenant_id,
+                        AiExecutionRecord.operation == "gold_benchmark_evaluate",
+                    )
+                )
+                or 0
+            )
+            record = await db.scalar(
+                select(AiExecutionRecord)
+                .where(
+                    AiExecutionRecord.tenant_id == tenant_id,
+                    AiExecutionRecord.operation == "gold_benchmark_evaluate",
+                )
+                .order_by(AiExecutionRecord.created_at.desc())
+            )
+        assert after_qe == before_qe
+        assert after_pr == before_pr
+        assert after_ce == before_ce
+        assert after_me == before_me
+        assert after_ai == before_ai + 1
+        assert record is not None
+        assert record.provider == "fixed"
+        assert record.model is not None
+        assert record.model_version is not None
+        assert record.prompt_template_version is not None

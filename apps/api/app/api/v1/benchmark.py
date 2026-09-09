@@ -42,6 +42,8 @@ _CONFLICT_CODES = {
     "BENCHMARK_VERSION_EMPTY",
     "BENCHMARK_CASE_INELIGIBLE",
     "BENCHMARK_CANDIDATE_UNSUPPORTED",
+    "BENCHMARK_CANDIDATE_UNCONFIGURED",
+    "BENCHMARK_REPLAY_INVALID",
     "BENCHMARK_IDEMPOTENCY_CONFLICT",
 }
 
@@ -61,6 +63,21 @@ def _map_benchmark_error(exc: BenchmarkError) -> HTTPException:
     return _http_error(400, exc.code, exc.message)
 
 
+class BenchmarkThresholdProfileIn(BaseModel):
+    """Runtime threshold profile — mirrors benchmark-threshold-profile.schema.json."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    profile_code: str = Field(min_length=1)
+    algorithm_version: str = Field(min_length=1)
+    max_missing_output_rate: float = Field(ge=0, le=1)
+    max_mean_abs_score_error: float = Field(ge=0)
+    min_exact_score_agreement_rate: float = Field(ge=0, le=1)
+    min_taxonomy_agreement_rate: float = Field(ge=0, le=1)
+    max_safety_invariant_failure_rate: float = Field(ge=0, le=1)
+    score_tolerance: float = Field(ge=0)
+
+
 class BenchmarkDatasetCreateIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -72,7 +89,7 @@ class BenchmarkDatasetCreateIn(BaseModel):
 class BenchmarkVersionCreateIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    threshold_profile_snapshot: dict[str, Any] | None = None
+    threshold_profile_snapshot: BenchmarkThresholdProfileIn | None = None
 
 
 class BenchmarkCaseCreateIn(BaseModel):
@@ -163,7 +180,11 @@ async def post_benchmark_dataset_version(
             tenant_id=auth.tenant_id,
             actor_user_id=auth.user_id,
             dataset_id=dataset_id,
-            threshold_profile_snapshot=body.threshold_profile_snapshot,
+            threshold_profile_snapshot=(
+                body.threshold_profile_snapshot.model_dump()
+                if body.threshold_profile_snapshot is not None
+                else None
+            ),
         )
     except BenchmarkError as exc:
         raise _map_benchmark_error(exc) from exc

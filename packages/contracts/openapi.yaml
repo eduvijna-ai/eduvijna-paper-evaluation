@@ -4743,8 +4743,8 @@ components:
           score_tolerance,
         ]
       properties:
-        profile_code: { type: string }
-        algorithm_version: { type: string }
+        profile_code: { type: string, minLength: 1 }
+        algorithm_version: { type: string, minLength: 1 }
         max_missing_output_rate: { type: number, minimum: 0, maximum: 1 }
         max_mean_abs_score_error: { type: number, minimum: 0 }
         min_exact_score_agreement_rate: { type: number, minimum: 0, maximum: 1 }
