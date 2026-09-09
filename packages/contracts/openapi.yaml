@@ -1341,6 +1341,220 @@ paths:
         "409":
           description: Prepare requires PUBLISHED result
           content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/analytics/students/{id}/mastery-state:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getStudentMasteryState
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Persisted longitudinal MasteryState (B12_V1 / PEV-037)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentMasteryState" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/analytics/students/{id}/mastery-trend:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getStudentMasteryTrend
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: curriculum_node_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Historical MasteryState snapshots ordered by effective published time (B12_V1)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentMasteryTrend" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/analytics/students/{id}/repeated-errors:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getStudentRepeatedErrors
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Recurring academic errors across distinct published results (B12_V1 / PEV-035)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentRepeatedErrors" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/analytics/students/{id}/recoverable-marks:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getStudentRecoverableMarks
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Potentially recoverable marks from final criterion ledger (B12_V1 / PEV-036)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentRecoverableMarks" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/analytics/students/{id}/mistake-notebook:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getStudentMistakeNotebook
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Persistent student mistake notebook (B12_V1 / PEV-038)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentMistakeNotebook" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/analytics/students/{id}/b12/rebuild:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: rebuildStudentB12Intelligence
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Deterministic idempotent B12 rebuild from immutable MasteryEvidence + published ledger
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/B12RebuildResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/learning/resources:
+    get:
+      operationId: listCurriculumResources
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: curriculum_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [DRAFT, APPROVED, ACTIVE, DEACTIVATED]
+      responses:
+        "200":
+          description: Institution-approved curriculum resource catalog (B13)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurriculumResourceList" }
+    post:
+      operationId: createCurriculumResource
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CurriculumResourceCreate" }
+      responses:
+        "201":
+          description: Created DRAFT curriculum resource
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurriculumResource" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Duplicate code or invalid content_ref
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+        "422":
+          description: Validation error
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/learning/resources/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getCurriculumResource
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Curriculum resource detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurriculumResource" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateCurriculumResource
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CurriculumResourceUpdate" }
+      responses:
+        "200":
+          description: Updated curriculum resource
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurriculumResource" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Illegal status transition or open-web content_ref
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/learning/resources/{id}/approve:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: approveCurriculumResource
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Resource marked APPROVED
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurriculumResource" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Invalid status for approve
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/learning/resources/{id}/activate:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: activateCurriculumResource
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Resource marked ACTIVE (assignable)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurriculumResource" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Invalid status for activate
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/learning/resources/{id}/deactivate:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: deactivateCurriculumResource
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Resource deactivated; historical assignments retained
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurriculumResource" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Invalid status for deactivate
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/learning/resources/{id}/nodes:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    put:
+      operationId: replaceCurriculumResourceNodes
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CurriculumResourceNodesReplace" }
+      responses:
+        "200":
+          description: Node mappings replaced
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CurriculumResource" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Foreign or inactive curriculum node
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
   /api/v1/learning/students/{id}:
     parameters: [{ $ref: "#/components/parameters/Id" }]
     get:
@@ -1353,11 +1567,65 @@ paths:
           schema: { type: string, format: uuid }
       responses:
         "200":
-          description: Live learning workspace for a student
+          description: Live learning workspace for a student (includes B13 assigned resources)
           content:
             application/json:
               schema: { $ref: "#/components/schemas/LearningWorkspace" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/learning/students/{id}/resource-assignments:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: listStudentResourceAssignments
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: curriculum_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [ASSIGNED, CANCELLED] }
+      responses:
+        "200":
+          description: Student resource assignment list/history (B13)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentResourceAssignmentList" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      operationId: createStudentResourceAssignment
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StudentResourceAssignmentCreate" }
+      responses:
+        "200":
+          description: Created or idempotently reused ASSIGNED row
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentResourceAssignment" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Resource not ACTIVE, incompatible recommendation, or open-web rejection
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/learning/resource-assignments/{id}/cancel:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: cancelStudentResourceAssignment
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Assignment cancelled; historical row retained
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StudentResourceAssignment" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Already cancelled
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
   /api/v1/learning/students/{id}/prepare:
     parameters: [{ $ref: "#/components/parameters/Id" }]
     post:
@@ -1452,6 +1720,341 @@ paths:
         "422":
           description: Invalid rejection reason
           content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/improvement-assessments/{id}/reassessment:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: instantiateReassessment
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ReassessmentInstantiateRequest" }
+      responses:
+        "200":
+          description: Created or idempotently reused B14 reassessment (DRAFT Assessment)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Reassessment" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Stale blueprint, not APPROVED, or already instantiated with different payload
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+        "422":
+          description: Invalid item coverage or marks
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/reassessments/{id}:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    get:
+      operationId: getReassessment
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: B14 reassessment detail with mastery baseline/post/delta
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Reassessment" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/reassessments/{id}/b14/rebuild:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: rebuildReassessmentB14
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Idempotent B14 post/delta rebuild from existing B12 snapshots
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/B14RebuildResult" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Linked published result or exact B12 snapshot not ready
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/quality/benchmark-datasets:
+    get:
+      operationId: listBenchmarkDatasets
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Tenant benchmark datasets
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkDatasetList" }
+    post:
+      operationId: createBenchmarkDataset
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BenchmarkDatasetCreate" }
+      responses:
+        "200":
+          description: Created benchmark dataset
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkDataset" }
+        "409":
+          description: Dataset code conflict
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/quality/benchmark-datasets/{dataset_id}:
+    parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getBenchmarkDataset
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Benchmark dataset detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkDataset" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/quality/benchmark-datasets/{dataset_id}/versions:
+    parameters:
+      - name: dataset_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listBenchmarkVersions
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Dataset versions
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkVersionList" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      operationId: createBenchmarkVersion
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BenchmarkVersionCreate" }
+      responses:
+        "200":
+          description: Created DRAFT version with default thresholds
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkVersion" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/quality/benchmark-versions/{version_id}:
+    parameters:
+      - name: version_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getBenchmarkVersion
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Benchmark version detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkVersion" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/quality/benchmark-versions/{version_id}/eligible-sources:
+    parameters:
+      - name: version_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listBenchmarkEligibleSources
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: PUBLISHED + human-final eligible sources
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkEligibleSources" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/quality/benchmark-versions/{version_id}/cases:
+    parameters:
+      - name: version_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listBenchmarkCases
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Gold cases for version
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkCaseList" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      operationId: addBenchmarkCase
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BenchmarkCaseCreate" }
+      responses:
+        "200":
+          description: Created or idempotently reused gold case
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkCase" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Version locked or source ineligible
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/quality/benchmark-versions/{version_id}/cases/{case_id}:
+    parameters:
+      - name: version_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: case_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      operationId: removeBenchmarkCase
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Case removed (DRAFT only)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id, removed]
+                properties:
+                  id: { type: string, format: uuid }
+                  removed: { type: boolean }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Version locked
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/quality/benchmark-versions/{version_id}/lock:
+    parameters:
+      - name: version_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: lockBenchmarkVersion
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Locked version (idempotent for same content hash)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkVersion" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Empty version or lock conflict
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/quality/benchmark-versions/{version_id}/regression-runs:
+    parameters:
+      - name: version_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listBenchmarkRegressionRuns
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Regression runs for version
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkRegressionRunList" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      operationId: startBenchmarkRegressionRun
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BenchmarkRegressionRunCreate" }
+      responses:
+        "200":
+          description: Started or idempotently reused regression run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkRegressionRun" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: Version not locked or unsupported candidate
+          content: { application/json: { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } }
+  /api/v1/quality/regression-runs/{run_id}:
+    parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getBenchmarkRegressionRun
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Regression run detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkRegressionRun" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/quality/regression-runs/{run_id}/case-results:
+    parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listBenchmarkRegressionCaseResults
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Per-case regression results
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkRegressionCaseResultList" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/quality/regression-runs/{run_id}/gate:
+    parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: evaluateBenchmarkReleaseGate
+      tags: [quality-benchmark]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Release gate verdict
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BenchmarkGateVerdict" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /api/v1/submission-pages/{id}/answer-regions:
     parameters: [{ $ref: "#/components/parameters/Id" }]
     post:
@@ -3246,6 +3849,320 @@ components:
         celery_task_id: { type: [string, "null"] }
         enqueue_error: { type: [string, "null"] }
         algorithm_version: { type: string, enum: [B8_V1] }
+    StudentMasteryState:
+      type: object
+      description: See packages/contracts/schemas/mastery-state.schema.json
+      required: [student_id, items, algorithm_version, source, as_of]
+      properties:
+        student_id: { type: string, format: uuid }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/MasteryStateItem" }
+        algorithm_version: { type: string, enum: [B12_V1] }
+        source: { type: string, enum: [MASTERY_EVIDENCE] }
+        as_of: { type: string, format: date-time }
+    MasteryStateItem:
+      type: object
+      required:
+        [
+          curriculum_node_id,
+          curriculum_id,
+          code,
+          title,
+          node_type,
+          concept_mastery,
+          execution_accuracy,
+          concept_decisive_count,
+          execution_decisive_count,
+          concept_inconclusive_count,
+          execution_inconclusive_count,
+          evidence_count,
+          insufficient_concept_evidence,
+          insufficient_execution_evidence,
+          source_evidence_hash,
+          algorithm_version,
+          last_updated_at,
+        ]
+      properties:
+        id: { type: [string, "null"], format: uuid }
+        curriculum_node_id: { type: string, format: uuid }
+        curriculum_id: { type: string, format: uuid }
+        code: { type: string }
+        title: { type: string }
+        node_type: { type: string }
+        concept_mastery: { type: [number, "null"], minimum: 0, maximum: 1 }
+        execution_accuracy: { type: [number, "null"], minimum: 0, maximum: 1 }
+        concept_decisive_count: { type: integer, minimum: 0 }
+        execution_decisive_count: { type: integer, minimum: 0 }
+        concept_inconclusive_count: { type: integer, minimum: 0 }
+        execution_inconclusive_count: { type: integer, minimum: 0 }
+        evidence_count: { type: integer, minimum: 0 }
+        insufficient_concept_evidence: { type: boolean }
+        insufficient_execution_evidence: { type: boolean }
+        source_evidence_hash: { type: string }
+        algorithm_version: { type: string, enum: [B12_V1] }
+        last_updated_at: { type: string, format: date-time }
+    StudentMasteryTrend:
+      type: object
+      description: See packages/contracts/schemas/mastery-trend.schema.json
+      required: [student_id, points, algorithm_version, source, as_of]
+      properties:
+        student_id: { type: string, format: uuid }
+        curriculum_node_id: { type: [string, "null"], format: uuid }
+        points:
+          type: array
+          items: { $ref: "#/components/schemas/MasteryTrendPoint" }
+        algorithm_version: { type: string, enum: [B12_V1] }
+        source: { type: string, enum: [MASTERY_EVIDENCE] }
+        as_of: { type: string, format: date-time }
+    MasteryTrendPoint:
+      type: object
+      required:
+        [
+          curriculum_node_id,
+          curriculum_id,
+          code,
+          title,
+          published_result_id,
+          assessment_id,
+          assessment_code,
+          effective_at,
+          concept_mastery,
+          execution_accuracy,
+          concept_decisive_count,
+          execution_decisive_count,
+          evidence_count,
+          insufficient_concept_evidence,
+          insufficient_execution_evidence,
+          source_evidence_hash,
+          algorithm_version,
+        ]
+      properties:
+        curriculum_node_id: { type: string, format: uuid }
+        curriculum_id: { type: string, format: uuid }
+        code: { type: string }
+        title: { type: string }
+        published_result_id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_code: { type: string }
+        effective_at: { type: string, format: date-time }
+        concept_mastery: { type: [number, "null"], minimum: 0, maximum: 1 }
+        execution_accuracy: { type: [number, "null"], minimum: 0, maximum: 1 }
+        concept_decisive_count: { type: integer, minimum: 0 }
+        execution_decisive_count: { type: integer, minimum: 0 }
+        evidence_count: { type: integer, minimum: 0 }
+        insufficient_concept_evidence: { type: boolean }
+        insufficient_execution_evidence: { type: boolean }
+        source_evidence_hash: { type: string }
+        algorithm_version: { type: string, enum: [B12_V1] }
+    StudentRepeatedErrors:
+      type: object
+      description: See packages/contracts/schemas/repeated-errors.schema.json
+      required:
+        [student_id, items, recurrence_threshold, algorithm_version, source, as_of]
+      properties:
+        student_id: { type: string, format: uuid }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/RepeatedErrorItem" }
+        recurrence_threshold: { type: integer, enum: [2] }
+        algorithm_version: { type: string, enum: [B12_V1] }
+        source: { type: string, enum: [MASTERY_EVIDENCE] }
+        as_of: { type: string, format: date-time }
+    RepeatedErrorItem:
+      type: object
+      required:
+        [
+          error_code,
+          occurrence_count,
+          distinct_published_result_count,
+          distinct_assessment_count,
+          first_seen_at,
+          last_seen_at,
+          affected_question_evaluations,
+          curriculum_node_ids,
+        ]
+      properties:
+        error_code: { type: string }
+        occurrence_count: { type: integer, minimum: 1 }
+        distinct_published_result_count: { type: integer, minimum: 2 }
+        distinct_assessment_count: { type: integer, minimum: 1 }
+        first_seen_at: { type: string, format: date-time }
+        last_seen_at: { type: string, format: date-time }
+        affected_question_evaluations:
+          type: array
+          items:
+            type: object
+            required:
+              [
+                published_result_id,
+                assessment_id,
+                question_evaluation_id,
+                question_version_id,
+              ]
+            properties:
+              published_result_id: { type: string, format: uuid }
+              assessment_id: { type: string, format: uuid }
+              question_evaluation_id: { type: string, format: uuid }
+              question_version_id: { type: string, format: uuid }
+        curriculum_node_ids:
+          type: array
+          items: { type: string, format: uuid }
+    StudentRecoverableMarks:
+      type: object
+      description: See packages/contracts/schemas/recoverable-marks.schema.json
+      required:
+        [
+          student_id,
+          total_lost_marks,
+          attributed_potentially_recoverable_marks,
+          unattributed_lost_marks,
+          items,
+          disclaimer,
+          algorithm_version,
+          source,
+          as_of,
+        ]
+      properties:
+        student_id: { type: string, format: uuid }
+        total_lost_marks: { type: string }
+        attributed_potentially_recoverable_marks: { type: string }
+        unattributed_lost_marks: { type: string }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/RecoverableMarksItem" }
+        disclaimer:
+          type: string
+          enum:
+            - "Potentially recoverable marks are an analytical estimate from final criterion deductions, not guaranteed recovery."
+        algorithm_version: { type: string, enum: [B12_V1] }
+        source: { type: string, enum: [PUBLISHED_LEDGER] }
+        as_of: { type: string, format: date-time }
+    RecoverableMarksItem:
+      type: object
+      required:
+        [
+          error_code,
+          potentially_recoverable_marks,
+          occurrence_count,
+          percent_of_total_lost,
+          affected_references,
+        ]
+      properties:
+        error_code: { type: string }
+        potentially_recoverable_marks: { type: string }
+        occurrence_count: { type: integer, minimum: 1 }
+        percent_of_total_lost: { type: [number, "null"], minimum: 0, maximum: 100 }
+        affected_references:
+          type: array
+          items:
+            type: object
+            required:
+              [
+                published_result_id,
+                assessment_id,
+                question_evaluation_id,
+                criterion_evaluation_id,
+              ]
+            properties:
+              published_result_id: { type: string, format: uuid }
+              assessment_id: { type: string, format: uuid }
+              question_evaluation_id: { type: string, format: uuid }
+              criterion_evaluation_id: { type: string, format: uuid }
+    StudentMistakeNotebook:
+      type: object
+      description: See packages/contracts/schemas/mistake-notebook.schema.json
+      required: [student_id, entries, algorithm_version, source, as_of]
+      properties:
+        student_id: { type: string, format: uuid }
+        entries:
+          type: array
+          items: { $ref: "#/components/schemas/MistakeNotebookEntry" }
+        algorithm_version: { type: string, enum: [B12_V1] }
+        source: { type: string, enum: [PUBLISHED_LEDGER] }
+        as_of: { type: string, format: date-time }
+    MistakeNotebookEntry:
+      type: object
+      required:
+        [
+          id,
+          published_result_id,
+          assessment_id,
+          assessment_code,
+          submission_id,
+          question_evaluation_id,
+          question_version_id,
+          question_code,
+          academic_error_code,
+          final_score,
+          max_mark,
+          deduction_reasons,
+          first_divergence_step,
+          curriculum_nodes,
+          recommended_practice_kind,
+          linked_learning_recommendation_ids,
+          source_ledger_snapshot_hash,
+          algorithm_version,
+          materialized_at,
+          effective_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        published_result_id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_code: { type: string }
+        submission_id: { type: string, format: uuid }
+        question_evaluation_id: { type: string, format: uuid }
+        question_version_id: { type: string, format: uuid }
+        question_code: { type: string }
+        academic_error_code: { type: string }
+        final_score: { type: string }
+        max_mark: { type: string }
+        deduction_reasons:
+          type: array
+          items: { type: string }
+        first_divergence_step: { type: [string, "null"] }
+        curriculum_nodes:
+          type: array
+          items:
+            type: object
+            required: [id, code, title, node_type]
+            properties:
+              id: { type: string, format: uuid }
+              code: { type: string }
+              title: { type: string }
+              node_type: { type: string }
+        recommended_practice_kind:
+          type: string
+          enum: [CONCEPT_CHECK, EXECUTION_PRACTICE, PROCEDURE_PRACTICE]
+        linked_learning_recommendation_ids:
+          type: array
+          items: { type: string, format: uuid }
+        source_ledger_snapshot_hash: { type: string }
+        algorithm_version: { type: string, enum: [B12_V1] }
+        materialized_at: { type: string, format: date-time }
+        effective_at: { type: string, format: date-time }
+    B12RebuildResult:
+      type: object
+      description: See packages/contracts/schemas/b12-rebuild-result.schema.json
+      required:
+        [
+          student_id,
+          algorithm_version,
+          mastery_state_count,
+          snapshot_count,
+          notebook_entry_count,
+          source_evidence_hash,
+          source,
+        ]
+      properties:
+        student_id: { type: string, format: uuid }
+        algorithm_version: { type: string, enum: [B12_V1] }
+        mastery_state_count: { type: integer, minimum: 0 }
+        snapshot_count: { type: integer, minimum: 0 }
+        notebook_entry_count: { type: integer, minimum: 0 }
+        source_evidence_hash: { type: string }
+        source: { type: string, enum: [MASTERY_EVIDENCE] }
     LearningWorkspace:
       type: object
       description: Live B9 learning workspace
@@ -3299,6 +4216,289 @@ components:
           type: [object, "null"]
           additionalProperties: true
         selection_required: { type: boolean }
+        resource_assignments:
+          type: array
+          description: B13 assigned catalog resources for the selected curriculum (ASSIGNED only)
+          items: { $ref: "#/components/schemas/StudentResourceAssignment" }
+        reassessments:
+          type: array
+          description: B14 reassessment history for the student (newest first)
+          items: { $ref: "#/components/schemas/Reassessment" }
+    ReassessmentInstantiateRequest:
+      type: object
+      description: See packages/contracts/schemas/reassessment-instantiate.schema.json
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [improvement_assessment_item_id, prompt_text, max_marks]
+            properties:
+              improvement_assessment_item_id: { type: string, format: uuid }
+              prompt_text: { type: string, minLength: 1 }
+              max_marks: { type: string }
+              question_type: { type: [string, "null"] }
+              instructions: { type: [string, "null"] }
+    Reassessment:
+      type: object
+      description: See packages/contracts/schemas/reassessment.schema.json
+      required:
+        [
+          id,
+          improvement_assessment_id,
+          blueprint_title,
+          blueprint_version_number,
+          student_id,
+          curriculum_id,
+          assessment_id,
+          assessment_status,
+          assessment_version_id,
+          submission_id,
+          published_result_id,
+          status,
+          algorithm_version,
+          instantiation_hash,
+          baseline_captured_at,
+          created_at,
+          updated_at,
+          items,
+          mastery_deltas,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        improvement_assessment_id: { type: string, format: uuid }
+        blueprint_title: { type: string }
+        blueprint_version_number: { type: integer }
+        student_id: { type: string, format: uuid }
+        curriculum_id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_status: { type: string }
+        assessment_version_id: { type: string, format: uuid }
+        submission_id: { type: [string, "null"], format: uuid }
+        published_result_id: { type: [string, "null"], format: uuid }
+        status: { type: string, enum: [CREATED, SUBMITTED, PUBLISHED] }
+        algorithm_version: { type: string, enum: [B14_V1] }
+        instantiation_hash: { type: string }
+        baseline_captured_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ReassessmentItem" }
+        mastery_deltas:
+          type: array
+          items: { $ref: "#/components/schemas/ReassessmentMasteryDelta" }
+    ReassessmentItem:
+      type: object
+      required:
+        [
+          id,
+          improvement_assessment_item_id,
+          question_version_id,
+          curriculum_node_id,
+          item_code_snapshot,
+          template_kind_snapshot,
+          question_template_ref_snapshot,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        improvement_assessment_item_id: { type: string, format: uuid }
+        question_version_id: { type: string, format: uuid }
+        curriculum_node_id: { type: string, format: uuid }
+        item_code_snapshot: { type: string }
+        template_kind_snapshot: { type: string }
+        question_template_ref_snapshot: { type: [string, "null"] }
+    ReassessmentMasteryDelta:
+      type: object
+      required:
+        [
+          curriculum_node_id,
+          baseline_concept_mastery,
+          baseline_execution_accuracy,
+          baseline_concept_decisive_count,
+          baseline_execution_decisive_count,
+          baseline_concept_inconclusive_count,
+          baseline_execution_inconclusive_count,
+          baseline_evidence_count,
+          baseline_source_evidence_hash,
+          post_snapshot_id,
+          post_published_result_id,
+          post_concept_mastery,
+          post_execution_accuracy,
+          post_concept_decisive_count,
+          post_execution_decisive_count,
+          post_concept_inconclusive_count,
+          post_execution_inconclusive_count,
+          post_evidence_count,
+          post_source_evidence_hash,
+          concept_delta,
+          execution_delta,
+          materialized_at,
+          algorithm_version,
+        ]
+      properties:
+        curriculum_node_id: { type: string, format: uuid }
+        baseline_concept_mastery: { type: [number, "null"], minimum: 0, maximum: 1 }
+        baseline_execution_accuracy: { type: [number, "null"], minimum: 0, maximum: 1 }
+        baseline_concept_decisive_count: { type: integer, minimum: 0 }
+        baseline_execution_decisive_count: { type: integer, minimum: 0 }
+        baseline_concept_inconclusive_count: { type: integer, minimum: 0 }
+        baseline_execution_inconclusive_count: { type: integer, minimum: 0 }
+        baseline_evidence_count: { type: integer, minimum: 0 }
+        baseline_source_evidence_hash: { type: string }
+        post_snapshot_id: { type: [string, "null"], format: uuid }
+        post_published_result_id: { type: [string, "null"], format: uuid }
+        post_concept_mastery: { type: [number, "null"], minimum: 0, maximum: 1 }
+        post_execution_accuracy: { type: [number, "null"], minimum: 0, maximum: 1 }
+        post_concept_decisive_count: { type: [integer, "null"], minimum: 0 }
+        post_execution_decisive_count: { type: [integer, "null"], minimum: 0 }
+        post_concept_inconclusive_count: { type: [integer, "null"], minimum: 0 }
+        post_execution_inconclusive_count: { type: [integer, "null"], minimum: 0 }
+        post_evidence_count: { type: [integer, "null"], minimum: 0 }
+        post_source_evidence_hash: { type: [string, "null"] }
+        concept_delta: { type: [number, "null"] }
+        execution_delta: { type: [number, "null"] }
+        materialized_at: { type: [string, "null"], format: date-time }
+        algorithm_version: { type: string, enum: [B14_V1] }
+    B14RebuildResult:
+      type: object
+      description: See packages/contracts/schemas/b14-rebuild-result.schema.json
+      required: [reassessment_id, algorithm_version, delta_count, published_result_id, source]
+      properties:
+        reassessment_id: { type: string, format: uuid }
+        algorithm_version: { type: string, enum: [B14_V1] }
+        delta_count: { type: integer, minimum: 0 }
+        published_result_id: { type: [string, "null"], format: uuid }
+        source: { type: string, enum: [MASTERY_STATE_SNAPSHOT] }
+    CurriculumResource:
+      type: object
+      description: See packages/contracts/schemas/curriculum-resource.schema.json
+      required:
+        [
+          id,
+          curriculum_id,
+          code,
+          title,
+          description,
+          resource_kind,
+          status,
+          content_ref,
+          curriculum_node_ids,
+          created_by,
+          approved_by,
+          approved_at,
+          created_at,
+          updated_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        curriculum_id: { type: string, format: uuid }
+        code: { type: string }
+        title: { type: string }
+        description: { type: [string, "null"] }
+        resource_kind:
+          type: string
+          enum: [PRACTICE_SET, WORKED_EXAMPLE, CONCEPT_NOTE, INTERNAL_PACKET]
+        status:
+          type: string
+          enum: [DRAFT, APPROVED, ACTIVE, DEACTIVATED]
+        content_ref: { type: string }
+        curriculum_node_ids:
+          type: array
+          items: { type: string, format: uuid }
+        created_by: { type: [string, "null"], format: uuid }
+        approved_by: { type: [string, "null"], format: uuid }
+        approved_at: { type: [string, "null"], format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    CurriculumResourceList:
+      type: object
+      required: [items]
+      properties:
+        curriculum_id: { type: [string, "null"], format: uuid }
+        status_filter:
+          type: [string, "null"]
+          enum: [DRAFT, APPROVED, ACTIVE, DEACTIVATED, null]
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/CurriculumResource" }
+    CurriculumResourceCreate:
+      type: object
+      required: [curriculum_id, code, title, resource_kind, content_ref, curriculum_node_ids]
+      properties:
+        curriculum_id: { type: string, format: uuid }
+        code: { type: string }
+        title: { type: string }
+        description: { type: [string, "null"] }
+        resource_kind:
+          type: string
+          enum: [PRACTICE_SET, WORKED_EXAMPLE, CONCEPT_NOTE, INTERNAL_PACKET]
+        content_ref: { type: string }
+        curriculum_node_ids:
+          type: array
+          minItems: 1
+          items: { type: string, format: uuid }
+    CurriculumResourceUpdate:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: [string, "null"] }
+        resource_kind:
+          type: string
+          enum: [PRACTICE_SET, WORKED_EXAMPLE, CONCEPT_NOTE, INTERNAL_PACKET]
+        content_ref: { type: string }
+    CurriculumResourceNodesReplace:
+      type: object
+      required: [curriculum_node_ids]
+      properties:
+        curriculum_node_ids:
+          type: array
+          minItems: 1
+          items: { type: string, format: uuid }
+    StudentResourceAssignment:
+      type: object
+      description: See packages/contracts/schemas/student-resource-assignment.schema.json
+      required:
+        [
+          id,
+          student_id,
+          resource_id,
+          resource,
+          learning_recommendation_id,
+          status,
+          assigned_by,
+          assigned_at,
+          cancelled_at,
+          cancelled_by,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        student_id: { type: string, format: uuid }
+        resource_id: { type: string, format: uuid }
+        resource: { $ref: "#/components/schemas/CurriculumResource" }
+        learning_recommendation_id: { type: [string, "null"], format: uuid }
+        status: { type: string, enum: [ASSIGNED, CANCELLED] }
+        assigned_by: { type: [string, "null"], format: uuid }
+        assigned_at: { type: string, format: date-time }
+        cancelled_at: { type: [string, "null"], format: date-time }
+        cancelled_by: { type: [string, "null"], format: uuid }
+    StudentResourceAssignmentList:
+      type: object
+      required: [student_id, items]
+      properties:
+        student_id: { type: string, format: uuid }
+        curriculum_id: { type: [string, "null"], format: uuid }
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/StudentResourceAssignment" }
+    StudentResourceAssignmentCreate:
+      type: object
+      required: [resource_id]
+      properties:
+        resource_id: { type: string, format: uuid }
+        learning_recommendation_id: { type: [string, "null"], format: uuid }
     LearningPrepareInput:
       type: object
       required: [curriculum_id]
@@ -3528,4 +4728,351 @@ components:
       required: [reason]
       properties:
         reason: { type: string, minLength: 1, maxLength: 2000 }
+    BenchmarkThresholdProfile:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          profile_code,
+          algorithm_version,
+          max_missing_output_rate,
+          max_mean_abs_score_error,
+          min_exact_score_agreement_rate,
+          min_taxonomy_agreement_rate,
+          max_safety_invariant_failure_rate,
+          score_tolerance,
+        ]
+      properties:
+        profile_code: { type: string, minLength: 1 }
+        algorithm_version: { type: string, minLength: 1 }
+        max_missing_output_rate: { type: number, minimum: 0, maximum: 1 }
+        max_mean_abs_score_error: { type: number, minimum: 0 }
+        min_exact_score_agreement_rate: { type: number, minimum: 0, maximum: 1 }
+        min_taxonomy_agreement_rate: { type: number, minimum: 0, maximum: 1 }
+        max_safety_invariant_failure_rate: { type: number, minimum: 0, maximum: 1 }
+        score_tolerance: { type: number, minimum: 0 }
+    BenchmarkDataset:
+      type: object
+      additionalProperties: false
+      required: [id, code, title, description, created_by, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        code: { type: string }
+        title: { type: string }
+        description: { type: [string, "null"] }
+        created_by: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    BenchmarkDatasetCreate:
+      type: object
+      additionalProperties: false
+      required: [code, title]
+      properties:
+        code: { type: string, minLength: 1, maxLength: 100 }
+        title: { type: string, minLength: 1, maxLength: 255 }
+        description: { type: [string, "null"], maxLength: 4000 }
+    BenchmarkDatasetList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BenchmarkDataset" }
+    BenchmarkVersion:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          dataset_id,
+          version_number,
+          status,
+          threshold_profile_snapshot,
+          case_count,
+          content_hash,
+          locked_by,
+          locked_at,
+          created_by,
+          created_at,
+          updated_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        dataset_id: { type: string, format: uuid }
+        version_number: { type: integer, minimum: 1 }
+        status: { type: string, enum: [DRAFT, LOCKED] }
+        threshold_profile_snapshot: { $ref: "#/components/schemas/BenchmarkThresholdProfile" }
+        case_count: { type: integer, minimum: 0 }
+        content_hash: { type: [string, "null"] }
+        locked_by: { type: [string, "null"], format: uuid }
+        locked_at: { type: [string, "null"], format: date-time }
+        created_by: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    BenchmarkVersionCreate:
+      type: object
+      additionalProperties: false
+      properties:
+        threshold_profile_snapshot:
+          oneOf:
+            - { $ref: "#/components/schemas/BenchmarkThresholdProfile" }
+            - { type: "null" }
+    BenchmarkVersionList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BenchmarkVersion" }
+    BenchmarkCase:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          dataset_version_id,
+          published_result_id,
+          evaluation_run_id,
+          question_evaluation_id,
+          question_version_id,
+          rubric_version_id,
+          assessment_version_id,
+          expected_final_marks,
+          expected_max_marks,
+          expected_error_codes,
+          source_ledger_hash,
+          evidence_hash,
+          adjudicated_by,
+          adjudicated_at,
+          replay_fixture,
+          created_at,
+          updated_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        dataset_version_id: { type: string, format: uuid }
+        published_result_id: { type: string, format: uuid }
+        evaluation_run_id: { type: string, format: uuid }
+        question_evaluation_id: { type: string, format: uuid }
+        question_version_id: { type: string, format: uuid }
+        rubric_version_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        expected_final_marks: { type: number }
+        expected_max_marks: { type: number }
+        expected_error_codes:
+          type: array
+          items: { type: string }
+        source_ledger_hash: { type: string }
+        evidence_hash: { type: string }
+        adjudicated_by: { type: [string, "null"], format: uuid }
+        adjudicated_at: { type: string, format: date-time }
+        replay_fixture: { type: object }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    BenchmarkCaseCreate:
+      type: object
+      additionalProperties: false
+      required: [published_result_id, question_evaluation_id]
+      properties:
+        published_result_id: { type: string, format: uuid }
+        question_evaluation_id: { type: string, format: uuid }
+    BenchmarkCaseList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BenchmarkCase" }
+    BenchmarkEligibleSources:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              [
+                published_result_id,
+                evaluation_run_id,
+                submission_id,
+                assessment_version_id,
+                ledger_snapshot_hash,
+                question_evaluations,
+              ]
+            properties:
+              published_result_id: { type: string, format: uuid }
+              evaluation_run_id: { type: string, format: uuid }
+              submission_id: { type: string, format: uuid }
+              assessment_version_id: { type: string, format: uuid }
+              ledger_snapshot_hash: { type: string }
+              question_evaluations:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    [
+                      question_evaluation_id,
+                      question_version_id,
+                      workflow_state,
+                      final_human_approved_score,
+                      max_mark,
+                      error_codes,
+                    ]
+                  properties:
+                    question_evaluation_id: { type: string, format: uuid }
+                    question_version_id: { type: string, format: uuid }
+                    workflow_state: { type: string, enum: [ACCEPTED, OVERRIDDEN] }
+                    final_human_approved_score: { type: number }
+                    max_mark: { type: number }
+                    error_codes:
+                      type: array
+                      items: { type: string }
+    BenchmarkRegressionRun:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          dataset_version_id,
+          status,
+          verdict,
+          idempotency_key,
+          candidate_provider,
+          candidate_model,
+          candidate_model_version,
+          candidate_prompt_template_version,
+          candidate_config,
+          threshold_snapshot,
+          aggregate_metrics,
+          initiated_by,
+          started_at,
+          finished_at,
+          failure_code,
+          failure_detail,
+          created_at,
+          updated_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        dataset_version_id: { type: string, format: uuid }
+        status: { type: string, enum: [QUEUED, RUNNING, PASSED, FAILED, ERROR] }
+        verdict: { type: string, enum: [PASS, FAIL, PENDING] }
+        idempotency_key: { type: [string, "null"] }
+        candidate_provider: { type: string }
+        candidate_model: { type: string }
+        candidate_model_version: { type: string }
+        candidate_prompt_template_version: { type: string }
+        candidate_config: { type: object }
+        threshold_snapshot: { $ref: "#/components/schemas/BenchmarkThresholdProfile" }
+        aggregate_metrics: { type: object }
+        initiated_by: { type: [string, "null"], format: uuid }
+        started_at: { type: [string, "null"], format: date-time }
+        finished_at: { type: [string, "null"], format: date-time }
+        failure_code: { type: [string, "null"] }
+        failure_detail: { type: [string, "null"] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    BenchmarkRegressionRunCreate:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          candidate_provider,
+          candidate_model,
+          candidate_model_version,
+          candidate_prompt_template_version,
+        ]
+      properties:
+        candidate_provider: { type: string, minLength: 1, maxLength: 100 }
+        candidate_model: { type: string, minLength: 1, maxLength: 100 }
+        candidate_model_version: { type: string, minLength: 1, maxLength: 100 }
+        candidate_prompt_template_version: { type: string, minLength: 1, maxLength: 100 }
+        candidate_config: { type: [object, "null"] }
+        idempotency_key: { type: [string, "null"], maxLength: 128 }
+    BenchmarkRegressionRunList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BenchmarkRegressionRun" }
+    BenchmarkRegressionCaseResult:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          regression_run_id,
+          benchmark_case_id,
+          missing_output,
+          actual_marks,
+          actual_error_codes,
+          score_abs_error,
+          exact_score_match,
+          taxonomy_match,
+          safety_invariant_failed,
+          diff,
+          ai_execution_record_id,
+          created_at,
+          updated_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        regression_run_id: { type: string, format: uuid }
+        benchmark_case_id: { type: string, format: uuid }
+        missing_output: { type: boolean }
+        actual_marks: { type: [number, "null"] }
+        actual_error_codes:
+          type: array
+          items: { type: string }
+        score_abs_error: { type: [number, "null"] }
+        exact_score_match: { type: boolean }
+        taxonomy_match: { type: [boolean, "null"] }
+        safety_invariant_failed: { type: boolean }
+        diff: { type: object }
+        ai_execution_record_id: { type: [string, "null"], format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+    BenchmarkRegressionCaseResultList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/BenchmarkRegressionCaseResult" }
+    BenchmarkGateVerdict:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          verdict,
+          passed,
+          run_id,
+          candidate_provider,
+          candidate_model,
+          candidate_model_version,
+          candidate_prompt_template_version,
+          metrics,
+          threshold_snapshot,
+        ]
+      properties:
+        verdict: { type: string, enum: [PASS, FAIL, PENDING] }
+        passed: { type: boolean }
+        run_id: { type: string, format: uuid }
+        status: { type: string, enum: [QUEUED, RUNNING, PASSED, FAILED, ERROR] }
+        candidate_provider: { type: string }
+        candidate_model: { type: string }
+        candidate_model_version: { type: string }
+        candidate_prompt_template_version: { type: string }
+        metrics: { type: object }
+        threshold_snapshot: { $ref: "#/components/schemas/BenchmarkThresholdProfile" }
 

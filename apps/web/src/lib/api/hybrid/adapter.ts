@@ -10,6 +10,9 @@ import { PublicationHttpApi } from "../http/publication";
 import { ReportsHttpApi } from "../http/reports";
 import { AnalyticsHttpApi } from "../http/analytics";
 import { LearningHttpApi } from "../http/learning";
+import { ResourcesHttpApi } from "../http/resources";
+import { ReassessmentHttpApi } from "../http/reassessment";
+import { BenchmarkHttpApi } from "../http/benchmark";
 import { ApiError } from "../http/errors";
 import { httpRequest } from "../http/client";
 import { getApiCapabilities } from "../capabilities";
@@ -21,6 +24,33 @@ function isLiveSubmissionId(id: string): boolean {
   return LIVE_UUID_RE.test(id) && !id.toLowerCase().includes("demo");
 }
 
+function b13MockDemoOnly(message: string): never {
+  throw new ApiError({
+    message,
+    status: 404,
+    kind: "not_found",
+    code: "B13_MOCK_DEMO_ONLY",
+  });
+}
+
+function b14MockDemoOnly(message: string): never {
+  throw new ApiError({
+    message,
+    status: 404,
+    kind: "not_found",
+    code: "B14_MOCK_DEMO_ONLY",
+  });
+}
+
+function b15MockDemoOnly(message: string): never {
+  throw new ApiError({
+    message,
+    status: 404,
+    kind: "not_found",
+    code: "B15_MOCK_DEMO_ONLY",
+  });
+}
+
 /**
  * Hybrid domain routing (B9):
  * - Auth, Institution, Academic Years, Class Sections, Students, Import, Guardians → A1 HTTP
@@ -30,8 +60,10 @@ function isLiveSubmissionId(id: string): boolean {
  * - Transcription review → B5 HTTP
  * - Evaluation ledger review → B6 HTTP
  * - Publication + reports → B7 HTTP
- * - Analytics → B8 HTTP
+ * - Analytics → B8 HTTP (+ B12 longitudinal when live)
  * - Learning + improvement blueprints → B9 HTTP
+ * - Curriculum resources + assignments → B13 HTTP (mock demo fixtures only when learning is mock)
+ * - Reassessment mastery → B14 HTTP (mock demo fixtures only when learning is mock)
  *
  * Components use `api` only — they must not inspect mock vs HTTP.
  * Live learning errors must never silently fall back to mock.
@@ -490,6 +522,87 @@ export const HybridEduVijnaApi: ApiClient = {
       code: "ANALYTICS_NOT_LIVE",
     });
   },
+  getStudentMasteryState: async (studentId) => {
+    if (getApiCapabilities().analytics === "live") {
+      return AnalyticsHttpApi.getStudentMasteryState(studentId);
+    }
+    if (isLiveSubmissionId(studentId)) {
+      throw new ApiError({
+        message: "B12 longitudinal mastery is not available for live student IDs in mock mode.",
+        status: 404,
+        kind: "not_found",
+        code: "B12_MOCK_DEMO_ONLY",
+      });
+    }
+    return MockEduVijnaApi.getStudentMasteryState(studentId);
+  },
+  getStudentMasteryTrend: async (studentId, options) => {
+    if (getApiCapabilities().analytics === "live") {
+      return AnalyticsHttpApi.getStudentMasteryTrend(studentId, options);
+    }
+    if (isLiveSubmissionId(studentId)) {
+      throw new ApiError({
+        message: "B12 mastery trend is not available for live student IDs in mock mode.",
+        status: 404,
+        kind: "not_found",
+        code: "B12_MOCK_DEMO_ONLY",
+      });
+    }
+    return MockEduVijnaApi.getStudentMasteryTrend(studentId, options);
+  },
+  getStudentRepeatedErrors: async (studentId) => {
+    if (getApiCapabilities().analytics === "live") {
+      return AnalyticsHttpApi.getStudentRepeatedErrors(studentId);
+    }
+    if (isLiveSubmissionId(studentId)) {
+      throw new ApiError({
+        message: "B12 repeated errors are not available for live student IDs in mock mode.",
+        status: 404,
+        kind: "not_found",
+        code: "B12_MOCK_DEMO_ONLY",
+      });
+    }
+    return MockEduVijnaApi.getStudentRepeatedErrors(studentId);
+  },
+  getStudentRecoverableMarks: async (studentId) => {
+    if (getApiCapabilities().analytics === "live") {
+      return AnalyticsHttpApi.getStudentRecoverableMarks(studentId);
+    }
+    if (isLiveSubmissionId(studentId)) {
+      throw new ApiError({
+        message: "B12 recoverable marks are not available for live student IDs in mock mode.",
+        status: 404,
+        kind: "not_found",
+        code: "B12_MOCK_DEMO_ONLY",
+      });
+    }
+    return MockEduVijnaApi.getStudentRecoverableMarks(studentId);
+  },
+  getStudentMistakeNotebook: async (studentId) => {
+    if (getApiCapabilities().analytics === "live") {
+      return AnalyticsHttpApi.getStudentMistakeNotebook(studentId);
+    }
+    if (isLiveSubmissionId(studentId)) {
+      throw new ApiError({
+        message: "B12 mistake notebook is not available for live student IDs in mock mode.",
+        status: 404,
+        kind: "not_found",
+        code: "B12_MOCK_DEMO_ONLY",
+      });
+    }
+    return MockEduVijnaApi.getStudentMistakeNotebook(studentId);
+  },
+  rebuildStudentB12: async (studentId) => {
+    if (getApiCapabilities().analytics === "live") {
+      return AnalyticsHttpApi.rebuildStudentB12(studentId);
+    }
+    throw new ApiError({
+      message: "B12 rebuild is only available for live analytics.",
+      status: 404,
+      kind: "not_found",
+      code: "ANALYTICS_NOT_LIVE",
+    });
+  },
   getAdaptiveLearning: async (studentId) => {
     if (getApiCapabilities().learning === "live") {
       throw new ApiError({
@@ -586,5 +699,328 @@ export const HybridEduVijnaApi: ApiClient = {
       kind: "not_found",
       code: "LEARNING_NOT_LIVE",
     });
+  },
+
+  listCurriculumResources: async (filters) => {
+    if (getApiCapabilities().learning === "live") {
+      return ResourcesHttpApi.listCurriculumResources(filters);
+    }
+    return MockEduVijnaApi.listCurriculumResources!(filters);
+  },
+  getCurriculumResource: async (id) => {
+    if (getApiCapabilities().learning === "live") {
+      return ResourcesHttpApi.getCurriculumResource(id);
+    }
+    if (isLiveSubmissionId(id)) {
+      b13MockDemoOnly(
+        "B13 curriculum resources are not available for live IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.getCurriculumResource!(id);
+  },
+  createCurriculumResource: async (input) => {
+    if (getApiCapabilities().learning === "live") {
+      return ResourcesHttpApi.createCurriculumResource(input);
+    }
+    if (isLiveSubmissionId(input.curriculum_id)) {
+      b13MockDemoOnly(
+        "B13 create is not available for live curriculum IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.createCurriculumResource!(input);
+  },
+  updateCurriculumResource: async (id, input) => {
+    if (getApiCapabilities().learning === "live") {
+      return ResourcesHttpApi.updateCurriculumResource(id, input);
+    }
+    if (isLiveSubmissionId(id)) {
+      b13MockDemoOnly(
+        "B13 update is not available for live resource IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.updateCurriculumResource!(id, input);
+  },
+  approveCurriculumResource: async (id) => {
+    if (getApiCapabilities().learning === "live") {
+      return ResourcesHttpApi.approveCurriculumResource(id);
+    }
+    if (isLiveSubmissionId(id)) {
+      b13MockDemoOnly(
+        "B13 approve is not available for live resource IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.approveCurriculumResource!(id);
+  },
+  activateCurriculumResource: async (id) => {
+    if (getApiCapabilities().learning === "live") {
+      return ResourcesHttpApi.activateCurriculumResource(id);
+    }
+    if (isLiveSubmissionId(id)) {
+      b13MockDemoOnly(
+        "B13 activate is not available for live resource IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.activateCurriculumResource!(id);
+  },
+  deactivateCurriculumResource: async (id) => {
+    if (getApiCapabilities().learning === "live") {
+      return ResourcesHttpApi.deactivateCurriculumResource(id);
+    }
+    if (isLiveSubmissionId(id)) {
+      b13MockDemoOnly(
+        "B13 deactivate is not available for live resource IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.deactivateCurriculumResource!(id);
+  },
+  replaceCurriculumResourceNodes: async (id, nodeIds) => {
+    if (getApiCapabilities().learning === "live") {
+      return ResourcesHttpApi.replaceCurriculumResourceNodes(id, nodeIds);
+    }
+    if (isLiveSubmissionId(id)) {
+      b13MockDemoOnly(
+        "B13 node replace is not available for live resource IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.replaceCurriculumResourceNodes!(id, nodeIds);
+  },
+  listStudentResourceAssignments: async (studentId, filters) => {
+    if (getApiCapabilities().learning === "live") {
+      return ResourcesHttpApi.listStudentResourceAssignments(studentId, filters);
+    }
+    if (isLiveSubmissionId(studentId)) {
+      b13MockDemoOnly(
+        "B13 assignments are not available for live student IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.listStudentResourceAssignments!(studentId, filters);
+  },
+  assignStudentResource: async (studentId, input) => {
+    if (getApiCapabilities().learning === "live") {
+      return ResourcesHttpApi.assignStudentResource(studentId, input);
+    }
+    if (isLiveSubmissionId(studentId) || isLiveSubmissionId(input.resource_id)) {
+      b13MockDemoOnly(
+        "B13 assign is not available for live IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.assignStudentResource!(studentId, input);
+  },
+  cancelStudentResourceAssignment: async (assignmentId) => {
+    if (getApiCapabilities().learning === "live") {
+      return ResourcesHttpApi.cancelStudentResourceAssignment(assignmentId);
+    }
+    if (isLiveSubmissionId(assignmentId)) {
+      b13MockDemoOnly(
+        "B13 cancel is not available for live assignment IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.cancelStudentResourceAssignment!(assignmentId);
+  },
+
+  instantiateReassessment: async (blueprintId, items) => {
+    const payload = Array.isArray(items) ? { items } : items;
+    if (getApiCapabilities().learning === "live") {
+      return ReassessmentHttpApi.instantiateReassessment(blueprintId, payload);
+    }
+    if (isLiveSubmissionId(blueprintId)) {
+      b14MockDemoOnly(
+        "B14 instantiate is not available for live blueprint IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.instantiateReassessment(blueprintId, payload);
+  },
+  getReassessment: async (id) => {
+    if (getApiCapabilities().learning === "live") {
+      return ReassessmentHttpApi.getReassessment(id);
+    }
+    if (isLiveSubmissionId(id)) {
+      b14MockDemoOnly(
+        "B14 reassessments are not available for live IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.getReassessment(id);
+  },
+  rebuildReassessmentB14: async (id) => {
+    if (getApiCapabilities().learning === "live") {
+      return ReassessmentHttpApi.rebuildReassessmentB14(id);
+    }
+    if (isLiveSubmissionId(id)) {
+      b14MockDemoOnly(
+        "B14 rebuild is not available for live IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.rebuildReassessmentB14!(id);
+  },
+
+  listBenchmarkDatasets: async () => {
+    if (getApiCapabilities().quality === "live") {
+      return BenchmarkHttpApi.listBenchmarkDatasets();
+    }
+    return MockEduVijnaApi.listBenchmarkDatasets!();
+  },
+  getBenchmarkDataset: async (id) => {
+    if (getApiCapabilities().quality === "live") {
+      return BenchmarkHttpApi.getBenchmarkDataset(id);
+    }
+    if (isLiveSubmissionId(id)) {
+      b15MockDemoOnly(
+        "B15 datasets are not available for live IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.getBenchmarkDataset!(id);
+  },
+  createBenchmarkDataset: async (input) => {
+    if (getApiCapabilities().quality === "live") {
+      return BenchmarkHttpApi.createBenchmarkDataset(input);
+    }
+    return MockEduVijnaApi.createBenchmarkDataset!(input);
+  },
+  listBenchmarkVersions: async (datasetId) => {
+    if (getApiCapabilities().quality === "live") {
+      return BenchmarkHttpApi.listBenchmarkVersions(datasetId);
+    }
+    if (isLiveSubmissionId(datasetId)) {
+      b15MockDemoOnly(
+        "B15 versions are not available for live IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.listBenchmarkVersions!(datasetId);
+  },
+  createBenchmarkVersion: async (datasetId, input) => {
+    if (getApiCapabilities().quality === "live") {
+      return BenchmarkHttpApi.createBenchmarkVersion(datasetId, input);
+    }
+    if (isLiveSubmissionId(datasetId)) {
+      b15MockDemoOnly(
+        "B15 create version is not available for live IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.createBenchmarkVersion!(datasetId, input);
+  },
+  getBenchmarkVersion: async (versionId) => {
+    if (getApiCapabilities().quality === "live") {
+      return BenchmarkHttpApi.getBenchmarkVersion(versionId);
+    }
+    if (isLiveSubmissionId(versionId)) {
+      b15MockDemoOnly(
+        "B15 versions are not available for live IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.getBenchmarkVersion!(versionId);
+  },
+  listBenchmarkEligibleSources: async (versionId) => {
+    if (getApiCapabilities().quality === "live") {
+      return BenchmarkHttpApi.listBenchmarkEligibleSources(versionId);
+    }
+    if (isLiveSubmissionId(versionId)) {
+      b15MockDemoOnly(
+        "B15 eligible sources are not available for live IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.listBenchmarkEligibleSources!(versionId);
+  },
+  listBenchmarkCases: async (versionId) => {
+    if (getApiCapabilities().quality === "live") {
+      return BenchmarkHttpApi.listBenchmarkCases(versionId);
+    }
+    if (isLiveSubmissionId(versionId)) {
+      b15MockDemoOnly(
+        "B15 cases are not available for live IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.listBenchmarkCases!(versionId);
+  },
+  addBenchmarkCase: async (versionId, input) => {
+    if (getApiCapabilities().quality === "live") {
+      return BenchmarkHttpApi.addBenchmarkCase(versionId, input);
+    }
+    if (
+      isLiveSubmissionId(versionId) ||
+      isLiveSubmissionId(input.published_result_id) ||
+      isLiveSubmissionId(input.question_evaluation_id)
+    ) {
+      b15MockDemoOnly(
+        "B15 add case is not available for live IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.addBenchmarkCase!(versionId, input);
+  },
+  removeBenchmarkCase: async (versionId, caseId) => {
+    if (getApiCapabilities().quality === "live") {
+      return BenchmarkHttpApi.removeBenchmarkCase(versionId, caseId);
+    }
+    if (isLiveSubmissionId(versionId) || isLiveSubmissionId(caseId)) {
+      b15MockDemoOnly(
+        "B15 remove case is not available for live IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.removeBenchmarkCase!(versionId, caseId);
+  },
+  lockBenchmarkVersion: async (versionId) => {
+    if (getApiCapabilities().quality === "live") {
+      return BenchmarkHttpApi.lockBenchmarkVersion(versionId);
+    }
+    if (isLiveSubmissionId(versionId)) {
+      b15MockDemoOnly(
+        "B15 lock is not available for live IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.lockBenchmarkVersion!(versionId);
+  },
+  listBenchmarkRegressionRuns: async (versionId) => {
+    if (getApiCapabilities().quality === "live") {
+      return BenchmarkHttpApi.listBenchmarkRegressionRuns(versionId);
+    }
+    if (isLiveSubmissionId(versionId)) {
+      b15MockDemoOnly(
+        "B15 regression runs are not available for live IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.listBenchmarkRegressionRuns!(versionId);
+  },
+  startBenchmarkRegressionRun: async (versionId, input) => {
+    if (getApiCapabilities().quality === "live") {
+      return BenchmarkHttpApi.startBenchmarkRegressionRun(versionId, input);
+    }
+    if (isLiveSubmissionId(versionId)) {
+      b15MockDemoOnly(
+        "B15 start regression is not available for live IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.startBenchmarkRegressionRun!(versionId, input);
+  },
+  getBenchmarkRegressionRun: async (runId) => {
+    if (getApiCapabilities().quality === "live") {
+      return BenchmarkHttpApi.getBenchmarkRegressionRun(runId);
+    }
+    if (isLiveSubmissionId(runId)) {
+      b15MockDemoOnly(
+        "B15 regression runs are not available for live IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.getBenchmarkRegressionRun!(runId);
+  },
+  listBenchmarkRegressionCaseResults: async (runId) => {
+    if (getApiCapabilities().quality === "live") {
+      return BenchmarkHttpApi.listBenchmarkRegressionCaseResults(runId);
+    }
+    if (isLiveSubmissionId(runId)) {
+      b15MockDemoOnly(
+        "B15 case results are not available for live IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.listBenchmarkRegressionCaseResults!(runId);
+  },
+  getBenchmarkGateVerdict: async (runId) => {
+    if (getApiCapabilities().quality === "live") {
+      return BenchmarkHttpApi.getBenchmarkGateVerdict(runId);
+    }
+    if (isLiveSubmissionId(runId)) {
+      b15MockDemoOnly(
+        "B15 gate verdict is not available for live IDs in mock mode.",
+      );
+    }
+    return MockEduVijnaApi.getBenchmarkGateVerdict!(runId);
   },
 };

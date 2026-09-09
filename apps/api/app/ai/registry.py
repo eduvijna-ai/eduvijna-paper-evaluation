@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from typing import Any
+
+from app.ai.execution_metadata import AIExecutionMetadata, metadata_from_provider
 from app.ai.protocols import (
     AuthoringAIProvider,
     EvaluationAIProvider,
@@ -152,11 +155,121 @@ def authoring_provider_active(settings: Settings | None = None) -> bool:
     return _authoring_mode(settings) not in {"", "none"}
 
 
+def get_benchmark_candidate_executor(
+    *,
+    candidate_provider: str,
+    candidate_model: str,
+    settings: Settings | None = None,
+) -> Any:
+    """Resolve a B15 gold-regression candidate through the provider registry.
+
+    CI fixtures (``fixed`` + ``fixed-benchmark-*``) stay credential-free.
+    Configured candidates use :func:`get_evaluation_provider` and never
+    invoke vendor SDKs from the benchmark domain layer. For configured
+    candidates, the requested model must match the model that the active
+    evaluation provider will actually execute.
+    """
+    from app.ai.providers.benchmark import (
+        BenchmarkCandidateError,
+        is_ci_fixture_candidate,
+        resolve_benchmark_candidate,
+    )
+
+    settings = settings or get_settings()
+    executor = resolve_benchmark_candidate(
+        candidate_provider=candidate_provider,
+        candidate_model=candidate_model,
+        settings=settings,
+    )
+    if not is_ci_fixture_candidate(
+        candidate_provider=(candidate_provider or "").strip().lower(),
+        candidate_model=(candidate_model or "").strip(),
+    ):
+        provider = get_evaluation_provider(settings)
+        metadata = metadata_from_provider(provider, "evaluate_rubric")
+        if (candidate_model or "").strip() != metadata.model:
+            raise BenchmarkCandidateError(
+                "BENCHMARK_CANDIDATE_IDENTITY_MISMATCH",
+                "Requested candidate_model does not match the active evaluation "
+                f"provider model: requested={candidate_model!r}, actual={metadata.model!r}",
+            )
+    return executor
+
+
+def get_benchmark_candidate_identity(
+    *,
+    candidate_provider: str,
+    candidate_model: str,
+    settings: Settings | None = None,
+) -> AIExecutionMetadata:
+    """Return canonical execution identity for the benchmark candidate."""
+    from app.ai.providers.benchmark import FixedBenchmarkProvider
+
+    settings = settings or get_settings()
+    executor = get_benchmark_candidate_executor(
+        candidate_provider=candidate_provider,
+        candidate_model=candidate_model,
+        settings=settings,
+    )
+    if isinstance(executor, FixedBenchmarkProvider):
+        return executor.execution_metadata()
+    provider = get_evaluation_provider(settings)
+    return metadata_from_provider(provider, "evaluate_rubric")
+
+
+def validate_benchmark_candidate_identity(
+    *,
+    candidate_provider: str,
+    candidate_model: str,
+    candidate_model_version: str,
+    candidate_prompt_template_version: str,
+    settings: Settings | None = None,
+) -> AIExecutionMetadata:
+    """Reject a claimed benchmark identity that differs from executable metadata."""
+    from app.ai.providers.benchmark import BenchmarkCandidateError
+
+    metadata = get_benchmark_candidate_identity(
+        candidate_provider=candidate_provider,
+        candidate_model=candidate_model,
+        settings=settings,
+    )
+    requested = {
+        "candidate_provider": (candidate_provider or "").strip().lower(),
+        "candidate_model": (candidate_model or "").strip(),
+        "candidate_model_version": (candidate_model_version or "").strip(),
+        "candidate_prompt_template_version": (
+            candidate_prompt_template_version or ""
+        ).strip(),
+    }
+    actual = {
+        "candidate_provider": metadata.provider.strip().lower(),
+        "candidate_model": metadata.model,
+        "candidate_model_version": metadata.model_version,
+        "candidate_prompt_template_version": metadata.prompt_template_version,
+    }
+    mismatches = [
+        key for key, requested_value in requested.items() if requested_value != actual[key]
+    ]
+    if mismatches:
+        details = ", ".join(
+            f"{key}: requested={requested[key]!r}, actual={actual[key]!r}"
+            for key in mismatches
+        )
+        raise BenchmarkCandidateError(
+            "BENCHMARK_CANDIDATE_IDENTITY_MISMATCH",
+            "Requested benchmark candidate identity does not match executable "
+            f"metadata ({details})",
+        )
+    return metadata
+
+
 __all__ = [
     "NoneNarrativeProvider",
     "authoring_provider_active",
     "evaluation_provider_active",
     "get_authoring_provider",
+    "get_benchmark_candidate_executor",
+    "get_benchmark_candidate_identity",
     "get_evaluation_provider",
     "get_learning_provider",
     "get_narrative_provider",
@@ -164,4 +277,5 @@ __all__ = [
     "learning_provider_active",
     "narrative_provider_active",
     "structure_provider_active",
+    "validate_benchmark_candidate_identity",
 ]

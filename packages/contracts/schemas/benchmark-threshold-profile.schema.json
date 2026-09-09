@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/benchmark-threshold-profile.schema.json",
+  "title": "BenchmarkThresholdProfile",
+  "description": "B15 release-gate threshold profile snapshot (PEV-058/059).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "profile_code",
+    "algorithm_version",
+    "max_missing_output_rate",
+    "max_mean_abs_score_error",
+    "min_exact_score_agreement_rate",
+    "min_taxonomy_agreement_rate",
+    "max_safety_invariant_failure_rate",
+    "score_tolerance"
+  ],
+  "properties": {
+    "profile_code": { "type": "string", "minLength": 1 },
+    "algorithm_version": { "type": "string", "minLength": 1 },
+    "max_missing_output_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+    "max_mean_abs_score_error": { "type": "number", "minimum": 0 },
+    "min_exact_score_agreement_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+    "min_taxonomy_agreement_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+    "max_safety_invariant_failure_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+    "score_tolerance": { "type": "number", "minimum": 0 }
+  }
+}

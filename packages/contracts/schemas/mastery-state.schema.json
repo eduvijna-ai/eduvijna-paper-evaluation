@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/mastery-state.schema.json",
+  "title": "StudentMasteryState",
+  "description": "B12 persisted longitudinal MasteryState per student × curriculum node. Null mastery dimensions mean insufficient decisive evidence (never a fake prior).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "student_id",
+    "items",
+    "algorithm_version",
+    "source",
+    "as_of"
+  ],
+  "properties": {
+    "student_id": { "type": "string", "format": "uuid" },
+    "items": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/masteryStateItem" }
+    },
+    "algorithm_version": { "type": "string", "const": "B12_V1" },
+    "source": { "type": "string", "const": "MASTERY_EVIDENCE" },
+    "as_of": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "masteryStateItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "curriculum_node_id",
+        "curriculum_id",
+        "code",
+        "title",
+        "node_type",
+        "concept_mastery",
+        "execution_accuracy",
+        "concept_decisive_count",
+        "execution_decisive_count",
+        "concept_inconclusive_count",
+        "execution_inconclusive_count",
+        "evidence_count",
+        "insufficient_concept_evidence",
+        "insufficient_execution_evidence",
+        "source_evidence_hash",
+        "algorithm_version",
+        "last_updated_at"
+      ],
+      "properties": {
+        "id": { "type": ["string", "null"], "format": "uuid" },
+        "curriculum_node_id": { "type": "string", "format": "uuid" },
+        "curriculum_id": { "type": "string", "format": "uuid" },
+        "code": { "type": "string" },
+        "title": { "type": "string" },
+        "node_type": { "type": "string" },
+        "concept_mastery": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Null when no decisive CONCEPT evidence exists."
+        },
+        "execution_accuracy": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1,
+          "description": "Null when no decisive EXECUTION evidence exists."
+        },
+        "concept_decisive_count": { "type": "integer", "minimum": 0 },
+        "execution_decisive_count": { "type": "integer", "minimum": 0 },
+        "concept_inconclusive_count": { "type": "integer", "minimum": 0 },
+        "execution_inconclusive_count": { "type": "integer", "minimum": 0 },
+        "evidence_count": { "type": "integer", "minimum": 0 },
+        "insufficient_concept_evidence": { "type": "boolean" },
+        "insufficient_execution_evidence": { "type": "boolean" },
+        "source_evidence_hash": { "type": "string" },
+        "algorithm_version": { "type": "string", "const": "B12_V1" },
+        "last_updated_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

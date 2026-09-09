@@ -6,6 +6,13 @@ from app.db.models.ai_structure import (
 )
 from app.db.models.audit import AuditEvent
 from app.db.models.authoring import AssessmentArtifact, AuthoringAiRun
+from app.db.models.benchmark import (
+    BenchmarkCase,
+    BenchmarkDataset,
+    BenchmarkDatasetVersion,
+    BenchmarkRegressionCaseResult,
+    BenchmarkRegressionRun,
+)
 from app.db.models.curriculum_assessment import (
     AiExecutionRecord,
     AnswerKey,
@@ -43,8 +50,23 @@ from app.db.models.mapping import (
     QuestionAnswerMapping,
     QuestionAnswerMappingRegion,
 )
-from app.db.models.mastery import MasteryEvidence
+from app.db.models.mastery import (
+    MasteryEvidence,
+    MasteryState,
+    MasteryStateSnapshot,
+    MistakeNotebookEntry,
+)
 from app.db.models.publication import Annotation, PublishedResult
+from app.db.models.reassessment import (
+    Reassessment,
+    ReassessmentItem,
+    ReassessmentMasteryDelta,
+)
+from app.db.models.resources import (
+    CurriculumResource,
+    CurriculumResourceNode,
+    StudentResourceAssignment,
+)
 from app.db.models.role import Permission, Role, RolePermission, UserRole
 from app.db.models.student import Guardian, ImportSession, Student, StudentGuardian
 from app.db.models.submission import PipelineJob, Submission, SubmissionPage
@@ -64,11 +86,18 @@ __all__ = [
     "AssessmentVersion",
     "AuditEvent",
     "AuthoringAiRun",
+    "BenchmarkCase",
+    "BenchmarkDataset",
+    "BenchmarkDatasetVersion",
+    "BenchmarkRegressionCaseResult",
+    "BenchmarkRegressionRun",
     "ClassSection",
     "CriterionEvaluation",
     "Curriculum",
     "CurriculumNode",
     "CurriculumPrerequisite",
+    "CurriculumResource",
+    "CurriculumResourceNode",
     "EvaluationRun",
     "Guardian",
     "ImprovementAssessment",
@@ -81,6 +110,9 @@ __all__ = [
     "LearningRecommendationEvidence",
     "LearningRecommendationPrerequisite",
     "MasteryEvidence",
+    "MasteryState",
+    "MasteryStateSnapshot",
+    "MistakeNotebookEntry",
     "Permission",
     "PipelineJob",
     "PublishedResult",
@@ -90,6 +122,9 @@ __all__ = [
     "QuestionCurriculumMapping",
     "QuestionEvaluation",
     "QuestionVersion",
+    "Reassessment",
+    "ReassessmentItem",
+    "ReassessmentMasteryDelta",
     "ReviewAction",
     "Role",
     "RolePermission",
@@ -98,6 +133,7 @@ __all__ = [
     "RubricVersion",
     "Student",
     "StudentGuardian",
+    "StudentResourceAssignment",
     "Submission",
     "SubmissionIdentityCandidate",
     "SubmissionPage",

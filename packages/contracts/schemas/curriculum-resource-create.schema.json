@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/curriculum-resource-create.schema.json",
+  "title": "CurriculumResourceCreate",
+  "description": "Create a DRAFT curriculum resource in the institution catalog.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "curriculum_id",
+    "code",
+    "title",
+    "resource_kind",
+    "content_ref",
+    "curriculum_node_ids"
+  ],
+  "properties": {
+    "curriculum_id": { "type": "string", "format": "uuid" },
+    "code": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "title": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "description": { "type": ["string", "null"], "maxLength": 4000 },
+    "resource_kind": {
+      "type": "string",
+      "enum": [
+        "PRACTICE_SET",
+        "WORKED_EXAMPLE",
+        "CONCEPT_NOTE",
+        "INTERNAL_PACKET"
+      ]
+    },
+    "content_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "curriculum_node_ids": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "format": "uuid" }
+    }
+  }
+}

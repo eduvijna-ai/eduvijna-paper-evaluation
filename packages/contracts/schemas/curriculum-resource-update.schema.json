@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/curriculum-resource-update.schema.json",
+  "title": "CurriculumResourceUpdate",
+  "description": "Update mutable fields of a DRAFT or APPROVED curriculum resource. ACTIVE/DEACTIVATED title/description may be updated; content_ref and kind only while DRAFT.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "title": { "type": "string", "minLength": 1, "maxLength": 255 },
+    "description": { "type": ["string", "null"], "maxLength": 4000 },
+    "resource_kind": {
+      "type": "string",
+      "enum": [
+        "PRACTICE_SET",
+        "WORKED_EXAMPLE",
+        "CONCEPT_NOTE",
+        "INTERNAL_PACKET"
+      ]
+    },
+    "content_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    }
+  }
+}

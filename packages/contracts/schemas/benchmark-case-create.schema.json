@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/benchmark-case-create.schema.json",
+  "title": "BenchmarkCaseCreate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["published_result_id", "question_evaluation_id"],
+  "properties": {
+    "published_result_id": { "type": "string", "format": "uuid" },
+    "question_evaluation_id": { "type": "string", "format": "uuid" }
+  }
+}

@@ -1,12 +1,26 @@
 import type {
   AnalyticsMaterializationPrepareResult,
+  B12RebuildResult,
   LiveAssessmentAnalytics,
   LiveConceptSignal,
   LiveCurriculumPerformance,
   LiveQuestionPerformance,
   LiveStudentAnalytics,
   MasteryEvidenceItem,
+  MasteryStateItem,
+  MasteryTrendPoint,
+  MistakeNotebookEntry,
+  RecoverableMarksItem,
+  RepeatedErrorItem,
   StudentMasteryEvidenceList,
+  StudentMasteryState,
+  StudentMasteryTrend,
+  StudentMistakeNotebook,
+  StudentRecoverableMarks,
+  StudentRepeatedErrors,
+} from "@/lib/types/domain";
+import {
+  B12_RECOVERABLE_MARKS_DISCLAIMER,
 } from "@/lib/types/domain";
 import type { ErrorCode } from "@/lib/types/enums";
 import { httpRequest } from "./client";
@@ -337,8 +351,368 @@ function masteryEvidenceApiToView(
   };
 }
 
+export interface B12MasteryStateDto {
+  student_id: string;
+  items?: Array<{
+    id?: string | null;
+    curriculum_node_id: string;
+    curriculum_id: string;
+    code: string;
+    title: string;
+    node_type: string;
+    concept_mastery: number | string | null;
+    execution_accuracy: number | string | null;
+    concept_decisive_count: number | string;
+    execution_decisive_count: number | string;
+    concept_inconclusive_count: number | string;
+    execution_inconclusive_count: number | string;
+    evidence_count: number | string;
+    insufficient_concept_evidence: boolean;
+    insufficient_execution_evidence: boolean;
+    source_evidence_hash: string;
+    algorithm_version?: string;
+    last_updated_at: string;
+  }>;
+  algorithm_version?: string;
+  source?: string;
+  as_of?: string;
+}
+
+export interface B12MasteryTrendDto {
+  student_id: string;
+  curriculum_node_id?: string | null;
+  points?: Array<{
+    curriculum_node_id: string;
+    curriculum_id: string;
+    code: string;
+    title: string;
+    published_result_id: string;
+    assessment_id: string;
+    assessment_code: string;
+    effective_at: string;
+    concept_mastery: number | string | null;
+    execution_accuracy: number | string | null;
+    concept_decisive_count: number | string;
+    execution_decisive_count: number | string;
+    evidence_count: number | string;
+    insufficient_concept_evidence: boolean;
+    insufficient_execution_evidence: boolean;
+    source_evidence_hash: string;
+    algorithm_version?: string;
+  }>;
+  algorithm_version?: string;
+  source?: string;
+  as_of?: string;
+}
+
+export interface B12RepeatedErrorsDto {
+  student_id: string;
+  items?: Array<{
+    error_code: string;
+    occurrence_count: number | string;
+    distinct_published_result_count: number | string;
+    distinct_assessment_count: number | string;
+    first_seen_at: string;
+    last_seen_at: string;
+    affected_question_evaluations?: Array<{
+      published_result_id: string;
+      assessment_id: string;
+      question_evaluation_id: string;
+      question_version_id: string;
+    }>;
+    curriculum_node_ids?: string[];
+  }>;
+  recurrence_threshold?: number;
+  algorithm_version?: string;
+  source?: string;
+  as_of?: string;
+}
+
+export interface B12RecoverableMarksDto {
+  student_id: string;
+  total_lost_marks: string | number;
+  attributed_potentially_recoverable_marks: string | number;
+  unattributed_lost_marks: string | number;
+  items?: Array<{
+    error_code: string;
+    potentially_recoverable_marks: string | number;
+    occurrence_count: number | string;
+    percent_of_total_lost: number | string | null;
+    affected_references?: Array<{
+      published_result_id: string;
+      assessment_id: string;
+      question_evaluation_id: string;
+      criterion_evaluation_id: string;
+    }>;
+  }>;
+  disclaimer?: string;
+  algorithm_version?: string;
+  source?: string;
+  as_of?: string;
+}
+
+export interface B12MistakeNotebookDto {
+  student_id: string;
+  entries?: Array<{
+    id: string;
+    published_result_id: string;
+    assessment_id: string;
+    assessment_code: string;
+    submission_id: string;
+    question_evaluation_id: string;
+    question_version_id: string;
+    question_code: string;
+    academic_error_code: string;
+    final_score: string | number;
+    max_mark: string | number;
+    deduction_reasons?: string[];
+    first_divergence_step?: string | null;
+    curriculum_nodes?: Array<{
+      id: string;
+      code: string;
+      title: string;
+      node_type: string;
+    }>;
+    recommended_practice_kind: string;
+    linked_learning_recommendation_ids?: string[];
+    source_ledger_snapshot_hash: string;
+    algorithm_version?: string;
+    materialized_at: string;
+    effective_at: string;
+  }>;
+  algorithm_version?: string;
+  source?: string;
+  as_of?: string;
+}
+
+export interface B12RebuildResultDto {
+  student_id: string;
+  algorithm_version?: string;
+  mastery_state_count: number | string;
+  snapshot_count: number | string;
+  notebook_entry_count: number | string;
+  source_evidence_hash: string;
+  source?: string;
+}
+
+function asDecimalString(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return "0";
+  return String(value);
+}
+
+function mapMasteryStateItem(
+  row: NonNullable<B12MasteryStateDto["items"]>[number],
+): MasteryStateItem {
+  return {
+    id: row.id ?? null,
+    curriculum_node_id: row.curriculum_node_id,
+    curriculum_id: row.curriculum_id,
+    code: row.code,
+    title: row.title,
+    node_type: row.node_type,
+    concept_mastery: asNumber(row.concept_mastery),
+    execution_accuracy: asNumber(row.execution_accuracy),
+    concept_decisive_count: asNumberRequired(row.concept_decisive_count),
+    execution_decisive_count: asNumberRequired(row.execution_decisive_count),
+    concept_inconclusive_count: asNumberRequired(row.concept_inconclusive_count),
+    execution_inconclusive_count: asNumberRequired(
+      row.execution_inconclusive_count,
+    ),
+    evidence_count: asNumberRequired(row.evidence_count),
+    insufficient_concept_evidence: Boolean(row.insufficient_concept_evidence),
+    insufficient_execution_evidence: Boolean(
+      row.insufficient_execution_evidence,
+    ),
+    source_evidence_hash: row.source_evidence_hash,
+    algorithm_version: row.algorithm_version ?? "B12_V1",
+    last_updated_at: row.last_updated_at,
+  };
+}
+
+export function masteryStateApiToView(
+  dto: B12MasteryStateDto,
+): StudentMasteryState {
+  return {
+    student_id: dto.student_id,
+    items: (dto.items ?? []).map(mapMasteryStateItem),
+    algorithm_version: dto.algorithm_version ?? "B12_V1",
+    source: "MASTERY_EVIDENCE",
+    as_of: dto.as_of ?? new Date().toISOString(),
+  };
+}
+
+function mapMasteryTrendPoint(
+  row: NonNullable<B12MasteryTrendDto["points"]>[number],
+): MasteryTrendPoint {
+  return {
+    curriculum_node_id: row.curriculum_node_id,
+    curriculum_id: row.curriculum_id,
+    code: row.code,
+    title: row.title,
+    published_result_id: row.published_result_id,
+    assessment_id: row.assessment_id,
+    assessment_code: row.assessment_code,
+    effective_at: row.effective_at,
+    concept_mastery: asNumber(row.concept_mastery),
+    execution_accuracy: asNumber(row.execution_accuracy),
+    concept_decisive_count: asNumberRequired(row.concept_decisive_count),
+    execution_decisive_count: asNumberRequired(row.execution_decisive_count),
+    evidence_count: asNumberRequired(row.evidence_count),
+    insufficient_concept_evidence: Boolean(row.insufficient_concept_evidence),
+    insufficient_execution_evidence: Boolean(
+      row.insufficient_execution_evidence,
+    ),
+    source_evidence_hash: row.source_evidence_hash,
+    algorithm_version: row.algorithm_version ?? "B12_V1",
+  };
+}
+
+export function masteryTrendApiToView(
+  dto: B12MasteryTrendDto,
+): StudentMasteryTrend {
+  return {
+    student_id: dto.student_id,
+    curriculum_node_id: dto.curriculum_node_id ?? null,
+    points: (dto.points ?? []).map(mapMasteryTrendPoint),
+    algorithm_version: dto.algorithm_version ?? "B12_V1",
+    source: "MASTERY_EVIDENCE",
+    as_of: dto.as_of ?? new Date().toISOString(),
+  };
+}
+
+function mapRepeatedErrorItem(
+  row: NonNullable<B12RepeatedErrorsDto["items"]>[number],
+): RepeatedErrorItem {
+  return {
+    error_code: row.error_code,
+    occurrence_count: asNumberRequired(row.occurrence_count),
+    distinct_published_result_count: asNumberRequired(
+      row.distinct_published_result_count,
+    ),
+    distinct_assessment_count: asNumberRequired(row.distinct_assessment_count),
+    first_seen_at: row.first_seen_at,
+    last_seen_at: row.last_seen_at,
+    affected_question_evaluations: (
+      row.affected_question_evaluations ?? []
+    ).map((ref) => ({
+      published_result_id: ref.published_result_id,
+      assessment_id: ref.assessment_id,
+      question_evaluation_id: ref.question_evaluation_id,
+      question_version_id: ref.question_version_id,
+    })),
+    curriculum_node_ids: row.curriculum_node_ids ?? [],
+  };
+}
+
+export function repeatedErrorsApiToView(
+  dto: B12RepeatedErrorsDto,
+): StudentRepeatedErrors {
+  return {
+    student_id: dto.student_id,
+    items: (dto.items ?? []).map(mapRepeatedErrorItem),
+    recurrence_threshold: asNumberRequired(dto.recurrence_threshold, 2),
+    algorithm_version: dto.algorithm_version ?? "B12_V1",
+    source: "MASTERY_EVIDENCE",
+    as_of: dto.as_of ?? new Date().toISOString(),
+  };
+}
+
+function mapRecoverableMarksItem(
+  row: NonNullable<B12RecoverableMarksDto["items"]>[number],
+): RecoverableMarksItem {
+  return {
+    error_code: row.error_code,
+    potentially_recoverable_marks: asDecimalString(
+      row.potentially_recoverable_marks,
+    ),
+    occurrence_count: asNumberRequired(row.occurrence_count),
+    percent_of_total_lost: asNumber(row.percent_of_total_lost),
+    affected_references: (row.affected_references ?? []).map((ref) => ({
+      published_result_id: ref.published_result_id,
+      assessment_id: ref.assessment_id,
+      question_evaluation_id: ref.question_evaluation_id,
+      criterion_evaluation_id: ref.criterion_evaluation_id,
+    })),
+  };
+}
+
+export function recoverableMarksApiToView(
+  dto: B12RecoverableMarksDto,
+): StudentRecoverableMarks {
+  return {
+    student_id: dto.student_id,
+    total_lost_marks: asDecimalString(dto.total_lost_marks),
+    attributed_potentially_recoverable_marks: asDecimalString(
+      dto.attributed_potentially_recoverable_marks,
+    ),
+    unattributed_lost_marks: asDecimalString(dto.unattributed_lost_marks),
+    items: (dto.items ?? []).map(mapRecoverableMarksItem),
+    disclaimer: dto.disclaimer ?? B12_RECOVERABLE_MARKS_DISCLAIMER,
+    algorithm_version: dto.algorithm_version ?? "B12_V1",
+    source: "PUBLISHED_LEDGER",
+    as_of: dto.as_of ?? new Date().toISOString(),
+  };
+}
+
+function mapMistakeNotebookEntry(
+  row: NonNullable<B12MistakeNotebookDto["entries"]>[number],
+): MistakeNotebookEntry {
+  return {
+    id: row.id,
+    published_result_id: row.published_result_id,
+    assessment_id: row.assessment_id,
+    assessment_code: row.assessment_code,
+    submission_id: row.submission_id,
+    question_evaluation_id: row.question_evaluation_id,
+    question_version_id: row.question_version_id,
+    question_code: row.question_code,
+    academic_error_code: row.academic_error_code,
+    final_score: asDecimalString(row.final_score),
+    max_mark: asDecimalString(row.max_mark),
+    deduction_reasons: row.deduction_reasons ?? [],
+    first_divergence_step: row.first_divergence_step ?? null,
+    curriculum_nodes: (row.curriculum_nodes ?? []).map((n) => ({
+      id: n.id,
+      code: n.code,
+      title: n.title,
+      node_type: n.node_type,
+    })),
+    recommended_practice_kind: row.recommended_practice_kind,
+    linked_learning_recommendation_ids:
+      row.linked_learning_recommendation_ids ?? [],
+    source_ledger_snapshot_hash: row.source_ledger_snapshot_hash,
+    algorithm_version: row.algorithm_version ?? "B12_V1",
+    materialized_at: row.materialized_at,
+    effective_at: row.effective_at,
+  };
+}
+
+export function mistakeNotebookApiToView(
+  dto: B12MistakeNotebookDto,
+): StudentMistakeNotebook {
+  return {
+    student_id: dto.student_id,
+    entries: (dto.entries ?? []).map(mapMistakeNotebookEntry),
+    algorithm_version: dto.algorithm_version ?? "B12_V1",
+    source: "PUBLISHED_LEDGER",
+    as_of: dto.as_of ?? new Date().toISOString(),
+  };
+}
+
+export function b12RebuildApiToView(dto: B12RebuildResultDto): B12RebuildResult {
+  return {
+    student_id: dto.student_id,
+    algorithm_version: dto.algorithm_version ?? "B12_V1",
+    mastery_state_count: asNumberRequired(dto.mastery_state_count),
+    snapshot_count: asNumberRequired(dto.snapshot_count),
+    notebook_entry_count: asNumberRequired(dto.notebook_entry_count),
+    source_evidence_hash: dto.source_evidence_hash,
+    source: "MASTERY_EVIDENCE",
+  };
+}
+
 /**
- * Live B8 analytics / mastery-evidence HTTP adapter.
+ * Live B8 analytics / mastery-evidence + B12 longitudinal HTTP adapter.
  */
 export const AnalyticsHttpApi = {
   async getAssessmentAnalytics(
@@ -421,5 +795,65 @@ export const AnalyticsHttpApi = {
       enqueue_error: dto.enqueue_error ?? null,
       algorithm_version: dto.algorithm_version ?? "B8_V1",
     };
+  },
+
+  async getStudentMasteryState(
+    studentId: string,
+  ): Promise<StudentMasteryState> {
+    const dto = await httpRequest<B12MasteryStateDto>(
+      `/api/v1/analytics/students/${studentId}/mastery-state`,
+    );
+    return masteryStateApiToView(dto);
+  },
+
+  async getStudentMasteryTrend(
+    studentId: string,
+    options?: { curriculumNodeId?: string },
+  ): Promise<StudentMasteryTrend> {
+    const params = new URLSearchParams();
+    if (options?.curriculumNodeId) {
+      params.set("curriculum_node_id", options.curriculumNodeId);
+    }
+    const qs = params.toString();
+    const path = `/api/v1/analytics/students/${studentId}/mastery-trend${
+      qs ? `?${qs}` : ""
+    }`;
+    const dto = await httpRequest<B12MasteryTrendDto>(path);
+    return masteryTrendApiToView(dto);
+  },
+
+  async getStudentRepeatedErrors(
+    studentId: string,
+  ): Promise<StudentRepeatedErrors> {
+    const dto = await httpRequest<B12RepeatedErrorsDto>(
+      `/api/v1/analytics/students/${studentId}/repeated-errors`,
+    );
+    return repeatedErrorsApiToView(dto);
+  },
+
+  async getStudentRecoverableMarks(
+    studentId: string,
+  ): Promise<StudentRecoverableMarks> {
+    const dto = await httpRequest<B12RecoverableMarksDto>(
+      `/api/v1/analytics/students/${studentId}/recoverable-marks`,
+    );
+    return recoverableMarksApiToView(dto);
+  },
+
+  async getStudentMistakeNotebook(
+    studentId: string,
+  ): Promise<StudentMistakeNotebook> {
+    const dto = await httpRequest<B12MistakeNotebookDto>(
+      `/api/v1/analytics/students/${studentId}/mistake-notebook`,
+    );
+    return mistakeNotebookApiToView(dto);
+  },
+
+  async rebuildStudentB12(studentId: string): Promise<B12RebuildResult> {
+    const dto = await httpRequest<B12RebuildResultDto>(
+      `/api/v1/analytics/students/${studentId}/b12/rebuild`,
+      { method: "POST" },
+    );
+    return b12RebuildApiToView(dto);
   },
 };

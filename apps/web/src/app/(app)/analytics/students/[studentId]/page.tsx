@@ -5,6 +5,7 @@ import { use } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { getApiCapabilities } from "@/lib/api/capabilities";
+import { B12Sections } from "@/components/analytics/B12Sections";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
   ConceptMasteryBar,
@@ -96,6 +97,8 @@ function MockStudentAnalyticsView({
           <ErrorDistribution items={data.recurring_errors} />
         </section>
       </div>
+
+      <B12Sections studentId={studentId} />
     </>
   );
 }
@@ -190,8 +193,12 @@ function LiveStudentAnalyticsView({
           className="rounded-md border border-slate-200 bg-white p-4 lg:col-span-2"
         >
           <h2 className="mb-3 text-sm font-semibold text-slate-800">
-            Concept / execution / procedure signals
+            Current evidence signals
           </h2>
+          <p className="mb-3 text-xs text-slate-500">
+            Concept / execution / procedure signals from current mastery
+            evidence (B8) — not longitudinal mastery state.
+          </p>
           <ul className="space-y-4">
             {data.concept_signals.map((signal) => (
               <li
@@ -262,6 +269,8 @@ function LiveStudentAnalyticsView({
           )}
         </section>
       </div>
+
+      <B12Sections studentId={studentId} />
     </>
   );
 }

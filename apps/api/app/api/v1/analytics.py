@@ -1,5 +1,5 @@
 # ruff: noqa: B008
-"""B8 analytics and mastery-evidence API."""
+"""B8 analytics + B12 longitudinal mastery / mistake intelligence API."""
 
 from __future__ import annotations
 
@@ -18,6 +18,14 @@ from app.services.analytics import (
     get_student_analytics,
     list_student_mastery_evidence,
     prepare_analytics_materialization,
+)
+from app.services.b12_materialization import (
+    get_student_mastery_state,
+    get_student_mastery_trend,
+    get_student_mistake_notebook,
+    get_student_recoverable_marks,
+    get_student_repeated_errors,
+    materialize_b12_for_student,
 )
 
 logger = logging.getLogger(__name__)
@@ -136,3 +144,102 @@ async def prepare_published_result_analytics(
         "enqueue_error": enqueue_error,
         "algorithm_version": "B8_V1",
     }
+
+
+@router.get("/analytics/students/{student_id}/mastery-state")
+async def student_mastery_state(
+    student_id: uuid.UUID,
+    db: Db,
+    auth: AuthContext = Depends(require_permissions("analytics:read")),
+) -> dict[str, Any]:
+    try:
+        return await get_student_mastery_state(
+            db, tenant_id=auth.tenant_id, student_id=student_id
+        )
+    except AnalyticsError as exc:
+        status = 404 if exc.code == "NOT_FOUND" else 400
+        raise _http_error(status, exc.code, exc.message) from exc
+
+
+@router.get("/analytics/students/{student_id}/mastery-trend")
+async def student_mastery_trend(
+    student_id: uuid.UUID,
+    db: Db,
+    auth: AuthContext = Depends(require_permissions("analytics:read")),
+    curriculum_node_id: uuid.UUID | None = None,
+) -> dict[str, Any]:
+    try:
+        return await get_student_mastery_trend(
+            db,
+            tenant_id=auth.tenant_id,
+            student_id=student_id,
+            curriculum_node_id=curriculum_node_id,
+        )
+    except AnalyticsError as exc:
+        status = 404 if exc.code == "NOT_FOUND" else 400
+        raise _http_error(status, exc.code, exc.message) from exc
+
+
+@router.get("/analytics/students/{student_id}/repeated-errors")
+async def student_repeated_errors(
+    student_id: uuid.UUID,
+    db: Db,
+    auth: AuthContext = Depends(require_permissions("analytics:read")),
+) -> dict[str, Any]:
+    try:
+        return await get_student_repeated_errors(
+            db, tenant_id=auth.tenant_id, student_id=student_id
+        )
+    except AnalyticsError as exc:
+        status = 404 if exc.code == "NOT_FOUND" else 400
+        raise _http_error(status, exc.code, exc.message) from exc
+
+
+@router.get("/analytics/students/{student_id}/recoverable-marks")
+async def student_recoverable_marks(
+    student_id: uuid.UUID,
+    db: Db,
+    auth: AuthContext = Depends(require_permissions("analytics:read")),
+) -> dict[str, Any]:
+    try:
+        return await get_student_recoverable_marks(
+            db, tenant_id=auth.tenant_id, student_id=student_id
+        )
+    except AnalyticsError as exc:
+        status = 404 if exc.code == "NOT_FOUND" else 400
+        raise _http_error(status, exc.code, exc.message) from exc
+
+
+@router.get("/analytics/students/{student_id}/mistake-notebook")
+async def student_mistake_notebook(
+    student_id: uuid.UUID,
+    db: Db,
+    auth: AuthContext = Depends(require_permissions("analytics:read")),
+) -> dict[str, Any]:
+    try:
+        return await get_student_mistake_notebook(
+            db, tenant_id=auth.tenant_id, student_id=student_id
+        )
+    except AnalyticsError as exc:
+        status = 404 if exc.code == "NOT_FOUND" else 400
+        raise _http_error(status, exc.code, exc.message) from exc
+
+
+@router.post("/analytics/students/{student_id}/b12/rebuild")
+async def rebuild_student_b12(
+    student_id: uuid.UUID,
+    db: Db,
+    auth: AuthContext = Depends(require_permissions("analytics:materialize")),
+) -> dict[str, Any]:
+    try:
+        result = await materialize_b12_for_student(
+            db,
+            tenant_id=auth.tenant_id,
+            student_id=student_id,
+            actor_user_id=auth.user_id,
+        )
+    except AnalyticsError as exc:
+        status = 404 if exc.code == "NOT_FOUND" else 400
+        raise _http_error(status, exc.code, exc.message) from exc
+    await db.commit()
+    return result

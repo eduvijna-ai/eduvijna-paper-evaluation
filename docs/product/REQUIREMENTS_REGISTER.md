@@ -2,7 +2,7 @@
 
 **Product:** EduVijna Enterprise Paper Evaluation  
 **Release target:** CVB v0.1  
-**Last updated:** 2026-09-04  
+**Last updated:** 2026-09-08  
 **Total requirements:** 78 (65 product capabilities + 13 architectural contract requirements)
 
 ---
@@ -79,15 +79,15 @@ Mapped 1:1 from the 65 business capabilities in the architecture contract.
 | PEV-032 | Concept Strength & Weakness | System shall determine concepts and topics where each student is strong or weak based on evaluation evidence. | P0 | BUILD_NOW | Weakness list produced post-evaluation; tied to curriculum nodes with evidence links. | Adaptive Learning / Analytics |
 | PEV-033 | Mastery vs Execution Separation | System shall separate concept mastery evidence from execution / calculation accuracy in analytics. | P0 | BUILD_NOW | MasteryEvidence distinguishes CONCEPT errors from CALCULATION/METHOD errors per taxonomy. | Adaptive Learning / Analytics |
 | PEV-034 | Error Taxonomy Classification | System shall categorize errors using canonical codes: CONCEPT, FORMULA, METHOD, CALCULATION, ALGEBRA, SIGN, SUBSTITUTION, NOTATION, UNIT, DIAGRAM, INTERPRETATION, INCOMPLETE, LOGIC_REASONING, PRESENTATION, FINAL_ANSWER, plus review categories. | P0 | BUILD_NOW | Each criterion evaluation carries ≥1 taxonomy code; UNREADABLE not auto-marked wrong. | Evaluation / AI |
-| PEV-035 | Repeated Error Analysis | System shall analyze repeated errors across multiple submissions for the same student. | P1 | AFTER_CLIENT_APPROVAL | Pattern report shows recurring error codes per student over time. | Adaptive Learning / Analytics |
-| PEV-036 | Recoverable Marks Analysis | System shall analyze potentially avoidable / recoverable marks lost to specific error types. | P1 | AFTER_CLIENT_APPROVAL | Report quantifies marks recoverable if specific error class corrected. | Adaptive Learning / Analytics |
-| PEV-037 | Longitudinal Mastery Tracking | System shall maintain mastery state across assessments over time. | P1 | AFTER_CLIENT_APPROVAL | MasteryState updates after each published assessment; historical trend available. | Adaptive Learning |
-| PEV-038 | Student Mistake Notebook | System shall build a persistent mistake notebook aggregating errors and corrections per student. | P1 | AFTER_CLIENT_APPROVAL | Notebook entries link to questions, error codes, and recommended practice. | Adaptive Learning |
+| PEV-035 | Repeated Error Analysis | System shall analyze repeated errors across multiple submissions for the same student. | P1 | AFTER_CLIENT_APPROVAL | Pattern report shows recurring error codes per student over time. **Implemented in B12 (APP-003 / Issue #42)** — release state unchanged. | Adaptive Learning / Analytics |
+| PEV-036 | Recoverable Marks Analysis | System shall analyze potentially avoidable / recoverable marks lost to specific error types. | P1 | AFTER_CLIENT_APPROVAL | Report quantifies marks recoverable if specific error class corrected. **Implemented in B12 (APP-003 / Issue #42)** — release state unchanged. | Adaptive Learning / Analytics |
+| PEV-037 | Longitudinal Mastery Tracking | System shall maintain mastery state across assessments over time. | P1 | AFTER_CLIENT_APPROVAL | MasteryState updates after each published assessment; historical trend available. **Implemented in B12 (APP-003 / Issue #42)** — release state unchanged. | Adaptive Learning |
+| PEV-038 | Student Mistake Notebook | System shall build a persistent mistake notebook aggregating errors and corrections per student. | P1 | AFTER_CLIENT_APPROVAL | Notebook entries link to questions, error codes, and recommended practice. **Implemented in B12 (APP-003 / Issue #42)** — release state unchanged. | Adaptive Learning |
 | PEV-039 | Curriculum-Only Recommendations | System shall produce adaptive learning recommendations constrained to approved curriculum content only (no open-web sources). | P0 | BUILD_NOW | Recommendations reference curriculum nodes only; external URLs blocked by policy. | Adaptive Learning |
 | PEV-040 | Prerequisite-Aware Recommendations | Recommendations shall repair prerequisite gaps before advancing to dependent topics. | P0 | BUILD_NOW | Recommendation ordering respects prerequisite graph; gaps surfaced first. | Adaptive Learning / Curriculum |
-| PEV-041 | Curriculum Resource Assignment | System shall assign approved curriculum resources and practice materials to students. | P1 | AFTER_CLIENT_APPROVAL | Teacher or system assigns resource IDs from approved catalog per recommendation. | Adaptive Learning |
+| PEV-041 | Curriculum Resource Assignment | System shall assign approved curriculum resources and practice materials to students. | P1 | AFTER_CLIENT_APPROVAL | Teacher or system assigns resource IDs from approved catalog per recommendation. **Implemented in B13 (APP-004 / Issue #45)** — release state unchanged; no open-web discovery. | Adaptive Learning |
 | PEV-042 | Improvement Assessment Blueprint | System shall generate personalized improvement assessment blueprint targeting identified weaknesses. | P0 | BUILD_NOW | Blueprint lists question templates / concept targets; contract schema validated; not full auto-generation in CVB. | Adaptive Learning / AI |
-| PEV-043 | Reassessment & Mastery Update | System shall support reassessment after improvement work and update mastery accordingly. | P1 | AFTER_CLIENT_APPROVAL | Follow-up assessment links to blueprint; mastery delta computed and stored. | Adaptive Learning |
+| PEV-043 | Reassessment & Mastery Update | System shall support reassessment after improvement work and update mastery accordingly. | P1 | AFTER_CLIENT_APPROVAL | Follow-up assessment links to blueprint; mastery delta computed and stored. **Implemented in B14 (APP-005 / Issue #48)** — release state unchanged. | Adaptive Learning |
 | PEV-044 | Horizontal Grading | System shall support horizontal grading with multiple evaluators and workload distribution. | P2 | FUTURE_ENTERPRISE | Submissions assignable to evaluator pool; progress tracked per evaluator. | Enterprise Operations |
 | PEV-045 | Moderation Workflows | System shall support moderation and multi-stage approval beyond single-teacher review. | P2 | FUTURE_ENTERPRISE | Configurable approval chain; moderator role can accept/reject evaluator work. | Enterprise Operations / Governance |
 | PEV-046 | Re-Evaluation & Grievance | System shall support re-evaluation requests and formal grievance workflows. | P2 | FUTURE_ENTERPRISE | Grievance ticket triggers re-evaluation run; prior ledger preserved; new run versioned. | Enterprise Operations / Governance |
@@ -102,8 +102,8 @@ Mapped 1:1 from the 65 business capabilities in the architecture contract.
 | PEV-055 | LMS / SIS / LTI Integration | System shall integrate with LMS, SIS, LTI, public API, and outbound webhooks. | P2 | FUTURE_ENTERPRISE | LTI launch, grade passback, roster sync, webhook delivery with retry. | Enterprise Integration |
 | PEV-056 | Multi-Subject Expansion | System shall support subjects beyond Mathematics: Physics, Chemistry, Statistics, Accounting, structured descriptive subjects. | P2 | FUTURE_ENTERPRISE | Subject-specific understanding modules pluggable via AI provider contract. | Understanding Pipeline / AI |
 | PEV-057 | Multilingual Handwriting | System shall support multilingual handwriting recognition and evaluation. | P2 | FUTURE_ENTERPRISE | Language tag on submission; transcription model selected per language. | Understanding Pipeline / AI |
-| PEV-058 | Gold Benchmark Dataset | System shall maintain a gold evaluation benchmark dataset for quality measurement. | P1 | AFTER_CLIENT_APPROVAL | Curated papers with human-adjudicated scores; versioned dataset in secure storage. | Platform & AI / Quality |
-| PEV-059 | AI Regression Testing | System shall run AI evaluation regression tests against gold dataset before model/provider releases. | P1 | AFTER_CLIENT_APPROVAL | CI gate blocks provider upgrade if regression metrics exceed threshold. | Platform & AI / Quality |
+| PEV-058 | Gold Benchmark Dataset | System shall maintain a gold evaluation benchmark dataset for quality measurement. | P1 | AFTER_CLIENT_APPROVAL | Curated papers with human-adjudicated scores; versioned dataset in secure storage. **Implemented in B15 (APP-006 / Issue #53)** — release state unchanged. | Platform & AI / Quality |
+| PEV-059 | AI Regression Testing | System shall run AI evaluation regression tests against gold dataset before model/provider releases. | P1 | AFTER_CLIENT_APPROVAL | CI gate blocks provider upgrade if regression metrics exceed threshold. **Implemented in B15 (APP-006 / Issue #53)** — release state unchanged. | Platform & AI / Quality |
 | PEV-060 | AI Execution Metadata | Every AI invocation shall store model, provider, template, and prompt version metadata. | P0 | BUILD_NOW | AiExecutionRecord created per call; linked from evaluation and understanding artifacts. | Platform & AI |
 | PEV-061 | Separate Confidence Dimensions | System shall measure identity, mapping, transcription, and evaluation confidence as separate dimensions. | P0 | BUILD_NOW | Four confidence fields on relevant records; no aggregation into single score for decisions. | Understanding Pipeline / Evaluation / Governance |
 | PEV-062 | No Generic AI Confidence | System shall not expose a single meaningless generic "AI confidence" to users or downstream logic. | P0 | BUILD_NOW | UI and API document per-dimension confidence only; code review gate on confidence fields. | Platform & AI / Governance |
@@ -179,6 +179,7 @@ Cross-reference of mandated 30-day deliverables to requirement IDs.
 | Basic test analytics | PEV-029, PEV-047 |
 | Concept/topic weakness | PEV-032 |
 | Mastery evidence | PEV-033 |
+| Repeated error / recoverable marks / longitudinal mastery / mistake notebook | PEV-035 – PEV-038 (B12 / APP-003) |
 | Curriculum-only learning recommendation | PEV-039 |
 | Prerequisite-aware recommendation | PEV-040, PEV-031 |
 | Improvement-assessment blueprint | PEV-042 |
@@ -212,6 +213,10 @@ Cross-reference of mandated 30-day deliverables to requirement IDs.
 3. **Report generation guardrail:** PEV-065 applies to PEV-026, PEV-027, PEV-028 — reports use ledger + structured generation; LLM may assist phrasing per-section, not replace ledger.
 4. **Confidence model:** PEV-061 and PEV-062 together satisfy the business rule that confidence is meaningful and dimensional (business items 61–62).
 5. **Change control:** Altering release state or priority requires entry in `docs/FOUNDER_APPROVAL_LOG.md`.
+6. **APP-003 / B12 implementation:** PEV-035–038 remain `AFTER_CLIENT_APPROVAL` in Release State (planning gate). They are implemented on `develop` under B12 / Issue #42 per APP-003. The register has no separate implementation-status column; B8/B9 BUILD_NOW PEVs likewise were not re-labeled when shipped.
+7. **APP-004 / B13 implementation:** PEV-041 remains `AFTER_CLIENT_APPROVAL` in Release State (planning gate). It is implemented on `develop` under B13 / Issue #45 per APP-004 (tenant-scoped approved catalog + assignment; no open-web discovery). PEV-058, PEV-059 remain deferred.
+8. **APP-005 / B14 implementation:** PEV-043 remains `AFTER_CLIENT_APPROVAL` in Release State (planning gate). It is implemented on `develop` under B14 / Issue #48 per APP-005 (blueprint → Assessment instantiation + B12-derived mastery deltas; no new AI / no open-web). PEV-058, PEV-059 remain deferred.
+9. **APP-006 / B15 implementation:** PEV-058 and PEV-059 remain `AFTER_CLIENT_APPROVAL` in Release State (planning gate). They are implemented on `develop` under B15 / Issue #53 per APP-006 (tenant-scoped human-adjudicated gold datasets + isolated AI regression gate; credential-free CI; no ledger/published mutation; no `main` promotion). All eight `AFTER_CLIENT_APPROVAL` requirements are now implemented under APP-003–APP-006 while retaining their release-state classification. FUTURE_ENTERPRISE PEVs remain deferred.
 
 ---
 
@@ -220,3 +225,7 @@ Cross-reference of mandated 30-day deliverables to requirement IDs.
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
 | 0.1 | 2026-09-04 | Cursor A (bootstrap) | Initial register — 78 requirements, zero dropped |
+| 0.2 | 2026-09-08 | Cursor | Annotate PEV-035–038 Acceptance Intent as B12/APP-003 implemented; release state unchanged |
+| 0.3 | 2026-09-08 | Cursor | Annotate PEV-041 Acceptance Intent as B13/APP-004 / Issue #45 implemented; release state unchanged; PEV-043/058/059 still deferred |
+| 0.4 | 2026-09-08 | Cursor | Annotate PEV-043 Acceptance Intent as B14/APP-005 / Issue #48 implemented; release state unchanged; PEV-058/059 still deferred |
+| 0.5 | 2026-09-09 | Cursor | Annotate PEV-058–059 Acceptance Intent as B15/APP-006 / Issue #53 implemented; release state unchanged; all AFTER_CLIENT_APPROVAL PEVs now implemented |

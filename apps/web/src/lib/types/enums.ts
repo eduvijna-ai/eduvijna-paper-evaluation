@@ -255,3 +255,56 @@ export const PROPOSED_QUESTION_SCORING_MODES = [
 ] as const;
 export type ProposedQuestionScoringMode =
   (typeof PROPOSED_QUESTION_SCORING_MODES)[number];
+
+/** B13 institution catalog resource kinds (no open-web discovery). */
+export const CURRICULUM_RESOURCE_KINDS = [
+  "PRACTICE_SET",
+  "WORKED_EXAMPLE",
+  "CONCEPT_NOTE",
+  "INTERNAL_PACKET",
+] as const;
+export type CurriculumResourceKind =
+  (typeof CURRICULUM_RESOURCE_KINDS)[number];
+
+export const CURRICULUM_RESOURCE_STATUSES = [
+  "DRAFT",
+  "APPROVED",
+  "ACTIVE",
+  "DEACTIVATED",
+] as const;
+export type CurriculumResourceStatus =
+  (typeof CURRICULUM_RESOURCE_STATUSES)[number];
+
+export const STUDENT_RESOURCE_ASSIGNMENT_STATUSES = [
+  "ASSIGNED",
+  "CANCELLED",
+] as const;
+export type StudentResourceAssignmentStatus =
+  (typeof STUDENT_RESOURCE_ASSIGNMENT_STATUSES)[number];
+
+/** B14 reassessment lifecycle (distinct from Assessment status). */
+export const REASSESSMENT_STATUSES = [
+  "CREATED",
+  "SUBMITTED",
+  "PUBLISHED",
+] as const;
+export type ReassessmentStatus = (typeof REASSESSMENT_STATUSES)[number];
+
+/** B15 gold benchmark dataset version status. */
+export const BENCHMARK_VERSION_STATUSES = ["DRAFT", "LOCKED"] as const;
+export type BenchmarkVersionStatus =
+  (typeof BENCHMARK_VERSION_STATUSES)[number];
+
+/** B15 isolated AI regression run status. */
+export const BENCHMARK_RUN_STATUSES = [
+  "QUEUED",
+  "RUNNING",
+  "PASSED",
+  "FAILED",
+  "ERROR",
+] as const;
+export type BenchmarkRunStatus = (typeof BENCHMARK_RUN_STATUSES)[number];
+
+/** B15 regression / release-gate verdict. */
+export const BENCHMARK_VERDICTS = ["PASS", "FAIL", "PENDING"] as const;
+export type BenchmarkVerdict = (typeof BENCHMARK_VERDICTS)[number];

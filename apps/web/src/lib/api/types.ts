@@ -6,9 +6,28 @@ import type {
   Assessment,
   AssessmentAnalyticsView,
   AuthSession,
+  BenchmarkCase,
+  BenchmarkCaseCreate,
+  BenchmarkCaseList,
+  BenchmarkDataset,
+  BenchmarkDatasetCreate,
+  BenchmarkDatasetList,
+  BenchmarkEligibleSources,
+  BenchmarkGateVerdict,
+  BenchmarkRegressionCaseResultList,
+  BenchmarkRegressionRun,
+  BenchmarkRegressionRunCreate,
+  BenchmarkRegressionRunList,
+  BenchmarkVersion,
+  BenchmarkVersionCreate,
+  BenchmarkVersionList,
   Curriculum,
   CurriculumMapEntry,
   CurriculumNode,
+  CurriculumResource,
+  CurriculumResourceCreate,
+  CurriculumResourceList,
+  CurriculumResourceUpdate,
   DashboardSummary,
   EvaluationWorkspacePayload,
   IdentityReviewPayload,
@@ -30,10 +49,22 @@ import type {
   PublicationWorkspace,
   Question,
   QuestionAnswerMappingView,
+  Reassessment,
+  ReassessmentInstantiateRequest,
+  B14RebuildResult,
   RubricCriterion,
   Student,
   StudentAnalyticsView,
   StudentMasteryEvidenceList,
+  StudentMasteryState,
+  StudentMasteryTrend,
+  StudentMistakeNotebook,
+  StudentRecoverableMarks,
+  StudentResourceAssignment,
+  StudentResourceAssignmentCreate,
+  StudentResourceAssignmentList,
+  StudentRepeatedErrors,
+  B12RebuildResult,
   StudentReport,
   Submission,
   TeacherReport,
@@ -380,6 +411,19 @@ export interface ApiClient {
   prepareAnalyticsMaterialization?(
     publishedResultId: string,
   ): Promise<AnalyticsMaterializationPrepareResult>;
+  getStudentMasteryState(studentId: string): Promise<StudentMasteryState>;
+  getStudentMasteryTrend(
+    studentId: string,
+    options?: { curriculumNodeId?: string },
+  ): Promise<StudentMasteryTrend>;
+  getStudentRepeatedErrors(studentId: string): Promise<StudentRepeatedErrors>;
+  getStudentRecoverableMarks(
+    studentId: string,
+  ): Promise<StudentRecoverableMarks>;
+  getStudentMistakeNotebook(
+    studentId: string,
+  ): Promise<StudentMistakeNotebook>;
+  rebuildStudentB12?(studentId: string): Promise<B12RebuildResult>;
   getAdaptiveLearning(studentId: string): Promise<AdaptiveLearningPlan>;
   getLearningWorkspace?(
     studentId: string,
@@ -408,4 +452,82 @@ export interface ApiClient {
     blueprintId: string,
     reason: string,
   ): Promise<LiveImprovementAssessment>;
+
+  /** B13 curriculum resource catalog + student assignments. */
+  listCurriculumResources?(filters?: {
+    curriculumId?: string;
+    status?: string;
+  }): Promise<CurriculumResourceList>;
+  getCurriculumResource?(id: string): Promise<CurriculumResource>;
+  createCurriculumResource?(
+    input: CurriculumResourceCreate,
+  ): Promise<CurriculumResource>;
+  updateCurriculumResource?(
+    id: string,
+    input: CurriculumResourceUpdate,
+  ): Promise<CurriculumResource>;
+  approveCurriculumResource?(id: string): Promise<CurriculumResource>;
+  activateCurriculumResource?(id: string): Promise<CurriculumResource>;
+  deactivateCurriculumResource?(id: string): Promise<CurriculumResource>;
+  replaceCurriculumResourceNodes?(
+    id: string,
+    nodeIds: string[],
+  ): Promise<CurriculumResource>;
+  listStudentResourceAssignments?(
+    studentId: string,
+    filters?: { curriculumId?: string; status?: string },
+  ): Promise<StudentResourceAssignmentList>;
+  assignStudentResource?(
+    studentId: string,
+    input: StudentResourceAssignmentCreate,
+  ): Promise<StudentResourceAssignment>;
+  cancelStudentResourceAssignment?(
+    assignmentId: string,
+  ): Promise<StudentResourceAssignment>;
+
+  /** B14 reassessment instantiation + mastery deltas. */
+  instantiateReassessment(
+    blueprintId: string,
+    items: ReassessmentInstantiateRequest["items"] | ReassessmentInstantiateRequest,
+  ): Promise<Reassessment>;
+  getReassessment(id: string): Promise<Reassessment>;
+  rebuildReassessmentB14?(id: string): Promise<B14RebuildResult>;
+
+  /** B15 gold benchmark curation + isolated AI regression. */
+  listBenchmarkDatasets?(): Promise<BenchmarkDatasetList>;
+  getBenchmarkDataset?(id: string): Promise<BenchmarkDataset>;
+  createBenchmarkDataset?(
+    input: BenchmarkDatasetCreate,
+  ): Promise<BenchmarkDataset>;
+  listBenchmarkVersions?(datasetId: string): Promise<BenchmarkVersionList>;
+  createBenchmarkVersion?(
+    datasetId: string,
+    input?: BenchmarkVersionCreate,
+  ): Promise<BenchmarkVersion>;
+  getBenchmarkVersion?(versionId: string): Promise<BenchmarkVersion>;
+  listBenchmarkEligibleSources?(
+    versionId: string,
+  ): Promise<BenchmarkEligibleSources>;
+  listBenchmarkCases?(versionId: string): Promise<BenchmarkCaseList>;
+  addBenchmarkCase?(
+    versionId: string,
+    input: BenchmarkCaseCreate,
+  ): Promise<BenchmarkCase>;
+  removeBenchmarkCase?(
+    versionId: string,
+    caseId: string,
+  ): Promise<BenchmarkCase>;
+  lockBenchmarkVersion?(versionId: string): Promise<BenchmarkVersion>;
+  listBenchmarkRegressionRuns?(
+    versionId: string,
+  ): Promise<BenchmarkRegressionRunList>;
+  startBenchmarkRegressionRun?(
+    versionId: string,
+    input: BenchmarkRegressionRunCreate,
+  ): Promise<BenchmarkRegressionRun>;
+  getBenchmarkRegressionRun?(runId: string): Promise<BenchmarkRegressionRun>;
+  listBenchmarkRegressionCaseResults?(
+    runId: string,
+  ): Promise<BenchmarkRegressionCaseResultList>;
+  getBenchmarkGateVerdict?(runId: string): Promise<BenchmarkGateVerdict>;
 }

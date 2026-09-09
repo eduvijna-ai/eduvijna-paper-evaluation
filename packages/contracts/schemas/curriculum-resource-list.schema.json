@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/curriculum-resource-list.schema.json",
+  "title": "CurriculumResourceList",
+  "description": "B13 approved curriculum resource catalog list.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["items"],
+  "properties": {
+    "curriculum_id": { "type": ["string", "null"], "format": "uuid" },
+    "status_filter": {
+      "type": ["string", "null"],
+      "enum": ["DRAFT", "APPROVED", "ACTIVE", "DEACTIVATED", null]
+    },
+    "items": {
+      "type": "array",
+      "items": { "$ref": "curriculum-resource.schema.json" }
+    }
+  }
+}

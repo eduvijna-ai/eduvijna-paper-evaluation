@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/repeated-errors.schema.json",
+  "title": "StudentRepeatedErrors",
+  "description": "B12 PEV-035 recurring academic error codes across distinct published results. Review/system conditions are excluded.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "student_id",
+    "items",
+    "recurrence_threshold",
+    "algorithm_version",
+    "source",
+    "as_of"
+  ],
+  "properties": {
+    "student_id": { "type": "string", "format": "uuid" },
+    "items": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/repeatedErrorItem" }
+    },
+    "recurrence_threshold": {
+      "type": "integer",
+      "const": 2,
+      "description": "Minimum distinct published results required for recurrence."
+    },
+    "algorithm_version": { "type": "string", "const": "B12_V1" },
+    "source": { "type": "string", "const": "MASTERY_EVIDENCE" },
+    "as_of": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "repeatedErrorItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "error_code",
+        "occurrence_count",
+        "distinct_published_result_count",
+        "distinct_assessment_count",
+        "first_seen_at",
+        "last_seen_at",
+        "affected_question_evaluations",
+        "curriculum_node_ids"
+      ],
+      "properties": {
+        "error_code": { "type": "string" },
+        "occurrence_count": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Unique published_result × question_evaluation × error_code grains."
+        },
+        "distinct_published_result_count": { "type": "integer", "minimum": 2 },
+        "distinct_assessment_count": { "type": "integer", "minimum": 1 },
+        "first_seen_at": { "type": "string", "format": "date-time" },
+        "last_seen_at": { "type": "string", "format": "date-time" },
+        "affected_question_evaluations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "published_result_id",
+              "assessment_id",
+              "question_evaluation_id",
+              "question_version_id"
+            ],
+            "properties": {
+              "published_result_id": { "type": "string", "format": "uuid" },
+              "assessment_id": { "type": "string", "format": "uuid" },
+              "question_evaluation_id": { "type": "string", "format": "uuid" },
+              "question_version_id": { "type": "string", "format": "uuid" }
+            }
+          }
+        },
+        "curriculum_node_ids": {
+          "type": "array",
+          "items": { "type": "string", "format": "uuid" }
+        }
+      }
+    }
+  }
+}

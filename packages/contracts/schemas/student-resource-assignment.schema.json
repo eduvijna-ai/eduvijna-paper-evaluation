@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/student-resource-assignment.schema.json",
+  "title": "StudentResourceAssignment",
+  "description": "B13 persistent student assignment of an ACTIVE catalog resource. Distinct from B9 LearningRecommendation.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "student_id",
+    "resource_id",
+    "resource",
+    "learning_recommendation_id",
+    "status",
+    "assigned_by",
+    "assigned_at",
+    "cancelled_at",
+    "cancelled_by"
+  ],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "student_id": { "type": "string", "format": "uuid" },
+    "resource_id": { "type": "string", "format": "uuid" },
+    "resource": { "$ref": "curriculum-resource.schema.json" },
+    "learning_recommendation_id": {
+      "type": ["string", "null"],
+      "format": "uuid"
+    },
+    "status": { "type": "string", "enum": ["ASSIGNED", "CANCELLED"] },
+    "assigned_by": { "type": ["string", "null"], "format": "uuid" },
+    "assigned_at": { "type": "string", "format": "date-time" },
+    "cancelled_at": { "type": ["string", "null"], "format": "date-time" },
+    "cancelled_by": { "type": ["string", "null"], "format": "uuid" }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/student-resource-assignment-list.schema.json",
+  "title": "StudentResourceAssignmentList",
+  "description": "Student resource assignment history/list (B13).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["student_id", "items"],
+  "properties": {
+    "student_id": { "type": "string", "format": "uuid" },
+    "curriculum_id": { "type": ["string", "null"], "format": "uuid" },
+    "items": {
+      "type": "array",
+      "items": { "$ref": "student-resource-assignment.schema.json" }
+    }
+  }
+}
