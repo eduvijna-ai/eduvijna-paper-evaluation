@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/benchmark-version-create.schema.json",
+  "title": "BenchmarkVersionCreate",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "threshold_profile_snapshot": {
+      "oneOf": [
+        { "$ref": "benchmark-threshold-profile.schema.json" },
+        { "type": "null" }
+      ]
+    }
+  }
+}

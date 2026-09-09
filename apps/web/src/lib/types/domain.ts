@@ -12,12 +12,19 @@ import type {
   IdentityMatchState,
   ImprovementBlueprintState,
   ImprovementTemplateKind,
+  BenchmarkRunStatus,
+  BenchmarkVerdict,
+  BenchmarkVersionStatus,
+  CurriculumResourceKind,
+  CurriculumResourceStatus,
   LearningPathStepKind,
   LearningPlanRunStatus,
   LearningRecommendationKind,
   LearningRecommendationStatus,
   MappingNodeState,
   ProposedQuestionScoringMode,
+  ReassessmentStatus,
+  StudentResourceAssignmentStatus,
   SubmissionState,
   TranscriptionState,
   UserRole,
@@ -30,8 +37,13 @@ export type {
   AuthoringAiRunStatus,
   AuthoringMaterialStatus,
   AuthoringSourceType,
+  BenchmarkRunStatus,
+  BenchmarkVerdict,
+  BenchmarkVersionStatus,
   CriterionDecision,
   CurriculumNodeType,
+  CurriculumResourceKind,
+  CurriculumResourceStatus,
   ErrorCode,
   EvaluationWorkflowState,
   IdentityMatchState,
@@ -43,6 +55,8 @@ export type {
   LearningRecommendationStatus,
   MappingNodeState,
   ProposedQuestionScoringMode,
+  ReassessmentStatus,
+  StudentResourceAssignmentStatus,
   SubmissionState,
   TranscriptionState,
   UserRole,
@@ -912,6 +926,190 @@ export interface AnalyticsMaterializationPrepareResult {
   algorithm_version: string;
 }
 
+/** B12 PEV-036 disclaimer (contract const). */
+export const B12_RECOVERABLE_MARKS_DISCLAIMER =
+  "Potentially recoverable marks are an analytical estimate from final criterion deductions, not guaranteed recovery.";
+
+export type B12AlgorithmVersion = "B12_V1";
+export type B12MasterySource = "MASTERY_EVIDENCE";
+export type B12LedgerSource = "PUBLISHED_LEDGER";
+export type B12RecommendedPracticeKind =
+  | "CONCEPT_CHECK"
+  | "EXECUTION_PRACTICE"
+  | "PROCEDURE_PRACTICE";
+
+/** B12 longitudinal MasteryState item (null mastery = insufficient decisive evidence). */
+export interface MasteryStateItem {
+  id: string | null;
+  curriculum_node_id: string;
+  curriculum_id: string;
+  code: string;
+  title: string;
+  node_type: string;
+  concept_mastery: number | null;
+  execution_accuracy: number | null;
+  concept_decisive_count: number;
+  execution_decisive_count: number;
+  concept_inconclusive_count: number;
+  execution_inconclusive_count: number;
+  evidence_count: number;
+  insufficient_concept_evidence: boolean;
+  insufficient_execution_evidence: boolean;
+  source_evidence_hash: string;
+  algorithm_version: B12AlgorithmVersion | string;
+  last_updated_at: string;
+}
+
+export interface StudentMasteryState {
+  student_id: string;
+  items: MasteryStateItem[];
+  algorithm_version: B12AlgorithmVersion | string;
+  source: B12MasterySource;
+  as_of: string;
+}
+
+export interface MasteryTrendPoint {
+  curriculum_node_id: string;
+  curriculum_id: string;
+  code: string;
+  title: string;
+  published_result_id: string;
+  assessment_id: string;
+  assessment_code: string;
+  effective_at: string;
+  concept_mastery: number | null;
+  execution_accuracy: number | null;
+  concept_decisive_count: number;
+  execution_decisive_count: number;
+  evidence_count: number;
+  insufficient_concept_evidence: boolean;
+  insufficient_execution_evidence: boolean;
+  source_evidence_hash: string;
+  algorithm_version: B12AlgorithmVersion | string;
+}
+
+export interface StudentMasteryTrend {
+  student_id: string;
+  curriculum_node_id: string | null;
+  points: MasteryTrendPoint[];
+  algorithm_version: B12AlgorithmVersion | string;
+  source: B12MasterySource;
+  as_of: string;
+}
+
+export interface RepeatedErrorAffectedQuestion {
+  published_result_id: string;
+  assessment_id: string;
+  question_evaluation_id: string;
+  question_version_id: string;
+}
+
+export interface RepeatedErrorItem {
+  error_code: string;
+  occurrence_count: number;
+  distinct_published_result_count: number;
+  distinct_assessment_count: number;
+  first_seen_at: string;
+  last_seen_at: string;
+  affected_question_evaluations: RepeatedErrorAffectedQuestion[];
+  curriculum_node_ids: string[];
+}
+
+export interface StudentRepeatedErrors {
+  student_id: string;
+  items: RepeatedErrorItem[];
+  recurrence_threshold: 2 | number;
+  algorithm_version: B12AlgorithmVersion | string;
+  source: B12MasterySource;
+  as_of: string;
+}
+
+export interface RecoverableMarksAffectedReference {
+  published_result_id: string;
+  assessment_id: string;
+  question_evaluation_id: string;
+  criterion_evaluation_id: string;
+}
+
+export interface RecoverableMarksItem {
+  error_code: string;
+  /** Decimal string from ledger. */
+  potentially_recoverable_marks: string;
+  occurrence_count: number;
+  percent_of_total_lost: number | null;
+  affected_references: RecoverableMarksAffectedReference[];
+}
+
+export interface StudentRecoverableMarks {
+  student_id: string;
+  /** Decimal strings — keep as strings in view types. */
+  total_lost_marks: string;
+  attributed_potentially_recoverable_marks: string;
+  unattributed_lost_marks: string;
+  items: RecoverableMarksItem[];
+  disclaimer: string;
+  algorithm_version: B12AlgorithmVersion | string;
+  source: B12LedgerSource;
+  as_of: string;
+}
+
+export interface MistakeNotebookCurriculumNode {
+  id: string;
+  code: string;
+  title: string;
+  node_type: string;
+}
+
+export interface MistakeNotebookEntry {
+  id: string;
+  published_result_id: string;
+  assessment_id: string;
+  assessment_code: string;
+  submission_id: string;
+  question_evaluation_id: string;
+  question_version_id: string;
+  question_code: string;
+  academic_error_code: string;
+  /** Decimal strings. */
+  final_score: string;
+  max_mark: string;
+  deduction_reasons: string[];
+  first_divergence_step: string | null;
+  curriculum_nodes: MistakeNotebookCurriculumNode[];
+  recommended_practice_kind: B12RecommendedPracticeKind | string;
+  linked_learning_recommendation_ids: string[];
+  source_ledger_snapshot_hash: string;
+  algorithm_version: B12AlgorithmVersion | string;
+  materialized_at: string;
+  effective_at: string;
+}
+
+export interface StudentMistakeNotebook {
+  student_id: string;
+  entries: MistakeNotebookEntry[];
+  algorithm_version: B12AlgorithmVersion | string;
+  source: B12LedgerSource;
+  as_of: string;
+}
+
+export interface B12RebuildResult {
+  student_id: string;
+  algorithm_version: B12AlgorithmVersion | string;
+  mastery_state_count: number;
+  snapshot_count: number;
+  notebook_entry_count: number;
+  source_evidence_hash: string;
+  source: B12MasterySource;
+}
+
+/** Format 0–1 mastery ratio; null = insufficient decisive evidence. */
+export function formatMasteryRatio(
+  value: number | null | undefined,
+): string {
+  if (value === null || value === undefined) return "Insufficient evidence";
+  return `${Math.round(value * 100)}%`;
+}
+
 export type AssessmentAnalyticsView =
   | AssessmentAnalytics
   | LiveAssessmentAnalytics;
@@ -1082,6 +1280,340 @@ export interface LiveLearningPlan {
   };
 }
 
+/** B13 institution-approved curriculum catalog resource (PEV-041). */
+export interface CurriculumResource {
+  id: string;
+  curriculum_id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  resource_kind: CurriculumResourceKind | string;
+  status: CurriculumResourceStatus | string;
+  content_ref: string;
+  curriculum_node_ids: string[];
+  created_by: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CurriculumResourceList {
+  curriculum_id: string | null;
+  status_filter: CurriculumResourceStatus | string | null;
+  items: CurriculumResource[];
+}
+
+export interface CurriculumResourceCreate {
+  curriculum_id: string;
+  code: string;
+  title: string;
+  description?: string | null;
+  resource_kind: CurriculumResourceKind | string;
+  content_ref: string;
+  curriculum_node_ids: string[];
+}
+
+export interface CurriculumResourceUpdate {
+  title?: string;
+  description?: string | null;
+  resource_kind?: CurriculumResourceKind | string;
+  content_ref?: string;
+}
+
+export interface CurriculumResourceNodesReplace {
+  curriculum_node_ids: string[];
+}
+
+/** B13 persistent student assignment — distinct from B9 LearningRecommendation. */
+export interface StudentResourceAssignment {
+  id: string;
+  student_id: string;
+  resource_id: string;
+  resource: CurriculumResource;
+  learning_recommendation_id: string | null;
+  status: StudentResourceAssignmentStatus | string;
+  assigned_by: string | null;
+  assigned_at: string;
+  cancelled_at: string | null;
+  cancelled_by: string | null;
+}
+
+export interface StudentResourceAssignmentList {
+  student_id: string;
+  curriculum_id: string | null;
+  items: StudentResourceAssignment[];
+}
+
+export interface StudentResourceAssignmentCreate {
+  resource_id: string;
+  learning_recommendation_id?: string | null;
+}
+
+/** B14 reassessment item linkage (PEV-043). */
+export interface ReassessmentItem {
+  id: string;
+  improvement_assessment_item_id: string;
+  question_version_id: string;
+  curriculum_node_id: string;
+  item_code_snapshot: string;
+  template_kind_snapshot: string;
+  question_template_ref_snapshot: string | null;
+}
+
+/**
+ * B14 mastery baseline → post delta.
+ * Null mastery/delta means insufficient decisive evidence — never treat as 0.
+ */
+export interface ReassessmentMasteryDelta {
+  curriculum_node_id: string;
+  baseline_concept_mastery: number | null;
+  baseline_execution_accuracy: number | null;
+  baseline_concept_decisive_count: number;
+  baseline_execution_decisive_count: number;
+  baseline_concept_inconclusive_count: number;
+  baseline_execution_inconclusive_count: number;
+  baseline_evidence_count: number;
+  baseline_source_evidence_hash: string;
+  post_snapshot_id: string | null;
+  post_published_result_id: string | null;
+  post_concept_mastery: number | null;
+  post_execution_accuracy: number | null;
+  post_concept_decisive_count: number | null;
+  post_execution_decisive_count: number | null;
+  post_concept_inconclusive_count: number | null;
+  post_execution_inconclusive_count: number | null;
+  post_evidence_count: number | null;
+  post_source_evidence_hash: string | null;
+  concept_delta: number | null;
+  execution_delta: number | null;
+  materialized_at: string | null;
+  algorithm_version: string;
+}
+
+export interface Reassessment {
+  id: string;
+  improvement_assessment_id: string;
+  blueprint_title: string;
+  blueprint_version_number: number;
+  student_id: string;
+  curriculum_id: string;
+  assessment_id: string;
+  assessment_status: string;
+  assessment_version_id: string;
+  submission_id: string | null;
+  published_result_id: string | null;
+  status: ReassessmentStatus | string;
+  algorithm_version: string;
+  instantiation_hash: string;
+  baseline_captured_at: string;
+  created_at: string;
+  updated_at: string;
+  items: ReassessmentItem[];
+  mastery_deltas: ReassessmentMasteryDelta[];
+}
+
+export interface ReassessmentInstantiateItem {
+  improvement_assessment_item_id: string;
+  prompt_text: string;
+  max_marks: string;
+  question_type?: string | null;
+  instructions?: string | null;
+}
+
+export interface ReassessmentInstantiateRequest {
+  items: ReassessmentInstantiateItem[];
+}
+
+export interface B14RebuildResult {
+  reassessment_id: string;
+  algorithm_version: string;
+  delta_count: number;
+  published_result_id: string | null;
+  source: string;
+}
+
+/** B15 release-gate threshold profile snapshot. */
+export interface BenchmarkThresholdProfile {
+  profile_code: string;
+  algorithm_version: string;
+  max_missing_output_rate: number;
+  max_mean_abs_score_error: number;
+  min_exact_score_agreement_rate: number;
+  min_taxonomy_agreement_rate: number;
+  max_safety_invariant_failure_rate: number;
+  score_tolerance: number;
+}
+
+/** B15 gold benchmark dataset (PEV-058). */
+export interface BenchmarkDataset {
+  id: string;
+  code: string;
+  title: string;
+  description: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BenchmarkDatasetList {
+  items: BenchmarkDataset[];
+}
+
+export interface BenchmarkDatasetCreate {
+  code: string;
+  title: string;
+  description?: string | null;
+}
+
+/** B15 gold benchmark dataset version (DRAFT or LOCKED). */
+export interface BenchmarkVersion {
+  id: string;
+  dataset_id: string;
+  version_number: number;
+  status: BenchmarkVersionStatus | string;
+  threshold_profile_snapshot: BenchmarkThresholdProfile | Record<string, unknown>;
+  case_count: number;
+  content_hash: string | null;
+  locked_by: string | null;
+  locked_at: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BenchmarkVersionList {
+  items: BenchmarkVersion[];
+}
+
+export interface BenchmarkVersionCreate {
+  threshold_profile_snapshot?: BenchmarkThresholdProfile | Record<string, unknown> | null;
+}
+
+/** B15 frozen gold case — no student PII. */
+export interface BenchmarkCase {
+  id: string;
+  dataset_version_id: string;
+  published_result_id: string;
+  evaluation_run_id: string;
+  question_evaluation_id: string;
+  question_version_id: string;
+  rubric_version_id: string;
+  assessment_version_id: string;
+  expected_final_marks: number;
+  expected_max_marks: number;
+  expected_error_codes: string[];
+  source_ledger_hash: string;
+  evidence_hash: string;
+  adjudicated_by: string | null;
+  adjudicated_at: string;
+  replay_fixture: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BenchmarkCaseList {
+  items: BenchmarkCase[];
+}
+
+export interface BenchmarkCaseCreate {
+  published_result_id: string;
+  question_evaluation_id: string;
+}
+
+export interface BenchmarkEligibleQuestionEvaluation {
+  question_evaluation_id: string;
+  question_version_id: string;
+  workflow_state: "ACCEPTED" | "OVERRIDDEN" | string;
+  final_human_approved_score: number;
+  max_mark: number;
+  error_codes: string[];
+}
+
+export interface BenchmarkEligibleSource {
+  published_result_id: string;
+  evaluation_run_id: string;
+  submission_id: string;
+  assessment_version_id: string;
+  ledger_snapshot_hash: string;
+  question_evaluations: BenchmarkEligibleQuestionEvaluation[];
+}
+
+export interface BenchmarkEligibleSources {
+  items: BenchmarkEligibleSource[];
+}
+
+/** B15 isolated AI regression run. */
+export interface BenchmarkRegressionRun {
+  id: string;
+  dataset_version_id: string;
+  status: BenchmarkRunStatus | string;
+  verdict: BenchmarkVerdict | string;
+  idempotency_key: string | null;
+  candidate_provider: string;
+  candidate_model: string;
+  candidate_model_version: string;
+  candidate_prompt_template_version: string;
+  candidate_config: Record<string, unknown>;
+  threshold_snapshot: BenchmarkThresholdProfile | Record<string, unknown>;
+  aggregate_metrics: Record<string, unknown>;
+  initiated_by: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+  failure_code: string | null;
+  failure_detail: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BenchmarkRegressionRunList {
+  items: BenchmarkRegressionRun[];
+}
+
+export interface BenchmarkRegressionRunCreate {
+  candidate_provider: string;
+  candidate_model: string;
+  candidate_model_version: string;
+  candidate_prompt_template_version: string;
+  candidate_config?: Record<string, unknown> | null;
+  idempotency_key?: string | null;
+}
+
+/** Per-case isolated regression comparison against frozen gold. */
+export interface BenchmarkRegressionCaseResult {
+  id: string;
+  regression_run_id: string;
+  benchmark_case_id: string;
+  missing_output: boolean;
+  actual_marks: number | null;
+  actual_error_codes: string[];
+  score_abs_error: number | null;
+  exact_score_match: boolean;
+  taxonomy_match: boolean | null;
+  safety_invariant_failed: boolean;
+  diff: Record<string, unknown>;
+  ai_execution_record_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BenchmarkRegressionCaseResultList {
+  items: BenchmarkRegressionCaseResult[];
+}
+
+export interface BenchmarkGateVerdict {
+  verdict: BenchmarkVerdict | string;
+  passed: boolean;
+  run_id: string;
+  status?: BenchmarkRunStatus | string;
+  candidate_provider: string;
+  candidate_model: string;
+  candidate_model_version: string;
+  candidate_prompt_template_version: string;
+  metrics: Record<string, unknown>;
+  threshold_snapshot: BenchmarkThresholdProfile | Record<string, unknown>;
+}
+
 export interface LiveLearningWorkspace {
   student: LiveStudentSummary;
   available_curricula: LiveLearningCurriculumOption[];
@@ -1095,6 +1627,10 @@ export interface LiveLearningWorkspace {
   latest_plan: LiveLearningPlan | null;
   is_stale: boolean;
   latest_improvement_blueprint: LiveImprovementAssessment | null;
+  /** B13 assigned catalog resources (ASSIGNED only when from workspace). */
+  resource_assignments?: StudentResourceAssignment[];
+  /** B14 reassessment history (newest first). */
+  reassessments?: Reassessment[];
 }
 
 export interface LearningPlanPrepareResult {

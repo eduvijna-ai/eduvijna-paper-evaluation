@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/benchmark-regression-run-create.schema.json",
+  "title": "BenchmarkRegressionRunCreate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "candidate_provider",
+    "candidate_model",
+    "candidate_model_version",
+    "candidate_prompt_template_version"
+  ],
+  "properties": {
+    "candidate_provider": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "candidate_model": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "candidate_model_version": { "type": "string", "minLength": 1, "maxLength": 100 },
+    "candidate_prompt_template_version": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100
+    },
+    "candidate_config": { "type": ["object", "null"] },
+    "idempotency_key": { "type": ["string", "null"], "maxLength": 128 }
+  }
+}

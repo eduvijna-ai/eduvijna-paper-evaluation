@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/student-resource-assignment-create.schema.json",
+  "title": "StudentResourceAssignmentCreate",
+  "description": "Assign an ACTIVE approved catalog resource to a student. Optional ACTIVE B9 recommendation linkage when curriculum-node compatible.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["resource_id"],
+  "properties": {
+    "resource_id": { "type": "string", "format": "uuid" },
+    "learning_recommendation_id": {
+      "type": ["string", "null"],
+      "format": "uuid"
+    }
+  }
+}

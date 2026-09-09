@@ -2,17 +2,24 @@
 
 import { use, useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, isApiError } from "@/lib/api";
 import { getApiCapabilities } from "@/lib/api/capabilities";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
+  CreateReassessmentForm,
   ImprovementAssessmentBlueprint,
   LiveImprovementBlueprintPanel,
 } from "@/components/learning/LearningComponents";
 import { ErrorState, LoadingState } from "@/components/ui/FeedbackStates";
+import {
+  buildInstantiateRequestFromBlueprintItems,
+  canCreateReassessmentFromBlueprint,
+} from "@/lib/helpers/b14-reassessment";
+import { getDemoApprovedBlueprintItems } from "@/lib/fixtures/b14-demo";
 import type {
   ImprovementAssessmentBlueprint as Blueprint,
   LiveImprovementAssessment,
+  Reassessment,
 } from "@/lib/types/domain";
 
 function LiveImprovementAssessmentPage({ studentId }: { studentId: string }) {
@@ -21,6 +28,8 @@ function LiveImprovementAssessmentPage({ studentId }: { studentId: string }) {
   const [pollingBlueprintId, setPollingBlueprintId] = useState<string | null>(
     null,
   );
+  const [createdReassessment, setCreatedReassessment] =
+    useState<Reassessment | null>(null);
 
   const workspaceQuery = useQuery({
     queryKey: ["live-learning-workspace", studentId, "auto"],
@@ -93,6 +102,27 @@ function LiveImprovementAssessmentPage({ studentId }: { studentId: string }) {
     },
   });
 
+  const instantiateMutation = useMutation({
+    mutationFn: ({
+      blueprintId,
+      drafts,
+      items,
+    }: {
+      blueprintId: string;
+      drafts: Record<string, { prompt_text: string; max_marks: string }>;
+      items: LiveImprovementAssessment["items"];
+    }) => {
+      const request = buildInstantiateRequestFromBlueprintItems(items, drafts);
+      return api.instantiateReassessment(blueprintId, request.items);
+    },
+    onSuccess: (result) => {
+      setCreatedReassessment(result);
+      void queryClient.invalidateQueries({
+        queryKey: ["live-learning-workspace", studentId],
+      });
+    },
+  });
+
   if (workspaceQuery.isLoading) return <LoadingState />;
   if (workspaceQuery.isError || !workspace) {
     return <ErrorState onRetry={() => void workspaceQuery.refetch()} />;
@@ -116,12 +146,13 @@ function LiveImprovementAssessmentPage({ studentId }: { studentId: string }) {
   const noGaps =
     planReady &&
     (plan?.recommendations.length ?? 0) === 0;
+  const showCreate = canCreateReassessmentFromBlueprint(blueprint);
 
   return (
     <div data-testid="improvement-assessment-page" data-learning-mode="live">
       <PageHeader
         title="Improvement assessment blueprint"
-        description="Teacher approval freezes the blueprint; reassessment release is not live."
+        description="Teacher approval freezes the blueprint; B14 instantiates a DRAFT reassessment assessment."
         breadcrumbs={[
           { label: "Learning", href: `/learning/${studentId}` },
           { label: "Improvement assessment" },
@@ -196,12 +227,37 @@ function LiveImprovementAssessmentPage({ studentId }: { studentId: string }) {
             onRejectReasonChange={setRejectReason}
           />
         )}
+
+      {showCreate && blueprint && (
+        <CreateReassessmentForm
+          blueprintId={blueprint.id}
+          items={blueprint.items}
+          submitting={instantiateMutation.isPending}
+          errorMessage={
+            instantiateMutation.error
+              ? isApiError(instantiateMutation.error)
+                ? instantiateMutation.error.message
+                : "Failed to instantiate reassessment"
+              : null
+          }
+          created={createdReassessment}
+          onSubmit={(drafts) =>
+            instantiateMutation.mutate({
+              blueprintId: blueprint.id,
+              drafts,
+              items: blueprint.items,
+            })
+          }
+        />
+      )}
     </div>
   );
 }
 
 function MockImprovementAssessmentPage({ studentId }: { studentId: string }) {
   const [local, setLocal] = useState<Blueprint | null>(null);
+  const [createdReassessment, setCreatedReassessment] =
+    useState<Reassessment | null>(null);
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["improvement-blueprint", studentId],
@@ -214,10 +270,27 @@ function MockImprovementAssessmentPage({ studentId }: { studentId: string }) {
     onSuccess: (result) => setLocal(result as Blueprint),
   });
 
+  const instantiateMutation = useMutation({
+    mutationFn: ({
+      blueprintId,
+      drafts,
+    }: {
+      blueprintId: string;
+      drafts: Record<string, { prompt_text: string; max_marks: string }>;
+    }) => {
+      const items = getDemoApprovedBlueprintItems();
+      const request = buildInstantiateRequestFromBlueprintItems(items, drafts);
+      return api.instantiateReassessment(blueprintId, request.items);
+    },
+    onSuccess: (result) => setCreatedReassessment(result),
+  });
+
   if (isLoading) return <LoadingState />;
   if (isError || !data) return <ErrorState onRetry={() => void refetch()} />;
 
   const blueprint = local ?? data;
+  const approved = blueprint.workflow_state === "APPROVED";
+  const demoItems = getDemoApprovedBlueprintItems();
 
   return (
     <div data-testid="improvement-assessment-page" data-learning-mode="mock">
@@ -233,6 +306,27 @@ function MockImprovementAssessmentPage({ studentId }: { studentId: string }) {
         blueprint={blueprint}
         onApprove={() => approveMutation.mutate(blueprint.id)}
       />
+      {approved && (
+        <CreateReassessmentForm
+          blueprintId={blueprint.id}
+          items={demoItems}
+          submitting={instantiateMutation.isPending}
+          errorMessage={
+            instantiateMutation.error
+              ? isApiError(instantiateMutation.error)
+                ? instantiateMutation.error.message
+                : "Failed to instantiate reassessment"
+              : null
+          }
+          created={createdReassessment}
+          onSubmit={(drafts) =>
+            instantiateMutation.mutate({
+              blueprintId: blueprint.id,
+              drafts,
+            })
+          }
+        />
+      )}
     </div>
   );
 }

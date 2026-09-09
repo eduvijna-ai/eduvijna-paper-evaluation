@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/recoverable-marks.schema.json",
+  "title": "StudentRecoverableMarks",
+  "description": "B12 PEV-036 potentially recoverable marks from final-approved criterion ledger rows. Analytical estimate only — not guaranteed recovery.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "student_id",
+    "total_lost_marks",
+    "attributed_potentially_recoverable_marks",
+    "unattributed_lost_marks",
+    "items",
+    "disclaimer",
+    "algorithm_version",
+    "source",
+    "as_of"
+  ],
+  "properties": {
+    "student_id": { "type": "string", "format": "uuid" },
+    "total_lost_marks": {
+      "type": "string",
+      "description": "Decimal string: sum of (max_marks - final_marks) across approved criteria with final_marks."
+    },
+    "attributed_potentially_recoverable_marks": {
+      "type": "string",
+      "description": "Decimal string: sum of potentially recoverable marks attributed to academic error codes."
+    },
+    "unattributed_lost_marks": {
+      "type": "string",
+      "description": "Decimal string: lost marks without academic error attribution (review/system/null)."
+    },
+    "items": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/recoverableItem" }
+    },
+    "disclaimer": {
+      "type": "string",
+      "const": "Potentially recoverable marks are an analytical estimate from final criterion deductions, not guaranteed recovery."
+    },
+    "algorithm_version": { "type": "string", "const": "B12_V1" },
+    "source": { "type": "string", "const": "PUBLISHED_LEDGER" },
+    "as_of": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "recoverableItem": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "error_code",
+        "potentially_recoverable_marks",
+        "occurrence_count",
+        "percent_of_total_lost",
+        "affected_references"
+      ],
+      "properties": {
+        "error_code": { "type": "string" },
+        "potentially_recoverable_marks": {
+          "type": "string",
+          "description": "Decimal string aggregated from criterion max_marks - final_marks."
+        },
+        "occurrence_count": { "type": "integer", "minimum": 1 },
+        "percent_of_total_lost": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 100
+        },
+        "affected_references": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "published_result_id",
+              "assessment_id",
+              "question_evaluation_id",
+              "criterion_evaluation_id"
+            ],
+            "properties": {
+              "published_result_id": { "type": "string", "format": "uuid" },
+              "assessment_id": { "type": "string", "format": "uuid" },
+              "question_evaluation_id": { "type": "string", "format": "uuid" },
+              "criterion_evaluation_id": { "type": "string", "format": "uuid" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

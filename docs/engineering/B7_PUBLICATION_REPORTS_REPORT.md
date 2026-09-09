@@ -73,7 +73,7 @@ Live UUIDs never enter mock analytics/learning.
 | GitHub Actions (six jobs) | SUCCESS (`34076457655`) |
 | Squash-merge to develop | MERGED |
 | `main` unchanged | confirmed `be5f10aef3cf536420adcffdb9302b6b3b6c0955` |
-| Issue #1 | remains OPEN |
+| Issue #1 | CLOSED (CVB v0.1 release confirmed 2026-09-07; historical B7 text previously said OPEN) |
 
 ## Post-merge note (B8 baseline)
 

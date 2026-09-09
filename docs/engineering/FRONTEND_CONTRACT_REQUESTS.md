@@ -2,8 +2,8 @@
 
 **Product:** EduVijna Paper Evaluation (CVB)  
 **Author:** Implementation Engineer B (registry); A2 backend reconciliation by Implementation Engineer A  
-**Updated:** 2026-09-07 (B10 CVB release closure — authoring AI + question-paper artifacts)  
-**Status:** A1+A2+B1–B10 live through analytics, curriculum learning, and authoring AI proposals; longitudinal MasteryState, resource assignment, and reassessment creation remain deferred
+**Updated:** 2026-09-08 (B14 reassessment mastery update — PEV-043 / APP-005)  
+**Status:** A1+A2+B1–B10 live through analytics, curriculum learning, and authoring AI proposals; B12 longitudinal MasteryState, B13 resource assignment, and B14 reassessment instantiation are live on `develop` (AFTER_CLIENT_APPROVAL release state unchanged)
 
 ## Context
 
@@ -45,7 +45,7 @@ B should map mock/http adapters to these **canonical** paths (no duplicate alias
 | **FCR-003** | P0 | Question mapping | **RESOLVED_BY_B4**; B5 adds AI-assisted region/mapping proposals (human confirm still mandatory) | Mapping workspace + region CRUD + confirm/finalize | — |
 | **FCR-004** | P0 | Evaluation | **RESOLVED_BY_B6** | Evaluation prepare/workspace/finalize + accept/override/feedback/escalate | — |
 | **FCR-005** | P1 | Reports / Analytics | **RESOLVED_BY_B7** (reporting); **RESOLVED_BY_B8** (analytics) | Student/parent/teacher published reports + annotated paper; assessment/student analytics | — |
-| **FCR-006** | P1 | Adaptive learning | **RESOLVED_BY_B9** | Learning workspace + plan prepare/run + improvement blueprint approve/reject | Deferred: resource assignment, reassessment, MasteryState |
+| **FCR-006** | P1 | Adaptive learning | **RESOLVED_BY_B9**; **B12/B13/B14 extend** | Learning workspace + plan prepare/run + improvement blueprint approve/reject; B12 mastery; B13 resources; B14 reassessment | PEV-058/059 + FUTURE_ENTERPRISE remain deferred |
 | **FCR-007** | P1 | Paper viewer / structure AI | **RESOLVED_BY_B5** for CVB structure pipeline (page analysis, crops, transcription review) | Page images + overlays + transcription workspace | — |
 | **FCR-008** | P2 | Answer key / curriculum map / authoring AI | **RESOLVED_BY_A2** (CRUD/approve); **RESOLVED_BY_B10** (live AI proposals + question-paper parse) | Answer-key/rubric/mapping + `AuthoringAiRun` / `AssessmentArtifact` | Wire hybrid UI if not already |
 | **FCR-009** | P2 | Raw upload | **RESOLVED_BY_B3**; scan hook **RESOLVED_BY_B10** | Multipart `POST /api/v1/submissions` + immutable MinIO storage + `UPLOAD_SCANNER` | — |
@@ -127,7 +127,7 @@ OCR/mapping correction workflows and result publication / reports remain out of 
 
 ## FCR-006 — Adaptive learning (P1)
 
-**Resolution:** **RESOLVED_BY_B9** (unchanged by B10 — do not regress)
+**Resolution:** **RESOLVED_BY_B9** (base); extended by **B12** (MasteryState / mistake intelligence), **B13** (resource assignment), **B14** (reassessment instantiate + mastery delta)
 
 B9 resolves live curriculum-constrained recommendations, prerequisite-aware learning path, and improvement-assessment **blueprint** generation with teacher approve/reject.
 
@@ -140,10 +140,15 @@ B9 resolves live curriculum-constrained recommendations, prerequisite-aware lear
 - Schemas: `learning-plan`, `improvement-assessment-blueprint`
 - Capability: `learning = live` in hybrid; live errors never fall back to mock
 
-**Explicitly deferred:**
-- Resource assignment / external study URLs (PEV-041)
-- Actual reassessment creation from an approved blueprint (PEV-043)
-- Longitudinal MasteryState aggregates (PEV-035/036/037/038)
+**Extended by B12 / B13 / B14 (AFTER_CLIENT_APPROVAL; live on develop):**
+- B12: longitudinal mastery / repeated errors / recoverable marks / mistake notebook + `POST …/b12/rebuild`
+- B13: curriculum resource catalog + student assignment (no open-web); workspace embeds `resource_assignments`
+- B14: `POST /api/v1/improvement-assessments/{id}/reassessment` (`assessment:manage`); `GET /api/v1/reassessments/{id}` (`learning:read`); `POST …/b14/rebuild` (`analytics:materialize`); workspace embeds `reassessments`
+
+**Still deferred:**
+- Gold benchmark / AI regression (PEV-058 / PEV-059)
+- All FUTURE_ENTERPRISE PEVs
+- Open-web discovery / arbitrary external URL assignment (permanently out of policy)
 
 ---
 

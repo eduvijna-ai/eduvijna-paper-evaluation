@@ -95,4 +95,4 @@ learning = mock
 | GitHub Actions (six jobs) | SUCCESS (`34090226606`) |
 | Squash-merge to develop | MERGED |
 | `main` unchanged | confirmed |
-| Issue #1 | remains OPEN |
+| Issue #1 | CLOSED (CVB v0.1 release confirmed 2026-09-07; historical B8 text previously said OPEN) |

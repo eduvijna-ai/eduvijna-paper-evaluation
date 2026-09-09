@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/mistake-notebook.schema.json",
+  "title": "StudentMistakeNotebook",
+  "description": "B12 PEV-038 persistent mistake notebook linked to published ledger facts. Curriculum-only practice context; no open-web resources.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "student_id",
+    "entries",
+    "algorithm_version",
+    "source",
+    "as_of"
+  ],
+  "properties": {
+    "student_id": { "type": "string", "format": "uuid" },
+    "entries": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/notebookEntry" }
+    },
+    "algorithm_version": { "type": "string", "const": "B12_V1" },
+    "source": { "type": "string", "const": "PUBLISHED_LEDGER" },
+    "as_of": { "type": "string", "format": "date-time" }
+  },
+  "$defs": {
+    "notebookEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "published_result_id",
+        "assessment_id",
+        "assessment_code",
+        "submission_id",
+        "question_evaluation_id",
+        "question_version_id",
+        "question_code",
+        "academic_error_code",
+        "final_score",
+        "max_mark",
+        "deduction_reasons",
+        "first_divergence_step",
+        "curriculum_nodes",
+        "recommended_practice_kind",
+        "linked_learning_recommendation_ids",
+        "source_ledger_snapshot_hash",
+        "algorithm_version",
+        "materialized_at",
+        "effective_at"
+      ],
+      "properties": {
+        "id": { "type": "string", "format": "uuid" },
+        "published_result_id": { "type": "string", "format": "uuid" },
+        "assessment_id": { "type": "string", "format": "uuid" },
+        "assessment_code": { "type": "string" },
+        "submission_id": { "type": "string", "format": "uuid" },
+        "question_evaluation_id": { "type": "string", "format": "uuid" },
+        "question_version_id": { "type": "string", "format": "uuid" },
+        "question_code": { "type": "string" },
+        "academic_error_code": { "type": "string" },
+        "final_score": { "type": "string" },
+        "max_mark": { "type": "string" },
+        "deduction_reasons": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+        "first_divergence_step": { "type": ["string", "null"] },
+        "curriculum_nodes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["id", "code", "title", "node_type"],
+            "properties": {
+              "id": { "type": "string", "format": "uuid" },
+              "code": { "type": "string" },
+              "title": { "type": "string" },
+              "node_type": { "type": "string" }
+            }
+          }
+        },
+        "recommended_practice_kind": {
+          "type": "string",
+          "enum": ["CONCEPT_CHECK", "EXECUTION_PRACTICE", "PROCEDURE_PRACTICE"]
+        },
+        "linked_learning_recommendation_ids": {
+          "type": "array",
+          "items": { "type": "string", "format": "uuid" },
+          "description": "Existing B9 curriculum-only recommendation IDs when available."
+        },
+        "source_ledger_snapshot_hash": { "type": "string" },
+        "algorithm_version": { "type": "string", "const": "B12_V1" },
+        "materialized_at": { "type": "string", "format": "date-time" },
+        "effective_at": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

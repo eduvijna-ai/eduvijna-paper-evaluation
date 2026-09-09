@@ -2,7 +2,7 @@
 
 **Product:** EduVijna Paper Evaluation (CVB v0.1)  
 **Package:** `apps/api/app/ai/` (runtime); architecture stub under `ai/`  
-**Last updated:** 2026-09-07  
+**Last updated:** 2026-09-09  
 **Related:** [ADR-007](adrs/ADR-007-ai-provider-abstraction.md), [EVALUATION_LEDGER.md](./EVALUATION_LEDGER.md), [SECURITY_BASELINE.md](./SECURITY_BASELINE.md)
 
 ---
@@ -44,7 +44,18 @@ Each B5 operation defines typed Pydantic models in `apps/api/app/ai/types.py`.
 
 * Multi-subject structure providers beyond Mathematics (PEV-056)
 * Multilingual handwriting (PEV-057)
-* Gold-dataset regression gates (PEV-058 / PEV-059)
+
+### Implemented in B15 (gold benchmark / AI regression — PEV-058 / PEV-059)
+
+* Gold dataset curation remains human-adjudicated and tenant-scoped (PEV-058).
+* Isolated regression against locked gold versions (PEV-059) via:
+
+  | Path | When | Credentials |
+  |------|------|-------------|
+  | **CI fixtures** | `candidate_provider=fixed` and model ∈ `fixed-benchmark-pass` / `fixed-benchmark-regress` / `fixed-benchmark-invalid` | Never required |
+  | **Configured production candidate** | `candidate_provider` matches the active `AI_PROVIDER_VISION` evaluation provider (`fixed` or `openai`) and model is **not** a CI fixture name | Uses configured runtime credentials when provider is `openai`; mandatory GitHub CI still uses fixtures / fixed only |
+
+Configured candidates resolve exclusively through `get_evaluation_provider()` / `get_benchmark_candidate_executor()` and call `evaluate_rubric` on a frozen PII-minimized replay fixture. Results are written only to `benchmark_regression_*` tables and `AiExecutionRecord` — never to `QuestionEvaluation`, criterion ledger rows, `PublishedResult`, review actions, or B8/B12/B14 mastery state. Release gate APIs/CLI determine eligibility only; they do **not** deploy providers or models.
 
 ### Implemented in B10 (authoring)
 
@@ -311,6 +322,7 @@ Link record IDs to ledger via `ai_execution_record_ids`.
 |-----------------|--------------|---------------|
 | Structure (identity, map, transcribe) | Submission < `APPROVED` | No marks |
 | Evaluation (`evaluate_rubric`, `verify_math`, `classify_error`) | Rubric `PUBLISHED` | Draft proposals only |
+| Gold benchmark replay (`gold_benchmark_evaluate` via registry) | Locked B15 gold version | **Forbidden** for ledger / published / mastery writes |
 | Narrative (`generate_student_explanation`, `generate_parent_summary`) | Submission ≥ `APPROVED` / publication | **Forbidden** |
 | Learning (`generate_learning_plan`, `generate_improvement_blueprint`) | After B8 READY evidence / READY plan | **Forbidden** (structure server-owned) |
 | Authoring (`parse_question_paper`, `propose_*`, `suggest_curriculum_mapping`) | Assessment academic config mutable (typically DRAFT) | **Forbidden** for evaluation marks; proposals only |
@@ -361,3 +373,4 @@ ai/
 | 0.2 | 2026-09-07 | B7 narrative ops implemented |
 | 0.3 | 2026-09-07 | B9 `generate_learning_plan` + `generate_improvement_blueprint` implemented |
 | 0.4 | 2026-09-07 | B10 authoring ops: `parse_question_paper`, `propose_answer_key`, `propose_rubric`, `suggest_curriculum_mapping` |
+| 0.5 | 2026-09-09 | B15 PEV-058/059: CI fixed fixtures + configured EvaluationAIProvider gold replay; no ledger mutation |

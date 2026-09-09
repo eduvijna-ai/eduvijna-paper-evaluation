@@ -343,11 +343,11 @@ async def test_b8_prepare_idempotent_and_no_duplicate_evidence() -> None:
             )
             assert count2 == count1
 
-        # No MasteryState model/table — MasteryEvidence only
+        # B8 evidence remains; B12 adds MasteryState tables on this branch
         import app.db.models as models_pkg
 
         assert hasattr(models_pkg, "MasteryEvidence")
-        assert not hasattr(models_pkg, "MasteryState")
+        assert hasattr(models_pkg, "MasteryState")
         table_names = set(Base.metadata.tables.keys())
-        assert "mastery_states" not in table_names
-        assert "mastery_state" not in table_names
+        assert "mastery_evidence" in table_names
+        assert "mastery_states" in table_names

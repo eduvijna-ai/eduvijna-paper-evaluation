@@ -196,6 +196,22 @@ async def materialize_published_result(
 
     try:
         await _insert_evidence_rows(db, tenant_id=tenant_id, published=published)
+        if published.student_id:
+            from app.services.b12_materialization import materialize_b12_for_student
+
+            await materialize_b12_for_student(
+                db,
+                tenant_id=tenant_id,
+                student_id=published.student_id,
+                source_published_result_id=published.id,
+            )
+            from app.services.reassessment import materialize_b14_for_published_result
+
+            await materialize_b14_for_published_result(
+                db,
+                tenant_id=tenant_id,
+                published=published,
+            )
         job.status = "SUCCEEDED"
         job.finished_at = datetime.now(UTC)
         job.error_code = None

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/benchmark-regression-case-result.schema.json",
+  "title": "BenchmarkRegressionCaseResult",
+  "description": "Per-case isolated regression comparison against frozen gold expectations.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "regression_run_id",
+    "benchmark_case_id",
+    "missing_output",
+    "actual_marks",
+    "actual_error_codes",
+    "score_abs_error",
+    "exact_score_match",
+    "taxonomy_match",
+    "safety_invariant_failed",
+    "diff",
+    "ai_execution_record_id",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "regression_run_id": { "type": "string", "format": "uuid" },
+    "benchmark_case_id": { "type": "string", "format": "uuid" },
+    "missing_output": { "type": "boolean" },
+    "actual_marks": { "type": ["number", "null"] },
+    "actual_error_codes": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "score_abs_error": { "type": ["number", "null"] },
+    "exact_score_match": { "type": "boolean" },
+    "taxonomy_match": { "type": ["boolean", "null"] },
+    "safety_invariant_failed": { "type": "boolean" },
+    "diff": { "type": "object" },
+    "ai_execution_record_id": { "type": ["string", "null"], "format": "uuid" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "updated_at": { "type": "string", "format": "date-time" }
+  }
+}
