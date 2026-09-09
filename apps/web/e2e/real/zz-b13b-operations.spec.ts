@@ -7,15 +7,29 @@ async function loginApi(
   request: APIRequestContext,
   apiBase: string,
 ): Promise<string> {
-  const login = await request.post(`${apiBase}/api/v1/auth/login`, {
-    data: {
-      email: ADMIN_EMAIL,
-      password: ADMIN_PASSWORD,
-      tenant_slug: "demo",
-    },
-  });
-  expect(login.ok()).toBeTruthy();
-  return ((await login.json()) as { access_token: string }).access_token;
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 8; attempt += 1) {
+    try {
+      const login = await request.post(`${apiBase}/api/v1/auth/login`, {
+        data: {
+          email: ADMIN_EMAIL,
+          password: ADMIN_PASSWORD,
+          tenant_slug: "demo",
+        },
+        timeout: 15_000,
+      });
+      if (login.ok()) {
+        return ((await login.json()) as { access_token: string }).access_token;
+      }
+      lastError = new Error(`login status ${login.status()}`);
+    } catch (err) {
+      lastError = err;
+    }
+    await new Promise((r) => setTimeout(r, 2_000));
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("login failed after retries");
 }
 
 test.describe("B16 real operations (as far as practical)", () => {
