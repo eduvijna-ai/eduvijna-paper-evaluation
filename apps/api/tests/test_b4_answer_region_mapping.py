@@ -29,6 +29,8 @@ async def api_client() -> AsyncIterator[AsyncClient]:
 
     os.environ["CELERY_TASK_ALWAYS_EAGER"] = "true"
     os.environ["S3_ENDPOINT_URL"] = "http://127.0.0.1:19000"
+    os.environ["AI_PROVIDER_VISION"] = "none"
+    os.environ["AI_PROVIDER_TEXT"] = "none"
     await seed()
     get_settings.cache_clear()
     from app.tasks.celery_app import celery_app

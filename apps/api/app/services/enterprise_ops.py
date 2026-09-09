@@ -6,7 +6,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, inspect as sa_inspect, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import (
@@ -54,6 +54,15 @@ class EnterpriseOpsError(Exception):
         super().__init__(message)
 
 
+def _ts_iso(obj: Any, attr: str) -> str | None:
+    """Read timestamp attrs without triggering sync IO on expired/onupdate columns."""
+    state = sa_inspect(obj)
+    if state.transient or attr in state.unloaded:
+        return None
+    value = getattr(obj, attr, None)
+    return value.isoformat() if value is not None else None
+
+
 def _serialize_pool(pool: GradingPool) -> dict[str, Any]:
     return {
         "id": str(pool.id),
@@ -65,11 +74,11 @@ def _serialize_pool(pool: GradingPool) -> dict[str, Any]:
         "allocation_strategy": pool.allocation_strategy,
         "created_by": str(pool.created_by) if pool.created_by else None,
         "activated_by": str(pool.activated_by) if pool.activated_by else None,
-        "activated_at": pool.activated_at.isoformat() if pool.activated_at else None,
+        "activated_at": _ts_iso(pool, "activated_at"),
         "closed_by": str(pool.closed_by) if pool.closed_by else None,
-        "closed_at": pool.closed_at.isoformat() if pool.closed_at else None,
-        "created_at": pool.created_at.isoformat() if pool.created_at else None,
-        "updated_at": pool.updated_at.isoformat() if pool.updated_at else None,
+        "closed_at": _ts_iso(pool, "closed_at"),
+        "created_at": _ts_iso(pool, "created_at"),
+        "updated_at": _ts_iso(pool, "updated_at"),
     }
 
 
@@ -84,11 +93,11 @@ def _serialize_work(item: GradingWorkItem) -> dict[str, Any]:
         "assigned_evaluator_id": str(item.assigned_evaluator_id),
         "status": item.status,
         "assigned_by": str(item.assigned_by) if item.assigned_by else None,
-        "assigned_at": item.assigned_at.isoformat() if item.assigned_at else None,
-        "started_at": item.started_at.isoformat() if item.started_at else None,
-        "submitted_at": item.submitted_at.isoformat() if item.submitted_at else None,
-        "created_at": item.created_at.isoformat() if item.created_at else None,
-        "updated_at": item.updated_at.isoformat() if item.updated_at else None,
+        "assigned_at": _ts_iso(item, "assigned_at"),
+        "started_at": _ts_iso(item, "started_at"),
+        "submitted_at": _ts_iso(item, "submitted_at"),
+        "created_at": _ts_iso(item, "created_at"),
+        "updated_at": _ts_iso(item, "updated_at"),
     }
 
 
@@ -101,11 +110,11 @@ def _serialize_policy(policy: ModerationPolicy) -> dict[str, Any]:
         "status": policy.status,
         "created_by": str(policy.created_by) if policy.created_by else None,
         "activated_by": str(policy.activated_by) if policy.activated_by else None,
-        "activated_at": policy.activated_at.isoformat() if policy.activated_at else None,
+        "activated_at": _ts_iso(policy, "activated_at"),
         "retired_by": str(policy.retired_by) if policy.retired_by else None,
-        "retired_at": policy.retired_at.isoformat() if policy.retired_at else None,
-        "created_at": policy.created_at.isoformat() if policy.created_at else None,
-        "updated_at": policy.updated_at.isoformat() if policy.updated_at else None,
+        "retired_at": _ts_iso(policy, "retired_at"),
+        "created_at": _ts_iso(policy, "created_at"),
+        "updated_at": _ts_iso(policy, "updated_at"),
     }
 
 
@@ -118,8 +127,8 @@ def _serialize_case(case: ModerationCase) -> dict[str, Any]:
         "evaluation_run_id": str(case.evaluation_run_id),
         "current_stage_order": case.current_stage_order,
         "status": case.status,
-        "created_at": case.created_at.isoformat() if case.created_at else None,
-        "updated_at": case.updated_at.isoformat() if case.updated_at else None,
+        "created_at": _ts_iso(case, "created_at"),
+        "updated_at": _ts_iso(case, "updated_at"),
     }
 
 
@@ -135,7 +144,7 @@ def _serialize_grievance(case: GrievanceCase) -> dict[str, Any]:
         "reason": case.reason,
         "status": case.status,
         "decision_by": str(case.decision_by) if case.decision_by else None,
-        "decision_at": case.decision_at.isoformat() if case.decision_at else None,
+        "decision_at": _ts_iso(case, "decision_at"),
         "decision_reason": case.decision_reason,
         "reevaluation_run_id": (
             str(case.reevaluation_run_id) if case.reevaluation_run_id else None
@@ -145,8 +154,8 @@ def _serialize_grievance(case: GrievanceCase) -> dict[str, Any]:
             if case.revised_published_result_id
             else None
         ),
-        "created_at": case.created_at.isoformat() if case.created_at else None,
-        "updated_at": case.updated_at.isoformat() if case.updated_at else None,
+        "created_at": _ts_iso(case, "created_at"),
+        "updated_at": _ts_iso(case, "updated_at"),
     }
 
 
@@ -989,7 +998,10 @@ async def decide_moderation(
                 entity_type="ModerationCase",
                 entity_id=case.id,
                 action="moderation_final_approved",
-                after=_serialize_case(case),
+                after={
+                    "status": case.status,
+                    "current_stage_order": case.current_stage_order,
+                },
             )
         else:
             case.current_stage_order = next_stage.stage_order

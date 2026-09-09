@@ -362,6 +362,7 @@ async def prepare_publication(
         .where(
             PublishedResult.tenant_id == tenant_id,
             PublishedResult.submission_id == submission.id,
+            PublishedResult.evaluation_run_id == run.id,
             PublishedResult.ledger_snapshot_hash == snapshot_hash,
             PublishedResult.status.in_(["READY", "GENERATING", "GENERATED", "PUBLISHED"]),
         )
@@ -1473,6 +1474,9 @@ def _dump_published(result: PublishedResult) -> dict[str, Any]:
         "evaluation_run_id": str(result.evaluation_run_id),
         "version_number": result.version_number,
         "status": result.status,
+        "supersedes_result_id": (
+            str(result.supersedes_result_id) if result.supersedes_result_id else None
+        ),
         "ledger_snapshot_hash": result.ledger_snapshot_hash,
         "total_score": _dec(result.total_score),
         "max_total_score": _dec(result.max_total_score),
