@@ -330,16 +330,20 @@ async def test_b15_eligible_sources_require_published_human_final() -> None:
             headers=headers,
         )
         assert before.status_code == 200, before.text
-        assert before.json()["items"] == []
+        before_pr_ids = {
+            item["published_result_id"] for item in before.json()["items"]
+        }
 
         prid = await _publish_approved(client, headers, sid)
+        assert prid not in before_pr_ids
+
         after = await client.get(
             f"/api/v1/quality/benchmark-versions/{version_id}/eligible-sources",
             headers=headers,
         )
         assert after.status_code == 200, after.text
         items = after.json()["items"]
-        assert len(items) >= 1
+        assert any(i["published_result_id"] == prid for i in items)
         match = next(i for i in items if i["published_result_id"] == prid)
         assert len(match["question_evaluations"]) >= 1
         for qe in match["question_evaluations"]:

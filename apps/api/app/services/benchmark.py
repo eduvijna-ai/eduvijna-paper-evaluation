@@ -437,6 +437,8 @@ async def create_dataset(
     )
     db.add(dataset)
     await db.flush()
+    await db.refresh(dataset)
+    payload = serialize_dataset(dataset)
     await add_audit_event(
         db,
         tenant_id=tenant_id,
@@ -444,9 +446,9 @@ async def create_dataset(
         entity_type="BenchmarkDataset",
         entity_id=dataset.id,
         action="benchmark_dataset_created",
-        after=serialize_dataset(dataset),
+        after=payload,
     )
-    return serialize_dataset(dataset)
+    return payload
 
 
 async def list_datasets(
@@ -503,6 +505,8 @@ async def create_version(
     )
     db.add(version)
     await db.flush()
+    await db.refresh(version)
+    payload = serialize_version(version)
     await add_audit_event(
         db,
         tenant_id=tenant_id,
@@ -510,9 +514,9 @@ async def create_version(
         entity_type="BenchmarkDatasetVersion",
         entity_id=version.id,
         action="benchmark_version_created",
-        after=serialize_version(version),
+        after=payload,
     )
-    return serialize_version(version)
+    return payload
 
 
 async def list_versions(
@@ -787,6 +791,8 @@ async def add_case(
     db.add(case)
     version.case_count = int(version.case_count or 0) + 1
     await db.flush()
+    await db.refresh(case)
+    payload = serialize_case(case)
     await add_audit_event(
         db,
         tenant_id=tenant_id,
@@ -794,9 +800,9 @@ async def add_case(
         entity_type="BenchmarkCase",
         entity_id=case.id,
         action="benchmark_case_added",
-        after=serialize_case(case),
+        after=payload,
     )
-    return serialize_case(case)
+    return payload
 
 
 async def list_cases(
@@ -910,6 +916,8 @@ async def lock_version(
     version.locked_at = _utcnow()
     version.case_count = len(cases)
     await db.flush()
+    await db.refresh(version)
+    payload = serialize_version(version)
     await add_audit_event(
         db,
         tenant_id=tenant_id,
@@ -917,9 +925,9 @@ async def lock_version(
         entity_type="BenchmarkDatasetVersion",
         entity_id=version.id,
         action="benchmark_version_locked",
-        after=serialize_version(version),
+        after=payload,
     )
-    return serialize_version(version)
+    return payload
 
 
 async def _record_isolated_execution(
@@ -1163,6 +1171,8 @@ async def start_regression_run(
         }
 
     await db.flush()
+    await db.refresh(run)
+    payload = serialize_run(run)
     await add_audit_event(
         db,
         tenant_id=tenant_id,
@@ -1170,9 +1180,9 @@ async def start_regression_run(
         entity_type="BenchmarkRegressionRun",
         entity_id=run.id,
         action="benchmark_regression_completed",
-        after=serialize_run(run),
+        after=payload,
     )
-    return serialize_run(run)
+    return payload
 
 
 async def list_runs(
