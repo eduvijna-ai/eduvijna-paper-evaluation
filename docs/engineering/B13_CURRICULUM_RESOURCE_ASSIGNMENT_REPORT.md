@@ -6,20 +6,20 @@
 **Starting `main` SHA:** `30c96af951ce418eb446beb7c35b679e3697b047`  
 **Approval:** APP-004 / Issue #45  
 **Migration:** `database/migrations/versions/20260907_0013_b13_curriculum_resource_assignment.py`  
-**Final feature SHA:** `_TBD_`  
-**CI run ID:** `_TBD_`  
-**Squash SHA:** `_TBD_`  
-**Final develop:** `_TBD_`  
-**Final main:** `30c96af951ce418eb446beb7c35b679e3697b047` (must remain unchanged)
+**Final feature SHA:** `09f2aea2e1cfd7705fa09a4b6643627afce6a2d5`  
+**CI run ID:** `34190373453`  
+**Squash SHA:** `8396f2349658cfc7a94ed5b4b37475bfed8d8049`  
+**Final develop:** `8396f2349658cfc7a94ed5b4b37475bfed8d8049`  
+**Final main:** `30c96af951ce418eb446beb7c35b679e3697b047` (unchanged at B13 merge)
 
 ```text
 CI: Infrastructure / Contracts / Backend / Frontend /
-Frontend E2E / Frontend E2E Real = _TBD_
+Frontend E2E / Frontend E2E Real = SUCCESS (run 34190373453)
 
-Feature branch: _TBD_
-Post-merge develop commit: _TBD_
+Feature branch: deleted after squash-merge of PR #46
+Post-merge develop commit: none
 Do not push a post-merge docs commit to develop.
-No main change.
+No main change at B13 merge time.
 ```
 
 ## Scope (implemented)
@@ -155,10 +155,10 @@ Learning workspace `GET /api/v1/learning/students/{student_id}` embeds `resource
 |-------|----------|
 | Backend unit | `test_reject_open_web_content_ref_unit` — opaque refs allowed; `http`/`https`/`//` rejected |
 | Backend API / integration | `apps/api/tests/test_b13_curriculum_resources.py` — create→approve→activate→assign→workspace embed; tenant isolation + status gates; idempotent assign + cancel history; recommendation linkage without mutation + open-web reject; `learning:assign` permission gate |
-| Frontend Vitest | `_TBD_` |
-| Mock / Real Playwright | `_TBD_` |
+| Frontend Vitest | hybrid + mapper coverage in B13 suite |
+| Mock / Real Playwright | B13 dedicated specs in mock + real suites |
 
-Local/CI pass counts: `_TBD_` at merge time.
+Local/CI pass counts (authoritative CI run `34190373453`): backend pytest **184**; Vitest **180**; mock Playwright **18**; real Playwright **13**.
 
 ## Residual debt / technical debt
 
@@ -166,29 +166,30 @@ Local/CI pass counts: `_TBD_` at merge time.
 * No open-web content browser; `content_ref` is opaque institutional catalog text only
 * Catalog create requires knowing curriculum node UUIDs (tree picker can be enriched later)
 * Richer content packaging beyond opaque `content_ref` (no blob/CDN integration in B13)  
-* PEV-043 reassessment from approved improvement blueprints still deferred  
-* PEV-058/059 gold benchmark / AI regression still deferred  
 * Open-web discovery remains permanently out of CVB policy for this product surface  
+
+> Historical note at B13 merge: PEV-043 and PEV-058/059 were still deferred then; later delivered under B14/B15.
 
 ## Verification
 
 | Check | Status |
 |-------|--------|
-| Backend pytest | `_TBD_` |
-| Frontend Vitest | `_TBD_` |
-| Mock Playwright | `_TBD_` |
-| Real Playwright | `_TBD_` |
-| Contracts validate | `_TBD_` |
-| Ruff / mypy --strict | `_TBD_` |
-| docker compose config | `_TBD_` |
-| GitHub Actions (six jobs) | `_TBD_` |
-| Squash-merge to develop | `_TBD_` |
-| `main` unchanged | required `30c96af951ce418eb446beb7c35b679e3697b047` |
-| Issue #45 | `_TBD_` |
-| Issue #1 | closed/completed during CVB release |
+| Backend pytest | 184 passed (CI run 34190373453) |
+| Frontend Vitest | 180 passed |
+| Mock Playwright | 18 passed |
+| Real Playwright | 13 passed |
+| Contracts validate | SUCCESS |
+| Ruff / mypy --strict | SUCCESS |
+| docker compose config | SUCCESS |
+| GitHub Actions (six jobs) | SUCCESS — run `34190373453` |
+| Squash-merge to develop | `8396f2349658cfc7a94ed5b4b37475bfed8d8049` (PR #46) |
+| `main` unchanged | `30c96af951ce418eb446beb7c35b679e3697b047` |
+| Issue #45 | CLOSED |
+| Issue #1 | CLOSED (CVB v0.1 release; closed 2026-09-07) |
 
 ## Document control
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2 | 2026-09-09 | Fill merge-time evidence from GitHub (PR #46 / CI 34190373453) for Post-CVB Phase 1 release reconciliation |
 | 0.1 | 2026-09-08 | Initial B13 engineering report from implementation on feature branch |

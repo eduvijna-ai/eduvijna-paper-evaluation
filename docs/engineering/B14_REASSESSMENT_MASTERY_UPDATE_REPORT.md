@@ -6,20 +6,21 @@
 **Starting `main` SHA:** `30c96af951ce418eb446beb7c35b679e3697b047`  
 **Approval:** APP-005 / Issue #48  
 **Migration:** `database/migrations/versions/20260908_0014_b14_reassessment_mastery_update.py`  
-**Final feature SHA:** `_TBD_`  
-**CI run ID:** `_TBD_`  
-**Squash SHA:** `_TBD_`  
-**Final develop:** `_TBD_`  
-**Final main:** `30c96af951ce418eb446beb7c35b679e3697b047` (must remain unchanged)
+**Final feature SHA:** `c73337a087d5f38fcf2c2ccd845a68ab506baca3`  
+**CI run ID:** `34225935510`  
+**Squash SHA:** `c7fdfd409ba2bbd1d28a64ffaf501c521b578f3e`  
+**Final develop (B14):** `c7fdfd409ba2bbd1d28a64ffaf501c521b578f3e`  
+**B14.1 follow-up:** PR #51 feature `8d4a722af102de17b56f12dd65cc811cdce09015` / CI `34244938368` / squash `269ad6f976cfe789175689bb4ade5a66fb02e613`  
+**Final main:** `30c96af951ce418eb446beb7c35b679e3697b047` (unchanged at B14/B14.1 merge)
 
 ```text
 CI: Infrastructure / Contracts / Backend / Frontend /
-Frontend E2E / Frontend E2E Real = _TBD_
+Frontend E2E / Frontend E2E Real = SUCCESS (run 34225935510; B14.1 run 34244938368)
 
-Feature branch: _TBD_
-Post-merge develop commit: _TBD_
+Feature branch: deleted after squash-merge of PR #49 (B14.1 branch deleted after PR #51)
+Post-merge develop commit: none
 Do not push a post-merge docs commit to develop.
-No main change.
+No main change at B14 merge time.
 ```
 
 ## Scope (implemented)
@@ -164,7 +165,7 @@ Learning workspace `GET /api/v1/learning/students/{student_id}` embeds `reassess
 
 * Contracts/OpenAPI published for hybrid wiring  
 * Live learning workspace copy that still states reassessment is “not live” should be updated when UI ships instantiate/detail/delta surfaces  
-* Frontend Vitest / Playwright: `_TBD_` at merge time  
+* Frontend Vitest / Playwright: verified green on CI run `34225935510` (Vitest 194; mock 19; real 14)  
 
 ## Security / tenancy
 
@@ -186,38 +187,40 @@ Learning workspace `GET /api/v1/learning/students/{student_id}` embeds `reassess
 | Suite | Coverage |
 |-------|----------|
 | Backend API / integration | `apps/api/tests/test_b14_reassessment_mastery.py` — APPROVED-only instantiate; idempotent hash reuse; DRAFT Assessment without AK/rubric auto; student bind single-attempt; publish→B12→B14 delta null semantics; rebuild baseline immutability; permission gates |
-| Frontend Vitest | `_TBD_` |
-| Mock / Real Playwright | `_TBD_` |
+| Frontend Vitest | hybrid + mapper coverage in B14 suite |
+| Mock / Real Playwright | B14 dedicated specs in mock + real suites |
 
-Local/CI pass counts: `_TBD_` at merge time.
+Local/CI pass counts (authoritative CI run `34225935510`): backend pytest **192**; Vitest **194**; mock Playwright **19**; real Playwright **14**.  
+B14.1 follow-up CI run `34244938368`: backend **198**; Vitest **194**; mock **19**; real **14**.
 
 ## Residual debt / technical debt
 
 * Teacher must still author/approve AK + rubric and advance assessment readiness before full evaluation pipeline  
 * Frontend instantiate / mastery-delta UX may lag backend contracts  
-* PEV-058/059 gold benchmark / AI regression still deferred  
 * All FUTURE_ENTERPRISE PEVs unchanged  
-* No merge to `main` until a later founder-approved release milestone  
+
+> Historical note at B14 merge: PEV-058/059 were still deferred then; later delivered under B15. Main promotion deferred until APP-007 / Post-CVB Phase 1.
 
 ## Verification
 
 | Check | Status |
 |-------|--------|
-| Backend pytest | `_TBD_` |
-| Frontend Vitest | `_TBD_` |
-| Mock Playwright | `_TBD_` |
-| Real Playwright | `_TBD_` |
-| Contracts validate | `_TBD_` |
-| Ruff / mypy --strict | `_TBD_` |
-| docker compose config | `_TBD_` |
-| GitHub Actions (six jobs) | `_TBD_` |
-| Squash-merge to develop | `_TBD_` |
-| `main` unchanged | required `30c96af951ce418eb446beb7c35b679e3697b047` |
-| Issue #48 | `_TBD_` |
-| Issue #1 | closed/completed during CVB release |
+| Backend pytest | 192 passed (CI run 34225935510); 198 after B14.1 (34244938368) |
+| Frontend Vitest | 194 passed |
+| Mock Playwright | 19 passed |
+| Real Playwright | 14 passed |
+| Contracts validate | SUCCESS |
+| Ruff / mypy --strict | SUCCESS |
+| docker compose config | SUCCESS |
+| GitHub Actions (six jobs) | SUCCESS — runs `34225935510` / `34244938368` |
+| Squash-merge to develop | `c7fdfd409ba2bbd1d28a64ffaf501c521b578f3e` (PR #49); B14.1 `269ad6f976cfe789175689bb4ade5a66fb02e613` (PR #51) |
+| `main` unchanged | `30c96af951ce418eb446beb7c35b679e3697b047` |
+| Issue #48 | CLOSED |
+| Issue #1 | CLOSED (CVB v0.1 release; closed 2026-09-07) |
 
 ## Document control
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2 | 2026-09-09 | Fill merge-time evidence from GitHub (PR #49/#51) for Post-CVB Phase 1 release reconciliation |
 | 0.1 | 2026-09-08 | Initial B14 engineering report from implementation on feature branch |

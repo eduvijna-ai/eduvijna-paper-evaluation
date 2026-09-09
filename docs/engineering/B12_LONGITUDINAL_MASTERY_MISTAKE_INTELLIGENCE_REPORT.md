@@ -6,20 +6,20 @@
 **Starting `main` SHA:** `30c96af951ce418eb446beb7c35b679e3697b047`  
 **Approval:** APP-003 / Issue #42  
 **Migration:** `database/migrations/versions/20260907_0012_b12_longitudinal_mastery_mistake_intelligence.py`  
-**Final feature SHA:** `_TBD_`  
-**CI run ID:** `_TBD_`  
-**Squash SHA:** `_TBD_`  
-**Final develop:** `_TBD_`  
-**Final main:** `30c96af951ce418eb446beb7c35b679e3697b047` (must remain unchanged)
+**Final feature SHA:** `41eb9dc8e3d25c3da5b5587f94240a4a3dc34824`  
+**CI run ID:** `34153925361`  
+**Squash SHA:** `c4e2888698411004e5ae35c584843340848fa687`  
+**Final develop:** `c4e2888698411004e5ae35c584843340848fa687`  
+**Final main:** `30c96af951ce418eb446beb7c35b679e3697b047` (unchanged at B12 merge)
 
 ```text
 CI: Infrastructure / Contracts / Backend / Frontend /
-Frontend E2E / Frontend E2E Real = _TBD_
+Frontend E2E / Frontend E2E Real = SUCCESS (run 34153925361)
 
-Feature branch: _TBD_
-Post-merge develop commit: _TBD_
+Feature branch: deleted after squash-merge of PR #43
+Post-merge develop commit: none
 Do not push a post-merge docs commit to develop.
-No main change.
+No main change at B12 merge time.
 ```
 
 ## Scope (implemented)
@@ -187,36 +187,37 @@ Optional query on mastery-trend: `curriculum_node_id`.
 | Mock Playwright | `apps/web/e2e/b12-analytics.spec.ts` (+ smoke B12 section visibility) |
 | Real Playwright | `apps/web/e2e/real/zz-b12-longitudinal.spec.ts` |
 
-Local/CI pass counts: `_TBD_` at merge time.
+Local/CI pass counts (authoritative CI run `34153925361`): backend pytest **178**; Vitest **169**; mock Playwright **16**; real Playwright **12**.
 
 ## Residual debt / technical debt
 
 * Class-section cohort filter on assessment analytics (carry-over from B8)  
 * Richer materialization / rebuild progress UI  
-* PEV-041 resource catalog assignment still forbidden  
-* PEV-043 reassessment from approved improvement blueprints still deferred  
 * Weighted / time-decayed mastery algorithms beyond unweighted `B12_V1` not in scope  
 * Psychometrics (PEV-048) still FUTURE_ENTERPRISE  
+
+> Historical note at B12 merge: PEV-041 and PEV-043 were still deferred then; they were later implemented under B13/B14 (see Post-CVB Phase 1 release report).
 
 ## Verification
 
 | Check | Status |
 |-------|--------|
-| Backend pytest | `_TBD_` |
-| Frontend Vitest | `_TBD_` |
-| Mock Playwright | `_TBD_` |
-| Real Playwright (incl. B12) | `_TBD_` |
-| Contracts validate | `_TBD_` |
-| Ruff / mypy --strict | `_TBD_` |
-| docker compose config | `_TBD_` |
-| GitHub Actions (six jobs) | `_TBD_` |
-| Squash-merge to develop | `_TBD_` |
-| `main` unchanged | required `30c96af951ce418eb446beb7c35b679e3697b047` |
-| Issue #42 | `_TBD_` |
-| Issue #1 | closed/completed during CVB release |
+| Backend pytest | 178 passed (CI run 34153925361) |
+| Frontend Vitest | 169 passed |
+| Mock Playwright | 16 passed |
+| Real Playwright (incl. B12) | 12 passed |
+| Contracts validate | SUCCESS |
+| Ruff / mypy --strict | SUCCESS |
+| docker compose config | SUCCESS |
+| GitHub Actions (six jobs) | SUCCESS — run `34153925361` |
+| Squash-merge to develop | `c4e2888698411004e5ae35c584843340848fa687` (PR #43) |
+| `main` unchanged | `30c96af951ce418eb446beb7c35b679e3697b047` |
+| Issue #42 | CLOSED |
+| Issue #1 | CLOSED (CVB v0.1 release; closed 2026-09-07) |
 
 ## Document control
 
 | Version | Date | Change |
 |---------|------|--------|
+| 0.2 | 2026-09-09 | Fill merge-time evidence from GitHub (PR #43 / CI 34153925361) for Post-CVB Phase 1 release reconciliation |
 | 0.1 | 2026-09-08 | Initial B12 engineering report from implementation on feature branch |
