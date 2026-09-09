@@ -167,13 +167,14 @@ async def active_moderation_policy(
     tenant_id: uuid.UUID,
     assessment_version_id: uuid.UUID,
 ) -> ModerationPolicy | None:
-    return await db.scalar(
+    policy = await db.scalar(
         select(ModerationPolicy).where(
             ModerationPolicy.tenant_id == tenant_id,
             ModerationPolicy.assessment_version_id == assessment_version_id,
             ModerationPolicy.status == "ACTIVE",
         )
     )
+    return policy if isinstance(policy, ModerationPolicy) else None
 
 
 async def ensure_moderation_case_for_run(

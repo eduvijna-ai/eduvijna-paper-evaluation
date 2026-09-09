@@ -175,6 +175,12 @@ class ModerationPolicy(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     activated_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    retired_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    retired_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
 
 class ModerationStage(UUIDPrimaryKeyMixin, TimestampMixin, Base):
