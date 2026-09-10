@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.cli.seed_dev import ADMIN_EMAIL, ADMIN_PASSWORD
 from app.core.authorization import PERMISSION_CODES, ROLE_CODES, ROLE_PERMISSION_MAP
@@ -63,7 +64,7 @@ EXPECTED_CLUSTER_COUNT = 2
 EXPECTED_CLUSTER_MEMBER_COUNTS = (10, 10)
 
 
-async def _ensure_isolation_tenant(db) -> dict[str, str]:
+async def _ensure_isolation_tenant(db: AsyncSession) -> dict[str, str]:
     """Second tenant used by real E2E cross-tenant 404 assertions."""
     tenant = await db.scalar(select(Tenant).where(Tenant.slug == ISO_TENANT_SLUG))
     if tenant is None:

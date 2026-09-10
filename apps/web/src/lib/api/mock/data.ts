@@ -3499,7 +3499,7 @@ let demoOutcomeMappingSets: import("@/lib/types/domain").OutcomeMappingSet[] = [
       "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     created_at: "2026-09-10T06:12:00.000Z",
     updated_at: "2026-09-10T06:15:00.000Z",
-  3500|    mapping_count: 1,
+    mapping_count: 1,
     mappings: [
       {
         id: "outcome-mapping-demo-001",
