@@ -2055,6 +2055,320 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/BenchmarkGateVerdict" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/quality/psychometrics/runs:
+    get:
+      operationId: listPsychometricRuns
+      tags: [quality-calibration]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: assessment_version_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Psychometric runs
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PsychometricRunList" }
+    post:
+      operationId: createPsychometricRun
+      tags: [quality-calibration]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PsychometricRunCreate" }
+      responses:
+        "200":
+          description: Created or existing psychometric run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PsychometricRun" }
+  /api/v1/quality/psychometrics/runs/{run_id}:
+    parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getPsychometricRun
+      tags: [quality-calibration]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Psychometric run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PsychometricRun" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/quality/psychometrics/runs/{run_id}/items:
+    parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listPsychometricRunItems
+      tags: [quality-calibration]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Item psychometric metrics
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ItemPsychometricMetricList" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/quality/psychometrics/latest:
+    get:
+      operationId: getLatestPsychometricRun
+      tags: [quality-calibration]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: assessment_version_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Latest psychometric run for assessment version
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PsychometricRun" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/quality/calibration/sessions:
+    get:
+      operationId: listCalibrationSessions
+      tags: [quality-calibration]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Calibration sessions
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalibrationSessionList" }
+    post:
+      operationId: createCalibrationSession
+      tags: [quality-calibration]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CalibrationSessionCreate" }
+      responses:
+        "200":
+          description: Created calibration session
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalibrationSession" }
+  /api/v1/quality/calibration/sessions/{session_id}:
+    parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getCalibrationSession
+      tags: [quality-calibration]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Calibration session detail
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalibrationSession" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/quality/calibration/sessions/{session_id}/cases:
+    parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: addCalibrationCase
+      tags: [quality-calibration]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CalibrationCaseCreate" }
+      responses:
+        "200":
+          description: Calibration case added
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalibrationCase" }
+  /api/v1/quality/calibration/sessions/{session_id}/participants:
+    parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: addCalibrationParticipant
+      tags: [quality-calibration]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CalibrationParticipantCreate" }
+      responses:
+        "200":
+          description: Participant added
+  /api/v1/quality/calibration/sessions/{session_id}/activate:
+    parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: activateCalibrationSession
+      tags: [quality-calibration]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Session activated
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalibrationSession" }
+  /api/v1/quality/calibration/sessions/{session_id}/close:
+    parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: closeCalibrationSession
+      tags: [quality-calibration]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Session closed with metrics
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalibrationSession" }
+  /api/v1/quality/calibration/my-sessions:
+    get:
+      operationId: listMyCalibrationSessions
+      tags: [quality-calibration]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Sessions for current participant
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalibrationSessionList" }
+  /api/v1/quality/calibration/sessions/{session_id}/cases/{case_id}/blind:
+    parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: case_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getBlindCalibrationCase
+      tags: [quality-calibration]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Blind calibration case
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalibrationCaseBlind" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/quality/calibration/sessions/{session_id}/cases/{case_id}/responses:
+    parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+      - name: case_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: submitCalibrationResponse
+      tags: [quality-calibration]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CalibrationResponseCreate" }
+      responses:
+        "200":
+          description: Calibration response submitted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalibrationResponse" }
+  /api/v1/quality/calibration/sessions/{session_id}/progress:
+    parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getCalibrationProgress
+      tags: [quality-calibration]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Calibration progress
+  /api/v1/quality/calibration/sessions/{session_id}/metrics:
+    parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getCalibrationSessionMetrics
+      tags: [quality-calibration]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Session IRR metrics
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalibrationSessionMetricList" }
+  /api/v1/quality/calibration/sessions/{session_id}/evaluator-metrics:
+    parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getCalibrationEvaluatorMetrics
+      tags: [quality-calibration]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Evaluator calibration metrics
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalibrationEvaluatorMetricList" }
+  /api/v1/quality/calibration/sessions/{session_id}/my-metrics:
+    parameters:
+      - name: session_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getMyCalibrationMetrics
+      tags: [quality-calibration]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Own evaluator metrics
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CalibrationEvaluatorMetric" }
   /api/v1/operations/grading-pools:
     get:
       operationId: listGradingPools
@@ -5711,3 +6025,339 @@ components:
       required: [revised_published_result_id]
       properties:
         revised_published_result_id: { type: string, format: uuid }
+    PsychometricRun:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          assessment_id,
+          assessment_version_id,
+          cohort_definition,
+          algorithm_version,
+          min_cohort_size,
+          source_set_hash,
+          source_result_count,
+          source_published_result_ids,
+          status,
+          requested_by,
+          requested_at,
+          completed_at,
+          failure_code,
+          failure_detail,
+          created_at,
+          updated_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        cohort_definition: { type: object }
+        algorithm_version: { type: string }
+        min_cohort_size: { type: integer }
+        source_set_hash: { type: string }
+        source_result_count: { type: integer }
+        source_published_result_ids:
+          type: array
+          items: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [PENDING, COMPLETED, INSUFFICIENT_SAMPLE, FAILED]
+        requested_by: { type: [string, "null"], format: uuid }
+        requested_at: { type: [string, "null"], format: date-time }
+        completed_at: { type: [string, "null"], format: date-time }
+        failure_code: { type: [string, "null"] }
+        failure_detail: { type: [string, "null"] }
+        created_at: { type: [string, "null"], format: date-time }
+        updated_at: { type: [string, "null"], format: date-time }
+    PsychometricRunCreate:
+      type: object
+      additionalProperties: false
+      required: [assessment_version_id]
+      properties:
+        assessment_version_id: { type: string, format: uuid }
+    PsychometricRunList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/PsychometricRun" }
+    ItemPsychometricMetric:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          run_id,
+          question_id,
+          question_version_id,
+          question_code,
+          attempt_count,
+          max_mark,
+          mean_raw_score,
+          std_dev,
+          difficulty_index,
+          discrimination_index,
+          discrimination_method,
+          discrimination_status,
+          full_credit_rate,
+          zero_score_rate,
+          blank_rate,
+          difficulty_band,
+          discrimination_band,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        run_id: { type: string, format: uuid }
+        question_id: { type: string, format: uuid }
+        question_version_id: { type: string, format: uuid }
+        question_code: { type: string }
+        attempt_count: { type: integer }
+        max_mark: { type: number }
+        mean_raw_score: { type: number }
+        std_dev: { type: number }
+        difficulty_index: { type: number }
+        discrimination_index: { type: [number, "null"] }
+        discrimination_method: { type: string }
+        discrimination_status:
+          type: string
+          enum: [OK, UNDEFINED_VARIANCE, INSUFFICIENT_SAMPLE]
+        full_credit_rate: { type: number }
+        zero_score_rate: { type: number }
+        blank_rate: { type: [number, "null"] }
+        difficulty_band: { type: [string, "null"] }
+        discrimination_band: { type: [string, "null"] }
+    ItemPsychometricMetricList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/ItemPsychometricMetric" }
+    CalibrationSession:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          assessment_id,
+          assessment_version_id,
+          title,
+          status,
+          algorithm_version,
+          score_tolerance_abs,
+          score_tolerance_pct,
+          min_cases,
+          activated_by,
+          activated_at,
+          closed_by,
+          closed_at,
+          created_by,
+          created_at,
+          updated_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        title: { type: string }
+        status: { type: string, enum: [DRAFT, ACTIVE, CLOSED] }
+        algorithm_version: { type: string }
+        score_tolerance_abs: { type: number }
+        score_tolerance_pct: { type: number }
+        min_cases: { type: integer }
+        case_count: { type: integer }
+        activated_by: { type: [string, "null"], format: uuid }
+        activated_at: { type: [string, "null"], format: date-time }
+        closed_by: { type: [string, "null"], format: uuid }
+        closed_at: { type: [string, "null"], format: date-time }
+        created_by: { type: [string, "null"], format: uuid }
+        created_at: { type: [string, "null"], format: date-time }
+        updated_at: { type: [string, "null"], format: date-time }
+        cases: { type: array }
+        participants: { type: array }
+    CalibrationSessionCreate:
+      type: object
+      additionalProperties: false
+      required: [assessment_version_id, title]
+      properties:
+        assessment_version_id: { type: string, format: uuid }
+        title: { type: string, minLength: 1, maxLength: 255 }
+        score_tolerance_abs: { type: [number, "null"] }
+        score_tolerance_pct: { type: [number, "null"] }
+        min_cases: { type: [integer, "null"] }
+    CalibrationSessionList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/CalibrationSession" }
+    CalibrationCase:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          session_id,
+          case_code,
+          published_result_id,
+          evaluation_run_id,
+          question_evaluation_id,
+          question_version_id,
+          rubric_version_id,
+          max_mark,
+          reference_score,
+          source_snapshot_hash,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        session_id: { type: string, format: uuid }
+        case_code: { type: string }
+        published_result_id: { type: string, format: uuid }
+        evaluation_run_id: { type: string, format: uuid }
+        question_evaluation_id: { type: string, format: uuid }
+        question_version_id: { type: string, format: uuid }
+        rubric_version_id: { type: string, format: uuid }
+        max_mark: { type: number }
+        reference_score: { type: number }
+        source_snapshot_hash: { type: string }
+        created_at: { type: [string, "null"], format: date-time }
+    CalibrationCaseCreate:
+      type: object
+      additionalProperties: false
+      required: [published_result_id, question_evaluation_id]
+      properties:
+        published_result_id: { type: string, format: uuid }
+        question_evaluation_id: { type: string, format: uuid }
+    CalibrationCaseBlind:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          session_id,
+          case_code,
+          question_version_id,
+          rubric_version_id,
+          max_mark,
+          criterion_snapshot,
+          evidence_snapshot,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        session_id: { type: string, format: uuid }
+        case_code: { type: string }
+        question_version_id: { type: string, format: uuid }
+        rubric_version_id: { type: string, format: uuid }
+        max_mark: { type: number }
+        criterion_snapshot: { type: array }
+        evidence_snapshot: { type: object }
+    CalibrationParticipantCreate:
+      type: object
+      additionalProperties: false
+      required: [user_id]
+      properties:
+        user_id: { type: string, format: uuid }
+    CalibrationResponse:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          session_id,
+          case_id,
+          participant_id,
+          user_id,
+          score,
+          max_mark,
+          comment,
+          submitted_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        session_id: { type: string, format: uuid }
+        case_id: { type: string, format: uuid }
+        participant_id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        score: { type: number }
+        max_mark: { type: number }
+        comment: { type: [string, "null"] }
+        submitted_at: { type: [string, "null"], format: date-time }
+    CalibrationResponseCreate:
+      type: object
+      additionalProperties: false
+      required: [score]
+      properties:
+        score: { type: number }
+        comment: { type: [string, "null"], maxLength: 4000 }
+    CalibrationSessionMetric:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          session_id,
+          metric_name,
+          algorithm_version,
+          evaluator_count,
+          common_case_count,
+          icc_value,
+          status,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        session_id: { type: string, format: uuid }
+        metric_name: { type: string, enum: [ICC_A1] }
+        algorithm_version: { type: string }
+        evaluator_count: { type: integer }
+        common_case_count: { type: integer }
+        icc_value: { type: [number, "null"] }
+        status:
+          type: string
+          enum: [COMPLETED, INSUFFICIENT_SAMPLE, UNDEFINED]
+    CalibrationSessionMetricList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/CalibrationSessionMetric" }
+    CalibrationEvaluatorMetric:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          session_id,
+          user_id,
+          case_count,
+          mean_signed_diff,
+          mae,
+          nmae,
+          exact_match_rate,
+          within_tolerance_rate,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        session_id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        case_count: { type: integer }
+        mean_signed_diff: { type: number }
+        mae: { type: number }
+        nmae: { type: number }
+        exact_match_rate: { type: number }
+        within_tolerance_rate: { type: number }
+    CalibrationEvaluatorMetricList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/CalibrationEvaluatorMetric" }

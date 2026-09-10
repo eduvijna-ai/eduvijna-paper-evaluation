@@ -182,6 +182,8 @@ jobs:
         run: docker compose exec -T api python -m alembic -c alembic.ini upgrade head
       - name: Seed deterministic demo data
         run: docker compose exec -T api python -m app.cli.seed_dev
+      - name: Seed B17.1 deterministic quality cohort
+        run: docker compose exec -T api python -m app.cli.seed_b17_e2e_quality
       - name: Wait for real backend health
         run: |
           for attempt in $(seq 1 30); do

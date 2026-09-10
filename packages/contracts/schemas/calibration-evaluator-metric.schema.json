@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/calibration-evaluator-metric.schema.json",
+  "title": "CalibrationEvaluatorMetric",
+  "description": "B17 evaluator-to-reference calibration summary (PEV-049).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "session_id",
+    "user_id",
+    "case_count",
+    "mean_signed_diff",
+    "mae",
+    "nmae",
+    "exact_match_rate",
+    "within_tolerance_rate"
+  ],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "session_id": { "type": "string", "format": "uuid" },
+    "user_id": { "type": "string", "format": "uuid" },
+    "case_count": { "type": "integer", "minimum": 0 },
+    "mean_signed_diff": { "type": "number" },
+    "mae": { "type": "number" },
+    "nmae": { "type": "number" },
+    "exact_match_rate": { "type": "number" },
+    "within_tolerance_rate": { "type": "number" }
+  }
+}

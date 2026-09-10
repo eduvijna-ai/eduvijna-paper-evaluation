@@ -118,6 +118,7 @@ export const A1_PERMISSIONS = {
   /** B15 quality benchmark (also granted on teacher/admin roles server-side). */
   qualityRead: "quality:read",
   qualityManage: "quality:manage",
+  calibrationParticipate: "calibration:participate",
   gradingRead: "grading:read",
   gradingManage: "grading:manage",
   gradingWork: "grading:work",
