@@ -14,6 +14,7 @@ from app.api.v1 import (
     mapping,
     platform,
     publication,
+    quality,
     reassessment,
     resources,
     submissions,
@@ -39,4 +40,5 @@ api_router.include_router(learning.router, prefix="/api/v1")
 api_router.include_router(resources.router, prefix="/api/v1")
 api_router.include_router(reassessment.router, prefix="/api/v1")
 api_router.include_router(benchmark.router, prefix="/api/v1")
+api_router.include_router(quality.router, prefix="/api/v1")
 api_router.include_router(enterprise_ops.router, prefix="/api/v1")

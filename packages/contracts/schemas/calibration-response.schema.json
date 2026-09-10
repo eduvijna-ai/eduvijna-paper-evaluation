@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/calibration-response.schema.json",
+  "title": "CalibrationResponse",
+  "description": "B17 isolated calibration QA response (PEV-049).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "session_id",
+    "case_id",
+    "participant_id",
+    "user_id",
+    "score",
+    "max_mark",
+    "comment",
+    "submitted_at"
+  ],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "session_id": { "type": "string", "format": "uuid" },
+    "case_id": { "type": "string", "format": "uuid" },
+    "participant_id": { "type": "string", "format": "uuid" },
+    "user_id": { "type": "string", "format": "uuid" },
+    "score": { "type": "number" },
+    "max_mark": { "type": "number" },
+    "comment": { "type": ["string", "null"] },
+    "submitted_at": { "type": ["string", "null"], "format": "date-time" }
+  }
+}

@@ -324,6 +324,21 @@ export type PublicationStatusEnum = (typeof PUBLICATION_STATUSES)[number];
 export const GRADING_POOL_STATUSES = ["DRAFT", "ACTIVE", "CLOSED"] as const;
 export type GradingPoolStatusEnum = (typeof GRADING_POOL_STATUSES)[number];
 
+/** B17 psychometric run lifecycle. */
+export const PSYCHOMETRIC_RUN_STATUSES = [
+  "PENDING",
+  "COMPLETED",
+  "INSUFFICIENT_SAMPLE",
+  "FAILED",
+] as const;
+export type PsychometricRunStatusEnum =
+  (typeof PSYCHOMETRIC_RUN_STATUSES)[number];
+
+/** B17 calibration session lifecycle (reuses DRAFT/ACTIVE/CLOSED). */
+export const CALIBRATION_SESSION_STATUSES = ["DRAFT", "ACTIVE", "CLOSED"] as const;
+export type CalibrationSessionStatusEnum =
+  (typeof CALIBRATION_SESSION_STATUSES)[number];
+
 export const GRADING_WORK_ITEM_STATUSES = [
   "QUEUED",
   "IN_PROGRESS",

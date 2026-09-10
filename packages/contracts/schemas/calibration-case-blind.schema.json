@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/calibration-case-blind.schema.json",
+  "title": "CalibrationCaseBlind",
+  "description": "B17 blind calibration case view without reference score or student identity (PEV-049).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "session_id",
+    "case_code",
+    "question_version_id",
+    "rubric_version_id",
+    "max_mark",
+    "criterion_snapshot",
+    "evidence_snapshot"
+  ],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "session_id": { "type": "string", "format": "uuid" },
+    "case_code": { "type": "string" },
+    "question_version_id": { "type": "string", "format": "uuid" },
+    "rubric_version_id": { "type": "string", "format": "uuid" },
+    "max_mark": { "type": "number" },
+    "criterion_snapshot": { "type": "array" },
+    "evidence_snapshot": { "type": "object" }
+  }
+}

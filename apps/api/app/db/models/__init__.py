@@ -67,6 +67,16 @@ from app.db.models.mastery import (
     MistakeNotebookEntry,
 )
 from app.db.models.publication import Annotation, PublishedResult
+from app.db.models.quality import (
+    CalibrationCase,
+    CalibrationEvaluatorMetric,
+    CalibrationParticipant,
+    CalibrationResponse,
+    CalibrationSession,
+    CalibrationSessionMetric,
+    ItemPsychometricMetric,
+    PsychometricRun,
+)
 from app.db.models.reassessment import (
     Reassessment,
     ReassessmentItem,
@@ -101,6 +111,12 @@ __all__ = [
     "BenchmarkDatasetVersion",
     "BenchmarkRegressionCaseResult",
     "BenchmarkRegressionRun",
+    "CalibrationCase",
+    "CalibrationEvaluatorMetric",
+    "CalibrationParticipant",
+    "CalibrationResponse",
+    "CalibrationSession",
+    "CalibrationSessionMetric",
     "ClassSection",
     "CriterionEvaluation",
     "Curriculum",
@@ -118,6 +134,7 @@ __all__ = [
     "ImprovementAssessmentItem",
     "Institution",
     "ImportSession",
+    "ItemPsychometricMetric",
     "LearningPathStep",
     "LearningPlanRun",
     "LearningRecommendation",
@@ -133,6 +150,7 @@ __all__ = [
     "ModerationStage",
     "Permission",
     "PipelineJob",
+    "PsychometricRun",
     "PublishedResult",
     "Question",
     "QuestionAnswerMapping",

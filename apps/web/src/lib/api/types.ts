@@ -591,4 +591,69 @@ export interface ApiClient {
     id: string,
     decision_reason: string,
   ): Promise<import("@/lib/types/domain").GrievanceCase>;
+
+  /** B17 psychometrics + calibration. */
+  listPsychometricRuns?(
+    assessmentVersionId?: string,
+  ): Promise<import("@/lib/types/domain").PsychometricRunList>;
+  createPsychometricRun?(
+    assessmentVersionId: string,
+  ): Promise<import("@/lib/types/domain").PsychometricRun>;
+  getPsychometricRun?(
+    runId: string,
+  ): Promise<import("@/lib/types/domain").PsychometricRun>;
+  listPsychometricRunItems?(
+    runId: string,
+  ): Promise<import("@/lib/types/domain").ItemPsychometricMetricList>;
+  getLatestPsychometricRun?(
+    assessmentVersionId: string,
+  ): Promise<import("@/lib/types/domain").PsychometricRun>;
+  listCalibrationSessions?(): Promise<
+    import("@/lib/types/domain").CalibrationSessionList
+  >;
+  createCalibrationSession?(input: {
+    assessment_version_id: string;
+    title: string;
+    score_tolerance_abs?: number;
+    score_tolerance_pct?: number;
+    min_cases?: number;
+  }): Promise<import("@/lib/types/domain").CalibrationSession>;
+  getCalibrationSession?(
+    sessionId: string,
+  ): Promise<import("@/lib/types/domain").CalibrationSession>;
+  activateCalibrationSession?(
+    sessionId: string,
+  ): Promise<import("@/lib/types/domain").CalibrationSession>;
+  closeCalibrationSession?(
+    sessionId: string,
+  ): Promise<import("@/lib/types/domain").CalibrationSession>;
+  listMyCalibrationSessions?(): Promise<
+    import("@/lib/types/domain").CalibrationSessionList
+  >;
+  getBlindCalibrationCase?(
+    sessionId: string,
+    caseId: string,
+  ): Promise<import("@/lib/types/domain").CalibrationCaseBlind>;
+  submitCalibrationResponse?(
+    sessionId: string,
+    caseId: string,
+    input: { score: number; comment?: string | null },
+  ): Promise<import("@/lib/types/domain").CalibrationResponse>;
+  getCalibrationProgress?(sessionId: string): Promise<{
+    case_count: number;
+    participant_count: number;
+    response_count: number;
+    status: string;
+  }>;
+  getCalibrationSessionMetrics?(
+    sessionId: string,
+  ): Promise<{ items: import("@/lib/types/domain").CalibrationSessionMetric[] }>;
+  getCalibrationEvaluatorMetrics?(
+    sessionId: string,
+  ): Promise<{
+    items: import("@/lib/types/domain").CalibrationEvaluatorMetric[];
+  }>;
+  getMyCalibrationMetrics?(
+    sessionId: string,
+  ): Promise<import("@/lib/types/domain").CalibrationEvaluatorMetric>;
 }

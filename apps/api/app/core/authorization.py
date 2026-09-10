@@ -62,6 +62,7 @@ PERMISSION_CODES: Final = (
     "learning:assign",
     "quality:read",
     "quality:manage",
+    "calibration:participate",
     "grading:read",
     "grading:manage",
     "grading:work",
@@ -114,6 +115,7 @@ ROLE_PERMISSION_MAP: Final = {
             "learning:assign",
             "quality:read",
             "quality:manage",
+            "calibration:participate",
             "grading:read",
             "grading:manage",
             "grading:work",
@@ -146,6 +148,7 @@ ROLE_PERMISSION_MAP: Final = {
             "analytics:read",
             "learning:read",
             "quality:read",
+            "calibration:participate",
             "grading:read",
             "grading:work",
         }
@@ -161,6 +164,8 @@ ROLE_PERMISSION_MAP: Final = {
             "submission:read",
             "evaluation:read",
             "publication:read",
+            "quality:read",
+            "calibration:participate",
             "moderation:read",
             "moderation:review",
             "grading:read",
@@ -179,6 +184,9 @@ ROLE_PERMISSION_MAP: Final = {
             "evaluation:read",
             "evaluation:review",
             "publication:read",
+            "quality:read",
+            "quality:manage",
+            "calibration:participate",
             "grading:read",
             "grading:manage",
             "moderation:read",
@@ -200,6 +208,9 @@ ROLE_PERMISSION_MAP: Final = {
             "evaluation:read",
             "evaluation:review",
             "publication:read",
+            "quality:read",
+            "quality:manage",
+            "calibration:participate",
             "grading:read",
             "grading:manage",
             "moderation:read",
@@ -221,6 +232,9 @@ ROLE_PERMISSION_MAP: Final = {
             "evaluation:read",
             "evaluation:review",
             "publication:read",
+            "quality:read",
+            "quality:manage",
+            "calibration:participate",
             "grading:read",
             "grading:manage",
             "moderation:read",
@@ -263,6 +277,18 @@ def require_permissions(*codes: str) -> Callable[..., Awaitable[AuthContext]]:
 
     async def dependency(context: AuthContext = Depends(get_current_user)) -> AuthContext:
         if not set(codes).issubset(context.permissions):
+            raise HTTPException(status_code=403, detail="Insufficient permissions")
+        return context
+
+    return dependency
+
+
+def require_any_permissions(*codes: str) -> Callable[..., Awaitable[AuthContext]]:
+    """Authorize when the caller holds at least one of the listed permissions."""
+    from app.core.security import get_current_user
+
+    async def dependency(context: AuthContext = Depends(get_current_user)) -> AuthContext:
+        if not set(codes).intersection(context.permissions):
             raise HTTPException(status_code=403, detail="Insufficient permissions")
         return context
 

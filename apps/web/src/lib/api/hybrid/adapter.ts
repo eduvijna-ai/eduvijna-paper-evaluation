@@ -14,6 +14,7 @@ import { ResourcesHttpApi } from "../http/resources";
 import { ReassessmentHttpApi } from "../http/reassessment";
 import { BenchmarkHttpApi } from "../http/benchmark";
 import { OperationsHttpApi } from "../http/operations";
+import { QualityHttpApi } from "../http/quality";
 import { ApiError } from "../http/errors";
 import { httpRequest } from "../http/client";
 import { getApiCapabilities } from "../capabilities";
@@ -1126,5 +1127,108 @@ export const HybridEduVijnaApi: ApiClient = {
       return OperationsHttpApi.rejectGrievance(id, decision_reason);
     }
     return MockEduVijnaApi.rejectGrievance!(id, decision_reason);
+  },
+
+  listPsychometricRuns: async (assessmentVersionId) => {
+    if (getApiCapabilities().quality === "live") {
+      return QualityHttpApi.listPsychometricRuns(assessmentVersionId);
+    }
+    return MockEduVijnaApi.listPsychometricRuns!(assessmentVersionId);
+  },
+  createPsychometricRun: async (assessmentVersionId) => {
+    if (getApiCapabilities().quality === "live") {
+      return QualityHttpApi.createPsychometricRun(assessmentVersionId);
+    }
+    return MockEduVijnaApi.createPsychometricRun!(assessmentVersionId);
+  },
+  getPsychometricRun: async (runId) => {
+    if (getApiCapabilities().quality === "live") {
+      return QualityHttpApi.getPsychometricRun(runId);
+    }
+    return MockEduVijnaApi.getPsychometricRun!(runId);
+  },
+  listPsychometricRunItems: async (runId) => {
+    if (getApiCapabilities().quality === "live") {
+      return QualityHttpApi.listPsychometricRunItems(runId);
+    }
+    return MockEduVijnaApi.listPsychometricRunItems!(runId);
+  },
+  getLatestPsychometricRun: async (assessmentVersionId) => {
+    if (getApiCapabilities().quality === "live") {
+      return QualityHttpApi.getLatestPsychometricRun(assessmentVersionId);
+    }
+    return MockEduVijnaApi.getLatestPsychometricRun!(assessmentVersionId);
+  },
+  listCalibrationSessions: async () => {
+    if (getApiCapabilities().quality === "live") {
+      return QualityHttpApi.listCalibrationSessions();
+    }
+    return MockEduVijnaApi.listCalibrationSessions!();
+  },
+  createCalibrationSession: async (input) => {
+    if (getApiCapabilities().quality === "live") {
+      return QualityHttpApi.createCalibrationSession(input);
+    }
+    return MockEduVijnaApi.createCalibrationSession!(input);
+  },
+  getCalibrationSession: async (sessionId) => {
+    if (getApiCapabilities().quality === "live") {
+      return QualityHttpApi.getCalibrationSession(sessionId);
+    }
+    return MockEduVijnaApi.getCalibrationSession!(sessionId);
+  },
+  activateCalibrationSession: async (sessionId) => {
+    if (getApiCapabilities().quality === "live") {
+      return QualityHttpApi.activateCalibrationSession(sessionId);
+    }
+    return MockEduVijnaApi.activateCalibrationSession!(sessionId);
+  },
+  closeCalibrationSession: async (sessionId) => {
+    if (getApiCapabilities().quality === "live") {
+      return QualityHttpApi.closeCalibrationSession(sessionId);
+    }
+    return MockEduVijnaApi.closeCalibrationSession!(sessionId);
+  },
+  listMyCalibrationSessions: async () => {
+    if (getApiCapabilities().quality === "live") {
+      return QualityHttpApi.listMyCalibrationSessions();
+    }
+    return MockEduVijnaApi.listMyCalibrationSessions!();
+  },
+  getBlindCalibrationCase: async (sessionId, caseId) => {
+    if (getApiCapabilities().quality === "live") {
+      return QualityHttpApi.getBlindCalibrationCase(sessionId, caseId);
+    }
+    return MockEduVijnaApi.getBlindCalibrationCase!(sessionId, caseId);
+  },
+  submitCalibrationResponse: async (sessionId, caseId, input) => {
+    if (getApiCapabilities().quality === "live") {
+      return QualityHttpApi.submitCalibrationResponse(sessionId, caseId, input);
+    }
+    return MockEduVijnaApi.submitCalibrationResponse!(sessionId, caseId, input);
+  },
+  getCalibrationProgress: async (sessionId) => {
+    if (getApiCapabilities().quality === "live") {
+      return QualityHttpApi.getCalibrationProgress(sessionId);
+    }
+    return MockEduVijnaApi.getCalibrationProgress!(sessionId);
+  },
+  getCalibrationSessionMetrics: async (sessionId) => {
+    if (getApiCapabilities().quality === "live") {
+      return QualityHttpApi.getCalibrationSessionMetrics(sessionId);
+    }
+    return MockEduVijnaApi.getCalibrationSessionMetrics!(sessionId);
+  },
+  getCalibrationEvaluatorMetrics: async (sessionId) => {
+    if (getApiCapabilities().quality === "live") {
+      return QualityHttpApi.getCalibrationEvaluatorMetrics(sessionId);
+    }
+    return MockEduVijnaApi.getCalibrationEvaluatorMetrics!(sessionId);
+  },
+  getMyCalibrationMetrics: async (sessionId) => {
+    if (getApiCapabilities().quality === "live") {
+      return QualityHttpApi.getMyCalibrationMetrics(sessionId);
+    }
+    return MockEduVijnaApi.getMyCalibrationMetrics!(sessionId);
   },
 };
