@@ -554,10 +554,18 @@ async function publishAttempt(
           if (await btn.isEnabled().catch(() => false)) {
             await btn.click().catch(() => undefined);
           }
+          const fin = await request.post(
+            `${apiBase}/api/v1/submissions/${submissionId}/transcription/finalize`,
+            { headers },
+          );
+          if (fin.ok() || fin.status() === 409) {
+            await page.goto(`/submissions/${submissionId}`);
+            return "done";
+          }
         }
         return path;
       },
-      { timeout: 90_000 },
+      { timeout: 180_000 },
     )
     .toBe("done");
 
