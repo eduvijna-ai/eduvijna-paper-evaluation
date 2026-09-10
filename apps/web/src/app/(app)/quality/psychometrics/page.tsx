@@ -21,13 +21,20 @@ export default function PsychometricsPage() {
   const queryClient = useQueryClient();
   const session = getSession();
   const canManage = hasPermission(session, A1_PERMISSIONS.qualityManage);
-  const [versionId, setVersionId] = useState("assess-ver-demo-001");
+  const [versionId, setVersionId] = useState("");
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
+  const uuidLike =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      versionId.trim(),
+    );
+
   const runsQuery = useQuery({
     queryKey: ["b17-psychometric-runs", versionId],
-    queryFn: () => api.listPsychometricRuns!(versionId || undefined),
+    queryFn: () =>
+      api.listPsychometricRuns!(uuidLike ? versionId.trim() : undefined),
+    enabled: versionId.trim() === "" || uuidLike,
   });
 
   const runs = runsQuery.data?.items ?? [];

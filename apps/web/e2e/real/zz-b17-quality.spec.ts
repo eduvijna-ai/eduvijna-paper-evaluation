@@ -441,12 +441,16 @@ test.describe("B17 real quality psychometrics + calibration", () => {
     expect(evalMetrics.ok(), await evalMetrics.text()).toBeTruthy();
     const evalRows = (
       (await evalMetrics.json()) as {
-        items: { bias: number; mae: number; exact_match_rate: number }[];
+        items: {
+          mean_signed_diff: number;
+          mae: number;
+          exact_match_rate: number;
+        }[];
       }
     ).items;
     expect(evalRows.length).toBeGreaterThanOrEqual(2);
     for (const row of evalRows) {
-      expect(Math.abs(Number(row.bias))).toBeLessThan(0.01);
+      expect(Math.abs(Number(row.mean_signed_diff))).toBeLessThan(0.01);
       expect(Math.abs(Number(row.mae))).toBeLessThan(0.01);
       expect(Number(row.exact_match_rate)).toBe(1);
     }
@@ -528,6 +532,8 @@ test.describe("B17 real quality psychometrics + calibration", () => {
     await expect(page.getByTestId("b17-calibration-session-status").first()).toBeVisible({
       timeout: 30_000,
     });
-    await expect(page.getByText(/B17\.1 E2E/)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/B17\.1 E2E/).first()).toBeVisible({
+      timeout: 30_000,
+    });
   });
 });
