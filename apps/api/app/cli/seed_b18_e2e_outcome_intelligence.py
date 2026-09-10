@@ -129,7 +129,7 @@ async def _ensure_isolation_tenant(db: AsyncSession) -> dict[str, str]:
         select(UserRole).where(UserRole.user_id == user.id, UserRole.role_id == admin_role.id)
     )
     if link is None:
-        db.add(UserRole(user_id=user.id, role_id=admin_role.id))
+        db.add(UserRole(tenant_id=tenant.id, user_id=user.id, role_id=admin_role.id))
 
     institution = await db.scalar(
         select(Institution).where(Institution.tenant_id == tenant.id, Institution.code == "B18ISO")
