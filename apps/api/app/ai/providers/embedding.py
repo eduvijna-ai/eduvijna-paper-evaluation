@@ -45,10 +45,46 @@ class FixedEmbeddingProvider:
         self._allow_non_test = allow_non_test
 
     async def embed_texts(self, request: EmbeddingInput) -> EmbeddingResult:
-        vectors = [
-            _bag_of_hash_embedding(text, dim=self.embedding_dim)
-            for text in request.texts
-        ]
+        vectors = [_bag_of_hash_embedding(text, dim=self.embedding_dim) for text in request.texts]
+        return EmbeddingResult(
+            vectors=vectors,
+            provider=self.provider_name,
+            model=self.model,
+            model_version=self.model_version,
+            embedding_dim=self.embedding_dim,
+        )
+
+
+class FixedEmbeddingProviderAlt:
+    """Deterministic alternate fixed provider for B18.1 reproducibility tests."""
+
+    provider_name = "fixed"
+    model = "fixed-embed-v1-alt"
+    model_version = "2"
+    embedding_dim = FIXED_EMBED_DIM
+
+    def __init__(
+        self,
+        *,
+        provider_name: str | None = None,
+        model: str | None = None,
+        model_version: str | None = None,
+        embedding_dim: int | None = None,
+        allow_non_test: bool = False,
+    ) -> None:
+        if provider_name is not None:
+            self.provider_name = provider_name
+        if model is not None:
+            self.model = model
+        if model_version is not None:
+            self.model_version = model_version
+        if embedding_dim is not None:
+            self.embedding_dim = embedding_dim
+        self._allow_non_test = allow_non_test
+
+    async def embed_texts(self, request: EmbeddingInput) -> EmbeddingResult:
+        # Same hashing algorithm; identity differs via provider/model/version metadata.
+        vectors = [_bag_of_hash_embedding(text, dim=self.embedding_dim) for text in request.texts]
         return EmbeddingResult(
             vectors=vectors,
             provider=self.provider_name,
@@ -67,6 +103,4 @@ class NoneEmbeddingProvider:
     embedding_dim = 0
 
     async def embed_texts(self, request: EmbeddingInput) -> EmbeddingResult:
-        raise RuntimeError(
-            "Embedding provider is not configured (AI_PROVIDER_TEXT=none)"
-        )
+        raise RuntimeError("Embedding provider is not configured (AI_PROVIDER_TEXT=none)")

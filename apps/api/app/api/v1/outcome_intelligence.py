@@ -43,6 +43,7 @@ Db = Annotated[AsyncSession, Depends(get_db_session)]
 _CONFLICT_CODES = {
     "CLUSTER_RUN_CONFLICT",
     "OUTCOME_DEFINITION_CONFLICT",
+    "OUTCOME_NOT_ACTIVE",
     "MAPPING_SET_NOT_DRAFT",
     "MAPPING_SET_EMPTY",
     "MAPPING_SET_NOT_ACTIVE",
@@ -111,7 +112,7 @@ class QuestionMappingCreateIn(BaseModel):
 
     question_id: uuid.UUID
     outcome_definition_id: uuid.UUID
-    weight: Decimal | None = Field(default=None, gt=0)
+    weight: Decimal | None = Field(default=None, gt=0, le=1)
 
 
 class AttainmentReportCreateIn(BaseModel):
@@ -130,6 +131,8 @@ async def post_cluster_run(
     db: Db,
     auth: AuthContext = Depends(require_permissions("clustering:manage")),
 ) -> dict[str, Any]:
+    from sqlalchemy.exc import IntegrityError
+
     try:
         result = await create_cluster_run(
             db,
@@ -139,10 +142,26 @@ async def post_cluster_run(
             question_id=body.question_id,
             similarity_threshold=body.similarity_threshold,
         )
+        await db.commit()
+        return result
     except OutcomeIntelligenceError as exc:
         raise _map_error(exc) from exc
-    await db.commit()
-    return result
+    except IntegrityError:
+        await db.rollback()
+        # Concurrent duplicate insert: resolve via idempotent recreate lookup.
+        try:
+            result = await create_cluster_run(
+                db,
+                tenant_id=auth.tenant_id,
+                actor_user_id=auth.user_id,
+                assessment_version_id=body.assessment_version_id,
+                question_id=body.question_id,
+                similarity_threshold=body.similarity_threshold,
+            )
+            await db.commit()
+            return result
+        except OutcomeIntelligenceError as exc:
+            raise _map_error(exc) from exc
 
 
 @router.get("/quality/answer-clusters/runs")
@@ -179,9 +198,7 @@ async def get_clusters_for_run_route(
     auth: AuthContext = Depends(require_permissions("clustering:read")),
 ) -> dict[str, Any]:
     try:
-        return await list_clusters_for_run(
-            db, tenant_id=auth.tenant_id, run_id=run_id
-        )
+        return await list_clusters_for_run(db, tenant_id=auth.tenant_id, run_id=run_id)
     except OutcomeIntelligenceError as exc:
         raise _map_error(exc) from exc
 
@@ -193,9 +210,7 @@ async def get_cluster_route(
     auth: AuthContext = Depends(require_permissions("clustering:read")),
 ) -> dict[str, Any]:
     try:
-        return await get_cluster_detail(
-            db, tenant_id=auth.tenant_id, cluster_id=cluster_id
-        )
+        return await get_cluster_detail(db, tenant_id=auth.tenant_id, cluster_id=cluster_id)
     except OutcomeIntelligenceError as exc:
         raise _map_error(exc) from exc
 
@@ -253,9 +268,7 @@ async def get_outcome_definitions(
     outcome_type: str | None = Query(default=None),
     auth: AuthContext = Depends(require_permissions("outcomes:read")),
 ) -> dict[str, Any]:
-    return await list_outcome_definitions(
-        db, tenant_id=auth.tenant_id, outcome_type=outcome_type
-    )
+    return await list_outcome_definitions(db, tenant_id=auth.tenant_id, outcome_type=outcome_type)
 
 
 @router.get("/outcomes/definitions/{definition_id}")
@@ -335,9 +348,7 @@ async def get_mapping_set_route(
     auth: AuthContext = Depends(require_permissions("outcomes:read")),
 ) -> dict[str, Any]:
     try:
-        return await get_mapping_set(
-            db, tenant_id=auth.tenant_id, mapping_set_id=mapping_set_id
-        )
+        return await get_mapping_set(db, tenant_id=auth.tenant_id, mapping_set_id=mapping_set_id)
     except OutcomeIntelligenceError as exc:
         raise _map_error(exc) from exc
 
@@ -443,9 +454,7 @@ async def get_attainment_report_route(
     auth: AuthContext = Depends(require_permissions("outcomes:read")),
 ) -> dict[str, Any]:
     try:
-        return await get_attainment_report(
-            db, tenant_id=auth.tenant_id, report_id=report_id
-        )
+        return await get_attainment_report(db, tenant_id=auth.tenant_id, report_id=report_id)
     except OutcomeIntelligenceError as exc:
         raise _map_error(exc) from exc
 
@@ -457,15 +466,11 @@ async def get_attainment_export_csv(
     auth: AuthContext = Depends(require_permissions("outcomes:read")),
 ) -> Response:
     try:
-        csv_text = await export_attainment_csv(
-            db, tenant_id=auth.tenant_id, report_id=report_id
-        )
+        csv_text = await export_attainment_csv(db, tenant_id=auth.tenant_id, report_id=report_id)
     except OutcomeIntelligenceError as exc:
         raise _map_error(exc) from exc
     return Response(
         content=csv_text,
         media_type="text/csv",
-        headers={
-            "Content-Disposition": f'attachment; filename="attainment-{report_id}.csv"'
-        },
+        headers={"Content-Disposition": f'attachment; filename="attainment-{report_id}.csv"'},
     )

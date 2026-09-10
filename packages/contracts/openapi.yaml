@@ -6900,6 +6900,7 @@ components:
           activated_at,
           retired_by,
           retired_at,
+          activation_hash,
           created_at,
           updated_at,
         ]
@@ -6915,6 +6916,7 @@ components:
         activated_at: { type: ["string", "null"], format: date-time }
         retired_by: { type: ["string", "null"], format: uuid }
         retired_at: { type: ["string", "null"], format: date-time }
+        activation_hash: { type: ["string", "null"] }
         created_at: { type: ["string", "null"], format: date-time }
         updated_at: { type: ["string", "null"], format: date-time }
         mapping_count: { type: integer }
@@ -6964,7 +6966,7 @@ components:
       properties:
         question_id: { type: string, format: uuid }
         outcome_definition_id: { type: string, format: uuid }
-        weight: { type: number, exclusiveMinimum: 0 }
+        weight: { type: number, exclusiveMinimum: 0, maximum: 1 }
     OutcomeAttainmentReport:
       type: object
       additionalProperties: false
@@ -6975,6 +6977,7 @@ components:
           assessment_version_id,
           mapping_set_id,
           mapping_set_version_number,
+          mapping_activation_hash,
           cohort_definition,
           algorithm_version,
           source_set_hash,
@@ -6995,6 +6998,7 @@ components:
         assessment_version_id: { type: string, format: uuid }
         mapping_set_id: { type: string, format: uuid }
         mapping_set_version_number: { type: integer }
+        mapping_activation_hash: { type: ["string", "null"] }
         cohort_definition: { type: object, additionalProperties: true }
         algorithm_version: { type: string }
         source_set_hash: { type: string }

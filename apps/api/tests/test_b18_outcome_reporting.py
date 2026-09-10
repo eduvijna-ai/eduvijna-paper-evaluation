@@ -145,7 +145,7 @@ async def test_b18_outcome_reporting_lifecycle_exact_math_csv_immutability() -> 
             json={
                 "question_id": question_id,
                 "outcome_definition_id": po_id,
-                "weight": "2.0",
+                "weight": "0.5",
             },
         )
         assert map_po.status_code == 200
@@ -156,6 +156,8 @@ async def test_b18_outcome_reporting_lifecycle_exact_math_csv_immutability() -> 
         )
         assert activate.status_code == 200
         assert activate.json()["status"] == "ACTIVE"
+        assert activate.json()["activation_hash"]
+        assert len(activate.json()["activation_hash"]) == 64
 
         blocked = await client.post(
             f"/api/v1/outcomes/mapping-sets/{set_id}/mappings",
@@ -188,10 +190,11 @@ async def test_b18_outcome_reporting_lifecycle_exact_math_csv_immutability() -> 
         assert body["status"] == "COMPLETED"
         assert body["algorithm_version"] == "MARKS_WEIGHTED_V1"
         assert body["source_result_count"] == 4
+        assert body["mapping_activation_hash"] == activate.json()["activation_hash"]
         metrics = {m["outcome_definition_id"]: m for m in body["metrics"]}
 
         # Template score 4 + three clones score 2 = earned 10; max 5*4=20; pct 50
-        # PO weight 2 → earned 20, max 40, pct 50
+        # PO weight 0.5 → earned 5, max 10, pct 50
         co_m = metrics[co_id]
         assert float(co_m["weighted_earned"]) == 10.0
         assert float(co_m["weighted_max"]) == 20.0
@@ -199,8 +202,8 @@ async def test_b18_outcome_reporting_lifecycle_exact_math_csv_immutability() -> 
         assert co_m["denom_status"] == "OK"
 
         po_m = metrics[po_id]
-        assert float(po_m["weighted_earned"]) == 20.0
-        assert float(po_m["weighted_max"]) == 40.0
+        assert float(po_m["weighted_earned"]) == 5.0
+        assert float(po_m["weighted_max"]) == 10.0
         assert float(po_m["attainment_pct"]) == 50.0
 
         report2 = await client.post(

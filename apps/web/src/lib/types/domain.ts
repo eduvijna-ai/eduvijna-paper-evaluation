@@ -2038,6 +2038,7 @@ export interface OutcomeMappingSet {
   activated_at: string | null;
   retired_by: string | null;
   retired_at: string | null;
+  activation_hash: string | null;
   created_at: string | null;
   updated_at: string | null;
   mapping_count?: number;
@@ -2054,6 +2055,7 @@ export interface OutcomeAttainmentReport {
   assessment_version_id: string;
   mapping_set_id: string;
   mapping_set_version_number: number;
+  mapping_activation_hash: string | null;
   cohort_definition: Record<string, unknown>;
   algorithm_version: string;
   source_set_hash: string;

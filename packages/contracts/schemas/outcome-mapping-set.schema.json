@@ -17,6 +17,7 @@
     "activated_at",
     "retired_by",
     "retired_at",
+    "activation_hash",
     "created_at",
     "updated_at"
   ],
@@ -32,6 +33,7 @@
     "activated_at": { "type": ["string", "null"], "format": "date-time" },
     "retired_by": { "type": ["string", "null"], "format": "uuid" },
     "retired_at": { "type": ["string", "null"], "format": "date-time" },
+    "activation_hash": { "type": ["string", "null"], "minLength": 64, "maxLength": 64 },
     "created_at": { "type": ["string", "null"], "format": "date-time" },
     "updated_at": { "type": ["string", "null"], "format": "date-time" },
     "mapping_count": { "type": "integer", "minimum": 0 },

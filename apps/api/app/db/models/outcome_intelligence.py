@@ -39,7 +39,11 @@ class AnswerClusterRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "source_set_hash",
             "algorithm_version",
             "similarity_threshold",
-            name="uq_answer_cluster_runs_tenant_av_q_hash_algo_thr",
+            "embedding_provider",
+            "embedding_model",
+            "embedding_model_version",
+            "embedding_dim",
+            name="uq_answer_cluster_runs_repro_identity",
         ),
         CheckConstraint(
             "status IN ('PENDING','COMPLETED','INSUFFICIENT_SAMPLE','FAILED')",
@@ -58,18 +62,14 @@ class AnswerClusterRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
     )
 
-    tenant_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("tenants.id", ondelete="CASCADE")
-    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
     assessment_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("assessments.id", ondelete="RESTRICT")
     )
     assessment_version_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("assessment_versions.id", ondelete="RESTRICT")
     )
-    question_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("questions.id", ondelete="RESTRICT")
-    )
+    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("questions.id", ondelete="RESTRICT"))
     question_version_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("question_versions.id", ondelete="RESTRICT")
     )
@@ -95,9 +95,7 @@ class AnswerClusterRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     failure_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
     failure_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -114,9 +112,7 @@ class AnswerCluster(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("ix_answer_clusters_tenant_run", "tenant_id", "run_id"),
     )
 
-    tenant_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("tenants.id", ondelete="CASCADE")
-    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
     run_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("answer_cluster_runs.id", ondelete="CASCADE")
     )
@@ -138,9 +134,7 @@ class AnswerClusterMember(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("ix_answer_cluster_members_tenant_run", "tenant_id", "run_id"),
     )
 
-    tenant_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("tenants.id", ondelete="CASCADE")
-    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
     run_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("answer_cluster_runs.id", ondelete="CASCADE")
     )
@@ -161,9 +155,7 @@ class AnswerClusterMember(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     transcription_text: Mapped[str] = mapped_column(Text)
     transcription_hash: Mapped[str] = mapped_column(String(64))
-    embedding: Mapped[list[Any]] = mapped_column(
-        JSONB, default=list, server_default="[]"
-    )
+    embedding: Mapped[list[Any]] = mapped_column(JSONB, default=list, server_default="[]")
     final_human_approved_score: Mapped[Decimal | None] = mapped_column(
         Numeric(10, 4), nullable=True
     )
@@ -178,22 +170,16 @@ class AnswerClusterReview(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         Index("ix_answer_cluster_reviews_tenant_run", "tenant_id", "run_id"),
     )
 
-    tenant_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("tenants.id", ondelete="CASCADE")
-    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
     run_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("answer_cluster_runs.id", ondelete="CASCADE")
     )
     cluster_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("answer_clusters.id", ondelete="CASCADE")
     )
-    reviewer_user_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id", ondelete="RESTRICT")
-    )
+    reviewer_user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
     observation: Mapped[str] = mapped_column(Text)
-    suggested_rubric_refinement: Mapped[str | None] = mapped_column(
-        Text, nullable=True
-    )
+    suggested_rubric_refinement: Mapped[str | None] = mapped_column(Text, nullable=True)
     submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
@@ -222,9 +208,7 @@ class OutcomeDefinition(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
     )
 
-    tenant_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("tenants.id", ondelete="CASCADE")
-    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
     outcome_type: Mapped[str] = mapped_column(String(8))
     code: Mapped[str] = mapped_column(String(100))
     title: Mapped[str] = mapped_column(String(255))
@@ -261,9 +245,7 @@ class OutcomeMappingSet(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
     )
 
-    tenant_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("tenants.id", ondelete="CASCADE")
-    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
     assessment_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("assessments.id", ondelete="RESTRICT")
     )
@@ -279,15 +261,12 @@ class OutcomeMappingSet(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     activated_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    activated_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    activated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     retired_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    retired_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    retired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    activation_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class QuestionOutcomeMapping(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -301,8 +280,8 @@ class QuestionOutcomeMapping(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="uq_question_outcome_mappings_tenant_set_q_outcome",
         ),
         CheckConstraint(
-            "weight > 0",
-            name="ck_question_outcome_mappings_weight_positive",
+            "weight > 0 AND weight <= 1",
+            name="ck_question_outcome_mappings_weight_range",
         ),
         Index(
             "ix_question_outcome_mappings_tenant_set",
@@ -311,15 +290,11 @@ class QuestionOutcomeMapping(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
     )
 
-    tenant_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("tenants.id", ondelete="CASCADE")
-    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
     mapping_set_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("outcome_mapping_sets.id", ondelete="CASCADE")
     )
-    question_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("questions.id", ondelete="RESTRICT")
-    )
+    question_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("questions.id", ondelete="RESTRICT"))
     question_version_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("question_versions.id", ondelete="RESTRICT")
     )
@@ -352,9 +327,7 @@ class OutcomeAttainmentReportRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
     )
 
-    tenant_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("tenants.id", ondelete="CASCADE")
-    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
     assessment_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("assessments.id", ondelete="RESTRICT")
     )
@@ -365,6 +338,7 @@ class OutcomeAttainmentReportRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("outcome_mapping_sets.id", ondelete="RESTRICT")
     )
     mapping_set_version_number: Mapped[int] = mapped_column(Integer)
+    mapping_activation_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
     cohort_definition: Mapped[dict[str, Any]] = mapped_column(
         JSONB, default=dict, server_default="{}"
     )
@@ -379,9 +353,7 @@ class OutcomeAttainmentReportRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     failure_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
     failure_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
 
@@ -406,9 +378,7 @@ class OutcomeAttainmentMetric(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ),
     )
 
-    tenant_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("tenants.id", ondelete="CASCADE")
-    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
     report_run_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("outcome_attainment_report_runs.id", ondelete="CASCADE")
     )
@@ -420,9 +390,7 @@ class OutcomeAttainmentMetric(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     outcome_title: Mapped[str] = mapped_column(String(255))
     weighted_earned: Mapped[Decimal] = mapped_column(Numeric(16, 6))
     weighted_max: Mapped[Decimal] = mapped_column(Numeric(16, 6))
-    attainment_pct: Mapped[Decimal | None] = mapped_column(
-        Numeric(12, 6), nullable=True
-    )
+    attainment_pct: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
     denom_status: Mapped[str] = mapped_column(String(32), default="OK")
     mapped_question_count: Mapped[int] = mapped_column(Integer, default=0)
     contribution_count: Mapped[int] = mapped_column(Integer, default=0)
