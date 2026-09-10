@@ -941,6 +941,8 @@ async def update_outcome_definition(
             raise OutcomeIntelligenceError("INVALID_STATUS", "status must be ACTIVE or RETIRED")
         row.status = s
     await db.flush()
+    await db.refresh(row)
+    after = serialize_outcome_definition(row)
     await add_audit_event(
         db,
         tenant_id=tenant_id,
@@ -948,10 +950,9 @@ async def update_outcome_definition(
         entity_type="outcome_definition",
         entity_id=row.id,
         action="OUTCOME_DEFINITION_UPDATED",
-        after=serialize_outcome_definition(row),
+        after=after,
     )
-    await db.refresh(row)
-    return serialize_outcome_definition(row)
+    return after
 
 
 async def create_mapping_set(
