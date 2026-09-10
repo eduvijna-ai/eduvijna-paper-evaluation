@@ -2,7 +2,7 @@
 
 **Branch:** `b17/assessment-quality-calibration`  
 **PR base:** `develop` (never `main`)  
-**Starting `develop` SHA:** `4ae56d9649a8a7c94cb6b9a998c04f058b959637`  
+**Starting `develop` SHA:** `aefd1f00a4fd3fb37d06057633e4bf85a56009e8` (APP-010 merge)  
 **Starting `main` SHA:** `5febe578f4f57f24c63149ae5a03be8adb5baac3`  
 **Approval:** APP-010 / Issue #67  
 **Migration:** `database/migrations/versions/20260910_0018_b17_assessment_quality_calibration.py`  
@@ -24,7 +24,8 @@ Release state remains **FUTURE_ENTERPRISE** (unchanged).
 ### Backend
 
 * Migration `20260910_0018` — psychometric runs/item metrics; calibration sessions/cases/participants/responses/session metrics/evaluator metrics.
-* RBAC: `calibration:participate`; `quality:read`/`quality:manage` extended to EXAM_CONTROLLER, ACADEMIC_COORDINATOR, HOD; `quality:read` for MODERATOR.
+* ORM models aligned to migration (`cohort_definition` JSONB dict; calibration column names `published_result_id` / `participant_id` / `mae` / `nmae`).
+* RBAC: `calibration:participate`; `quality:read`/`quality:manage` for enterprise quality roles.
 * Pure stats module `quality_stats.py` (Pearson, corrected item-total discrimination, difficulty, ICC(A,1)).
 * Service `quality.py` + `/api/v1/quality/psychometrics/*` and `/api/v1/quality/calibration/*`.
 * Psychometrics: PUBLISHED-only cohort (SUPERSEDED excluded), human-final ACCEPTED/OVERRIDDEN QEs, min N=20, idempotent on source-set hash, interpretation bands as heuristics.
@@ -36,9 +37,13 @@ Release state remains **FUTURE_ENTERPRISE** (unchanged).
 * JSON schemas: psychometric-run, item-psychometric-metric, calibration-session, calibration-case-blind, calibration-response, calibration-session-metric, calibration-evaluator-metric.
 * OpenAPI paths for all new endpoints; `validate.mjs` required paths updated; request models `extra="forbid"`.
 
-### Frontend / E2E
+### Frontend
 
-* Not shipped in this backend-first pass (gap for follow-up).
+* AppShell nav → `/quality/psychometrics`, `/quality/calibration`
+* Pages with B17 testIds for runs/items and calibration sessions/blind scoring
+* HTTP `QualityHttpApi` + mock fixtures + hybrid `quality` capability routing
+* Vitest `b17-quality.test.ts`
+* Playwright `e2e/b17-quality.spec.ts` (mock) and `e2e/real/zz-b17-quality.spec.ts` (API + UI smoke)
 
 ### Tests
 
