@@ -280,8 +280,11 @@ class QuestionOutcomeMapping(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="uq_question_outcome_mappings_tenant_set_q_outcome",
         ),
         CheckConstraint(
-            "weight > 0 AND weight <= 1",
-            name="ck_question_outcome_mappings_weight_range",
+            "("
+            "(weight_policy_version = 1 AND weight > 0) OR "
+            "(weight_policy_version >= 2 AND weight > 0 AND weight <= 1)"
+            ")",
+            name="ck_question_outcome_mappings_weight_policy",
         ),
         Index(
             "ix_question_outcome_mappings_tenant_set",
@@ -302,6 +305,10 @@ class QuestionOutcomeMapping(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("outcome_definitions.id", ondelete="RESTRICT")
     )
     weight: Mapped[Decimal] = mapped_column(Numeric(10, 4), default=Decimal("1.0000"))
+    # 1 = legacy B18 (weight > 0); 2+ = strict B18.1+ (0 < weight <= 1). Server-controlled.
+    weight_policy_version: Mapped[int] = mapped_column(
+        Integer, default=2, server_default="2"
+    )
 
 
 class OutcomeAttainmentReportRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):

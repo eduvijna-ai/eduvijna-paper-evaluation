@@ -1,4 +1,4 @@
-"""b18_1_reproducibility_mapping_invariants
+"""b18_1_reproducibility_mapping_invariants (+ B18.2 provenance preservation)
 
 Revision ID: 20260910_0020
 Revises: 20260910_0019
@@ -6,10 +6,16 @@ Create Date: 2026-09-10 16:00:00.000000
 
 B18.1:
 - Expand answer_cluster_runs uniqueness to include embedding identity
-- Enforce 0 < weight <= 1 on question_outcome_mappings
 - Persist outcome_mapping_sets.activation_hash
 - Persist outcome_attainment_report_runs.mapping_activation_hash
 - Deterministically backfill activation hashes for existing ACTIVE/RETIRED sets
+
+B18.2 (unreleased develop correction of this same revision):
+- Do NOT clamp or delete historically valid B18 mapping weights (e.g. 1.5)
+- Introduce weight_policy_version for legacy vs strict weight governance
+- DB constraint allows legacy (policy=1) weights > 0; strict (policy>=2)
+  requires 0 < weight <= 1
+- Backfill activation / report hashes from ACTUAL persisted weights
 """
 
 from __future__ import annotations
@@ -87,24 +93,23 @@ def upgrade() -> None:
         ],
     )
 
-    # --- Weight range DB constraint ---
-    # Sanitize any pre-B18.1 rows that violate 0 < weight <= 1 before adding the check.
-    op.execute(
-        text(
-            """
-            UPDATE question_outcome_mappings
-            SET weight = 1
-            WHERE weight > 1
-            """
-        )
+    # --- Legacy vs strict weight policy (B18.2) ---
+    # Existing B18 rows (created under weight > 0 only) are tagged policy=1.
+    # New inserts default to policy=2 (strict 0 < weight <= 1).
+    # NEVER clamp weight > 1 or delete historically valid rows.
+    op.add_column(
+        "question_outcome_mappings",
+        sa.Column(
+            "weight_policy_version",
+            sa.Integer(),
+            nullable=False,
+            server_default="1",
+        ),
     )
-    op.execute(
-        text(
-            """
-            DELETE FROM question_outcome_mappings
-            WHERE weight <= 0
-            """
-        )
+    op.alter_column(
+        "question_outcome_mappings",
+        "weight_policy_version",
+        server_default="2",
     )
     op.drop_constraint(
         "ck_question_outcome_mappings_weight_positive",
@@ -112,9 +117,47 @@ def upgrade() -> None:
         type_="check",
     )
     op.create_check_constraint(
-        "ck_question_outcome_mappings_weight_range",
+        "ck_question_outcome_mappings_weight_policy",
         "question_outcome_mappings",
-        "weight > 0 AND weight <= 1",
+        "("
+        "(weight_policy_version = 1 AND weight > 0) OR "
+        "(weight_policy_version >= 2 AND weight > 0 AND weight <= 1)"
+        ")",
+    )
+    # Prevent client/ORM bypass by rewriting policy on existing rows.
+    op.execute(
+        text(
+            """
+            CREATE OR REPLACE FUNCTION forbid_weight_policy_version_change()
+            RETURNS trigger AS $$
+            BEGIN
+              IF NEW.weight_policy_version IS DISTINCT FROM OLD.weight_policy_version THEN
+                RAISE EXCEPTION 'weight_policy_version is immutable'
+                  USING ERRCODE = 'check_violation';
+              END IF;
+              RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+            """
+        )
+    )
+    op.execute(
+        text(
+            """
+            DROP TRIGGER IF EXISTS trg_question_outcome_mappings_weight_policy_immutable
+              ON question_outcome_mappings
+            """
+        )
+    )
+    op.execute(
+        text(
+            """
+            CREATE TRIGGER trg_question_outcome_mappings_weight_policy_immutable
+              BEFORE UPDATE ON question_outcome_mappings
+              FOR EACH ROW
+              EXECUTE PROCEDURE forbid_weight_policy_version_change()
+            """
+        )
     )
 
     # --- Activation hash on mapping sets ---
@@ -187,14 +230,24 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.execute(
+        text(
+            """
+            DROP TRIGGER IF EXISTS trg_question_outcome_mappings_weight_policy_immutable
+              ON question_outcome_mappings
+            """
+        )
+    )
+    op.execute(text("DROP FUNCTION IF EXISTS forbid_weight_policy_version_change()"))
     op.drop_column("outcome_attainment_report_runs", "mapping_activation_hash")
     op.drop_column("outcome_mapping_sets", "activation_hash")
 
     op.drop_constraint(
-        "ck_question_outcome_mappings_weight_range",
+        "ck_question_outcome_mappings_weight_policy",
         "question_outcome_mappings",
         type_="check",
     )
+    op.drop_column("question_outcome_mappings", "weight_policy_version")
     op.create_check_constraint(
         "ck_question_outcome_mappings_weight_positive",
         "question_outcome_mappings",
