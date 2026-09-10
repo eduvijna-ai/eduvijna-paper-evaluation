@@ -11,12 +11,18 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import io
+import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 
+from PIL import Image
 from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.cli.seed_dev import ADMIN_EMAIL
+from app.cli.seed_dev import ADMIN_EMAIL, ADMIN_PASSWORD
+from app.core.authorization import PERMISSION_CODES, ROLE_CODES, ROLE_PERMISSION_MAP
+from app.core.security import hash_password
 from app.db.models import (
     AnswerKey,
     AnswerKeyVersion,
@@ -26,28 +32,164 @@ from app.db.models import (
     CurriculumNode,
     EvaluationRun,
     Institution,
+    Permission,
     PublishedResult,
     Question,
     QuestionEvaluation,
     QuestionVersion,
+    Role,
+    RolePermission,
     Rubric,
     RubricCriterion,
     RubricVersion,
     Student,
     Submission,
+    SubmissionPage,
     Tenant,
     User,
+    UserRole,
 )
 from app.db.session import async_session_factory
+from app.services.storage import ObjectStorage, derived_page_key
 
 ASSESSMENT_CODE = "B18-E2E-OUTCOME"
+PAGE_WIDTH = 200
+PAGE_HEIGHT = 280
+
+
+def _blank_page_png() -> bytes:
+    """Minimal white PNG so real publication prepare can render annotated PDFs."""
+    buf = io.BytesIO()
+    Image.new("RGB", (PAGE_WIDTH, PAGE_HEIGHT), color=(255, 255, 255)).save(buf, format="PNG")
+    return buf.getvalue()
+
+
+async def _ensure_submission_page(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    submission_id: uuid.UUID,
+    storage: ObjectStorage,
+    png: bytes,
+) -> None:
+    existing = await db.scalar(
+        select(SubmissionPage).where(
+            SubmissionPage.tenant_id == tenant_id,
+            SubmissionPage.submission_id == submission_id,
+            SubmissionPage.page_index == 0,
+        )
+    )
+    if existing is not None:
+        return
+    key = derived_page_key(tenant_id, submission_id, 0)
+    storage.ensure_bucket()
+    storage.put_derived_bytes(key=key, body=png, content_type="image/png")
+    db.add(
+        SubmissionPage(
+            tenant_id=tenant_id,
+            submission_id=submission_id,
+            page_index=0,
+            image_storage_key=key,
+            width=PAGE_WIDTH,
+            height=PAGE_HEIGHT,
+            is_continuation=False,
+        )
+    )
 CURRICULUM_CODE = "B18-E2E-CUR"
 COHORT_SIZE = 20
 MAX_MARK = Decimal("5.00")
+ISO_TENANT_SLUG = "b18-iso"
+ISO_ADMIN_EMAIL = "admin@b18-iso.eduvijna.local"
 
 # Two known answer patterns that should form distinct clusters under fixed embeddings.
 PATTERN_A = "photosynthesis converts light energy into chemical energy using chlorophyll"
 PATTERN_B = "respiration releases energy from glucose through glycolysis and mitochondria"
+
+# Deterministic COSINE_GRAPH_V1 expectation at threshold 0.75 with FixedEmbeddingProvider:
+# PATTERN_A (indices 0..9) and PATTERN_B (indices 10..19) → exactly 2 clusters of 10.
+EXPECTED_CLUSTER_COUNT = 2
+EXPECTED_CLUSTER_MEMBER_COUNTS = (10, 10)
+
+
+async def _ensure_isolation_tenant(db: AsyncSession) -> dict[str, str]:
+    """Second tenant used by real E2E cross-tenant 404 assertions."""
+    tenant = await db.scalar(select(Tenant).where(Tenant.slug == ISO_TENANT_SLUG))
+    if tenant is None:
+        tenant = Tenant(slug=ISO_TENANT_SLUG, name="B18 Isolation Tenant")
+        db.add(tenant)
+        await db.flush()
+
+    permissions: dict[str, Permission] = {}
+    for code in PERMISSION_CODES:
+        permission = await db.scalar(select(Permission).where(Permission.code == code))
+        if permission is None:
+            permission = Permission(code=code, name=code.replace(":", " ").title())
+            db.add(permission)
+            await db.flush()
+        permissions[code] = permission
+
+    roles: dict[str, Role] = {}
+    for code in ROLE_CODES:
+        role = await db.scalar(select(Role).where(Role.tenant_id == tenant.id, Role.code == code))
+        if role is None:
+            role = Role(
+                tenant_id=tenant.id,
+                code=code,
+                name=code.replace("_", " ").title(),
+                is_system=True,
+            )
+            db.add(role)
+            await db.flush()
+        roles[code] = role
+        for permission_code in ROLE_PERMISSION_MAP.get(code, frozenset()):
+            exists = await db.scalar(
+                select(RolePermission).where(
+                    RolePermission.role_id == role.id,
+                    RolePermission.permission_id == permissions[permission_code].id,
+                )
+            )
+            if exists is None:
+                db.add(
+                    RolePermission(
+                        role_id=role.id,
+                        permission_id=permissions[permission_code].id,
+                    )
+                )
+
+    user = await db.scalar(
+        select(User).where(User.tenant_id == tenant.id, User.email == ISO_ADMIN_EMAIL)
+    )
+    if user is None:
+        user = User(
+            tenant_id=tenant.id,
+            email=ISO_ADMIN_EMAIL,
+            display_name="B18 Isolation Admin",
+            password_hash=hash_password(ADMIN_PASSWORD),
+        )
+        db.add(user)
+        await db.flush()
+    elif not user.password_hash:
+        user.password_hash = hash_password(ADMIN_PASSWORD)
+
+    admin_role = roles["INSTITUTION_ADMIN"]
+    link = await db.scalar(
+        select(UserRole).where(UserRole.user_id == user.id, UserRole.role_id == admin_role.id)
+    )
+    if link is None:
+        db.add(UserRole(tenant_id=tenant.id, user_id=user.id, role_id=admin_role.id))
+
+    institution = await db.scalar(
+        select(Institution).where(Institution.tenant_id == tenant.id, Institution.code == "B18ISO")
+    )
+    if institution is None:
+        db.add(Institution(tenant_id=tenant.id, code="B18ISO", name="B18 Isolation Institution"))
+
+    await db.flush()
+    return {
+        "iso_tenant_id": str(tenant.id),
+        "iso_admin_email": ISO_ADMIN_EMAIL,
+        "iso_tenant_slug": ISO_TENANT_SLUG,
+    }
 
 
 def _sha(label: str) -> str:
@@ -107,6 +249,28 @@ async def seed_b18_e2e_outcome_intelligence() -> dict[str, str]:
                 )
             )
             if (count or 0) >= COHORT_SIZE:
+                storage = ObjectStorage()
+                png = _blank_page_png()
+                subs = list(
+                    (
+                        await db.scalars(
+                            select(Submission).where(
+                                Submission.tenant_id == tenant.id,
+                                Submission.assessment_id == existing.id,
+                            )
+                        )
+                    ).all()
+                )
+                for sub in subs:
+                    await _ensure_submission_page(
+                        db,
+                        tenant_id=tenant.id,
+                        submission_id=sub.id,
+                        storage=storage,
+                        png=png,
+                    )
+                iso = await _ensure_isolation_tenant(db)
+                await db.commit()
                 print(
                     f"B18 E2E cohort already present: assessment={existing.id} "
                     f"version={version.id} published={count}"
@@ -115,6 +279,7 @@ async def seed_b18_e2e_outcome_intelligence() -> dict[str, str]:
                     "assessment_id": str(existing.id),
                     "assessment_version_id": str(version.id),
                     "published_count": str(count),
+                    **iso,
                 }
             raise RuntimeError(
                 f"B18-E2E-OUTCOME exists with incomplete cohort "
@@ -258,6 +423,9 @@ async def seed_b18_e2e_outcome_intelligence() -> dict[str, str]:
         db.add(student)
         await db.flush()
 
+        storage = ObjectStorage()
+        page_png = _blank_page_png()
+
         for i in range(COHORT_SIZE):
             digest = _sha(f"b18-e2e-{ASSESSMENT_CODE}-{i}")
             pattern = _pattern_for(i)
@@ -285,6 +453,13 @@ async def seed_b18_e2e_outcome_intelligence() -> dict[str, str]:
             )
             db.add(sub)
             await db.flush()
+            await _ensure_submission_page(
+                db,
+                tenant_id=tenant.id,
+                submission_id=sub.id,
+                storage=storage,
+                png=page_png,
+            )
             run = EvaluationRun(
                 tenant_id=tenant.id,
                 submission_id=sub.id,
@@ -315,6 +490,7 @@ async def seed_b18_e2e_outcome_intelligence() -> dict[str, str]:
                         answer_key_version_id=meta["answer_key_version_id"],
                         max_mark=MAX_MARK,
                         final_human_approved_score=score,
+                        proposed_ai_score=score,
                         workflow_state="ACCEPTED",
                         ledger_version=1,
                         criterion_snapshot=[],
@@ -344,6 +520,7 @@ async def seed_b18_e2e_outcome_intelligence() -> dict[str, str]:
                 )
             )
 
+        iso = await _ensure_isolation_tenant(db)
         await db.commit()
         print(
             f"Seeded B18 E2E cohort assessment={assessment.id} "
@@ -354,6 +531,7 @@ async def seed_b18_e2e_outcome_intelligence() -> dict[str, str]:
             "assessment_version_id": str(version.id),
             "question_id": str(q_meta[0]["question_id"]),
             "published_count": str(COHORT_SIZE),
+            **iso,
         }
 
 

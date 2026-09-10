@@ -158,6 +158,7 @@ function mapOutcomeMappingSet(raw: Record<string, unknown>): OutcomeMappingSet {
     activated_at: raw.activated_at ? String(raw.activated_at) : null,
     retired_by: raw.retired_by ? String(raw.retired_by) : null,
     retired_at: raw.retired_at ? String(raw.retired_at) : null,
+    activation_hash: raw.activation_hash ? String(raw.activation_hash) : null,
     created_at: raw.created_at ? String(raw.created_at) : null,
     updated_at: raw.updated_at ? String(raw.updated_at) : null,
     mapping_count:
@@ -182,6 +183,9 @@ function mapOutcomeAttainmentReport(
       raw.mapping_set_version_number as number,
       1,
     ),
+    mapping_activation_hash: raw.mapping_activation_hash
+      ? String(raw.mapping_activation_hash)
+      : null,
     cohort_definition:
       (raw.cohort_definition as Record<string, unknown>) ?? {},
     algorithm_version: String(raw.algorithm_version ?? ""),

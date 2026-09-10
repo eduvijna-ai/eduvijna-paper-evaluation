@@ -49,8 +49,9 @@ from app.db.models.outcome_intelligence import (
 from app.services.audit import add_audit_event
 from app.services.cluster_math import connected_components
 
-ELIGIBLE_WORKFLOW_STATES = frozenset({"ACCEPTED", "OVERRIDDEN"})
 MIN_CLUSTER_COHORT_SIZE = 2
+ELIGIBLE_WORKFLOW_STATES = frozenset({"ACCEPTED", "OVERRIDDEN"})
+WEIGHT_QUANTUM = Decimal("0.0001")
 
 
 class OutcomeIntelligenceError(RuntimeError):
@@ -74,9 +75,50 @@ def _as_decimal(value: float | Decimal | int | str) -> Decimal:
     return Decimal(str(value))
 
 
+def _normalize_weight(weight: Decimal) -> Decimal:
+    return _as_decimal(weight).quantize(WEIGHT_QUANTUM)
+
+
 def _stable_json_hash(payload: Any) -> str:
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
+
+
+def compute_mapping_activation_hash(
+    *,
+    tenant_id: uuid.UUID,
+    assessment_id: uuid.UUID,
+    assessment_version_id: uuid.UUID,
+    mapping_set_id: uuid.UUID,
+    version_number: int,
+    mappings: list[tuple[uuid.UUID, uuid.UUID, uuid.UUID, Decimal]],
+) -> str:
+    """Deterministic SHA-256 for an activated mapping set (order-independent).
+
+    Canonical line format (migration-safe; not JSON):
+      tenant_id=<uuid>
+      assessment_id=<uuid>
+      assessment_version_id=<uuid>
+      mapping_set_id=<uuid>
+      version_number=<int>
+      mapping=<question_id>|<question_version_id>|<outcome_id>|<weight>
+    Mappings are sorted lexicographically by the mapping line.
+    Weights are quantized to 4 decimal places.
+    """
+    lines = [
+        f"tenant_id={tenant_id}",
+        f"assessment_id={assessment_id}",
+        f"assessment_version_id={assessment_version_id}",
+        f"mapping_set_id={mapping_set_id}",
+        f"version_number={int(version_number)}",
+    ]
+    mapping_lines = [
+        f"mapping={question_id}|{question_version_id}|{outcome_id}|{_normalize_weight(weight)}"
+        for question_id, question_version_id, outcome_id, weight in mappings
+    ]
+    mapping_lines.sort()
+    lines.extend(mapping_lines)
+    return hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()
 
 
 def _text_hash(text: str) -> str:
@@ -95,9 +137,7 @@ def serialize_cluster_run(run: AnswerClusterRun) -> dict[str, Any]:
         "similarity_threshold": _dec(run.similarity_threshold),
         "source_set_hash": run.source_set_hash,
         "source_result_count": run.source_result_count,
-        "source_published_result_ids": [
-            str(x) for x in (run.source_published_result_ids or [])
-        ],
+        "source_published_result_ids": [str(x) for x in (run.source_published_result_ids or [])],
         "embedding_provider": run.embedding_provider,
         "embedding_model": run.embedding_model,
         "embedding_model_version": run.embedding_model_version,
@@ -184,6 +224,7 @@ def serialize_mapping_set(
         "activated_at": row.activated_at.isoformat() if row.activated_at else None,
         "retired_by": str(row.retired_by) if row.retired_by else None,
         "retired_at": row.retired_at.isoformat() if row.retired_at else None,
+        "activation_hash": row.activation_hash,
         "created_at": row.created_at.isoformat() if row.created_at else None,
         "updated_at": row.updated_at.isoformat() if row.updated_at else None,
     }
@@ -211,13 +252,12 @@ def serialize_attainment_run(run: OutcomeAttainmentReportRun) -> dict[str, Any]:
         "assessment_version_id": str(run.assessment_version_id),
         "mapping_set_id": str(run.mapping_set_id),
         "mapping_set_version_number": run.mapping_set_version_number,
+        "mapping_activation_hash": run.mapping_activation_hash,
         "cohort_definition": run.cohort_definition or {},
         "algorithm_version": run.algorithm_version,
         "source_set_hash": run.source_set_hash,
         "source_result_count": run.source_result_count,
-        "source_published_result_ids": [
-            str(x) for x in (run.source_published_result_ids or [])
-        ],
+        "source_published_result_ids": [str(x) for x in (run.source_published_result_ids or [])],
         "status": run.status,
         "requested_by": str(run.requested_by) if run.requested_by else None,
         "requested_at": run.requested_at.isoformat() if run.requested_at else None,
@@ -343,9 +383,7 @@ async def create_cluster_run(
         db, tenant_id=tenant_id, assessment_version_id=assessment_version_id
     )
     question = await db.scalar(
-        select(Question).where(
-            Question.tenant_id == tenant_id, Question.id == question_id
-        )
+        select(Question).where(Question.tenant_id == tenant_id, Question.id == question_id)
     )
     if question is None:
         raise OutcomeIntelligenceError("NOT_FOUND", "Question not found")
@@ -363,14 +401,19 @@ async def create_cluster_run(
         )
 
     threshold = _as_decimal(
-        similarity_threshold
-        if similarity_threshold is not None
-        else DEFAULT_SIMILARITY_THRESHOLD
+        similarity_threshold if similarity_threshold is not None else DEFAULT_SIMILARITY_THRESHOLD
     )
     if threshold <= 0 or threshold > 1:
         raise OutcomeIntelligenceError(
             "INVALID_THRESHOLD", "similarity_threshold must be in (0, 1]"
         )
+
+    # Resolve embedding identity BEFORE idempotency lookup (B18.1 Blocker A).
+    provider = get_embedding_provider()
+    embedding_provider = provider.provider_name
+    embedding_model = provider.model
+    embedding_model_version = provider.model_version
+    embedding_dim = int(getattr(provider, "embedding_dim", 32) or 32)
 
     published = await _load_published_cohort(
         db, tenant_id=tenant_id, assessment_version_id=assessment_version_id
@@ -385,17 +428,13 @@ async def create_cluster_run(
                         QuestionEvaluation.tenant_id == tenant_id,
                         QuestionEvaluation.evaluation_run_id.in_(run_ids),
                         QuestionEvaluation.question_id == question_id,
-                        QuestionEvaluation.workflow_state.in_(
-                            list(ELIGIBLE_WORKFLOW_STATES)
-                        ),
+                        QuestionEvaluation.workflow_state.in_(list(ELIGIBLE_WORKFLOW_STATES)),
                         QuestionEvaluation.final_human_approved_score.is_not(None),
                     )
                 )
             ).all()
         )
-    qes_by_run: dict[uuid.UUID, QuestionEvaluation] = {
-        qe.evaluation_run_id: qe for qe in all_qes
-    }
+    qes_by_run: dict[uuid.UUID, QuestionEvaluation] = {qe.evaluation_run_id: qe for qe in all_qes}
     eligible: list[tuple[PublishedResult, QuestionEvaluation]] = []
     for pr in published:
         qe = qes_by_run.get(pr.evaluation_run_id)
@@ -423,9 +462,7 @@ async def create_cluster_run(
                 "transcription_hash": th,
             }
         )
-    fingerprint_parts.sort(
-        key=lambda p: (p["published_result_id"], p["question_evaluation_id"])
-    )
+    fingerprint_parts.sort(key=lambda p: (p["published_result_id"], p["question_evaluation_id"]))
     source_set_hash = _stable_json_hash(fingerprint_parts)
     source_ids = [p["published_result_id"] for p in fingerprint_parts]
 
@@ -437,12 +474,15 @@ async def create_cluster_run(
             AnswerClusterRun.source_set_hash == source_set_hash,
             AnswerClusterRun.algorithm_version == ALGORITHM_COSINE_GRAPH_V1,
             AnswerClusterRun.similarity_threshold == threshold,
+            AnswerClusterRun.embedding_provider == embedding_provider,
+            AnswerClusterRun.embedding_model == embedding_model,
+            AnswerClusterRun.embedding_model_version == embedding_model_version,
+            AnswerClusterRun.embedding_dim == embedding_dim,
         )
     )
     if existing is not None:
         return serialize_cluster_run(existing)
 
-    provider = get_embedding_provider()
     now = _utcnow()
     run = AnswerClusterRun(
         tenant_id=tenant_id,
@@ -462,10 +502,10 @@ async def create_cluster_run(
         source_set_hash=source_set_hash,
         source_result_count=len(eligible),
         source_published_result_ids=source_ids,
-        embedding_provider=provider.provider_name,
-        embedding_model=provider.model,
-        embedding_model_version=provider.model_version,
-        embedding_dim=getattr(provider, "embedding_dim", 32) or 32,
+        embedding_provider=embedding_provider,
+        embedding_model=embedding_model,
+        embedding_model_version=embedding_model_version,
+        embedding_dim=embedding_dim,
         cluster_count=0,
         status="PENDING",
         requested_by=actor_user_id,
@@ -476,7 +516,6 @@ async def create_cluster_run(
         async with db.begin_nested():
             await db.flush()
     except IntegrityError as exc:
-        db.expunge(run)
         existing = await db.scalar(
             select(AnswerClusterRun).where(
                 AnswerClusterRun.tenant_id == tenant_id,
@@ -485,8 +524,14 @@ async def create_cluster_run(
                 AnswerClusterRun.source_set_hash == source_set_hash,
                 AnswerClusterRun.algorithm_version == ALGORITHM_COSINE_GRAPH_V1,
                 AnswerClusterRun.similarity_threshold == threshold,
+                AnswerClusterRun.embedding_provider == embedding_provider,
+                AnswerClusterRun.embedding_model == embedding_model,
+                AnswerClusterRun.embedding_model_version == embedding_model_version,
+                AnswerClusterRun.embedding_dim == embedding_dim,
             )
         )
+        if run in db:
+            db.expunge(run)
         if existing is not None:
             return serialize_cluster_run(existing)
         raise OutcomeIntelligenceError(
@@ -593,16 +638,10 @@ async def list_cluster_runs(
 ) -> dict[str, Any]:
     stmt = select(AnswerClusterRun).where(AnswerClusterRun.tenant_id == tenant_id)
     if assessment_version_id is not None:
-        stmt = stmt.where(
-            AnswerClusterRun.assessment_version_id == assessment_version_id
-        )
+        stmt = stmt.where(AnswerClusterRun.assessment_version_id == assessment_version_id)
     if question_id is not None:
         stmt = stmt.where(AnswerClusterRun.question_id == question_id)
-    rows = list(
-        (
-            await db.scalars(stmt.order_by(AnswerClusterRun.requested_at.desc()))
-        ).all()
-    )
+    rows = list((await db.scalars(stmt.order_by(AnswerClusterRun.requested_at.desc()))).all())
     return {"items": [serialize_cluster_run(r) for r in rows]}
 
 
@@ -727,9 +766,7 @@ async def add_cluster_review(
         reviewer_user_id=actor_user_id,
         observation=text,
         suggested_rubric_refinement=(
-            suggested_rubric_refinement.strip()
-            if suggested_rubric_refinement
-            else None
+            suggested_rubric_refinement.strip() if suggested_rubric_refinement else None
         ),
         submitted_at=_utcnow(),
     )
@@ -789,9 +826,7 @@ async def _ledger_fingerprint(
         )
     )
     rubric_count = await db.scalar(
-        select(func.count()).select_from(RubricVersion).where(
-            RubricVersion.tenant_id == tenant_id
-        )
+        select(func.count()).select_from(RubricVersion).where(RubricVersion.tenant_id == tenant_id)
     )
     return _stable_json_hash(
         {"qes": parts, "review_actions": review_count, "rubric_versions": rubric_count}
@@ -813,15 +848,11 @@ async def create_outcome_definition(
 ) -> dict[str, Any]:
     ot = (outcome_type or "").strip().upper()
     if ot not in {"CO", "PO"}:
-        raise OutcomeIntelligenceError(
-            "INVALID_OUTCOME_TYPE", "outcome_type must be CO or PO"
-        )
+        raise OutcomeIntelligenceError("INVALID_OUTCOME_TYPE", "outcome_type must be CO or PO")
     c = (code or "").strip()
     t = (title or "").strip()
     if not c or not t:
-        raise OutcomeIntelligenceError(
-            "INVALID_DEFINITION", "code and title are required"
-        )
+        raise OutcomeIntelligenceError("INVALID_DEFINITION", "code and title are required")
     row = OutcomeDefinition(
         tenant_id=tenant_id,
         outcome_type=ot,
@@ -861,9 +892,7 @@ async def list_outcome_definitions(
     stmt = select(OutcomeDefinition).where(OutcomeDefinition.tenant_id == tenant_id)
     if outcome_type:
         stmt = stmt.where(OutcomeDefinition.outcome_type == outcome_type.upper())
-    rows = list(
-        (await db.scalars(stmt.order_by(OutcomeDefinition.code.asc()))).all()
-    )
+    rows = list((await db.scalars(stmt.order_by(OutcomeDefinition.code.asc()))).all())
     return {"items": [serialize_outcome_definition(r) for r in rows]}
 
 
@@ -912,6 +941,8 @@ async def update_outcome_definition(
             raise OutcomeIntelligenceError("INVALID_STATUS", "status must be ACTIVE or RETIRED")
         row.status = s
     await db.flush()
+    await db.refresh(row)
+    after = serialize_outcome_definition(row)
     await add_audit_event(
         db,
         tenant_id=tenant_id,
@@ -919,10 +950,9 @@ async def update_outcome_definition(
         entity_type="outcome_definition",
         entity_id=row.id,
         action="OUTCOME_DEFINITION_UPDATED",
-        after=serialize_outcome_definition(row),
+        after=after,
     )
-    await db.refresh(row)
-    return serialize_outcome_definition(row)
+    return after
 
 
 async def create_mapping_set(
@@ -978,9 +1008,7 @@ async def list_mapping_sets(
 ) -> dict[str, Any]:
     stmt = select(OutcomeMappingSet).where(OutcomeMappingSet.tenant_id == tenant_id)
     if assessment_version_id is not None:
-        stmt = stmt.where(
-            OutcomeMappingSet.assessment_version_id == assessment_version_id
-        )
+        stmt = stmt.where(OutcomeMappingSet.assessment_version_id == assessment_version_id)
     rows = list(
         (
             await db.scalars(
@@ -1064,6 +1092,11 @@ async def add_question_mapping(
     )
     if outcome is None:
         raise OutcomeIntelligenceError("NOT_FOUND", "Outcome definition not found")
+    if outcome.status != "ACTIVE":
+        raise OutcomeIntelligenceError(
+            "OUTCOME_NOT_ACTIVE",
+            "Only ACTIVE outcome definitions can be mapped",
+        )
     qv = await db.scalar(
         select(QuestionVersion).where(
             QuestionVersion.tenant_id == tenant_id,
@@ -1076,8 +1109,9 @@ async def add_question_mapping(
             "NOT_FOUND", "Question version not found for assessment version"
         )
     w = _as_decimal(weight if weight is not None else Decimal("1"))
-    if w <= 0:
-        raise OutcomeIntelligenceError("INVALID_WEIGHT", "weight must be > 0")
+    if w <= 0 or w > 1:
+        raise OutcomeIntelligenceError("INVALID_WEIGHT", "weight must satisfy 0 < weight <= 1")
+    w = _normalize_weight(w)
     row = QuestionOutcomeMapping(
         tenant_id=tenant_id,
         mapping_set_id=mapping_set_id,
@@ -1167,18 +1201,57 @@ async def activate_mapping_set(
         raise OutcomeIntelligenceError(
             "MAPPING_SET_NOT_DRAFT", "Only DRAFT mapping sets can be activated"
         )
-    mapping_count = await db.scalar(
-        select(func.count())
-        .select_from(QuestionOutcomeMapping)
-        .where(
-            QuestionOutcomeMapping.tenant_id == tenant_id,
-            QuestionOutcomeMapping.mapping_set_id == mapping_set_id,
-        )
+    mappings = list(
+        (
+            await db.scalars(
+                select(QuestionOutcomeMapping).where(
+                    QuestionOutcomeMapping.tenant_id == tenant_id,
+                    QuestionOutcomeMapping.mapping_set_id == mapping_set_id,
+                )
+            )
+        ).all()
     )
-    if int(mapping_count or 0) < 1:
+    if len(mappings) < 1:
         raise OutcomeIntelligenceError(
             "MAPPING_SET_EMPTY", "Cannot activate a mapping set with no mappings"
         )
+
+    outcome_ids = {m.outcome_definition_id for m in mappings}
+    outcomes = list(
+        (
+            await db.scalars(
+                select(OutcomeDefinition).where(
+                    OutcomeDefinition.tenant_id == tenant_id,
+                    OutcomeDefinition.id.in_(list(outcome_ids)),
+                )
+            )
+        ).all()
+    )
+    outcomes_by_id = {o.id: o for o in outcomes}
+    for oid in outcome_ids:
+        outcome = outcomes_by_id.get(oid)
+        if outcome is None or outcome.status != "ACTIVE":
+            raise OutcomeIntelligenceError(
+                "OUTCOME_NOT_ACTIVE",
+                "All mapped outcomes must be ACTIVE at activation time",
+            )
+
+    activation_hash = compute_mapping_activation_hash(
+        tenant_id=tenant_id,
+        assessment_id=mapping_set.assessment_id,
+        assessment_version_id=mapping_set.assessment_version_id,
+        mapping_set_id=mapping_set.id,
+        version_number=mapping_set.version_number,
+        mappings=[
+            (
+                m.question_id,
+                m.question_version_id,
+                m.outcome_definition_id,
+                _as_decimal(m.weight),
+            )
+            for m in mappings
+        ],
+    )
 
     # Retire any currently ACTIVE set for the same assessment version.
     active_rows = list(
@@ -1186,8 +1259,7 @@ async def activate_mapping_set(
             await db.scalars(
                 select(OutcomeMappingSet).where(
                     OutcomeMappingSet.tenant_id == tenant_id,
-                    OutcomeMappingSet.assessment_version_id
-                    == mapping_set.assessment_version_id,
+                    OutcomeMappingSet.assessment_version_id == mapping_set.assessment_version_id,
                     OutcomeMappingSet.status == "ACTIVE",
                 )
             )
@@ -1202,6 +1274,7 @@ async def activate_mapping_set(
     mapping_set.status = "ACTIVE"
     mapping_set.activated_by = actor_user_id
     mapping_set.activated_at = now
+    mapping_set.activation_hash = activation_hash
     await db.flush()
     await db.refresh(mapping_set)
     await add_audit_event(
@@ -1211,9 +1284,9 @@ async def activate_mapping_set(
         entity_type="outcome_mapping_set",
         entity_id=mapping_set.id,
         action="OUTCOME_MAPPING_SET_ACTIVATED",
-        after=serialize_mapping_set(mapping_set, mapping_count=int(mapping_count or 0)),
+        after=serialize_mapping_set(mapping_set, mapping_count=len(mappings)),
     )
-    return serialize_mapping_set(mapping_set, mapping_count=int(mapping_count or 0))
+    return serialize_mapping_set(mapping_set, mapping_count=len(mappings))
 
 
 async def create_attainment_report(
@@ -1278,9 +1351,7 @@ async def create_attainment_report(
                     select(QuestionEvaluation).where(
                         QuestionEvaluation.tenant_id == tenant_id,
                         QuestionEvaluation.evaluation_run_id.in_(run_ids),
-                        QuestionEvaluation.workflow_state.in_(
-                            list(ELIGIBLE_WORKFLOW_STATES)
-                        ),
+                        QuestionEvaluation.workflow_state.in_(list(ELIGIBLE_WORKFLOW_STATES)),
                         QuestionEvaluation.final_human_approved_score.is_not(None),
                     )
                 )
@@ -1291,11 +1362,31 @@ async def create_attainment_report(
     }
 
     source_ids = [str(pr.id) for pr in published]
+    activation_hash = mapping_set.activation_hash
+    if not activation_hash:
+        # Defensive: historical sets activated before B18.1 should already be backfilled.
+        activation_hash = compute_mapping_activation_hash(
+            tenant_id=tenant_id,
+            assessment_id=mapping_set.assessment_id,
+            assessment_version_id=mapping_set.assessment_version_id,
+            mapping_set_id=mapping_set.id,
+            version_number=mapping_set.version_number,
+            mappings=[
+                (
+                    m.question_id,
+                    m.question_version_id,
+                    m.outcome_definition_id,
+                    _as_decimal(m.weight),
+                )
+                for m in mappings
+            ],
+        )
     source_set_hash = _stable_json_hash(
         {
             "published_result_ids": sorted(source_ids),
             "mapping_set_id": str(mapping_set.id),
             "mapping_set_version": mapping_set.version_number,
+            "mapping_activation_hash": activation_hash,
         }
     )
 
@@ -1309,9 +1400,7 @@ async def create_attainment_report(
         )
     )
     if existing is not None:
-        return await get_attainment_report(
-            db, tenant_id=tenant_id, report_id=existing.id
-        )
+        return await get_attainment_report(db, tenant_id=tenant_id, report_id=existing.id)
 
     now = _utcnow()
     report = OutcomeAttainmentReportRun(
@@ -1320,12 +1409,14 @@ async def create_attainment_report(
         assessment_version_id=assessment_version_id,
         mapping_set_id=mapping_set.id,
         mapping_set_version_number=mapping_set.version_number,
+        mapping_activation_hash=activation_hash,
         cohort_definition={
             "scope": "assessment_version",
             "status_filter": ["PUBLISHED"],
             "human_final_states": sorted(ELIGIBLE_WORKFLOW_STATES),
             "exclude_superseded": True,
             "mapping_set_id": str(mapping_set.id),
+            "mapping_activation_hash": activation_hash,
         },
         algorithm_version=ALGORITHM_MARKS_WEIGHTED_V1,
         source_set_hash=source_set_hash,
@@ -1344,18 +1435,14 @@ async def create_attainment_report(
         existing = await db.scalar(
             select(OutcomeAttainmentReportRun).where(
                 OutcomeAttainmentReportRun.tenant_id == tenant_id,
-                OutcomeAttainmentReportRun.assessment_version_id
-                == assessment_version_id,
+                OutcomeAttainmentReportRun.assessment_version_id == assessment_version_id,
                 OutcomeAttainmentReportRun.mapping_set_id == mapping_set.id,
                 OutcomeAttainmentReportRun.source_set_hash == source_set_hash,
-                OutcomeAttainmentReportRun.algorithm_version
-                == ALGORITHM_MARKS_WEIGHTED_V1,
+                OutcomeAttainmentReportRun.algorithm_version == ALGORITHM_MARKS_WEIGHTED_V1,
             )
         )
         if existing is not None:
-            return await get_attainment_report(
-                db, tenant_id=tenant_id, report_id=existing.id
-            )
+            return await get_attainment_report(db, tenant_id=tenant_id, report_id=existing.id)
         raise OutcomeIntelligenceError(
             "ATTAINMENT_REPORT_CONFLICT", "Could not create attainment report"
         ) from exc
@@ -1444,15 +1531,9 @@ async def list_attainment_reports(
         OutcomeAttainmentReportRun.tenant_id == tenant_id
     )
     if assessment_version_id is not None:
-        stmt = stmt.where(
-            OutcomeAttainmentReportRun.assessment_version_id == assessment_version_id
-        )
+        stmt = stmt.where(OutcomeAttainmentReportRun.assessment_version_id == assessment_version_id)
     rows = list(
-        (
-            await db.scalars(
-                stmt.order_by(OutcomeAttainmentReportRun.requested_at.desc())
-            )
-        ).all()
+        (await db.scalars(stmt.order_by(OutcomeAttainmentReportRun.requested_at.desc()))).all()
     )
     return {"items": [serialize_attainment_run(r) for r in rows]}
 
@@ -1497,6 +1578,10 @@ async def export_attainment_csv(
     writer.writerow(
         [
             "report_id",
+            "mapping_set_id",
+            "mapping_set_version_number",
+            "mapping_activation_hash",
+            "source_result_count",
             "outcome_type",
             "outcome_code",
             "outcome_title",
@@ -1512,6 +1597,10 @@ async def export_attainment_csv(
         writer.writerow(
             [
                 report["id"],
+                report.get("mapping_set_id") or "",
+                report.get("mapping_set_version_number") or "",
+                report.get("mapping_activation_hash") or "",
+                report.get("source_result_count") or "",
                 m["outcome_type"],
                 m["outcome_code"],
                 m["outcome_title"],

@@ -3495,6 +3495,8 @@ let demoOutcomeMappingSets: import("@/lib/types/domain").OutcomeMappingSet[] = [
     activated_at: "2026-09-10T06:15:00.000Z",
     retired_by: null,
     retired_at: null,
+    activation_hash:
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     created_at: "2026-09-10T06:12:00.000Z",
     updated_at: "2026-09-10T06:15:00.000Z",
     mapping_count: 1,
@@ -3520,6 +3522,8 @@ let demoOutcomeAttainmentReports: import("@/lib/types/domain").OutcomeAttainment
       assessment_version_id: "assess-ver-demo-001",
       mapping_set_id: OUTCOME_MAPPING_SET_DEMO_ID,
       mapping_set_version_number: 1,
+      mapping_activation_hash:
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
       cohort_definition: { scope: "assessment_version" },
       algorithm_version: "MARKS_WEIGHTED_V1",
       source_set_hash: "attainment-demo-hash",
@@ -3741,6 +3745,7 @@ export function createOutcomeMappingSet(input: {
     activated_at: null,
     retired_by: null,
     retired_at: null,
+    activation_hash: null,
     created_at: now,
     updated_at: now,
     mapping_count: 0,
@@ -3771,13 +3776,17 @@ export function addOutcomeMapping(
   if (set.status !== "DRAFT") {
     throw new MockNotFoundError("Only DRAFT mapping sets accept new mappings");
   }
+  const weight = input.weight ?? 1;
+  if (!(weight > 0 && weight <= 1)) {
+    throw new MockNotFoundError("INVALID_WEIGHT");
+  }
   const mapping: import("@/lib/types/domain").QuestionOutcomeMapping = {
     id: `outcome-mapping-demo-${crypto.randomUUID().slice(0, 8)}`,
     mapping_set_id: mappingSetId,
     question_id: input.question_id,
     question_version_id: "qv-demo-001",
     outcome_definition_id: input.outcome_definition_id,
-    weight: input.weight ?? 1,
+    weight,
     created_at: new Date().toISOString(),
   };
   const updated = {
@@ -3822,6 +3831,9 @@ export function activateOutcomeMappingSet(mappingSetId: string) {
     status: "ACTIVE",
     activated_by: "user-admin-001",
     activated_at: now,
+    activation_hash:
+      set.activation_hash ??
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
     updated_at: now,
   };
   demoOutcomeMappingSets = demoOutcomeMappingSets.map((s) =>
@@ -3858,6 +3870,7 @@ export function createOutcomeAttainmentReport(input: {
     assessment_version_id: input.assessment_version_id,
     mapping_set_id: mappingSetId,
     mapping_set_version_number: mappingSet.version_number,
+    mapping_activation_hash: mappingSet.activation_hash,
     cohort_definition: { scope: "assessment_version" },
     algorithm_version: "MARKS_WEIGHTED_V1",
     source_set_hash: "new-attainment-hash",
