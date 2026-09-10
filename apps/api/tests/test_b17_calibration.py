@@ -583,3 +583,147 @@ async def test_b17_calibration_tenant_isolation_and_permissions() -> None:
 
         # Explicitly assert EVALUATOR has participate.
         assert "calibration:participate" in ROLE_PERMISSION_MAP["EVALUATOR"]
+
+
+@pytest.mark.asyncio
+async def test_b17_1_participants_frozen_after_activate_and_close() -> None:
+    """ACTIVE/CLOSED reject participant adds; frozen list unchanged; responses still work."""
+    async with api_client_publication(text_provider="none") as client:
+        headers = await _headers(client)
+        ctx = await _auth_context(headers)
+        data = await _ready_assessment_with_curriculum(client, headers)
+        sid, _ = await _to_approved(client, headers, data)
+        prid = await _publish_approved(client, headers, sid)
+        cases_src = await _all_eligible_qes(prid)
+
+        eval_a_id, eval_a = await _create_role_user(
+            tenant_id=ctx.tenant_id, role_code="EVALUATOR", email_prefix="freeze-a"
+        )
+        eval_b_id, eval_b = await _create_role_user(
+            tenant_id=ctx.tenant_id, role_code="EVALUATOR", email_prefix="freeze-b"
+        )
+        eval_c_id, _ = await _create_role_user(
+            tenant_id=ctx.tenant_id, role_code="EVALUATOR", email_prefix="freeze-c"
+        )
+
+        session = await client.post(
+            "/api/v1/quality/calibration/sessions",
+            headers=headers,
+            json={
+                "assessment_version_id": data["version_id"],
+                "title": "Freeze participants",
+                "min_cases": 2,
+            },
+        )
+        assert session.status_code == 200, session.text
+        session_id = session.json()["id"]
+
+        for src in cases_src[:2]:
+            assert (
+                await client.post(
+                    f"/api/v1/quality/calibration/sessions/{session_id}/cases",
+                    headers=headers,
+                    json={
+                        "published_result_id": src["published_result_id"],
+                        "question_evaluation_id": src["question_evaluation_id"],
+                    },
+                )
+            ).status_code == 200
+
+        # DRAFT: participants can be added.
+        for uid in (eval_a_id, eval_b_id):
+            added = await client.post(
+                f"/api/v1/quality/calibration/sessions/{session_id}/participants",
+                headers=headers,
+                json={"user_id": str(uid)},
+            )
+            assert added.status_code == 200, added.text
+
+        act = await client.post(
+            f"/api/v1/quality/calibration/sessions/{session_id}/activate",
+            headers=headers,
+        )
+        assert act.status_code == 200, act.text
+        assert act.json()["status"] == "ACTIVE"
+
+        # ACTIVE: cannot add participants.
+        blocked = await client.post(
+            f"/api/v1/quality/calibration/sessions/{session_id}/participants",
+            headers=headers,
+            json={"user_id": str(eval_c_id)},
+        )
+        assert blocked.status_code == 409
+        assert _detail_code(blocked) == "CALIBRATION_SESSION_NOT_DRAFT"
+
+        detail = await client.get(
+            f"/api/v1/quality/calibration/sessions/{session_id}",
+            headers=headers,
+        )
+        assert detail.status_code == 200
+        participant_ids = {p["user_id"] for p in detail.json()["participants"]}
+        assert participant_ids == {str(eval_a_id), str(eval_b_id)}
+        assert str(eval_c_id) not in participant_ids
+
+        case_ids = [c["id"] for c in detail.json()["cases"]]
+
+        # Registered participants can still submit while ACTIVE.
+        for case_id, src in zip(case_ids, cases_src[:2], strict=True):
+            for h in (eval_a, eval_b):
+                resp = await client.post(
+                    f"/api/v1/quality/calibration/sessions/{session_id}/cases/{case_id}/responses",
+                    headers=h,
+                    json={"score": src["reference_score"]},
+                )
+                assert resp.status_code == 200, resp.text
+
+        # Unregistered evaluator (holds calibration:participate) cannot submit.
+        eval_c_token = JwtAuthProvider(get_settings()).issue_access_token(
+            AuthContext(
+                user_id=eval_c_id,
+                tenant_id=ctx.tenant_id,
+                roles=frozenset({"EVALUATOR"}),
+                permissions=frozenset(ROLE_PERMISSION_MAP["EVALUATOR"]),
+            )
+        )[0]
+        unreg = await client.post(
+            f"/api/v1/quality/calibration/sessions/{session_id}/cases/{case_ids[0]}/responses",
+            headers={"Authorization": f"Bearer {eval_c_token}"},
+            json={"score": 1},
+        )
+        assert unreg.status_code == 409, unreg.text
+        assert _detail_code(unreg) == "CALIBRATION_NOT_PARTICIPANT"
+
+        closed = await client.post(
+            f"/api/v1/quality/calibration/sessions/{session_id}/close",
+            headers=headers,
+        )
+        assert closed.status_code == 200, closed.text
+
+        # CLOSED: cannot add participants.
+        blocked_closed = await client.post(
+            f"/api/v1/quality/calibration/sessions/{session_id}/participants",
+            headers=headers,
+            json={"user_id": str(eval_c_id)},
+        )
+        assert blocked_closed.status_code == 409
+        assert _detail_code(blocked_closed) == "CALIBRATION_SESSION_NOT_DRAFT"
+
+        detail2 = await client.get(
+            f"/api/v1/quality/calibration/sessions/{session_id}",
+            headers=headers,
+        )
+        participant_ids2 = {p["user_id"] for p in detail2.json()["participants"]}
+        assert participant_ids2 == {str(eval_a_id), str(eval_b_id)}
+
+        async with async_session_factory() as db:
+            from app.db.models import CalibrationParticipant
+
+            count = await db.scalar(
+                select(func.count())
+                .select_from(CalibrationParticipant)
+                .where(
+                    CalibrationParticipant.session_id == uuid.UUID(session_id),
+                    CalibrationParticipant.tenant_id == ctx.tenant_id,
+                )
+            )
+            assert count == 2

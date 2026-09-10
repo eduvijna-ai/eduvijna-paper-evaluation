@@ -55,6 +55,14 @@ Release state remains **FUTURE_ENTERPRISE** (unchanged).
 
 * REQUIREMENTS_REGISTER PEV-048/049 annotated **Implemented in B17 (APP-010 / Issue #67)** — release state unchanged FUTURE_ENTERPRISE.
 
+## B17.1 acceptance remediation (Issue #71)
+
+Corrective follow-up to PR #70 / Issues #67/#69 (no new product scope; no `main` promotion):
+
+1. **Participant freeze** — `add_calibration_participant` permitted only while `DRAFT`; ACTIVE/CLOSED return `CALIBRATION_SESSION_NOT_DRAFT` (409).
+2. **Bounded psychometric source loading** — bulk QE + question metadata queries; explicit per-result×question matrix; query-count regression test.
+3. **Deterministic real E2E** — `seed_b17_e2e_quality` CI fixture (`B17-E2E-QUALITY`, ≥20 published); `zz-b17-quality.spec.ts` never skips; asserts COMPLETED psychometrics + ICC COMPLETED calibration + post-activate 409s.
+
 ## Deferred (not in APP-010)
 
 PEV-050, PEV-051, PEV-054, PEV-055, PEV-056, PEV-057.

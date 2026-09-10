@@ -428,3 +428,124 @@ async def test_b17_psychometrics_tenant_isolation_and_rbac() -> None:
                 "/api/v1/quality/psychometrics/runs", headers=denied_headers
             )
         ).status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_b17_1_psychometrics_source_loading_query_bounded() -> None:
+    """Source-loading SELECT count must not grow linearly with cohort size."""
+    from sqlalchemy import event
+
+    from app.db.session import engine
+    from app.services import quality as quality_service
+    from tests.test_b16_enterprise_ops import _auth_context
+
+    async with api_client_publication(text_provider="none") as client:
+        headers = await _headers(client)
+        ctx = await _auth_context(headers)
+        data = await _ready_assessment_with_curriculum(client, headers)
+        sid, _ = await _to_approved(client, headers, data)
+        prid = await _publish_approved(client, headers, sid)
+        template_id = uuid.UUID(prid)
+
+        async with async_session_factory() as db:
+            qes = list(
+                (
+                    await db.scalars(
+                        select(QuestionEvaluation).where(
+                            QuestionEvaluation.assessment_version_id
+                            == uuid.UUID(data["version_id"]),
+                            QuestionEvaluation.final_human_approved_score.is_not(None),
+                        )
+                    )
+                ).all()
+            )
+            qv_ids = sorted({qe.question_version_id for qe in qes}, key=str)
+
+        overrides = [
+            {
+                qv_ids[0]: Decimal(str(i % 6)),
+                qv_ids[1]: Decimal(str((i * 2) % 6)),
+            }
+            for i in range(19)
+        ]
+        await _clone_published_cohort(
+            template_pr_id=template_id, extra_count=19, score_overrides=overrides
+        )
+
+        select_counts: list[int] = []
+
+        def _before_cursor(conn, cursor, statement, parameters, context, executemany):
+            if isinstance(statement, str) and statement.lstrip().upper().startswith(
+                "SELECT"
+            ):
+                select_counts.append(1)
+
+        sync_engine = engine.sync_engine
+        event.listen(sync_engine, "before_cursor_execute", _before_cursor)
+        try:
+            async with async_session_factory() as db:
+                select_counts.clear()
+                run1 = await quality_service.create_or_get_psychometric_run(
+                    db,
+                    tenant_id=ctx.tenant_id,
+                    actor_user_id=ctx.user_id,
+                    assessment_version_id=uuid.UUID(data["version_id"]),
+                )
+                await db.commit()
+            first_selects = sum(select_counts)
+            assert run1["status"] == "COMPLETED"
+            assert run1["source_result_count"] == 20
+            # Bulk path: version + cohort + QEs + existing + codes + audit reads.
+            # Legacy N+1 was ≥40 QE SELECTs alone for N=20.
+            assert first_selects < 25, (
+                f"expected bounded SELECTs for N=20 cohort, got {first_selects}"
+            )
+
+            data2 = await _ready_assessment_with_curriculum(client, headers)
+            sid2, _ = await _to_approved(client, headers, data2)
+            prid2 = await _publish_approved(client, headers, sid2)
+            async with async_session_factory() as db:
+                qes2 = list(
+                    (
+                        await db.scalars(
+                            select(QuestionEvaluation).where(
+                                QuestionEvaluation.assessment_version_id
+                                == uuid.UUID(data2["version_id"]),
+                                QuestionEvaluation.final_human_approved_score.is_not(
+                                    None
+                                ),
+                            )
+                        )
+                    ).all()
+                )
+                qv2 = sorted({qe.question_version_id for qe in qes2}, key=str)
+            await _clone_published_cohort(
+                template_pr_id=uuid.UUID(prid2),
+                extra_count=19,
+                score_overrides=[
+                    {qv2[0]: Decimal(str(i % 6)), qv2[1]: Decimal(str((i * 3) % 6))}
+                    for i in range(19)
+                ],
+            )
+            async with async_session_factory() as db:
+                select_counts.clear()
+                run2 = await quality_service.create_or_get_psychometric_run(
+                    db,
+                    tenant_id=ctx.tenant_id,
+                    actor_user_id=ctx.user_id,
+                    assessment_version_id=uuid.UUID(data2["version_id"]),
+                )
+                await db.commit()
+            second_selects = sum(select_counts)
+            assert run2["status"] == "COMPLETED"
+            assert second_selects < 25, (
+                f"second cohort SELECT count grew unboundedly: {second_selects}"
+            )
+            assert abs(second_selects - first_selects) <= 5, (
+                f"SELECT counts diverged: {first_selects} vs {second_selects}"
+            )
+        finally:
+            event.remove(sync_engine, "before_cursor_execute", _before_cursor)
+
+        assert hasattr(quality_service, "_bulk_load_cohort_qes")
+        assert hasattr(quality_service, "_bulk_load_question_codes")
