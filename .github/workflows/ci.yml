@@ -184,6 +184,8 @@ jobs:
         run: docker compose exec -T api python -m app.cli.seed_dev
       - name: Seed B17.1 deterministic quality cohort
         run: docker compose exec -T api python -m app.cli.seed_b17_e2e_quality
+      - name: Seed B18 deterministic outcome intelligence cohort
+        run: docker compose exec -T api python -m app.cli.seed_b18_e2e_outcome_intelligence
       - name: Wait for real backend health
         run: |
           for attempt in $(seq 1 30); do

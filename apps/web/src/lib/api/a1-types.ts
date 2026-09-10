@@ -119,6 +119,14 @@ export const A1_PERMISSIONS = {
   qualityRead: "quality:read",
   qualityManage: "quality:manage",
   calibrationParticipate: "calibration:participate",
+  /** B18 answer clustering (PEV-050). */
+  clusteringRead: "clustering:read",
+  clusteringManage: "clustering:manage",
+  clusteringReview: "clustering:review",
+  /** B18 CO/PO outcome reporting (PEV-051). */
+  outcomesRead: "outcomes:read",
+  outcomesManage: "outcomes:manage",
+  outcomesReport: "outcomes:report",
   gradingRead: "grading:read",
   gradingManage: "grading:manage",
   gradingWork: "grading:work",

@@ -656,4 +656,81 @@ export interface ApiClient {
   getMyCalibrationMetrics?(
     sessionId: string,
   ): Promise<import("@/lib/types/domain").CalibrationEvaluatorMetric>;
+
+  /** B18 answer clustering + CO/PO outcome reporting. */
+  listAnswerClusterRuns?(
+    assessmentVersionId?: string,
+    questionId?: string,
+  ): Promise<import("@/lib/types/domain").AnswerClusterRunList>;
+  createAnswerClusterRun?(input: {
+    assessment_version_id: string;
+    question_id: string;
+    similarity_threshold?: number;
+  }): Promise<import("@/lib/types/domain").AnswerClusterRun>;
+  getAnswerClusterRun?(
+    runId: string,
+  ): Promise<import("@/lib/types/domain").AnswerClusterRun>;
+  listAnswerClusters?(
+    runId: string,
+  ): Promise<import("@/lib/types/domain").AnswerClusterList>;
+  getAnswerCluster?(
+    clusterId: string,
+  ): Promise<import("@/lib/types/domain").AnswerClusterDetail>;
+  submitAnswerClusterReview?(
+    clusterId: string,
+    input: { observation: string; suggested_rubric_refinement?: string | null },
+  ): Promise<import("@/lib/types/domain").AnswerClusterReview>;
+  listOutcomeDefinitions?(
+    outcomeType?: string,
+  ): Promise<import("@/lib/types/domain").OutcomeDefinitionList>;
+  createOutcomeDefinition?(input: {
+    outcome_type: string;
+    code: string;
+    title: string;
+    description?: string | null;
+  }): Promise<import("@/lib/types/domain").OutcomeDefinition>;
+  getOutcomeDefinition?(
+    id: string,
+  ): Promise<import("@/lib/types/domain").OutcomeDefinition>;
+  updateOutcomeDefinition?(
+    id: string,
+    input: {
+      title?: string;
+      description?: string | null;
+      status?: string;
+    },
+  ): Promise<import("@/lib/types/domain").OutcomeDefinition>;
+  listOutcomeMappingSets?(
+    assessmentVersionId?: string,
+  ): Promise<import("@/lib/types/domain").OutcomeMappingSetList>;
+  createOutcomeMappingSet?(input: {
+    assessment_version_id: string;
+    title: string;
+  }): Promise<import("@/lib/types/domain").OutcomeMappingSet>;
+  getOutcomeMappingSet?(
+    id: string,
+  ): Promise<import("@/lib/types/domain").OutcomeMappingSet>;
+  addOutcomeMapping?(
+    mappingSetId: string,
+    input: {
+      question_id: string;
+      outcome_definition_id: string;
+      weight?: number;
+    },
+  ): Promise<import("@/lib/types/domain").QuestionOutcomeMapping>;
+  removeOutcomeMapping?(mappingId: string): Promise<{ ok: true }>;
+  activateOutcomeMappingSet?(
+    mappingSetId: string,
+  ): Promise<import("@/lib/types/domain").OutcomeMappingSet>;
+  listOutcomeAttainmentReports?(
+    assessmentVersionId?: string,
+  ): Promise<import("@/lib/types/domain").OutcomeAttainmentReportList>;
+  createOutcomeAttainmentReport?(input: {
+    assessment_version_id: string;
+    mapping_set_id?: string;
+  }): Promise<import("@/lib/types/domain").OutcomeAttainmentReport>;
+  getOutcomeAttainmentReport?(
+    reportId: string,
+  ): Promise<import("@/lib/types/domain").OutcomeAttainmentReport>;
+  exportOutcomeAttainmentReportCsv?(reportId: string): Promise<string>;
 }
