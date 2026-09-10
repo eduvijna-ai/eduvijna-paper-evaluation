@@ -23,6 +23,7 @@ from tests.test_b8_analytics_mastery import (
 )
 from tests.test_b15_gold_benchmark_regression import _eligible_qe
 from tests.test_b16_enterprise_ops import _auth_context, _create_role_user
+from tests.test_b17_psychometrics import _clone_published_cohort
 
 
 def _detail_code(resp) -> str | None:
@@ -201,9 +202,10 @@ async def test_b17_calibration_lifecycle_blind_icc_immutable() -> None:
         icc_rows = metrics.json()["items"]
         assert len(icc_rows) == 1
         assert icc_rows[0]["metric_name"] == "ICC_A1"
-        assert icc_rows[0]["status"] == "COMPLETED"
-        assert icc_rows[0]["icc_value"] is not None
-        assert abs(float(icc_rows[0]["icc_value"]) - 1.0) < 1e-6
+        # Reliability floor is always MIN_CALIBRATION_CASES=10; 2 cases → insufficient.
+        assert icc_rows[0]["status"] == "INSUFFICIENT_SAMPLE"
+        assert icc_rows[0]["common_case_count"] == 2
+        assert icc_rows[0]["icc_value"] is None
 
         eval_metrics = await client.get(
             f"/api/v1/quality/calibration/sessions/{session_id}/evaluator-metrics",
@@ -223,6 +225,149 @@ async def test_b17_calibration_lifecycle_blind_icc_immutable() -> None:
         assert mine.status_code == 200, mine.text
         assert mine.json()["user_id"] == str(eval_a_id)
         assert mine.json()["mae"] == 0.0
+
+
+@pytest.mark.asyncio
+async def test_b17_calibration_icc_completed_with_ten_cases() -> None:
+    """Build 10 common cases → ICC completes with near-perfect agreement."""
+    async with api_client_publication(text_provider="none") as client:
+        headers = await _headers(client)
+        ctx = await _auth_context(headers)
+        data = await _ready_assessment_with_curriculum(client, headers)
+        sid, _ = await _to_approved(client, headers, data)
+        prid = await _publish_approved(client, headers, sid)
+        cases_src = await _all_eligible_qes(prid)
+        assert len(cases_src) >= 1
+
+        # Clone enough published QEs for 10 calibration cases.
+        await _clone_published_cohort(
+            template_pr_id=uuid.UUID(prid), extra_count=9, score_overrides=None
+        )
+
+        # Collect 10 eligible sources across all published results for this version.
+        async with async_session_factory() as db:
+            from app.db.models import PublishedResult
+
+            prs = list(
+                (
+                    await db.scalars(
+                        select(PublishedResult).where(
+                            PublishedResult.tenant_id == ctx.tenant_id,
+                            PublishedResult.assessment_version_id
+                            == uuid.UUID(data["version_id"]),
+                            PublishedResult.status == "PUBLISHED",
+                        )
+                    )
+                ).all()
+            )
+            sources: list[dict] = []
+            for pr in prs:
+                qes = list(
+                    (
+                        await db.scalars(
+                            select(QuestionEvaluation).where(
+                                QuestionEvaluation.evaluation_run_id
+                                == pr.evaluation_run_id,
+                                QuestionEvaluation.workflow_state.in_(
+                                    ["ACCEPTED", "OVERRIDDEN"]
+                                ),
+                                QuestionEvaluation.final_human_approved_score.is_not(
+                                    None
+                                ),
+                            )
+                        )
+                    ).all()
+                )
+                for qe in qes:
+                    sources.append(
+                        {
+                            "published_result_id": str(pr.id),
+                            "question_evaluation_id": str(qe.id),
+                            "reference_score": float(qe.final_human_approved_score),
+                        }
+                    )
+                    if len(sources) >= 10:
+                        break
+                if len(sources) >= 10:
+                    break
+        assert len(sources) >= 10
+        sources = sources[:10]
+
+        eval_a_id, eval_a = await _create_role_user(
+            tenant_id=ctx.tenant_id, role_code="EVALUATOR", email_prefix="cal10-a"
+        )
+        eval_b_id, eval_b = await _create_role_user(
+            tenant_id=ctx.tenant_id, role_code="EVALUATOR", email_prefix="cal10-b"
+        )
+
+        session = await client.post(
+            "/api/v1/quality/calibration/sessions",
+            headers=headers,
+            json={
+                "assessment_version_id": data["version_id"],
+                "title": "B17 Calibration 10",
+                "min_cases": 10,
+            },
+        )
+        assert session.status_code == 200, session.text
+        session_id = session.json()["id"]
+
+        for src in sources:
+            added = await client.post(
+                f"/api/v1/quality/calibration/sessions/{session_id}/cases",
+                headers=headers,
+                json={
+                    "published_result_id": src["published_result_id"],
+                    "question_evaluation_id": src["question_evaluation_id"],
+                },
+            )
+            assert added.status_code == 200, added.text
+
+        for uid in (eval_a_id, eval_b_id):
+            part = await client.post(
+                f"/api/v1/quality/calibration/sessions/{session_id}/participants",
+                headers=headers,
+                json={"user_id": str(uid)},
+            )
+            assert part.status_code == 200, part.text
+
+        act = await client.post(
+            f"/api/v1/quality/calibration/sessions/{session_id}/activate",
+            headers=headers,
+        )
+        assert act.status_code == 200, act.text
+
+        detail = await client.get(
+            f"/api/v1/quality/calibration/sessions/{session_id}",
+            headers=headers,
+        )
+        case_ids = [c["id"] for c in detail.json()["cases"]]
+        assert len(case_ids) == 10
+
+        for case_id, src in zip(case_ids, sources, strict=True):
+            for h in (eval_a, eval_b):
+                resp = await client.post(
+                    f"/api/v1/quality/calibration/sessions/{session_id}/cases/{case_id}/responses",
+                    headers=h,
+                    json={"score": src["reference_score"]},
+                )
+                assert resp.status_code == 200, resp.text
+
+        closed = await client.post(
+            f"/api/v1/quality/calibration/sessions/{session_id}/close",
+            headers=headers,
+        )
+        assert closed.status_code == 200, closed.text
+
+        metrics = await client.get(
+            f"/api/v1/quality/calibration/sessions/{session_id}/metrics",
+            headers=headers,
+        )
+        assert metrics.status_code == 200, metrics.text
+        icc_rows = metrics.json()["items"]
+        assert icc_rows[0]["status"] == "COMPLETED"
+        assert icc_rows[0]["common_case_count"] == 10
+        assert abs(float(icc_rows[0]["icc_value"]) - 1.0) < 1e-6
 
 
 @pytest.mark.asyncio

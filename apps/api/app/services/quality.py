@@ -1243,19 +1243,17 @@ async def _ensure_calibration_metrics(
         ]
         evaluator_count = len(participants)
         common_case_count = len(common_cases)
+        # Product reliability floor (B17 V1): always MIN_CALIBRATION_CASES=10,
+        # independent of session.min_cases used for activation/training.
         icc_value: float | None = None
         status = "INSUFFICIENT_SAMPLE"
-        if evaluator_count >= 2 and common_case_count >= 2:
+        if evaluator_count >= 2 and common_case_count >= MIN_CALIBRATION_CASES:
             matrix = [
                 [resp_map[(case.id, p.user_id)] for p in participants]
                 for case in common_cases
             ]
             icc_value, _icc_reason = icc_a1(matrix)
             status = "COMPLETED" if icc_value is not None else "UNDEFINED"
-        elif evaluator_count < 2 or common_case_count < 2:
-            status = "INSUFFICIENT_SAMPLE"
-        else:
-            status = "UNDEFINED"
 
         db.add(
             CalibrationSessionMetric(
