@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/outcome-attainment-report.schema.json",
+  "title": "OutcomeAttainmentReport",
+  "description": "B18 marks-weighted CO/PO attainment report snapshot (PEV-051).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "assessment_id",
+    "assessment_version_id",
+    "mapping_set_id",
+    "mapping_set_version_number",
+    "cohort_definition",
+    "algorithm_version",
+    "source_set_hash",
+    "source_result_count",
+    "source_published_result_ids",
+    "status",
+    "requested_by",
+    "requested_at",
+    "completed_at",
+    "failure_code",
+    "failure_detail",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "assessment_id": { "type": "string", "format": "uuid" },
+    "assessment_version_id": { "type": "string", "format": "uuid" },
+    "mapping_set_id": { "type": "string", "format": "uuid" },
+    "mapping_set_version_number": { "type": "integer", "minimum": 1 },
+    "cohort_definition": { "type": "object" },
+    "algorithm_version": { "type": "string", "minLength": 1 },
+    "source_set_hash": { "type": "string", "minLength": 1 },
+    "source_result_count": { "type": "integer", "minimum": 0 },
+    "source_published_result_ids": {
+      "type": "array",
+      "items": { "type": "string", "format": "uuid" }
+    },
+    "status": {
+      "type": "string",
+      "enum": ["PENDING", "COMPLETED", "INSUFFICIENT_SAMPLE", "FAILED"]
+    },
+    "requested_by": { "type": ["string", "null"], "format": "uuid" },
+    "requested_at": { "type": ["string", "null"], "format": "date-time" },
+    "completed_at": { "type": ["string", "null"], "format": "date-time" },
+    "failure_code": { "type": ["string", "null"] },
+    "failure_detail": { "type": ["string", "null"] },
+    "created_at": { "type": ["string", "null"], "format": "date-time" },
+    "updated_at": { "type": ["string", "null"], "format": "date-time" },
+    "metrics": { "type": "array", "items": { "type": "object" } }
+  }
+}

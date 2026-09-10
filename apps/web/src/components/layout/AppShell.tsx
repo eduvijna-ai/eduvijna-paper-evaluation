@@ -62,6 +62,18 @@ const navItems = [
     testId: "nav-quality-calibration",
   },
   {
+    href: "/quality/clustering",
+    label: "Clustering",
+    icon: FlaskConical,
+    testId: "nav-quality-clustering",
+  },
+  {
+    href: "/outcomes/reporting",
+    label: "Outcome reporting",
+    icon: LineChart,
+    testId: "nav-outcomes-reporting",
+  },
+  {
     href: "/operations/grading",
     label: "Operations",
     icon: Workflow,

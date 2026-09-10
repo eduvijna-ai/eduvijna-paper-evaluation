@@ -792,5 +792,24 @@ class CurriculumMappingProposalResult(BaseModel):
     )
 
 
+# --- B18 embedding contracts -------------------------------------------------
+
+
+class EmbeddingInput(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    texts: list[str] = Field(min_length=1, max_length=500)
+
+
+class EmbeddingResult(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    vectors: list[list[float]] = Field(min_length=1, max_length=500)
+    provider: str = Field(max_length=64)
+    model: str = Field(max_length=128)
+    model_version: str = Field(max_length=64)
+    embedding_dim: int = Field(ge=1, le=4096)
+
+
 def dump_bounded(model: BaseModel) -> dict[str, Any]:
     return model.model_dump(mode="json")
