@@ -405,11 +405,24 @@ async function publishDeductAttempt(
     await page.waitForTimeout(500);
   }
 
-  await expect(page.getByTestId("finalize-transcription")).toBeEnabled({
-    timeout: 30_000,
-  });
-  await page.getByTestId("finalize-transcription").click();
-  // Finalize can stall under CI load after earlier real suites; fall back to API.
+  // APP-013.1: success must be UI-driven only — no API finalize rescue / forced goto.
+  const finalizeBtn = page.getByTestId("finalize-transcription");
+  await expect(finalizeBtn).toBeEnabled({ timeout: 30_000 });
+  await Promise.all([
+    page
+      .waitForURL(
+        (url) => {
+          try {
+            return new URL(url).pathname === `/submissions/${submissionId}`;
+          } catch {
+            return false;
+          }
+        },
+        { timeout: 90_000 },
+      )
+      .catch(() => undefined),
+    finalizeBtn.click(),
+  ]);
   await expect
     .poll(
       async () => {
@@ -417,23 +430,35 @@ async function publishDeductAttempt(
         if (path === `/submissions/${submissionId}`) return "done";
         if (path.endsWith("/transcription")) {
           const btn = page.getByTestId("finalize-transcription");
+          // Retry the same UI control only while it remains legitimately enabled.
           if (await btn.isEnabled().catch(() => false)) {
-            await btn.click().catch(() => undefined);
-          }
-          const fin = await request.post(
-            `${apiBase}/api/v1/submissions/${submissionId}/transcription/finalize`,
-            { headers },
-          );
-          if (fin.ok() || fin.status() === 409) {
-            await page.goto(`/submissions/${submissionId}`);
-            return "done";
+            await Promise.all([
+              page
+                .waitForURL(
+                  (url) => {
+                    try {
+                      return new URL(url).pathname === `/submissions/${submissionId}`;
+                    } catch {
+                      return false;
+                    }
+                  },
+                  { timeout: 20_000 },
+                )
+                .catch(() => undefined),
+              btn.click().catch(() => undefined),
+            ]);
           }
         }
-        return path;
+        return new URL(page.url()).pathname === `/submissions/${submissionId}`
+          ? "done"
+          : path;
       },
-      { timeout: 180_000 },
+      { timeout: 120_000 },
     )
     .toBe("done");
+  await expect(page.getByTestId("submission-detail-page")).toBeVisible({
+    timeout: 30_000,
+  });
 
   // Accept AI proposals so criterion error_code=CALCULATION is preserved.
   await expect
