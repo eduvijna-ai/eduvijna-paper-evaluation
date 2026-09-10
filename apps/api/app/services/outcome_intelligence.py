@@ -52,6 +52,9 @@ from app.services.cluster_math import connected_components
 MIN_CLUSTER_COHORT_SIZE = 2
 ELIGIBLE_WORKFLOW_STATES = frozenset({"ACCEPTED", "OVERRIDDEN"})
 WEIGHT_QUANTUM = Decimal("0.0001")
+# Internal row policy: 1 = pre-B18.1 legacy (weight > 0); 2 = strict (0 < weight <= 1).
+WEIGHT_POLICY_LEGACY = 1
+WEIGHT_POLICY_STRICT = 2
 
 
 class OutcomeIntelligenceError(RuntimeError):
@@ -1119,6 +1122,7 @@ async def add_question_mapping(
         question_version_id=qv.id,
         outcome_definition_id=outcome_definition_id,
         weight=w,
+        weight_policy_version=WEIGHT_POLICY_STRICT,
     )
     db.add(row)
     try:
