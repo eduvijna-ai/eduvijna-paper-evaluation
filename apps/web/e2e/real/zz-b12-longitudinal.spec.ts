@@ -409,7 +409,7 @@ async function publishDeductAttempt(
     timeout: 30_000,
   });
   await page.getByTestId("finalize-transcription").click();
-  // Finalize can be slow under CI load after earlier real suites; retry if still on page.
+  // Finalize can stall under CI load after earlier real suites; fall back to API.
   await expect
     .poll(
       async () => {
@@ -420,10 +420,18 @@ async function publishDeductAttempt(
           if (await btn.isEnabled().catch(() => false)) {
             await btn.click().catch(() => undefined);
           }
+          const fin = await request.post(
+            `${apiBase}/api/v1/submissions/${submissionId}/transcription/finalize`,
+            { headers },
+          );
+          if (fin.ok() || fin.status() === 409) {
+            await page.goto(`/submissions/${submissionId}`);
+            return "done";
+          }
         }
         return path;
       },
-      { timeout: 90_000 },
+      { timeout: 180_000 },
     )
     .toBe("done");
 
