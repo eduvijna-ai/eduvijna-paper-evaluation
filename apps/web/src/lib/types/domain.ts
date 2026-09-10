@@ -1922,3 +1922,172 @@ export interface CalibrationEvaluatorMetric {
   exact_match_rate: number;
   within_tolerance_rate: number;
 }
+
+/** B18 answer cluster run (PEV-050). */
+export interface AnswerClusterRun {
+  id: string;
+  assessment_id: string;
+  assessment_version_id: string;
+  question_id: string;
+  question_version_id: string;
+  cohort_definition: Record<string, unknown>;
+  algorithm_version: string;
+  similarity_threshold: number;
+  source_set_hash: string;
+  source_result_count: number;
+  source_published_result_ids: string[];
+  embedding_provider: string;
+  embedding_model: string;
+  embedding_model_version: string;
+  embedding_dim: number;
+  cluster_count: number;
+  status: string;
+  requested_by: string | null;
+  requested_at: string | null;
+  completed_at: string | null;
+  failure_code: string | null;
+  failure_detail: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface AnswerClusterRunList {
+  items: AnswerClusterRun[];
+}
+
+export interface AnswerCluster {
+  id: string;
+  run_id: string;
+  cluster_index: number;
+  member_count: number;
+  label: string | null;
+  created_at: string | null;
+}
+
+export interface AnswerClusterList {
+  items: AnswerCluster[];
+}
+
+export interface AnswerClusterMember {
+  id: string;
+  run_id: string;
+  cluster_id: string;
+  published_result_id: string;
+  evaluation_run_id: string;
+  question_evaluation_id: string;
+  submission_id: string;
+  transcription_text: string | null;
+  transcription_hash: string;
+  embedding: number[];
+  final_human_approved_score: number | null;
+  created_at: string | null;
+}
+
+export interface AnswerClusterReview {
+  id: string;
+  run_id: string;
+  cluster_id: string;
+  reviewer_user_id: string;
+  observation: string;
+  suggested_rubric_refinement: string | null;
+  submitted_at: string | null;
+  created_at: string | null;
+}
+
+export interface AnswerClusterDetail extends AnswerCluster {
+  members: AnswerClusterMember[];
+  reviews: AnswerClusterReview[];
+}
+
+/** B18 CO/PO outcome definition (PEV-051). */
+export interface OutcomeDefinition {
+  id: string;
+  outcome_type: string;
+  code: string;
+  title: string;
+  description: string | null;
+  status: string;
+  created_by: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface OutcomeDefinitionList {
+  items: OutcomeDefinition[];
+}
+
+export interface QuestionOutcomeMapping {
+  id: string;
+  mapping_set_id: string;
+  question_id: string;
+  question_version_id: string;
+  outcome_definition_id: string;
+  weight: number | null;
+  created_at: string | null;
+}
+
+export interface OutcomeMappingSet {
+  id: string;
+  assessment_id: string;
+  assessment_version_id: string;
+  version_number: number;
+  title: string;
+  status: string;
+  created_by: string | null;
+  activated_by: string | null;
+  activated_at: string | null;
+  retired_by: string | null;
+  retired_at: string | null;
+  activation_hash: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  mapping_count?: number;
+  mappings?: QuestionOutcomeMapping[];
+}
+
+export interface OutcomeMappingSetList {
+  items: OutcomeMappingSet[];
+}
+
+export interface OutcomeAttainmentReport {
+  id: string;
+  assessment_id: string;
+  assessment_version_id: string;
+  mapping_set_id: string;
+  mapping_set_version_number: number;
+  mapping_activation_hash: string | null;
+  cohort_definition: Record<string, unknown>;
+  algorithm_version: string;
+  source_set_hash: string;
+  source_result_count: number;
+  source_published_result_ids: string[];
+  status: string;
+  requested_by: string | null;
+  requested_at: string | null;
+  completed_at: string | null;
+  failure_code: string | null;
+  failure_detail: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  metrics?: OutcomeAttainmentMetric[];
+}
+
+export interface OutcomeAttainmentReportList {
+  items: OutcomeAttainmentReport[];
+}
+
+export interface OutcomeAttainmentMetric {
+  id: string;
+  report_run_id: string;
+  outcome_definition_id: string;
+  outcome_type: string;
+  outcome_code: string;
+  outcome_title: string;
+  weighted_earned: number | null;
+  weighted_max: number | null;
+  attainment_pct: number | null;
+  denom_status: string;
+  mapped_question_count: number;
+  contribution_count: number;
+  created_at: string | null;
+}

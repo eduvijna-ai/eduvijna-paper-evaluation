@@ -9,6 +9,8 @@ from app.ai.types import (
     AnswerKeyProposalResult,
     CurriculumMappingProposalInput,
     CurriculumMappingProposalResult,
+    EmbeddingInput,
+    EmbeddingResult,
     ErrorClassificationInput,
     ErrorClassificationResult,
     IdentityExtractionInput,
@@ -116,3 +118,14 @@ class AuthoringAIProvider(Protocol):
     async def suggest_curriculum_mapping(
         self, request: CurriculumMappingProposalInput
     ) -> CurriculumMappingProposalResult: ...
+
+
+class EmbeddingAIProvider(Protocol):
+    """B18 text embedding for answer clustering. Credential-free fixed in CI."""
+
+    provider_name: str
+    model: str
+    model_version: str
+    embedding_dim: int
+
+    async def embed_texts(self, request: EmbeddingInput) -> EmbeddingResult: ...

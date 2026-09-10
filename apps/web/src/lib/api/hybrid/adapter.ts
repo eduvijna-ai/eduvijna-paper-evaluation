@@ -15,6 +15,7 @@ import { ReassessmentHttpApi } from "../http/reassessment";
 import { BenchmarkHttpApi } from "../http/benchmark";
 import { OperationsHttpApi } from "../http/operations";
 import { QualityHttpApi } from "../http/quality";
+import { OutcomeIntelligenceHttpApi } from "../http/outcome_intelligence";
 import { ApiError } from "../http/errors";
 import { httpRequest } from "../http/client";
 import { getApiCapabilities } from "../capabilities";
@@ -1230,5 +1231,141 @@ export const HybridEduVijnaApi: ApiClient = {
       return QualityHttpApi.getMyCalibrationMetrics(sessionId);
     }
     return MockEduVijnaApi.getMyCalibrationMetrics!(sessionId);
+  },
+
+  listAnswerClusterRuns: async (assessmentVersionId, questionId) => {
+    if (getApiCapabilities().quality === "live") {
+      return OutcomeIntelligenceHttpApi.listAnswerClusterRuns(
+        assessmentVersionId,
+        questionId,
+      );
+    }
+    return MockEduVijnaApi.listAnswerClusterRuns!(
+      assessmentVersionId,
+      questionId,
+    );
+  },
+  createAnswerClusterRun: async (input) => {
+    if (getApiCapabilities().quality === "live") {
+      return OutcomeIntelligenceHttpApi.createAnswerClusterRun(input);
+    }
+    return MockEduVijnaApi.createAnswerClusterRun!(input);
+  },
+  getAnswerClusterRun: async (runId) => {
+    if (getApiCapabilities().quality === "live") {
+      return OutcomeIntelligenceHttpApi.getAnswerClusterRun(runId);
+    }
+    return MockEduVijnaApi.getAnswerClusterRun!(runId);
+  },
+  listAnswerClusters: async (runId) => {
+    if (getApiCapabilities().quality === "live") {
+      return OutcomeIntelligenceHttpApi.listAnswerClusters(runId);
+    }
+    return MockEduVijnaApi.listAnswerClusters!(runId);
+  },
+  getAnswerCluster: async (clusterId) => {
+    if (getApiCapabilities().quality === "live") {
+      return OutcomeIntelligenceHttpApi.getAnswerCluster(clusterId);
+    }
+    return MockEduVijnaApi.getAnswerCluster!(clusterId);
+  },
+  submitAnswerClusterReview: async (clusterId, input) => {
+    if (getApiCapabilities().quality === "live") {
+      return OutcomeIntelligenceHttpApi.submitAnswerClusterReview(
+        clusterId,
+        input,
+      );
+    }
+    return MockEduVijnaApi.submitAnswerClusterReview!(clusterId, input);
+  },
+  listOutcomeDefinitions: async (outcomeType) => {
+    if (getApiCapabilities().quality === "live") {
+      return OutcomeIntelligenceHttpApi.listOutcomeDefinitions(outcomeType);
+    }
+    return MockEduVijnaApi.listOutcomeDefinitions!(outcomeType);
+  },
+  createOutcomeDefinition: async (input) => {
+    if (getApiCapabilities().quality === "live") {
+      return OutcomeIntelligenceHttpApi.createOutcomeDefinition(input);
+    }
+    return MockEduVijnaApi.createOutcomeDefinition!(input);
+  },
+  getOutcomeDefinition: async (id) => {
+    if (getApiCapabilities().quality === "live") {
+      return OutcomeIntelligenceHttpApi.getOutcomeDefinition(id);
+    }
+    return MockEduVijnaApi.getOutcomeDefinition!(id);
+  },
+  updateOutcomeDefinition: async (id, input) => {
+    if (getApiCapabilities().quality === "live") {
+      return OutcomeIntelligenceHttpApi.updateOutcomeDefinition(id, input);
+    }
+    return MockEduVijnaApi.updateOutcomeDefinition!(id, input);
+  },
+  listOutcomeMappingSets: async (assessmentVersionId) => {
+    if (getApiCapabilities().quality === "live") {
+      return OutcomeIntelligenceHttpApi.listOutcomeMappingSets(
+        assessmentVersionId,
+      );
+    }
+    return MockEduVijnaApi.listOutcomeMappingSets!(assessmentVersionId);
+  },
+  createOutcomeMappingSet: async (input) => {
+    if (getApiCapabilities().quality === "live") {
+      return OutcomeIntelligenceHttpApi.createOutcomeMappingSet(input);
+    }
+    return MockEduVijnaApi.createOutcomeMappingSet!(input);
+  },
+  getOutcomeMappingSet: async (id) => {
+    if (getApiCapabilities().quality === "live") {
+      return OutcomeIntelligenceHttpApi.getOutcomeMappingSet(id);
+    }
+    return MockEduVijnaApi.getOutcomeMappingSet!(id);
+  },
+  addOutcomeMapping: async (mappingSetId, input) => {
+    if (getApiCapabilities().quality === "live") {
+      return OutcomeIntelligenceHttpApi.addOutcomeMapping(mappingSetId, input);
+    }
+    return MockEduVijnaApi.addOutcomeMapping!(mappingSetId, input);
+  },
+  removeOutcomeMapping: async (mappingId) => {
+    if (getApiCapabilities().quality === "live") {
+      return OutcomeIntelligenceHttpApi.removeOutcomeMapping(mappingId);
+    }
+    return MockEduVijnaApi.removeOutcomeMapping!(mappingId);
+  },
+  activateOutcomeMappingSet: async (mappingSetId) => {
+    if (getApiCapabilities().quality === "live") {
+      return OutcomeIntelligenceHttpApi.activateOutcomeMappingSet(mappingSetId);
+    }
+    return MockEduVijnaApi.activateOutcomeMappingSet!(mappingSetId);
+  },
+  listOutcomeAttainmentReports: async (assessmentVersionId) => {
+    if (getApiCapabilities().quality === "live") {
+      return OutcomeIntelligenceHttpApi.listOutcomeAttainmentReports(
+        assessmentVersionId,
+      );
+    }
+    return MockEduVijnaApi.listOutcomeAttainmentReports!(assessmentVersionId);
+  },
+  createOutcomeAttainmentReport: async (input) => {
+    if (getApiCapabilities().quality === "live") {
+      return OutcomeIntelligenceHttpApi.createOutcomeAttainmentReport(input);
+    }
+    return MockEduVijnaApi.createOutcomeAttainmentReport!(input);
+  },
+  getOutcomeAttainmentReport: async (reportId) => {
+    if (getApiCapabilities().quality === "live") {
+      return OutcomeIntelligenceHttpApi.getOutcomeAttainmentReport(reportId);
+    }
+    return MockEduVijnaApi.getOutcomeAttainmentReport!(reportId);
+  },
+  exportOutcomeAttainmentReportCsv: async (reportId) => {
+    if (getApiCapabilities().quality === "live") {
+      return OutcomeIntelligenceHttpApi.exportOutcomeAttainmentReportCsv(
+        reportId,
+      );
+    }
+    return MockEduVijnaApi.exportOutcomeAttainmentReportCsv!(reportId);
   },
 };

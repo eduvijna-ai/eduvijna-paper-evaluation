@@ -7,12 +7,14 @@ from typing import Any
 from app.ai.execution_metadata import AIExecutionMetadata, metadata_from_provider
 from app.ai.protocols import (
     AuthoringAIProvider,
+    EmbeddingAIProvider,
     EvaluationAIProvider,
     LearningAIProvider,
     NarrativeAIProvider,
     StructureAIProvider,
 )
 from app.ai.providers.authoring import FixedAuthoringProvider
+from app.ai.providers.embedding import FixedEmbeddingProvider, NoneEmbeddingProvider
 from app.ai.providers.fixed import FixedStructureProvider, NoneStructureProvider
 from app.ai.providers.learning import FixedLearningProvider
 from app.ai.providers.narrative import FixedNarrativeProvider, NoneNarrativeProvider
@@ -129,6 +131,31 @@ def get_authoring_provider(
     if mode == "openai":
         return _openai_provider(settings)
     raise RuntimeError(f"Unsupported AI_PROVIDER_AUTHORING={mode!r}")
+
+
+def get_embedding_provider(
+    settings: Settings | None = None,
+) -> EmbeddingAIProvider:
+    """Resolve embedding provider for B18 clustering.
+
+    Reuses AI_PROVIDER_TEXT. Modes:
+    - none → NoneEmbeddingProvider (raises on embed)
+    - fixed / openai → FixedEmbeddingProvider in non-prod (credential-free CI).
+      OpenAI mode intentionally maps to fixed embeddings for B18 so CI stays
+      credential-free; production openai embeddings are out of APP-012 scope.
+    """
+    settings = settings or get_settings()
+    mode = _text_mode(settings)
+    env = settings.environment.lower()
+
+    if mode in {"", "none"}:
+        return NoneEmbeddingProvider()
+    if mode in {"fixed", "openai"}:
+        if env in {"production", "prod"} and mode == "fixed":
+            raise RuntimeError("fixed embedding provider is not allowed in production")
+        # B18: always use deterministic fixed embeddings (no vector DB / no keys).
+        return FixedEmbeddingProvider(allow_non_test=True)
+    raise RuntimeError(f"Unsupported AI_PROVIDER_TEXT={mode!r} for embeddings")
 
 
 def structure_provider_active(settings: Settings | None = None) -> bool:
@@ -270,6 +297,7 @@ __all__ = [
     "get_authoring_provider",
     "get_benchmark_candidate_executor",
     "get_benchmark_candidate_identity",
+    "get_embedding_provider",
     "get_evaluation_provider",
     "get_learning_provider",
     "get_narrative_provider",
