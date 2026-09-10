@@ -145,7 +145,6 @@ test.describe("B17 real quality psychometrics + calibration", () => {
       { headers: admin.headers },
     );
     // Soft: if no analytics/published cohort, still verify UI pages.
-    let activated = false;
     if (published.ok()) {
       // Attempt to list eligible sources through benchmark eligibility if present.
       const eligible = await request.get(
@@ -188,9 +187,9 @@ test.describe("B17 real quality psychometrics + calibration", () => {
     );
     expect([404]).toContain(missing.status());
     const missingBody = await missing.json();
-    expect(detailCode(missingBody) === "NOT_FOUND" || missing.status() === 404).toBeTruthy();
-
-    void activated;
+    expect(
+      detailCode(missingBody) === "NOT_FOUND" || missing.status() === 404,
+    ).toBeTruthy();
 
     await loginUi(page);
     await page.goto("/quality/psychometrics");
