@@ -219,9 +219,19 @@ async function publishResult(
           `${apiBase}/api/v1/submissions/${submissionId}/publication`,
           { headers },
         );
-        if (!ws.ok()) return "err";
-        const latest = (await ws.json()) as { latest?: { status?: string } };
-        return latest.latest?.status ?? "";
+        if (!ws.ok()) return `err:${ws.status()}`;
+        const body = (await ws.json()) as {
+          latest?: {
+            status?: string;
+            failure_code?: string | null;
+            failure_detail?: string | null;
+          };
+        };
+        const status = body.latest?.status ?? "";
+        if (status === "FAILED") {
+          return `FAILED:${body.latest?.failure_code}:${body.latest?.failure_detail}`;
+        }
+        return status;
       },
       { timeout: 120_000 },
     )

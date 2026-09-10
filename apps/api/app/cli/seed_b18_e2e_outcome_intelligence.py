@@ -11,9 +11,12 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import io
+import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 
+from PIL import Image
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -41,13 +44,57 @@ from app.db.models import (
     RubricVersion,
     Student,
     Submission,
+    SubmissionPage,
     Tenant,
     User,
     UserRole,
 )
 from app.db.session import async_session_factory
+from app.services.storage import ObjectStorage, derived_page_key
 
 ASSESSMENT_CODE = "B18-E2E-OUTCOME"
+PAGE_WIDTH = 200
+PAGE_HEIGHT = 280
+
+
+def _blank_page_png() -> bytes:
+    """Minimal white PNG so real publication prepare can render annotated PDFs."""
+    buf = io.BytesIO()
+    Image.new("RGB", (PAGE_WIDTH, PAGE_HEIGHT), color=(255, 255, 255)).save(buf, format="PNG")
+    return buf.getvalue()
+
+
+async def _ensure_submission_page(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    submission_id: uuid.UUID,
+    storage: ObjectStorage,
+    png: bytes,
+) -> None:
+    existing = await db.scalar(
+        select(SubmissionPage).where(
+            SubmissionPage.tenant_id == tenant_id,
+            SubmissionPage.submission_id == submission_id,
+            SubmissionPage.page_index == 0,
+        )
+    )
+    if existing is not None:
+        return
+    key = derived_page_key(tenant_id, submission_id, 0)
+    storage.ensure_bucket()
+    storage.put_derived_bytes(key=key, body=png, content_type="image/png")
+    db.add(
+        SubmissionPage(
+            tenant_id=tenant_id,
+            submission_id=submission_id,
+            page_index=0,
+            image_storage_key=key,
+            width=PAGE_WIDTH,
+            height=PAGE_HEIGHT,
+            is_continuation=False,
+        )
+    )
 CURRICULUM_CODE = "B18-E2E-CUR"
 COHORT_SIZE = 20
 MAX_MARK = Decimal("5.00")
@@ -202,6 +249,26 @@ async def seed_b18_e2e_outcome_intelligence() -> dict[str, str]:
                 )
             )
             if (count or 0) >= COHORT_SIZE:
+                storage = ObjectStorage()
+                png = _blank_page_png()
+                subs = list(
+                    (
+                        await db.scalars(
+                            select(Submission).where(
+                                Submission.tenant_id == tenant.id,
+                                Submission.assessment_id == existing.id,
+                            )
+                        )
+                    ).all()
+                )
+                for sub in subs:
+                    await _ensure_submission_page(
+                        db,
+                        tenant_id=tenant.id,
+                        submission_id=sub.id,
+                        storage=storage,
+                        png=png,
+                    )
                 iso = await _ensure_isolation_tenant(db)
                 await db.commit()
                 print(
@@ -356,6 +423,9 @@ async def seed_b18_e2e_outcome_intelligence() -> dict[str, str]:
         db.add(student)
         await db.flush()
 
+        storage = ObjectStorage()
+        page_png = _blank_page_png()
+
         for i in range(COHORT_SIZE):
             digest = _sha(f"b18-e2e-{ASSESSMENT_CODE}-{i}")
             pattern = _pattern_for(i)
@@ -383,6 +453,13 @@ async def seed_b18_e2e_outcome_intelligence() -> dict[str, str]:
             )
             db.add(sub)
             await db.flush()
+            await _ensure_submission_page(
+                db,
+                tenant_id=tenant.id,
+                submission_id=sub.id,
+                storage=storage,
+                png=page_png,
+            )
             run = EvaluationRun(
                 tenant_id=tenant.id,
                 submission_id=sub.id,
