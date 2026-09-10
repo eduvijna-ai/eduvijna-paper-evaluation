@@ -353,9 +353,10 @@ async def create_or_get_psychometric_run(
     )
     db.add(run)
     try:
-        await db.flush()
+        async with db.begin_nested():
+            await db.flush()
     except IntegrityError as exc:
-        await db.rollback()
+        db.expunge(run)
         existing = await db.scalar(
             select(PsychometricRun).where(
                 PsychometricRun.tenant_id == tenant_id,
@@ -388,6 +389,7 @@ async def create_or_get_psychometric_run(
             after=serialize_psychometric_run(run),
         )
         await db.flush()
+        await db.refresh(run)
         return serialize_psychometric_run(run)
 
     # Build per-question score vectors keyed by question_version_id.
@@ -437,8 +439,15 @@ async def create_or_get_psychometric_run(
             disc = None
             disc_status = "INSUFFICIENT_SAMPLE"
         else:
-            disc = corrected_item_total_discrimination(scores, totals)
-            disc_status = "OK" if disc is not None else "UNDEFINED_VARIANCE"
+            disc, disc_reason = corrected_item_total_discrimination(scores, totals)
+            if disc is None:
+                disc_status = (
+                    "INSUFFICIENT_SAMPLE"
+                    if disc_reason == "INSUFFICIENT_PAIRS"
+                    else "UNDEFINED_VARIANCE"
+                )
+            else:
+                disc_status = "OK"
 
         metric = ItemPsychometricMetric(
             tenant_id=tenant_id,
@@ -474,6 +483,7 @@ async def create_or_get_psychometric_run(
         after=serialize_psychometric_run(run),
     )
     await db.flush()
+    await db.refresh(run)
     return serialize_psychometric_run(run)
 
 
@@ -609,6 +619,7 @@ async def create_calibration_session(
     )
     db.add(session)
     await db.flush()
+    await db.refresh(session)
     await add_audit_event(
         db,
         tenant_id=tenant_id,
@@ -772,11 +783,13 @@ async def add_calibration_case(
     )
     db.add(case)
     try:
-        await db.flush()
+        async with db.begin_nested():
+            await db.flush()
     except IntegrityError as exc:
         raise QualityError(
             "CALIBRATION_CASE_CONFLICT", "Case already exists for this QE"
         ) from exc
+    await db.refresh(case)
     await add_audit_event(
         db,
         tenant_id=tenant_id,
@@ -826,11 +839,13 @@ async def add_calibration_participant(
     )
     db.add(participant)
     try:
-        await db.flush()
+        async with db.begin_nested():
+            await db.flush()
     except IntegrityError as exc:
         raise QualityError(
             "CALIBRATION_PARTICIPANT_CONFLICT", "Participant already added"
         ) from exc
+    await db.refresh(participant)
     await add_audit_event(
         db,
         tenant_id=tenant_id,
@@ -883,6 +898,8 @@ async def activate_calibration_session(
     session.status = "ACTIVE"
     session.activated_by = actor_user_id
     session.activated_at = _utcnow()
+    await db.flush()
+    await db.refresh(session)
     await add_audit_event(
         db,
         tenant_id=tenant_id,
@@ -892,7 +909,6 @@ async def activate_calibration_session(
         action="CALIBRATION_SESSION_ACTIVATED",
         after=serialize_calibration_session(session, case_count=count),
     )
-    await db.flush()
     return serialize_calibration_session(session, case_count=count)
 
 
@@ -1046,12 +1062,14 @@ async def submit_calibration_response(
     )
     db.add(response)
     try:
-        await db.flush()
+        async with db.begin_nested():
+            await db.flush()
     except IntegrityError as exc:
         raise QualityError(
             "CALIBRATION_RESPONSE_IMMUTABLE",
             "Response already submitted and cannot be changed",
         ) from exc
+    await db.refresh(response)
     await add_audit_event(
         db,
         tenant_id=tenant_id,
@@ -1153,6 +1171,8 @@ async def close_calibration_session(
     session.closed_by = actor_user_id
     session.closed_at = _utcnow()
     await _ensure_calibration_metrics(db, tenant_id=tenant_id, session=session)
+    await db.flush()
+    await db.refresh(session)
     count = await _case_count(db, tenant_id=tenant_id, session_id=session_id)
     await add_audit_event(
         db,
@@ -1163,7 +1183,6 @@ async def close_calibration_session(
         action="CALIBRATION_SESSION_CLOSED",
         after=serialize_calibration_session(session, case_count=count),
     )
-    await db.flush()
     return serialize_calibration_session(session, case_count=count)
 
 
@@ -1231,7 +1250,7 @@ async def _ensure_calibration_metrics(
                 [resp_map[(case.id, p.user_id)] for p in participants]
                 for case in common_cases
             ]
-            icc_value = icc_a1(matrix)
+            icc_value, _icc_reason = icc_a1(matrix)
             status = "COMPLETED" if icc_value is not None else "UNDEFINED"
         elif evaluator_count < 2 or common_case_count < 2:
             status = "INSUFFICIENT_SAMPLE"

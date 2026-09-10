@@ -3054,3 +3054,327 @@ export function rejectGrievance(id: string, decision_reason: string) {
   demoGrievances = demoGrievances.map((g) => (g.id === id ? row : g));
   return row;
 }
+
+/** B17 demo fixtures */
+export const PSYCHOMETRIC_RUN_DEMO_ID = "psychometric-run-demo-001";
+export const CALIBRATION_SESSION_DEMO_ID = "calibration-session-demo-001";
+export const CALIBRATION_CASE_DEMO_ID = "calibration-case-demo-001";
+
+let demoPsychometricRuns: import("@/lib/types/domain").PsychometricRun[] = [
+  {
+    id: PSYCHOMETRIC_RUN_DEMO_ID,
+    assessment_id: "assess-demo-001",
+    assessment_version_id: "assess-ver-demo-001",
+    cohort_definition: {
+      scope: "assessment_version",
+      status_filter: ["PUBLISHED"],
+      exclude_superseded: true,
+    },
+    algorithm_version: "B17_PSYCHOMETRICS_V1",
+    min_cohort_size: 20,
+    source_set_hash: "demo-hash",
+    source_result_count: 24,
+    source_published_result_ids: ["pub-demo-001"],
+    status: "COMPLETED",
+    requested_by: "user-admin-001",
+    requested_at: "2026-09-10T05:00:00.000Z",
+    completed_at: "2026-09-10T05:00:01.000Z",
+    failure_code: null,
+    failure_detail: null,
+    created_at: "2026-09-10T05:00:00.000Z",
+    updated_at: "2026-09-10T05:00:01.000Z",
+  },
+];
+
+const demoItemMetrics: import("@/lib/types/domain").ItemPsychometricMetric[] = [
+  {
+    id: "item-metric-demo-001",
+    run_id: PSYCHOMETRIC_RUN_DEMO_ID,
+    question_id: "q-demo-001",
+    question_version_id: "qv-demo-001",
+    question_code: "Q1",
+    attempt_count: 24,
+    max_mark: 5,
+    mean_raw_score: 3.2,
+    std_dev: 1.1,
+    difficulty_index: 0.64,
+    discrimination_index: 0.42,
+    discrimination_method: "CORRECTED_ITEM_TOTAL_PEARSON_V1",
+    discrimination_status: "OK",
+    full_credit_rate: 0.25,
+    zero_score_rate: 0.08,
+    blank_rate: null,
+    difficulty_band: "MODERATE",
+    discrimination_band: "HIGH",
+  },
+];
+
+let demoCalibrationSessions: import("@/lib/types/domain").CalibrationSession[] =
+  [
+    {
+      id: CALIBRATION_SESSION_DEMO_ID,
+      assessment_id: "assess-demo-001",
+      assessment_version_id: "assess-ver-demo-001",
+      title: "Demo Calibration Session",
+      status: "ACTIVE",
+      algorithm_version: "B17_CALIBRATION_V1",
+      score_tolerance_abs: 0.5,
+      score_tolerance_pct: 0.05,
+      min_cases: 10,
+      activated_by: "user-admin-001",
+      activated_at: "2026-09-10T05:10:00.000Z",
+      closed_by: null,
+      closed_at: null,
+      created_by: "user-admin-001",
+      created_at: "2026-09-10T05:05:00.000Z",
+      updated_at: "2026-09-10T05:10:00.000Z",
+      case_count: 1,
+      cases: [
+        {
+          id: CALIBRATION_CASE_DEMO_ID,
+          session_id: CALIBRATION_SESSION_DEMO_ID,
+          case_code: "C0001",
+          published_result_id: "pub-demo-001",
+          evaluation_run_id: "eval-run-demo-001",
+          question_evaluation_id: "qe-demo-001",
+          question_version_id: "qv-demo-001",
+          rubric_version_id: "rv-demo-001",
+          max_mark: 5,
+          reference_score: 4,
+          source_snapshot_hash: "case-hash",
+          created_at: "2026-09-10T05:06:00.000Z",
+        },
+      ],
+      participants: [
+        { id: "cal-part-demo-001", user_id: "user-eval-001" },
+      ],
+    },
+  ];
+
+export function listPsychometricRuns(assessmentVersionId?: string) {
+  const items = assessmentVersionId
+    ? demoPsychometricRuns.filter(
+        (r) => r.assessment_version_id === assessmentVersionId,
+      )
+    : demoPsychometricRuns;
+  return { items: items.map((r) => ({ ...r })) };
+}
+
+export function createPsychometricRun(assessmentVersionId: string) {
+  const existing = demoPsychometricRuns.find(
+    (r) => r.assessment_version_id === assessmentVersionId,
+  );
+  if (existing) return { ...existing };
+  const now = new Date().toISOString();
+  const run: import("@/lib/types/domain").PsychometricRun = {
+    id: `psychometric-run-demo-${crypto.randomUUID().slice(0, 8)}`,
+    assessment_id: "assess-demo-001",
+    assessment_version_id: assessmentVersionId,
+    cohort_definition: { scope: "assessment_version" },
+    algorithm_version: "B17_PSYCHOMETRICS_V1",
+    min_cohort_size: 20,
+    source_set_hash: "new-hash",
+    source_result_count: 0,
+    source_published_result_ids: [],
+    status: "INSUFFICIENT_SAMPLE",
+    requested_by: "user-admin-001",
+    requested_at: now,
+    completed_at: now,
+    failure_code: "INSUFFICIENT_SAMPLE",
+    failure_detail: "Published cohort size 0 < minimum 20",
+    created_at: now,
+    updated_at: now,
+  };
+  demoPsychometricRuns = [run, ...demoPsychometricRuns];
+  return run;
+}
+
+export function getPsychometricRun(runId: string) {
+  const run = demoPsychometricRuns.find((r) => r.id === runId);
+  if (!run) throw new MockNotFoundError("Psychometric run not found");
+  return { ...run };
+}
+
+export function listPsychometricRunItems(runId: string) {
+  getPsychometricRun(runId);
+  return {
+    items: demoItemMetrics
+      .filter((m) => m.run_id === runId)
+      .map((m) => ({ ...m })),
+  };
+}
+
+export function getLatestPsychometricRun(assessmentVersionId: string) {
+  const run = demoPsychometricRuns.find(
+    (r) => r.assessment_version_id === assessmentVersionId,
+  );
+  if (!run) throw new MockNotFoundError("No psychometric run");
+  return { ...run };
+}
+
+export function listCalibrationSessions() {
+  return {
+    items: demoCalibrationSessions.map((s) => ({
+      ...s,
+      cases: undefined,
+      participants: undefined,
+    })),
+  };
+}
+
+export function createCalibrationSession(input: {
+  assessment_version_id: string;
+  title: string;
+  min_cases?: number;
+}) {
+  const now = new Date().toISOString();
+  const session: import("@/lib/types/domain").CalibrationSession = {
+    id: `calibration-session-demo-${crypto.randomUUID().slice(0, 8)}`,
+    assessment_id: "assess-demo-001",
+    assessment_version_id: input.assessment_version_id,
+    title: input.title,
+    status: "DRAFT",
+    algorithm_version: "B17_CALIBRATION_V1",
+    score_tolerance_abs: 0.5,
+    score_tolerance_pct: 0.05,
+    min_cases: input.min_cases ?? 10,
+    activated_by: null,
+    activated_at: null,
+    closed_by: null,
+    closed_at: null,
+    created_by: "user-admin-001",
+    created_at: now,
+    updated_at: now,
+    case_count: 0,
+    cases: [],
+    participants: [],
+  };
+  demoCalibrationSessions = [session, ...demoCalibrationSessions];
+  return session;
+}
+
+export function getCalibrationSession(sessionId: string) {
+  const session = demoCalibrationSessions.find((s) => s.id === sessionId);
+  if (!session) throw new MockNotFoundError("Calibration session not found");
+  return {
+    ...session,
+    cases: [...(session.cases ?? [])],
+    participants: [...(session.participants ?? [])],
+  };
+}
+
+export function activateCalibrationSession(sessionId: string) {
+  const session = getCalibrationSession(sessionId);
+  session.status = "ACTIVE";
+  session.activated_at = new Date().toISOString();
+  session.updated_at = session.activated_at;
+  demoCalibrationSessions = demoCalibrationSessions.map((s) =>
+    s.id === sessionId ? { ...session } : s,
+  );
+  return session;
+}
+
+export function closeCalibrationSession(sessionId: string) {
+  const session = getCalibrationSession(sessionId);
+  session.status = "CLOSED";
+  session.closed_at = new Date().toISOString();
+  session.updated_at = session.closed_at;
+  demoCalibrationSessions = demoCalibrationSessions.map((s) =>
+    s.id === sessionId ? { ...session } : s,
+  );
+  return session;
+}
+
+export function listMyCalibrationSessions() {
+  return {
+    items: demoCalibrationSessions
+      .filter((s) => s.status === "ACTIVE" || s.status === "CLOSED")
+      .map((s) => ({ ...s, cases: undefined, participants: undefined })),
+  };
+}
+
+export function getBlindCalibrationCase(sessionId: string, caseId: string) {
+  const session = getCalibrationSession(sessionId);
+  const c = (session.cases ?? []).find((x) => x.id === caseId);
+  if (!c) throw new MockNotFoundError("Calibration case not found");
+  return {
+    id: c.id,
+    session_id: sessionId,
+    case_code: c.case_code,
+    question_version_id: c.question_version_id,
+    rubric_version_id: c.rubric_version_id,
+    max_mark: c.max_mark,
+    criterion_snapshot: [],
+    evidence_snapshot: { transcription_refs: [] },
+  };
+}
+
+export function submitCalibrationResponse(
+  sessionId: string,
+  caseId: string,
+  input: { score: number; comment?: string | null },
+) {
+  getBlindCalibrationCase(sessionId, caseId);
+  return {
+    id: `cal-resp-${crypto.randomUUID().slice(0, 8)}`,
+    session_id: sessionId,
+    case_id: caseId,
+    participant_id: "cal-part-demo-001",
+    user_id: "user-eval-001",
+    score: input.score,
+    max_mark: 5,
+    comment: input.comment ?? null,
+    submitted_at: new Date().toISOString(),
+  };
+}
+
+export function getCalibrationProgress(sessionId: string) {
+  const session = getCalibrationSession(sessionId);
+  return {
+    case_count: session.case_count ?? session.cases?.length ?? 0,
+    participant_count: session.participants?.length ?? 0,
+    response_count: 0,
+    status: session.status,
+  };
+}
+
+export function getCalibrationSessionMetrics(sessionId: string) {
+  getCalibrationSession(sessionId);
+  return {
+    items: [
+      {
+        id: "cal-metric-demo-001",
+        session_id: sessionId,
+        metric_name: "ICC_A1",
+        algorithm_version: "B17_CALIBRATION_V1",
+        evaluator_count: 2,
+        common_case_count: 1,
+        icc_value: 0.91,
+        status: "COMPLETED",
+      },
+    ],
+  };
+}
+
+export function getCalibrationEvaluatorMetrics(sessionId: string) {
+  getCalibrationSession(sessionId);
+  return {
+    items: [
+      {
+        id: "cal-eval-metric-demo-001",
+        session_id: sessionId,
+        user_id: "user-eval-001",
+        case_count: 1,
+        mean_signed_diff: 0.1,
+        mae: 0.2,
+        nmae: 0.04,
+        exact_match_rate: 0.8,
+        within_tolerance_rate: 1.0,
+      },
+    ],
+  };
+}
+
+export function getMyCalibrationMetrics(sessionId: string) {
+  return getCalibrationEvaluatorMetrics(sessionId).items[0];
+}

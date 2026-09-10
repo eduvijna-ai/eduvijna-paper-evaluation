@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/calibration-session-metric.schema.json",
+  "title": "CalibrationSessionMetric",
+  "description": "B17 session-level IRR metric such as ICC(A,1) (PEV-049).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "session_id",
+    "metric_name",
+    "algorithm_version",
+    "evaluator_count",
+    "common_case_count",
+    "icc_value",
+    "status"
+  ],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "session_id": { "type": "string", "format": "uuid" },
+    "metric_name": { "type": "string", "enum": ["ICC_A1"] },
+    "algorithm_version": { "type": "string" },
+    "evaluator_count": { "type": "integer", "minimum": 0 },
+    "common_case_count": { "type": "integer", "minimum": 0 },
+    "icc_value": { "type": ["number", "null"] },
+    "status": {
+      "type": "string",
+      "enum": ["COMPLETED", "INSUFFICIENT_SAMPLE", "UNDEFINED"]
+    }
+  }
+}

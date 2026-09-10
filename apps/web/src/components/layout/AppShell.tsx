@@ -50,6 +50,18 @@ const navItems = [
     testId: "nav-quality-benchmarks",
   },
   {
+    href: "/quality/psychometrics",
+    label: "Psychometrics",
+    icon: LineChart,
+    testId: "nav-quality-psychometrics",
+  },
+  {
+    href: "/quality/calibration",
+    label: "Calibration",
+    icon: Users,
+    testId: "nav-quality-calibration",
+  },
+  {
     href: "/operations/grading",
     label: "Operations",
     icon: Workflow,

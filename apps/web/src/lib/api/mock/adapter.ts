@@ -89,6 +89,23 @@ import {
   createGrievance,
   acceptGrievance,
   rejectGrievance,
+  listPsychometricRuns,
+  createPsychometricRun,
+  getPsychometricRun,
+  listPsychometricRunItems,
+  getLatestPsychometricRun,
+  listCalibrationSessions,
+  createCalibrationSession,
+  getCalibrationSession,
+  activateCalibrationSession,
+  closeCalibrationSession,
+  listMyCalibrationSessions,
+  getBlindCalibrationCase,
+  submitCalibrationResponse,
+  getCalibrationProgress,
+  getCalibrationSessionMetrics,
+  getCalibrationEvaluatorMetrics,
+  getMyCalibrationMetrics,
   MockNotFoundError,
   rubrics,
   students,
@@ -756,6 +773,57 @@ export const MockEduVijnaApi: ApiClient = {
   },
   async rejectGrievance(id, decision_reason) {
     return mockCall(() => rejectGrievance(id, decision_reason));
+  },
+  async listPsychometricRuns(assessmentVersionId) {
+    return mockCall(() => listPsychometricRuns(assessmentVersionId));
+  },
+  async createPsychometricRun(assessmentVersionId) {
+    return mockCall(() => createPsychometricRun(assessmentVersionId));
+  },
+  async getPsychometricRun(runId) {
+    return mockCall(() => getPsychometricRun(runId));
+  },
+  async listPsychometricRunItems(runId) {
+    return mockCall(() => listPsychometricRunItems(runId));
+  },
+  async getLatestPsychometricRun(assessmentVersionId) {
+    return mockCall(() => getLatestPsychometricRun(assessmentVersionId));
+  },
+  async listCalibrationSessions() {
+    return mockCall(() => listCalibrationSessions());
+  },
+  async createCalibrationSession(input) {
+    return mockCall(() => createCalibrationSession(input));
+  },
+  async getCalibrationSession(sessionId) {
+    return mockCall(() => getCalibrationSession(sessionId));
+  },
+  async activateCalibrationSession(sessionId) {
+    return mockCall(() => activateCalibrationSession(sessionId));
+  },
+  async closeCalibrationSession(sessionId) {
+    return mockCall(() => closeCalibrationSession(sessionId));
+  },
+  async listMyCalibrationSessions() {
+    return mockCall(() => listMyCalibrationSessions());
+  },
+  async getBlindCalibrationCase(sessionId, caseId) {
+    return mockCall(() => getBlindCalibrationCase(sessionId, caseId));
+  },
+  async submitCalibrationResponse(sessionId, caseId, input) {
+    return mockCall(() => submitCalibrationResponse(sessionId, caseId, input));
+  },
+  async getCalibrationProgress(sessionId) {
+    return mockCall(() => getCalibrationProgress(sessionId));
+  },
+  async getCalibrationSessionMetrics(sessionId) {
+    return mockCall(() => getCalibrationSessionMetrics(sessionId));
+  },
+  async getCalibrationEvaluatorMetrics(sessionId) {
+    return mockCall(() => getCalibrationEvaluatorMetrics(sessionId));
+  },
+  async getMyCalibrationMetrics(sessionId) {
+    return mockCall(() => getMyCalibrationMetrics(sessionId));
   },
 };
 

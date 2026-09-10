@@ -14,8 +14,8 @@ Formulas (algorithm versions):
 from __future__ import annotations
 
 import math
+from collections.abc import Sequence
 from decimal import Decimal
-from typing import Sequence
 
 UNDEFINED_VARIANCE = "UNDEFINED_VARIANCE"
 INSUFFICIENT_PAIRS = "INSUFFICIENT_PAIRS"

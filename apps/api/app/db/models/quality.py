@@ -39,14 +39,23 @@ class PsychometricRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "assessment_version_id",
             "source_set_hash",
             "algorithm_version",
-            name="uq_psychometric_runs_tenant_version_source_algo",
+            name="uq_psychometric_runs_tenant_av_hash_algo",
         ),
         CheckConstraint(
             "status IN ('PENDING','COMPLETED','INSUFFICIENT_SAMPLE','FAILED')",
             name="ck_psychometric_runs_status",
         ),
-        Index("ix_psychometric_runs_tenant_version", "tenant_id", "assessment_version_id"),
-        Index("ix_psychometric_runs_tenant_created", "tenant_id", "created_at"),
+        Index("ix_psychometric_runs_tenant", "tenant_id"),
+        Index(
+            "ix_psychometric_runs_tenant_assessment_version",
+            "tenant_id",
+            "assessment_version_id",
+        ),
+        Index(
+            "ix_psychometric_runs_tenant_completed",
+            "tenant_id",
+            "completed_at",
+        ),
     )
 
     tenant_id: Mapped[uuid.UUID] = mapped_column(
@@ -58,9 +67,13 @@ class PsychometricRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     assessment_version_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("assessment_versions.id", ondelete="RESTRICT")
     )
-    cohort_definition: Mapped[str] = mapped_column(String(64), default="PUBLISHED_CURRENT")
+    cohort_definition: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default="{}"
+    )
     algorithm_version: Mapped[str] = mapped_column(String(64))
-    min_cohort_size: Mapped[int] = mapped_column(Integer, default=MIN_PSYCHOMETRIC_COHORT_SIZE)
+    min_cohort_size: Mapped[int] = mapped_column(
+        Integer, default=MIN_PSYCHOMETRIC_COHORT_SIZE
+    )
     source_set_hash: Mapped[str] = mapped_column(String(64))
     source_result_count: Mapped[int] = mapped_column(Integer, default=0)
     source_published_result_ids: Mapped[list[Any]] = mapped_column(
@@ -70,13 +83,11 @@ class PsychometricRun(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     requested_by: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
-    requested_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    failure_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    failure_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
     failure_detail: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
@@ -87,11 +98,11 @@ class ItemPsychometricMetric(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "tenant_id",
             "run_id",
             "question_version_id",
-            name="uq_item_psychometric_metrics_run_qv",
+            name="uq_item_psychometric_metrics_tenant_run_qv",
         ),
         CheckConstraint(
             "discrimination_status IN ('OK','UNDEFINED_VARIANCE','INSUFFICIENT_SAMPLE')",
-            name="ck_item_psychometric_metrics_disc_status",
+            name="ck_item_psychometric_metrics_discrimination_status",
         ),
         Index("ix_item_psychometric_metrics_tenant_run", "tenant_id", "run_id"),
     )
@@ -108,12 +119,12 @@ class ItemPsychometricMetric(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     question_version_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("question_versions.id", ondelete="RESTRICT")
     )
-    question_code: Mapped[str] = mapped_column(String(64))
+    question_code: Mapped[str] = mapped_column(String(100))
     attempt_count: Mapped[int] = mapped_column(Integer, default=0)
     max_mark: Mapped[Decimal] = mapped_column(Numeric(10, 4))
-    mean_raw_score: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
-    std_dev: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
-    difficulty_index: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
+    mean_raw_score: Mapped[Decimal] = mapped_column(Numeric(12, 6))
+    std_dev: Mapped[Decimal] = mapped_column(Numeric(12, 6))
+    difficulty_index: Mapped[Decimal] = mapped_column(Numeric(12, 6))
     difficulty_band: Mapped[str | None] = mapped_column(String(32), nullable=True)
     discrimination_index: Mapped[Decimal | None] = mapped_column(
         Numeric(12, 6), nullable=True
@@ -123,8 +134,8 @@ class ItemPsychometricMetric(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     discrimination_status: Mapped[str] = mapped_column(String(32), default="OK")
     discrimination_band: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    full_credit_rate: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
-    zero_score_rate: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
+    full_credit_rate: Mapped[Decimal] = mapped_column(Numeric(12, 6))
+    zero_score_rate: Mapped[Decimal] = mapped_column(Numeric(12, 6))
     blank_rate: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
 
 
@@ -135,6 +146,7 @@ class CalibrationSession(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "status IN ('DRAFT','ACTIVE','CLOSED')",
             name="ck_calibration_sessions_status",
         ),
+        Index("ix_calibration_sessions_tenant", "tenant_id"),
         Index("ix_calibration_sessions_tenant_status", "tenant_id", "status"),
         Index(
             "ix_calibration_sessions_tenant_assessment_version",
@@ -190,6 +202,12 @@ class CalibrationCase(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "case_code",
             name="uq_calibration_cases_tenant_session_code",
         ),
+        UniqueConstraint(
+            "tenant_id",
+            "session_id",
+            "question_evaluation_id",
+            name="uq_calibration_cases_tenant_session_qe",
+        ),
         Index("ix_calibration_cases_tenant_session", "tenant_id", "session_id"),
     )
 
@@ -199,18 +217,15 @@ class CalibrationCase(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     session_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("calibration_sessions.id", ondelete="CASCADE")
     )
-    case_code: Mapped[str] = mapped_column(String(32))
-    source_published_result_id: Mapped[uuid.UUID] = mapped_column(
+    case_code: Mapped[str] = mapped_column(String(64))
+    published_result_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("published_results.id", ondelete="RESTRICT")
     )
-    source_evaluation_run_id: Mapped[uuid.UUID] = mapped_column(
+    evaluation_run_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("evaluation_runs.id", ondelete="RESTRICT")
     )
-    source_question_evaluation_id: Mapped[uuid.UUID] = mapped_column(
+    question_evaluation_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("question_evaluations.id", ondelete="RESTRICT")
-    )
-    assessment_version_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("assessment_versions.id", ondelete="RESTRICT")
     )
     question_version_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("question_versions.id", ondelete="RESTRICT")
@@ -238,6 +253,7 @@ class CalibrationParticipant(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "user_id",
             name="uq_calibration_participants_tenant_session_user",
         ),
+        Index("ix_calibration_participants_tenant_session", "tenant_id", "session_id"),
         Index("ix_calibration_participants_tenant_user", "tenant_id", "user_id"),
     )
 
@@ -263,6 +279,7 @@ class CalibrationResponse(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="uq_calibration_responses_tenant_session_case_user",
         ),
         Index("ix_calibration_responses_tenant_session", "tenant_id", "session_id"),
+        Index("ix_calibration_responses_tenant_case", "tenant_id", "case_id"),
     )
 
     tenant_id: Mapped[uuid.UUID] = mapped_column(
@@ -273,6 +290,9 @@ class CalibrationResponse(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     case_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("calibration_cases.id", ondelete="CASCADE")
+    )
+    participant_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("calibration_participants.id", ondelete="CASCADE")
     )
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE")
@@ -291,11 +311,15 @@ class CalibrationSessionMetric(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "session_id",
             "metric_name",
             "algorithm_version",
-            name="uq_calibration_session_metrics_session_metric",
+            name="uq_calibration_session_metrics_tenant_session_metric_algo",
         ),
         CheckConstraint(
             "status IN ('COMPLETED','INSUFFICIENT_SAMPLE','UNDEFINED')",
             name="ck_calibration_session_metrics_status",
+        ),
+        CheckConstraint(
+            "metric_name IN ('ICC_A1')",
+            name="ck_calibration_session_metrics_metric_name",
         ),
         Index("ix_calibration_session_metrics_tenant_session", "tenant_id", "session_id"),
     )
@@ -306,13 +330,12 @@ class CalibrationSessionMetric(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     session_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("calibration_sessions.id", ondelete="CASCADE")
     )
-    metric_name: Mapped[str] = mapped_column(String(64), default="ICC_A1")
+    metric_name: Mapped[str] = mapped_column(String(32), default="ICC_A1")
     algorithm_version: Mapped[str] = mapped_column(String(64), default=ICC_METHOD_V1)
     evaluator_count: Mapped[int] = mapped_column(Integer, default=0)
     common_case_count: Mapped[int] = mapped_column(Integer, default=0)
     icc_value: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
     status: Mapped[str] = mapped_column(String(32))
-    reason: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
 
 class CalibrationEvaluatorMetric(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -322,7 +345,7 @@ class CalibrationEvaluatorMetric(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "tenant_id",
             "session_id",
             "user_id",
-            name="uq_calibration_evaluator_metrics_session_user",
+            name="uq_calibration_evaluator_metrics_tenant_session_user",
         ),
         Index(
             "ix_calibration_evaluator_metrics_tenant_session",
@@ -341,12 +364,8 @@ class CalibrationEvaluatorMetric(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("users.id", ondelete="CASCADE")
     )
     case_count: Mapped[int] = mapped_column(Integer, default=0)
-    mean_signed_diff: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
-    mean_absolute_error: Mapped[Decimal | None] = mapped_column(
-        Numeric(12, 6), nullable=True
-    )
-    normalized_mae: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
-    exact_match_rate: Mapped[Decimal | None] = mapped_column(Numeric(12, 6), nullable=True)
-    within_tolerance_rate: Mapped[Decimal | None] = mapped_column(
-        Numeric(12, 6), nullable=True
-    )
+    mean_signed_diff: Mapped[Decimal] = mapped_column(Numeric(12, 6))
+    mae: Mapped[Decimal] = mapped_column(Numeric(12, 6))
+    nmae: Mapped[Decimal] = mapped_column(Numeric(12, 6))
+    exact_match_rate: Mapped[Decimal] = mapped_column(Numeric(12, 6))
+    within_tolerance_rate: Mapped[Decimal] = mapped_column(Numeric(12, 6))

@@ -1784,3 +1784,141 @@ export interface DashboardSummary {
   recent_submissions: Submission[];
   recent_assessments: Assessment[];
 }
+
+/** B17 psychometric run (PEV-048). */
+export interface PsychometricRun {
+  id: string;
+  assessment_id: string;
+  assessment_version_id: string;
+  cohort_definition: Record<string, unknown>;
+  algorithm_version: string;
+  min_cohort_size: number;
+  source_set_hash: string;
+  source_result_count: number;
+  source_published_result_ids: string[];
+  status: string;
+  requested_by: string | null;
+  requested_at: string | null;
+  completed_at: string | null;
+  failure_code: string | null;
+  failure_detail: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface PsychometricRunList {
+  items: PsychometricRun[];
+}
+
+export interface ItemPsychometricMetric {
+  id: string;
+  run_id: string;
+  question_id: string;
+  question_version_id: string;
+  question_code: string;
+  attempt_count: number;
+  max_mark: number;
+  mean_raw_score: number;
+  std_dev: number;
+  difficulty_index: number;
+  discrimination_index: number | null;
+  discrimination_method: string;
+  discrimination_status: string;
+  full_credit_rate: number;
+  zero_score_rate: number;
+  blank_rate: number | null;
+  difficulty_band: string | null;
+  discrimination_band: string | null;
+}
+
+export interface ItemPsychometricMetricList {
+  items: ItemPsychometricMetric[];
+}
+
+/** B17 calibration session (PEV-049). */
+export interface CalibrationSession {
+  id: string;
+  assessment_id: string;
+  assessment_version_id: string;
+  title: string;
+  status: string;
+  algorithm_version: string;
+  score_tolerance_abs: number;
+  score_tolerance_pct: number;
+  min_cases: number;
+  activated_by: string | null;
+  activated_at: string | null;
+  closed_by: string | null;
+  closed_at: string | null;
+  created_by: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  case_count?: number;
+  cases?: CalibrationCase[];
+  participants?: { id: string; user_id: string }[];
+}
+
+export interface CalibrationSessionList {
+  items: CalibrationSession[];
+}
+
+export interface CalibrationCase {
+  id: string;
+  session_id: string;
+  case_code: string;
+  published_result_id: string;
+  evaluation_run_id: string;
+  question_evaluation_id: string;
+  question_version_id: string;
+  rubric_version_id: string;
+  max_mark: number;
+  reference_score: number;
+  source_snapshot_hash: string;
+  created_at: string | null;
+}
+
+export interface CalibrationCaseBlind {
+  id: string;
+  session_id: string;
+  case_code: string;
+  question_version_id: string;
+  rubric_version_id: string;
+  max_mark: number;
+  criterion_snapshot: unknown[];
+  evidence_snapshot: Record<string, unknown>;
+}
+
+export interface CalibrationResponse {
+  id: string;
+  session_id: string;
+  case_id: string;
+  participant_id: string;
+  user_id: string;
+  score: number;
+  max_mark: number;
+  comment: string | null;
+  submitted_at: string | null;
+}
+
+export interface CalibrationSessionMetric {
+  id: string;
+  session_id: string;
+  metric_name: string;
+  algorithm_version: string;
+  evaluator_count: number;
+  common_case_count: number;
+  icc_value: number | null;
+  status: string;
+}
+
+export interface CalibrationEvaluatorMetric {
+  id: string;
+  session_id: string;
+  user_id: string;
+  case_count: number;
+  mean_signed_diff: number;
+  mae: number;
+  nmae: number;
+  exact_match_rate: number;
+  within_tolerance_rate: number;
+}
