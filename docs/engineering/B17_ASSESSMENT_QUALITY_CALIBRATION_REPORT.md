@@ -66,3 +66,17 @@ Corrective follow-up to PR #70 / Issues #67/#69 (no new product scope; no `main`
 ## Deferred (not in APP-010)
 
 PEV-050, PEV-051, PEV-054, PEV-055, PEV-056, PEV-057.
+
+---
+
+## APP-011 release approval (promotion only)
+
+**Issue:** #73  
+**Decision:** Founder approves promotion of independently accepted APP-010 / B17 + B17.1 (PEV-048–049) from `develop` to `main`.  
+**Status:** APPROVED  
+**Milestone:** Assessment Quality & Calibration Release / APP-011  
+
+Starting develop: `83547716a49aae8cc7ebdf24abc3a2ad839b4dfd`  
+Expected main until promotion: `5febe578f4f57f24c63149ae5a03be8adb5baac3`  
+
+Release promotion only — no new implementation; classifications remain `FUTURE_ENTERPRISE`; PEV-050–051 and PEV-054–057 remain deferred; exact-tree snapshot mandatory (main/develop histories intentionally diverge); no direct develop→main conflict resolution; no merge-back from main to develop; no AI provider/model deployment authorization.
