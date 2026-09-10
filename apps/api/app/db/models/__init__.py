@@ -66,6 +66,17 @@ from app.db.models.mastery import (
     MasteryStateSnapshot,
     MistakeNotebookEntry,
 )
+from app.db.models.outcome_intelligence import (
+    AnswerCluster,
+    AnswerClusterMember,
+    AnswerClusterReview,
+    AnswerClusterRun,
+    OutcomeAttainmentMetric,
+    OutcomeAttainmentReportRun,
+    OutcomeDefinition,
+    OutcomeMappingSet,
+    QuestionOutcomeMapping,
+)
 from app.db.models.publication import Annotation, PublishedResult
 from app.db.models.quality import (
     CalibrationCase,
@@ -97,6 +108,10 @@ __all__ = [
     "AcademicYear",
     "AiExecutionRecord",
     "Annotation",
+    "AnswerCluster",
+    "AnswerClusterMember",
+    "AnswerClusterReview",
+    "AnswerClusterRun",
     "AnswerKey",
     "AnswerKeyVersion",
     "AnswerRegion",
@@ -148,6 +163,10 @@ __all__ = [
     "ModerationCase",
     "ModerationPolicy",
     "ModerationStage",
+    "OutcomeAttainmentMetric",
+    "OutcomeAttainmentReportRun",
+    "OutcomeDefinition",
+    "OutcomeMappingSet",
     "Permission",
     "PipelineJob",
     "PsychometricRun",
@@ -157,6 +176,7 @@ __all__ = [
     "QuestionAnswerMappingRegion",
     "QuestionCurriculumMapping",
     "QuestionEvaluation",
+    "QuestionOutcomeMapping",
     "QuestionVersion",
     "Reassessment",
     "ReassessmentItem",

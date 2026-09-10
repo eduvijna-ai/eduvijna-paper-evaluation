@@ -2369,6 +2369,349 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/CalibrationEvaluatorMetric" }
+  /api/v1/quality/answer-clusters/runs:
+    get:
+      operationId: listAnswerClusterRuns
+      tags: [outcome-intelligence]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: assessment_version_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+        - name: question_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Answer cluster runs
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnswerClusterRunList" }
+    post:
+      operationId: createAnswerClusterRun
+      tags: [outcome-intelligence]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnswerClusterRunCreate" }
+      responses:
+        "200":
+          description: Created or existing cluster run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnswerClusterRun" }
+  /api/v1/quality/answer-clusters/runs/{run_id}:
+    parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getAnswerClusterRun
+      tags: [outcome-intelligence]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Answer cluster run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnswerClusterRun" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/quality/answer-clusters/runs/{run_id}/clusters:
+    parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listAnswerClustersForRun
+      tags: [outcome-intelligence]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Clusters for run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnswerClusterList" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/quality/answer-clusters/clusters/{cluster_id}:
+    parameters:
+      - name: cluster_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getAnswerCluster
+      tags: [outcome-intelligence]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Cluster detail with members and reviews
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnswerClusterDetail" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/quality/answer-clusters/clusters/{cluster_id}/reviews:
+    parameters:
+      - name: cluster_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: createAnswerClusterReview
+      tags: [outcome-intelligence]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AnswerClusterReviewCreate" }
+      responses:
+        "200":
+          description: Advisory cluster review
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AnswerClusterReview" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/outcomes/definitions:
+    get:
+      operationId: listOutcomeDefinitions
+      tags: [outcome-intelligence]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: outcome_type
+          in: query
+          required: false
+          schema: { type: string, enum: [CO, PO] }
+      responses:
+        "200":
+          description: Outcome definitions
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OutcomeDefinitionList" }
+    post:
+      operationId: createOutcomeDefinition
+      tags: [outcome-intelligence]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OutcomeDefinitionCreate" }
+      responses:
+        "200":
+          description: Created outcome definition
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OutcomeDefinition" }
+  /api/v1/outcomes/definitions/{definition_id}:
+    parameters:
+      - name: definition_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getOutcomeDefinition
+      tags: [outcome-intelligence]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Outcome definition
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OutcomeDefinition" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    patch:
+      operationId: updateOutcomeDefinition
+      tags: [outcome-intelligence]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OutcomeDefinitionUpdate" }
+      responses:
+        "200":
+          description: Updated outcome definition
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OutcomeDefinition" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/outcomes/mapping-sets:
+    get:
+      operationId: listOutcomeMappingSets
+      tags: [outcome-intelligence]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: assessment_version_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Mapping sets
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OutcomeMappingSetList" }
+    post:
+      operationId: createOutcomeMappingSet
+      tags: [outcome-intelligence]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OutcomeMappingSetCreate" }
+      responses:
+        "200":
+          description: Created DRAFT mapping set
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OutcomeMappingSet" }
+  /api/v1/outcomes/mapping-sets/{mapping_set_id}:
+    parameters:
+      - name: mapping_set_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getOutcomeMappingSet
+      tags: [outcome-intelligence]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Mapping set with mappings
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OutcomeMappingSet" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/outcomes/mapping-sets/{mapping_set_id}/mappings:
+    parameters:
+      - name: mapping_set_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: addQuestionOutcomeMapping
+      tags: [outcome-intelligence]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/QuestionOutcomeMappingCreate" }
+      responses:
+        "200":
+          description: Added mapping
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/QuestionOutcomeMapping" }
+        "409": { description: Mapping set not DRAFT or conflict }
+  /api/v1/outcomes/mapping-sets/{mapping_set_id}/activate:
+    parameters:
+      - name: mapping_set_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: activateOutcomeMappingSet
+      tags: [outcome-intelligence]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Activated mapping set
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OutcomeMappingSet" }
+        "409": { description: Mapping set not DRAFT or empty }
+  /api/v1/outcomes/mappings/{mapping_id}:
+    parameters:
+      - name: mapping_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    delete:
+      operationId: removeQuestionOutcomeMapping
+      tags: [outcome-intelligence]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Removed mapping
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "409": { description: Mapping set not DRAFT }
+  /api/v1/outcomes/attainment-reports:
+    get:
+      operationId: listOutcomeAttainmentReports
+      tags: [outcome-intelligence]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: assessment_version_id
+          in: query
+          required: false
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Attainment reports
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OutcomeAttainmentReportList" }
+    post:
+      operationId: createOutcomeAttainmentReport
+      tags: [outcome-intelligence]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OutcomeAttainmentReportCreate" }
+      responses:
+        "200":
+          description: Created or existing attainment report
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OutcomeAttainmentReport" }
+  /api/v1/outcomes/attainment-reports/{report_id}:
+    parameters:
+      - name: report_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getOutcomeAttainmentReport
+      tags: [outcome-intelligence]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Attainment report with metrics
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OutcomeAttainmentReport" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/outcomes/attainment-reports/{report_id}/export.csv:
+    parameters:
+      - name: report_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: exportOutcomeAttainmentCsv
+      tags: [outcome-intelligence]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: CSV export
+          content:
+            text/csv:
+              schema: { type: string }
+        "404": { $ref: "#/components/responses/NotFound" }
   /api/v1/operations/grading-pools:
     get:
       operationId: listGradingPools
@@ -6361,3 +6704,366 @@ components:
         items:
           type: array
           items: { $ref: "#/components/schemas/CalibrationEvaluatorMetric" }
+    AnswerClusterRun:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          assessment_id,
+          assessment_version_id,
+          question_id,
+          question_version_id,
+          cohort_definition,
+          algorithm_version,
+          similarity_threshold,
+          source_set_hash,
+          source_result_count,
+          source_published_result_ids,
+          embedding_provider,
+          embedding_model,
+          embedding_model_version,
+          embedding_dim,
+          cluster_count,
+          status,
+          requested_by,
+          requested_at,
+          completed_at,
+          failure_code,
+          failure_detail,
+          created_at,
+          updated_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        question_id: { type: string, format: uuid }
+        question_version_id: { type: string, format: uuid }
+        cohort_definition: { type: object, additionalProperties: true }
+        algorithm_version: { type: string }
+        similarity_threshold: { type: ["number", "null"] }
+        source_set_hash: { type: string }
+        source_result_count: { type: integer }
+        source_published_result_ids:
+          type: array
+          items: { type: string, format: uuid }
+        embedding_provider: { type: string }
+        embedding_model: { type: string }
+        embedding_model_version: { type: string }
+        embedding_dim: { type: integer }
+        cluster_count: { type: integer }
+        status:
+          type: string
+          enum: [PENDING, COMPLETED, INSUFFICIENT_SAMPLE, FAILED]
+        requested_by: { type: ["string", "null"], format: uuid }
+        requested_at: { type: ["string", "null"], format: date-time }
+        completed_at: { type: ["string", "null"], format: date-time }
+        failure_code: { type: ["string", "null"] }
+        failure_detail: { type: ["string", "null"] }
+        created_at: { type: ["string", "null"], format: date-time }
+        updated_at: { type: ["string", "null"], format: date-time }
+    AnswerClusterRunCreate:
+      type: object
+      additionalProperties: false
+      required: [assessment_version_id, question_id]
+      properties:
+        assessment_version_id: { type: string, format: uuid }
+        question_id: { type: string, format: uuid }
+        similarity_threshold: { type: number, exclusiveMinimum: 0, maximum: 1 }
+    AnswerClusterRunList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AnswerClusterRun" }
+    AnswerCluster:
+      type: object
+      additionalProperties: false
+      required: [id, run_id, cluster_index, member_count, label, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        run_id: { type: string, format: uuid }
+        cluster_index: { type: integer }
+        member_count: { type: integer }
+        label: { type: ["string", "null"] }
+        created_at: { type: ["string", "null"], format: date-time }
+    AnswerClusterList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AnswerCluster" }
+    AnswerClusterDetail:
+      allOf:
+        - $ref: "#/components/schemas/AnswerCluster"
+        - type: object
+          properties:
+            members: { type: array, items: { type: object, additionalProperties: true } }
+            reviews: { type: array, items: { $ref: "#/components/schemas/AnswerClusterReview" } }
+    AnswerClusterReview:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          run_id,
+          cluster_id,
+          reviewer_user_id,
+          observation,
+          suggested_rubric_refinement,
+          submitted_at,
+          created_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        run_id: { type: string, format: uuid }
+        cluster_id: { type: string, format: uuid }
+        reviewer_user_id: { type: string, format: uuid }
+        observation: { type: string }
+        suggested_rubric_refinement: { type: ["string", "null"] }
+        submitted_at: { type: ["string", "null"], format: date-time }
+        created_at: { type: ["string", "null"], format: date-time }
+    AnswerClusterReviewCreate:
+      type: object
+      additionalProperties: false
+      required: [observation]
+      properties:
+        observation: { type: string, minLength: 1 }
+        suggested_rubric_refinement: { type: ["string", "null"] }
+    OutcomeDefinition:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          outcome_type,
+          code,
+          title,
+          description,
+          status,
+          created_by,
+          created_at,
+          updated_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        outcome_type: { type: string, enum: [CO, PO] }
+        code: { type: string }
+        title: { type: string }
+        description: { type: ["string", "null"] }
+        status: { type: string, enum: [ACTIVE, RETIRED] }
+        created_by: { type: ["string", "null"], format: uuid }
+        created_at: { type: ["string", "null"], format: date-time }
+        updated_at: { type: ["string", "null"], format: date-time }
+    OutcomeDefinitionCreate:
+      type: object
+      additionalProperties: false
+      required: [outcome_type, code, title]
+      properties:
+        outcome_type: { type: string, enum: [CO, PO] }
+        code: { type: string }
+        title: { type: string }
+        description: { type: ["string", "null"] }
+    OutcomeDefinitionUpdate:
+      type: object
+      additionalProperties: false
+      properties:
+        title: { type: string }
+        description: { type: ["string", "null"] }
+        status: { type: string, enum: [ACTIVE, RETIRED] }
+    OutcomeDefinitionList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/OutcomeDefinition" }
+    OutcomeMappingSet:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          assessment_id,
+          assessment_version_id,
+          version_number,
+          title,
+          status,
+          created_by,
+          activated_by,
+          activated_at,
+          retired_by,
+          retired_at,
+          activation_hash,
+          created_at,
+          updated_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        version_number: { type: integer }
+        title: { type: string }
+        status: { type: string, enum: [DRAFT, ACTIVE, RETIRED] }
+        created_by: { type: ["string", "null"], format: uuid }
+        activated_by: { type: ["string", "null"], format: uuid }
+        activated_at: { type: ["string", "null"], format: date-time }
+        retired_by: { type: ["string", "null"], format: uuid }
+        retired_at: { type: ["string", "null"], format: date-time }
+        activation_hash: { type: ["string", "null"] }
+        created_at: { type: ["string", "null"], format: date-time }
+        updated_at: { type: ["string", "null"], format: date-time }
+        mapping_count: { type: integer }
+        mappings:
+          type: array
+          items: { $ref: "#/components/schemas/QuestionOutcomeMapping" }
+    OutcomeMappingSetCreate:
+      type: object
+      additionalProperties: false
+      required: [assessment_version_id, title]
+      properties:
+        assessment_version_id: { type: string, format: uuid }
+        title: { type: string }
+    OutcomeMappingSetList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/OutcomeMappingSet" }
+    QuestionOutcomeMapping:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          mapping_set_id,
+          question_id,
+          question_version_id,
+          outcome_definition_id,
+          weight,
+          created_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        mapping_set_id: { type: string, format: uuid }
+        question_id: { type: string, format: uuid }
+        question_version_id: { type: string, format: uuid }
+        outcome_definition_id: { type: string, format: uuid }
+        weight: { type: number }
+        created_at: { type: ["string", "null"], format: date-time }
+    QuestionOutcomeMappingCreate:
+      type: object
+      additionalProperties: false
+      required: [question_id, outcome_definition_id]
+      properties:
+        question_id: { type: string, format: uuid }
+        outcome_definition_id: { type: string, format: uuid }
+        weight: { type: number, exclusiveMinimum: 0, maximum: 1 }
+    OutcomeAttainmentReport:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          assessment_id,
+          assessment_version_id,
+          mapping_set_id,
+          mapping_set_version_number,
+          mapping_activation_hash,
+          cohort_definition,
+          algorithm_version,
+          source_set_hash,
+          source_result_count,
+          source_published_result_ids,
+          status,
+          requested_by,
+          requested_at,
+          completed_at,
+          failure_code,
+          failure_detail,
+          created_at,
+          updated_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        assessment_id: { type: string, format: uuid }
+        assessment_version_id: { type: string, format: uuid }
+        mapping_set_id: { type: string, format: uuid }
+        mapping_set_version_number: { type: integer }
+        mapping_activation_hash: { type: ["string", "null"] }
+        cohort_definition: { type: object, additionalProperties: true }
+        algorithm_version: { type: string }
+        source_set_hash: { type: string }
+        source_result_count: { type: integer }
+        source_published_result_ids:
+          type: array
+          items: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [PENDING, COMPLETED, INSUFFICIENT_SAMPLE, FAILED]
+        requested_by: { type: ["string", "null"], format: uuid }
+        requested_at: { type: ["string", "null"], format: date-time }
+        completed_at: { type: ["string", "null"], format: date-time }
+        failure_code: { type: ["string", "null"] }
+        failure_detail: { type: ["string", "null"] }
+        created_at: { type: ["string", "null"], format: date-time }
+        updated_at: { type: ["string", "null"], format: date-time }
+        metrics:
+          type: array
+          items: { $ref: "#/components/schemas/OutcomeAttainmentMetric" }
+    OutcomeAttainmentReportCreate:
+      type: object
+      additionalProperties: false
+      required: [assessment_version_id]
+      properties:
+        assessment_version_id: { type: string, format: uuid }
+        mapping_set_id: { type: ["string", "null"], format: uuid }
+    OutcomeAttainmentReportList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/OutcomeAttainmentReport" }
+    OutcomeAttainmentMetric:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          report_run_id,
+          outcome_definition_id,
+          outcome_type,
+          outcome_code,
+          outcome_title,
+          weighted_earned,
+          weighted_max,
+          attainment_pct,
+          denom_status,
+          mapped_question_count,
+          contribution_count,
+          created_at,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        report_run_id: { type: string, format: uuid }
+        outcome_definition_id: { type: string, format: uuid }
+        outcome_type: { type: string, enum: [CO, PO] }
+        outcome_code: { type: string }
+        outcome_title: { type: string }
+        weighted_earned: { type: number }
+        weighted_max: { type: number }
+        attainment_pct: { type: ["number", "null"] }
+        denom_status: { type: string, enum: [OK, ZERO_DENOM] }
+        mapped_question_count: { type: integer }
+        contribution_count: { type: integer }
+        created_at: { type: ["string", "null"], format: date-time }

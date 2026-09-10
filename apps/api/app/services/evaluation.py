@@ -1124,6 +1124,10 @@ def _dump_run(run: EvaluationRun) -> dict[str, Any]:
         "assessment_id": str(run.assessment_id),
         "assessment_version_id": str(run.assessment_version_id),
         "run_number": run.run_number,
+        "run_kind": run.run_kind,
+        "supersedes_run_id": (
+            str(run.supersedes_run_id) if run.supersedes_run_id else None
+        ),
         "status": run.status,
         "provider": run.provider,
         "model": run.model,

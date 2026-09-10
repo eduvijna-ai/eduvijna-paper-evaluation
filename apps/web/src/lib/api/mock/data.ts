@@ -3378,3 +3378,555 @@ export function getCalibrationEvaluatorMetrics(sessionId: string) {
 export function getMyCalibrationMetrics(sessionId: string) {
   return getCalibrationEvaluatorMetrics(sessionId).items[0];
 }
+
+/** B18 demo fixtures */
+export const ANSWER_CLUSTER_RUN_DEMO_ID = "answer-cluster-run-demo-001";
+export const ANSWER_CLUSTER_DEMO_ID = "answer-cluster-demo-001";
+export const OUTCOME_DEFINITION_CO_DEMO_ID = "outcome-def-co-demo-001";
+export const OUTCOME_MAPPING_SET_DEMO_ID = "outcome-mapping-set-demo-001";
+export const OUTCOME_ATTAINMENT_REPORT_DEMO_ID = "outcome-attainment-report-demo-001";
+
+let demoAnswerClusterRuns: import("@/lib/types/domain").AnswerClusterRun[] = [
+  {
+    id: ANSWER_CLUSTER_RUN_DEMO_ID,
+    assessment_id: "assess-demo-001",
+    assessment_version_id: "assess-ver-demo-001",
+    question_id: "q-demo-001",
+    question_version_id: "qv-demo-001",
+    cohort_definition: {
+      scope: "assessment_version",
+      status_filter: ["PUBLISHED"],
+      exclude_superseded: true,
+    },
+    algorithm_version: "COSINE_GRAPH_V1",
+    similarity_threshold: 0.75,
+    source_set_hash: "cluster-demo-hash",
+    source_result_count: 24,
+    source_published_result_ids: ["pub-demo-001"],
+    embedding_provider: "mock",
+    embedding_model: "mock-embedding-v1",
+    embedding_model_version: "1",
+    embedding_dim: 32,
+    cluster_count: 2,
+    status: "COMPLETED",
+    requested_by: "user-admin-001",
+    requested_at: "2026-09-10T06:00:00.000Z",
+    completed_at: "2026-09-10T06:00:01.000Z",
+    failure_code: null,
+    failure_detail: null,
+    created_at: "2026-09-10T06:00:00.000Z",
+    updated_at: "2026-09-10T06:00:01.000Z",
+  },
+];
+
+const demoAnswerClusters: import("@/lib/types/domain").AnswerCluster[] = [
+  {
+    id: ANSWER_CLUSTER_DEMO_ID,
+    run_id: ANSWER_CLUSTER_RUN_DEMO_ID,
+    cluster_index: 0,
+    member_count: 3,
+    label: "Common partial derivation",
+    created_at: "2026-09-10T06:00:01.000Z",
+  },
+  {
+    id: "answer-cluster-demo-002",
+    run_id: ANSWER_CLUSTER_RUN_DEMO_ID,
+    cluster_index: 1,
+    member_count: 2,
+    label: "Sign error pattern",
+    created_at: "2026-09-10T06:00:01.000Z",
+  },
+];
+
+const demoClusterMembers: import("@/lib/types/domain").AnswerClusterMember[] = [
+  {
+    id: "cluster-member-demo-001",
+    run_id: ANSWER_CLUSTER_RUN_DEMO_ID,
+    cluster_id: ANSWER_CLUSTER_DEMO_ID,
+    published_result_id: "pub-demo-001",
+    evaluation_run_id: "eval-run-demo-001",
+    question_evaluation_id: "qe-demo-001",
+    submission_id: "sub-demo-001",
+    transcription_text: "Used chain rule but missed constant factor.",
+    transcription_hash: "tx-hash-001",
+    embedding: [0.1, 0.2, 0.3],
+    final_human_approved_score: 3,
+    created_at: "2026-09-10T06:00:01.000Z",
+  },
+];
+
+let demoClusterReviews: import("@/lib/types/domain").AnswerClusterReview[] = [];
+
+let demoOutcomeDefinitions: import("@/lib/types/domain").OutcomeDefinition[] = [
+  {
+    id: OUTCOME_DEFINITION_CO_DEMO_ID,
+    outcome_type: "CO",
+    code: "CO1",
+    title: "Apply differentiation rules",
+    description: "Students apply product and chain rules correctly.",
+    status: "ACTIVE",
+    created_by: "user-admin-001",
+    created_at: "2026-09-10T06:10:00.000Z",
+    updated_at: "2026-09-10T06:10:00.000Z",
+  },
+  {
+    id: "outcome-def-po-demo-001",
+    outcome_type: "PO",
+    code: "PO2",
+    title: "Problem solving",
+    description: "Analyze and solve applied problems.",
+    status: "ACTIVE",
+    created_by: "user-admin-001",
+    created_at: "2026-09-10T06:10:00.000Z",
+    updated_at: "2026-09-10T06:10:00.000Z",
+  },
+];
+
+let demoOutcomeMappingSets: import("@/lib/types/domain").OutcomeMappingSet[] = [
+  {
+    id: OUTCOME_MAPPING_SET_DEMO_ID,
+    assessment_id: "assess-demo-001",
+    assessment_version_id: "assess-ver-demo-001",
+    version_number: 1,
+    title: "Demo CO/PO mapping v1",
+    status: "ACTIVE",
+    created_by: "user-admin-001",
+    activated_by: "user-admin-001",
+    activated_at: "2026-09-10T06:15:00.000Z",
+    retired_by: null,
+    retired_at: null,
+    activation_hash:
+      "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    created_at: "2026-09-10T06:12:00.000Z",
+    updated_at: "2026-09-10T06:15:00.000Z",
+    mapping_count: 1,
+    mappings: [
+      {
+        id: "outcome-mapping-demo-001",
+        mapping_set_id: OUTCOME_MAPPING_SET_DEMO_ID,
+        question_id: "q-demo-001",
+        question_version_id: "qv-demo-001",
+        outcome_definition_id: OUTCOME_DEFINITION_CO_DEMO_ID,
+        weight: 1,
+        created_at: "2026-09-10T06:13:00.000Z",
+      },
+    ],
+  },
+];
+
+let demoOutcomeAttainmentReports: import("@/lib/types/domain").OutcomeAttainmentReport[] =
+  [
+    {
+      id: OUTCOME_ATTAINMENT_REPORT_DEMO_ID,
+      assessment_id: "assess-demo-001",
+      assessment_version_id: "assess-ver-demo-001",
+      mapping_set_id: OUTCOME_MAPPING_SET_DEMO_ID,
+      mapping_set_version_number: 1,
+      mapping_activation_hash:
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      cohort_definition: { scope: "assessment_version" },
+      algorithm_version: "MARKS_WEIGHTED_V1",
+      source_set_hash: "attainment-demo-hash",
+      source_result_count: 24,
+      source_published_result_ids: ["pub-demo-001"],
+      status: "COMPLETED",
+      requested_by: "user-admin-001",
+      requested_at: "2026-09-10T06:20:00.000Z",
+      completed_at: "2026-09-10T06:20:01.000Z",
+      failure_code: null,
+      failure_detail: null,
+      created_at: "2026-09-10T06:20:00.000Z",
+      updated_at: "2026-09-10T06:20:01.000Z",
+      metrics: [
+        {
+          id: "attainment-metric-demo-001",
+          report_run_id: OUTCOME_ATTAINMENT_REPORT_DEMO_ID,
+          outcome_definition_id: OUTCOME_DEFINITION_CO_DEMO_ID,
+          outcome_type: "CO",
+          outcome_code: "CO1",
+          outcome_title: "Apply differentiation rules",
+          weighted_earned: 72,
+          weighted_max: 120,
+          attainment_pct: 60,
+          denom_status: "OK",
+          mapped_question_count: 1,
+          contribution_count: 24,
+          created_at: "2026-09-10T06:20:01.000Z",
+        },
+      ],
+    },
+  ];
+
+export function listAnswerClusterRuns(
+  assessmentVersionId?: string,
+  questionId?: string,
+) {
+  let items = demoAnswerClusterRuns;
+  if (assessmentVersionId) {
+    items = items.filter(
+      (r) => r.assessment_version_id === assessmentVersionId,
+    );
+  }
+  if (questionId) {
+    items = items.filter((r) => r.question_id === questionId);
+  }
+  return { items: items.map((r) => ({ ...r })) };
+}
+
+export function createAnswerClusterRun(input: {
+  assessment_version_id: string;
+  question_id: string;
+  similarity_threshold?: number;
+}) {
+  const now = new Date().toISOString();
+  const run: import("@/lib/types/domain").AnswerClusterRun = {
+    id: `answer-cluster-run-demo-${crypto.randomUUID().slice(0, 8)}`,
+    assessment_id: "assess-demo-001",
+    assessment_version_id: input.assessment_version_id,
+    question_id: input.question_id,
+    question_version_id: "qv-demo-001",
+    cohort_definition: { scope: "assessment_version" },
+    algorithm_version: "COSINE_GRAPH_V1",
+    similarity_threshold: input.similarity_threshold ?? 0.75,
+    source_set_hash: "new-cluster-hash",
+    source_result_count: 0,
+    source_published_result_ids: [],
+    embedding_provider: "mock",
+    embedding_model: "mock-embedding-v1",
+    embedding_model_version: "1",
+    embedding_dim: 32,
+    cluster_count: 0,
+    status: "INSUFFICIENT_SAMPLE",
+    requested_by: "user-admin-001",
+    requested_at: now,
+    completed_at: now,
+    failure_code: "INSUFFICIENT_SAMPLE",
+    failure_detail: "Published cohort size 0 < minimum 2",
+    created_at: now,
+    updated_at: now,
+  };
+  demoAnswerClusterRuns = [run, ...demoAnswerClusterRuns];
+  return run;
+}
+
+export function getAnswerClusterRun(runId: string) {
+  const run = demoAnswerClusterRuns.find((r) => r.id === runId);
+  if (!run) throw new MockNotFoundError("Answer cluster run not found");
+  return { ...run };
+}
+
+export function listAnswerClusters(runId: string) {
+  getAnswerClusterRun(runId);
+  return {
+    items: demoAnswerClusters
+      .filter((c) => c.run_id === runId)
+      .map((c) => ({ ...c })),
+  };
+}
+
+export function getAnswerCluster(clusterId: string) {
+  const cluster = demoAnswerClusters.find((c) => c.id === clusterId);
+  if (!cluster) throw new MockNotFoundError("Answer cluster not found");
+  return {
+    ...cluster,
+    members: demoClusterMembers
+      .filter((m) => m.cluster_id === clusterId)
+      .map((m) => ({ ...m })),
+    reviews: demoClusterReviews
+      .filter((r) => r.cluster_id === clusterId)
+      .map((r) => ({ ...r })),
+  };
+}
+
+export function submitAnswerClusterReview(
+  clusterId: string,
+  input: { observation: string; suggested_rubric_refinement?: string | null },
+) {
+  const cluster = getAnswerCluster(clusterId);
+  const review: import("@/lib/types/domain").AnswerClusterReview = {
+    id: `cluster-review-demo-${crypto.randomUUID().slice(0, 8)}`,
+    run_id: cluster.run_id,
+    cluster_id: clusterId,
+    reviewer_user_id: "user-admin-001",
+    observation: input.observation,
+    suggested_rubric_refinement: input.suggested_rubric_refinement ?? null,
+    submitted_at: new Date().toISOString(),
+    created_at: new Date().toISOString(),
+  };
+  demoClusterReviews = [...demoClusterReviews, review];
+  return review;
+}
+
+export function listOutcomeDefinitions(outcomeType?: string) {
+  const items = outcomeType
+    ? demoOutcomeDefinitions.filter(
+        (d) => d.outcome_type === outcomeType.toUpperCase(),
+      )
+    : demoOutcomeDefinitions;
+  return { items: items.map((d) => ({ ...d })) };
+}
+
+export function createOutcomeDefinition(input: {
+  outcome_type: string;
+  code: string;
+  title: string;
+  description?: string | null;
+}) {
+  const now = new Date().toISOString();
+  const row: import("@/lib/types/domain").OutcomeDefinition = {
+    id: `outcome-def-demo-${crypto.randomUUID().slice(0, 8)}`,
+    outcome_type: input.outcome_type.toUpperCase(),
+    code: input.code,
+    title: input.title,
+    description: input.description ?? null,
+    status: "ACTIVE",
+    created_by: "user-admin-001",
+    created_at: now,
+    updated_at: now,
+  };
+  demoOutcomeDefinitions = [row, ...demoOutcomeDefinitions];
+  return row;
+}
+
+export function getOutcomeDefinition(id: string) {
+  const row = demoOutcomeDefinitions.find((d) => d.id === id);
+  if (!row) throw new MockNotFoundError("Outcome definition not found");
+  return { ...row };
+}
+
+export function updateOutcomeDefinition(
+  id: string,
+  input: {
+    title?: string;
+    description?: string | null;
+    status?: string;
+  },
+) {
+  const row = getOutcomeDefinition(id);
+  const updated = {
+    ...row,
+    ...input,
+    updated_at: new Date().toISOString(),
+  };
+  demoOutcomeDefinitions = demoOutcomeDefinitions.map((d) =>
+    d.id === id ? updated : d,
+  );
+  return updated;
+}
+
+export function listOutcomeMappingSets(assessmentVersionId?: string) {
+  const items = assessmentVersionId
+    ? demoOutcomeMappingSets.filter(
+        (s) => s.assessment_version_id === assessmentVersionId,
+      )
+    : demoOutcomeMappingSets;
+  return {
+    items: items.map((s) => ({
+      ...s,
+      mappings: undefined,
+    })),
+  };
+}
+
+export function createOutcomeMappingSet(input: {
+  assessment_version_id: string;
+  title: string;
+}) {
+  const now = new Date().toISOString();
+  const row: import("@/lib/types/domain").OutcomeMappingSet = {
+    id: `outcome-mapping-set-demo-${crypto.randomUUID().slice(0, 8)}`,
+    assessment_id: "assess-demo-001",
+    assessment_version_id: input.assessment_version_id,
+    version_number: 1,
+    title: input.title,
+    status: "DRAFT",
+    created_by: "user-admin-001",
+    activated_by: null,
+    activated_at: null,
+    retired_by: null,
+    retired_at: null,
+    activation_hash: null,
+    created_at: now,
+    updated_at: now,
+    mapping_count: 0,
+    mappings: [],
+  };
+  demoOutcomeMappingSets = [row, ...demoOutcomeMappingSets];
+  return row;
+}
+
+export function getOutcomeMappingSet(id: string) {
+  const row = demoOutcomeMappingSets.find((s) => s.id === id);
+  if (!row) throw new MockNotFoundError("Outcome mapping set not found");
+  return {
+    ...row,
+    mappings: [...(row.mappings ?? [])],
+  };
+}
+
+export function addOutcomeMapping(
+  mappingSetId: string,
+  input: {
+    question_id: string;
+    outcome_definition_id: string;
+    weight?: number;
+  },
+) {
+  const set = getOutcomeMappingSet(mappingSetId);
+  if (set.status !== "DRAFT") {
+    throw new MockNotFoundError("Only DRAFT mapping sets accept new mappings");
+  }
+  const weight = input.weight ?? 1;
+  if (!(weight > 0 && weight <= 1)) {
+    throw new MockNotFoundError("INVALID_WEIGHT");
+  }
+  const mapping: import("@/lib/types/domain").QuestionOutcomeMapping = {
+    id: `outcome-mapping-demo-${crypto.randomUUID().slice(0, 8)}`,
+    mapping_set_id: mappingSetId,
+    question_id: input.question_id,
+    question_version_id: "qv-demo-001",
+    outcome_definition_id: input.outcome_definition_id,
+    weight,
+    created_at: new Date().toISOString(),
+  };
+  const updated = {
+    ...set,
+    mappings: [...(set.mappings ?? []), mapping],
+    mapping_count: (set.mapping_count ?? 0) + 1,
+    updated_at: new Date().toISOString(),
+  };
+  demoOutcomeMappingSets = demoOutcomeMappingSets.map((s) =>
+    s.id === mappingSetId ? updated : s,
+  );
+  return mapping;
+}
+
+export function removeOutcomeMapping(mappingId: string) {
+  let found = false;
+  demoOutcomeMappingSets = demoOutcomeMappingSets.map((set) => {
+    const mappings = (set.mappings ?? []).filter((m) => m.id !== mappingId);
+    if (mappings.length !== (set.mappings ?? []).length) {
+      found = true;
+      return {
+        ...set,
+        mappings,
+        mapping_count: mappings.length,
+        updated_at: new Date().toISOString(),
+      };
+    }
+    return set;
+  });
+  if (!found) throw new MockNotFoundError("Outcome mapping not found");
+  return { ok: true as const };
+}
+
+export function activateOutcomeMappingSet(mappingSetId: string) {
+  const set = getOutcomeMappingSet(mappingSetId);
+  if ((set.mappings ?? []).length === 0) {
+    throw new MockNotFoundError("Cannot activate empty mapping set");
+  }
+  const now = new Date().toISOString();
+  const updated = {
+    ...set,
+    status: "ACTIVE",
+    activated_by: "user-admin-001",
+    activated_at: now,
+    activation_hash:
+      set.activation_hash ??
+      "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    updated_at: now,
+  };
+  demoOutcomeMappingSets = demoOutcomeMappingSets.map((s) =>
+    s.id === mappingSetId ? updated : s,
+  );
+  return updated;
+}
+
+export function listOutcomeAttainmentReports(assessmentVersionId?: string) {
+  const items = assessmentVersionId
+    ? demoOutcomeAttainmentReports.filter(
+        (r) => r.assessment_version_id === assessmentVersionId,
+      )
+    : demoOutcomeAttainmentReports;
+  return {
+    items: items.map((r) => ({
+      ...r,
+      metrics: undefined,
+    })),
+  };
+}
+
+export function createOutcomeAttainmentReport(input: {
+  assessment_version_id: string;
+  mapping_set_id?: string;
+}) {
+  const mappingSetId =
+    input.mapping_set_id ?? OUTCOME_MAPPING_SET_DEMO_ID;
+  const mappingSet = getOutcomeMappingSet(mappingSetId);
+  const now = new Date().toISOString();
+  const report: import("@/lib/types/domain").OutcomeAttainmentReport = {
+    id: `outcome-attainment-report-demo-${crypto.randomUUID().slice(0, 8)}`,
+    assessment_id: "assess-demo-001",
+    assessment_version_id: input.assessment_version_id,
+    mapping_set_id: mappingSetId,
+    mapping_set_version_number: mappingSet.version_number,
+    mapping_activation_hash: mappingSet.activation_hash,
+    cohort_definition: { scope: "assessment_version" },
+    algorithm_version: "MARKS_WEIGHTED_V1",
+    source_set_hash: "new-attainment-hash",
+    source_result_count: 24,
+    source_published_result_ids: ["pub-demo-001"],
+    status: "COMPLETED",
+    requested_by: "user-admin-001",
+    requested_at: now,
+    completed_at: now,
+    failure_code: null,
+    failure_detail: null,
+    created_at: now,
+    updated_at: now,
+    metrics: (mappingSet.mappings ?? []).map((m, idx) => {
+      const def = getOutcomeDefinition(m.outcome_definition_id);
+      return {
+        id: `attainment-metric-demo-${idx}`,
+        report_run_id: "",
+        outcome_definition_id: def.id,
+        outcome_type: def.outcome_type,
+        outcome_code: def.code,
+        outcome_title: def.title,
+        weighted_earned: 60,
+        weighted_max: 100,
+        attainment_pct: 60,
+        denom_status: "OK",
+        mapped_question_count: 1,
+        contribution_count: 24,
+        created_at: now,
+      };
+    }),
+  };
+  report.metrics = (report.metrics ?? []).map((m) => ({
+    ...m,
+    report_run_id: report.id,
+  }));
+  demoOutcomeAttainmentReports = [report, ...demoOutcomeAttainmentReports];
+  return report;
+}
+
+export function getOutcomeAttainmentReport(reportId: string) {
+  const report = demoOutcomeAttainmentReports.find((r) => r.id === reportId);
+  if (!report) throw new MockNotFoundError("Attainment report not found");
+  return {
+    ...report,
+    metrics: [...(report.metrics ?? [])],
+  };
+}
+
+export function exportOutcomeAttainmentReportCsv(reportId: string) {
+  const report = getOutcomeAttainmentReport(reportId);
+  const header =
+    "report_id,outcome_type,outcome_code,outcome_title,weighted_earned,weighted_max,attainment_pct,denom_status,mapped_question_count,contribution_count";
+  const rows = (report.metrics ?? []).map(
+    (m) =>
+      `${report.id},${m.outcome_type},${m.outcome_code},${m.outcome_title},${m.weighted_earned},${m.weighted_max},${m.attainment_pct},${m.denom_status},${m.mapped_question_count},${m.contribution_count}`,
+  );
+  return [header, ...rows].join("\n");
+}

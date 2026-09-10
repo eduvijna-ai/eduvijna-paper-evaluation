@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/outcome-mapping-set.schema.json",
+  "title": "OutcomeMappingSet",
+  "description": "B18 versioned question→outcome mapping set (PEV-051).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "assessment_id",
+    "assessment_version_id",
+    "version_number",
+    "title",
+    "status",
+    "created_by",
+    "activated_by",
+    "activated_at",
+    "retired_by",
+    "retired_at",
+    "activation_hash",
+    "created_at",
+    "updated_at"
+  ],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "assessment_id": { "type": "string", "format": "uuid" },
+    "assessment_version_id": { "type": "string", "format": "uuid" },
+    "version_number": { "type": "integer", "minimum": 1 },
+    "title": { "type": "string", "minLength": 1 },
+    "status": { "type": "string", "enum": ["DRAFT", "ACTIVE", "RETIRED"] },
+    "created_by": { "type": ["string", "null"], "format": "uuid" },
+    "activated_by": { "type": ["string", "null"], "format": "uuid" },
+    "activated_at": { "type": ["string", "null"], "format": "date-time" },
+    "retired_by": { "type": ["string", "null"], "format": "uuid" },
+    "retired_at": { "type": ["string", "null"], "format": "date-time" },
+    "activation_hash": { "type": ["string", "null"], "minLength": 64, "maxLength": 64 },
+    "created_at": { "type": ["string", "null"], "format": "date-time" },
+    "updated_at": { "type": ["string", "null"], "format": "date-time" },
+    "mapping_count": { "type": "integer", "minimum": 0 },
+    "mappings": { "type": "array", "items": { "type": "object" } }
+  }
+}

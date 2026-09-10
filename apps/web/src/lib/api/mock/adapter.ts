@@ -106,6 +106,26 @@ import {
   getCalibrationSessionMetrics,
   getCalibrationEvaluatorMetrics,
   getMyCalibrationMetrics,
+  listAnswerClusterRuns,
+  createAnswerClusterRun,
+  getAnswerClusterRun,
+  listAnswerClusters,
+  getAnswerCluster,
+  submitAnswerClusterReview,
+  listOutcomeDefinitions,
+  createOutcomeDefinition,
+  getOutcomeDefinition,
+  updateOutcomeDefinition,
+  listOutcomeMappingSets,
+  createOutcomeMappingSet,
+  getOutcomeMappingSet,
+  addOutcomeMapping,
+  removeOutcomeMapping,
+  activateOutcomeMappingSet,
+  listOutcomeAttainmentReports,
+  createOutcomeAttainmentReport,
+  getOutcomeAttainmentReport,
+  exportOutcomeAttainmentReportCsv,
   MockNotFoundError,
   rubrics,
   students,
@@ -824,6 +844,68 @@ export const MockEduVijnaApi: ApiClient = {
   },
   async getMyCalibrationMetrics(sessionId) {
     return mockCall(() => getMyCalibrationMetrics(sessionId));
+  },
+  async listAnswerClusterRuns(assessmentVersionId, questionId) {
+    return mockCall(() =>
+      listAnswerClusterRuns(assessmentVersionId, questionId),
+    );
+  },
+  async createAnswerClusterRun(input) {
+    return mockCall(() => createAnswerClusterRun(input));
+  },
+  async getAnswerClusterRun(runId) {
+    return mockCall(() => getAnswerClusterRun(runId));
+  },
+  async listAnswerClusters(runId) {
+    return mockCall(() => listAnswerClusters(runId));
+  },
+  async getAnswerCluster(clusterId) {
+    return mockCall(() => getAnswerCluster(clusterId));
+  },
+  async submitAnswerClusterReview(clusterId, input) {
+    return mockCall(() => submitAnswerClusterReview(clusterId, input));
+  },
+  async listOutcomeDefinitions(outcomeType) {
+    return mockCall(() => listOutcomeDefinitions(outcomeType));
+  },
+  async createOutcomeDefinition(input) {
+    return mockCall(() => createOutcomeDefinition(input));
+  },
+  async getOutcomeDefinition(id) {
+    return mockCall(() => getOutcomeDefinition(id));
+  },
+  async updateOutcomeDefinition(id, input) {
+    return mockCall(() => updateOutcomeDefinition(id, input));
+  },
+  async listOutcomeMappingSets(assessmentVersionId) {
+    return mockCall(() => listOutcomeMappingSets(assessmentVersionId));
+  },
+  async createOutcomeMappingSet(input) {
+    return mockCall(() => createOutcomeMappingSet(input));
+  },
+  async getOutcomeMappingSet(id) {
+    return mockCall(() => getOutcomeMappingSet(id));
+  },
+  async addOutcomeMapping(mappingSetId, input) {
+    return mockCall(() => addOutcomeMapping(mappingSetId, input));
+  },
+  async removeOutcomeMapping(mappingId) {
+    return mockCall(() => removeOutcomeMapping(mappingId));
+  },
+  async activateOutcomeMappingSet(mappingSetId) {
+    return mockCall(() => activateOutcomeMappingSet(mappingSetId));
+  },
+  async listOutcomeAttainmentReports(assessmentVersionId) {
+    return mockCall(() => listOutcomeAttainmentReports(assessmentVersionId));
+  },
+  async createOutcomeAttainmentReport(input) {
+    return mockCall(() => createOutcomeAttainmentReport(input));
+  },
+  async getOutcomeAttainmentReport(reportId) {
+    return mockCall(() => getOutcomeAttainmentReport(reportId));
+  },
+  async exportOutcomeAttainmentReportCsv(reportId) {
+    return mockCall(() => exportOutcomeAttainmentReportCsv(reportId));
   },
 };
 

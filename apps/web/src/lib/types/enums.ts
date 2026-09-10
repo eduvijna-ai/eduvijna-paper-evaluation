@@ -339,6 +339,30 @@ export const CALIBRATION_SESSION_STATUSES = ["DRAFT", "ACTIVE", "CLOSED"] as con
 export type CalibrationSessionStatusEnum =
   (typeof CALIBRATION_SESSION_STATUSES)[number];
 
+/** B18 answer cluster run lifecycle (same terminal states as psychometrics). */
+export const ANSWER_CLUSTER_RUN_STATUSES = [
+  "PENDING",
+  "COMPLETED",
+  "INSUFFICIENT_SAMPLE",
+  "FAILED",
+] as const;
+export type AnswerClusterRunStatusEnum =
+  (typeof ANSWER_CLUSTER_RUN_STATUSES)[number];
+
+/** B18 outcome definition types. */
+export const OUTCOME_TYPES = ["CO", "PO"] as const;
+export type OutcomeTypeEnum = (typeof OUTCOME_TYPES)[number];
+
+/** B18 outcome definition lifecycle. */
+export const OUTCOME_DEFINITION_STATUSES = ["ACTIVE", "RETIRED"] as const;
+export type OutcomeDefinitionStatusEnum =
+  (typeof OUTCOME_DEFINITION_STATUSES)[number];
+
+/** B18 question→outcome mapping set lifecycle. */
+export const OUTCOME_MAPPING_SET_STATUSES = ["DRAFT", "ACTIVE", "RETIRED"] as const;
+export type OutcomeMappingSetStatusEnum =
+  (typeof OUTCOME_MAPPING_SET_STATUSES)[number];
+
 export const GRADING_WORK_ITEM_STATUSES = [
   "QUEUED",
   "IN_PROGRESS",
