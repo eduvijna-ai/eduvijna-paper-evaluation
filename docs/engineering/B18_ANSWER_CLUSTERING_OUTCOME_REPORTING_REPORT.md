@@ -47,3 +47,23 @@
 ## Deferred (not in APP-012)
 
 PEV-054, PEV-055, PEV-056, PEV-057.
+
+---
+
+## APP-013 release approval (promotion only)
+
+**Issue:** #84  
+**Decision:** Founder approves promotion of independently accepted APP-012 / B18 + B18.1 + B18.2 (PEV-050–051) from `develop` to `main`.  
+**Status:** APPROVED  
+**Milestone:** Answer Intelligence & Outcome Reporting Release / APP-013  
+
+**Traceability:** APP-012 Issue #76; B18 Issue #78 / PR #79; B18.1 Issue #80 / PR #81; B18.2 Issue #82 / PR #83  
+
+Starting develop (pre-governance): `4148401549591472453f1bf7231727921352937e`  
+Starting develop tree: `b5049642fc0e094171da2bb6bbe662357856fa7a`  
+Expected main until promotion: `548960e6b35e5229595c9fd0ef17d9b375080e07`  
+Expected main tree until promotion: `286897f47943bf265cf1ce3e66d0d4d49a650ada`  
+
+Release promotion only — no new implementation; classifications remain `FUTURE_ENTERPRISE`; PEV-054–057 remain deferred; exact-tree snapshot mandatory (main/develop histories intentionally diverge); no direct develop→main conflict resolution; no merge-back from main to develop; no AI provider/model deployment authorization; no migration beyond already accepted `20260910_0019` and corrected `20260910_0020`.
+
+Final release SHAs are recorded after governance squash and main promotion (not invented here).
