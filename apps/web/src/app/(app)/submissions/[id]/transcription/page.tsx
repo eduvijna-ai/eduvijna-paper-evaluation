@@ -430,10 +430,12 @@ function TranscriptionReview({ id }: { id: string }) {
 
   const finalizeMutation = useMutation({
     mutationFn: () => api.finalizeTranscription!(id),
-    onSuccess: async () => {
+    onSuccess: () => {
       setActionError(null);
-      await invalidate();
+      // Navigate immediately so slow query invalidation under CI load cannot stall
+      // the post-finalize UI transition (APP-013.1 reliability).
       router.push(`/submissions/${id}`);
+      void invalidate();
     },
     onError: onMutationError,
   });
