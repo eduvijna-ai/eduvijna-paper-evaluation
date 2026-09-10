@@ -21,9 +21,14 @@ export default function OutcomeReportingPage() {
   const session = getSession();
   const canManage = hasPermission(session, A1_PERMISSIONS.outcomesManage);
   const canReport = hasPermission(session, A1_PERMISSIONS.outcomesReport);
-  const [versionId, setVersionId] = useState("assess-ver-demo-001");
+  const [versionId, setVersionId] = useState("");
   const [selectedReportId, setSelectedReportId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const uuidLike =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const versionOk =
+    versionId.trim() === "" || uuidLike.test(versionId.trim());
 
   const definitionsQuery = useQuery({
     queryKey: ["b18-outcome-definitions"],
@@ -32,12 +37,16 @@ export default function OutcomeReportingPage() {
 
   const mappingSetsQuery = useQuery({
     queryKey: ["b18-outcome-mapping-sets", versionId],
-    queryFn: () => api.listOutcomeMappingSets!(versionId || undefined),
+    queryFn: () =>
+      api.listOutcomeMappingSets!(versionId.trim() || undefined),
+    enabled: versionOk,
   });
 
   const reportsQuery = useQuery({
     queryKey: ["b18-outcome-attainment-reports", versionId],
-    queryFn: () => api.listOutcomeAttainmentReports!(versionId || undefined),
+    queryFn: () =>
+      api.listOutcomeAttainmentReports!(versionId.trim() || undefined),
+    enabled: versionOk,
   });
 
   const reports = reportsQuery.data?.items ?? [];
@@ -52,7 +61,7 @@ export default function OutcomeReportingPage() {
   const createReportMutation = useMutation({
     mutationFn: () =>
       api.createOutcomeAttainmentReport!({
-        assessment_version_id: versionId,
+        assessment_version_id: versionId.trim(),
       }),
     onSuccess: (report) => {
       setFormError(null);
@@ -64,22 +73,21 @@ export default function OutcomeReportingPage() {
     onError: (err) => setFormError(actionErrorMessage(err)),
   });
 
-  if (definitionsQuery.isLoading || reportsQuery.isLoading) {
-    return <LoadingState label="Loading outcome reporting…" />;
-  }
-  if (definitionsQuery.isError) {
-    return <ErrorState message={actionErrorMessage(definitionsQuery.error)} />;
-  }
-  if (reportsQuery.isError) {
-    return <ErrorState message={actionErrorMessage(reportsQuery.error)} />;
-  }
-
   return (
     <div className="space-y-6" data-testid="b18-outcomes-workspace">
       <PageHeader
         title="Outcome attainment reporting"
         description="CO/PO mapping and cohort attainment metrics (PEV-051)."
       />
+      {definitionsQuery.isLoading || reportsQuery.isLoading ? (
+        <LoadingState label="Loading outcome reporting…" />
+      ) : null}
+      {definitionsQuery.isError ? (
+        <ErrorState message={actionErrorMessage(definitionsQuery.error)} />
+      ) : null}
+      {reportsQuery.isError ? (
+        <ErrorState message={actionErrorMessage(reportsQuery.error)} />
+      ) : null}
 
       <section className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-sm">

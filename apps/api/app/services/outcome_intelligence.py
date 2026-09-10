@@ -530,7 +530,10 @@ async def create_cluster_run(
         embed_result.vectors,
         threshold=float(threshold),
     )
-    key_to_payload = {str(m["qe"].id): (m, emb) for m, emb in zip(member_payloads, embed_result.vectors, strict=True)}
+    key_to_payload = {
+        str(m["qe"].id): (m, emb)
+        for m, emb in zip(member_payloads, embed_result.vectors, strict=True)
+    }
 
     for idx, component in enumerate(components):
         cluster = AnswerCluster(

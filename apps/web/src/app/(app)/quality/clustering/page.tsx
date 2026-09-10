@@ -21,8 +21,8 @@ export default function ClusteringPage() {
   const session = getSession();
   const canManage = hasPermission(session, A1_PERMISSIONS.clusteringManage);
   const canReview = hasPermission(session, A1_PERMISSIONS.clusteringReview);
-  const [versionId, setVersionId] = useState("assess-ver-demo-001");
-  const [questionId, setQuestionId] = useState("q-demo-001");
+  const [versionId, setVersionId] = useState("");
+  const [questionId, setQuestionId] = useState("");
   const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
   const [selectedClusterId, setSelectedClusterId] = useState<string | null>(null);
   const [observation, setObservation] = useState(
@@ -30,13 +30,21 @@ export default function ClusteringPage() {
   );
   const [formError, setFormError] = useState<string | null>(null);
 
+  const uuidLike =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  const versionOk =
+    versionId.trim() === "" || uuidLike.test(versionId.trim());
+  const questionOk =
+    questionId.trim() === "" || uuidLike.test(questionId.trim());
+
   const runsQuery = useQuery({
     queryKey: ["b18-cluster-runs", versionId, questionId],
     queryFn: () =>
       api.listAnswerClusterRuns!(
-        versionId || undefined,
-        questionId || undefined,
+        versionId.trim() || undefined,
+        questionId.trim() || undefined,
       ),
+    enabled: versionOk && questionOk,
   });
 
   const runs = runsQuery.data?.items ?? [];
@@ -85,19 +93,18 @@ export default function ClusteringPage() {
     onError: (err) => setFormError(actionErrorMessage(err)),
   });
 
-  if (runsQuery.isLoading) {
-    return <LoadingState label="Loading answer clusters…" />;
-  }
-  if (runsQuery.isError) {
-    return <ErrorState message={actionErrorMessage(runsQuery.error)} />;
-  }
-
   return (
     <div className="space-y-6" data-testid="b18-clustering-workspace">
       <PageHeader
         title="Answer clustering"
         description="Semantic grouping of student responses for rubric QA (PEV-050)."
       />
+      {runsQuery.isLoading ? (
+        <LoadingState label="Loading answer clusters…" />
+      ) : null}
+      {runsQuery.isError ? (
+        <ErrorState message={actionErrorMessage(runsQuery.error)} />
+      ) : null}
 
       <section className="flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1 text-sm">
