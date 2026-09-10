@@ -276,15 +276,21 @@ async def _load_published_cohort(
     return sorted(by_submission.values(), key=lambda r: str(r.id))
 
 
-async def _human_final_qes_for_run(
-    db: AsyncSession, *, tenant_id: uuid.UUID, evaluation_run_id: uuid.UUID
+async def _bulk_load_cohort_qes(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    evaluation_run_ids: list[uuid.UUID],
 ) -> list[QuestionEvaluation]:
+    """One bounded SELECT for all human-final QEs in the cohort."""
+    if not evaluation_run_ids:
+        return []
     return list(
         (
             await db.scalars(
                 select(QuestionEvaluation).where(
                     QuestionEvaluation.tenant_id == tenant_id,
-                    QuestionEvaluation.evaluation_run_id == evaluation_run_id,
+                    QuestionEvaluation.evaluation_run_id.in_(evaluation_run_ids),
                     QuestionEvaluation.workflow_state.in_(
                         list(ELIGIBLE_WORKFLOW_STATES)
                     ),
@@ -293,6 +299,25 @@ async def _human_final_qes_for_run(
             )
         ).all()
     )
+
+
+async def _bulk_load_question_codes(
+    db: AsyncSession, *, tenant_id: uuid.UUID, question_ids: set[uuid.UUID]
+) -> dict[uuid.UUID, str]:
+    """One bounded SELECT for question metadata."""
+    if not question_ids:
+        return {}
+    rows = list(
+        (
+            await db.scalars(
+                select(Question).where(
+                    Question.tenant_id == tenant_id,
+                    Question.id.in_(list(question_ids)),
+                )
+            )
+        ).all()
+    )
+    return {q.id: q.stable_code for q in rows}
 
 
 async def create_or_get_psychometric_run(
@@ -308,14 +333,19 @@ async def create_or_get_psychometric_run(
     published = await _load_published_cohort(
         db, tenant_id=tenant_id, assessment_version_id=assessment_version_id
     )
-    # Require at least one human-final QE on the published run to count.
-    eligible_published: list[PublishedResult] = []
-    for pr in published:
-        qes = await _human_final_qes_for_run(
-            db, tenant_id=tenant_id, evaluation_run_id=pr.evaluation_run_id
-        )
-        if qes:
-            eligible_published.append(pr)
+
+    # Bulk-load all human-final QEs for the cohort (constant DB round trips).
+    run_ids = [pr.evaluation_run_id for pr in published]
+    all_qes = await _bulk_load_cohort_qes(
+        db, tenant_id=tenant_id, evaluation_run_ids=run_ids
+    )
+    qes_by_run: dict[uuid.UUID, list[QuestionEvaluation]] = {}
+    for qe in all_qes:
+        qes_by_run.setdefault(qe.evaluation_run_id, []).append(qe)
+
+    eligible_published: list[PublishedResult] = [
+        pr for pr in published if qes_by_run.get(pr.evaluation_run_id)
+    ]
 
     source_ids = [str(pr.id) for pr in eligible_published]
     source_set_hash = _stable_json_hash(sorted(source_ids))
@@ -392,54 +422,66 @@ async def create_or_get_psychometric_run(
         await db.refresh(run)
         return serialize_psychometric_run(run)
 
-    # Build per-question score vectors keyed by question_version_id.
-    # One human-final QE per published submission per question version.
-    item_scores: dict[uuid.UUID, list[float]] = {}
+    # Explicit per-result × question_version matrix (aligned vectors).
+    # matrix[pr_id][qv_id] = score
+    matrix: dict[uuid.UUID, dict[uuid.UUID, float]] = {}
     item_meta: dict[uuid.UUID, dict[str, Any]] = {}
-    totals: list[float] = []
+    question_ids: set[uuid.UUID] = set()
 
     for pr in eligible_published:
-        qes = await _human_final_qes_for_run(
-            db, tenant_id=tenant_id, evaluation_run_id=pr.evaluation_run_id
-        )
-        by_qv: dict[uuid.UUID, QuestionEvaluation] = {}
-        for qe in qes:
-            by_qv[qe.question_version_id] = qe
-        paper_total = 0.0
-        for qv_id, qe in by_qv.items():
+        by_qv: dict[uuid.UUID, float] = {}
+        for qe in qes_by_run[pr.evaluation_run_id]:
             score = float(Decimal(str(qe.final_human_approved_score)))
-            paper_total += score
-            item_scores.setdefault(qv_id, []).append(score)
-            if qv_id not in item_meta:
-                question = await db.scalar(
-                    select(Question).where(Question.id == qe.question_id)
-                )
-                item_meta[qv_id] = {
+            by_qv[qe.question_version_id] = score
+            if qe.question_version_id not in item_meta:
+                item_meta[qe.question_version_id] = {
                     "question_id": qe.question_id,
-                    "question_code": (
-                        question.stable_code if question is not None else str(qv_id)
-                    ),
                     "max_mark": float(Decimal(str(qe.max_mark))),
                 }
-        totals.append(paper_total)
+                question_ids.add(qe.question_id)
+        matrix[pr.id] = by_qv
 
-    for qv_id, scores in item_scores.items():
-        meta = item_meta[qv_id]
+    codes = await _bulk_load_question_codes(
+        db, tenant_id=tenant_id, question_ids=question_ids
+    )
+    for meta in item_meta.values():
+        meta["question_code"] = codes.get(meta["question_id"], str(meta["question_id"]))
+
+    ordered_pr_ids = [pr.id for pr in eligible_published]
+
+    for qv_id, meta in item_meta.items():
+        # Aligned pairs: only published results that have this item.
+        paired_scores: list[float] = []
+        paired_totals: list[float] = []
+        for pr_id in ordered_pr_ids:
+            by_qv = matrix[pr_id]
+            if qv_id not in by_qv:
+                continue
+            score = by_qv[qv_id]
+            paired_scores.append(score)
+            paired_totals.append(sum(by_qv.values()))
+
         max_mark = float(meta["max_mark"])
-        attempt_count = len(scores)
-        m = mean(scores) or 0.0
-        sd = population_std(scores) or 0.0
-        diff = difficulty_index(scores, max_mark)
+        attempt_count = len(paired_scores)
+        if attempt_count == 0:
+            continue
+        m = mean(paired_scores) or 0.0
+        sd = population_std(paired_scores) or 0.0
+        diff = difficulty_index(paired_scores, max_mark)
         if diff is None:
             diff = 0.0
-        full_credit = sum(1 for s in scores if abs(s - max_mark) < 1e-9) / attempt_count
-        zero_rate = sum(1 for s in scores if abs(s) < 1e-9) / attempt_count
+        full_credit = (
+            sum(1 for s in paired_scores if abs(s - max_mark) < 1e-9) / attempt_count
+        )
+        zero_rate = sum(1 for s in paired_scores if abs(s) < 1e-9) / attempt_count
 
         if attempt_count < 2:
             disc = None
             disc_status = "INSUFFICIENT_SAMPLE"
         else:
-            disc, disc_reason = corrected_item_total_discrimination(scores, totals)
+            disc, disc_reason = corrected_item_total_discrimination(
+                paired_scores, paired_totals
+            )
             if disc is None:
                 disc_status = (
                     "INSUFFICIENT_SAMPLE"
@@ -811,10 +853,10 @@ async def add_calibration_participant(
     user_id: uuid.UUID,
 ) -> dict[str, Any]:
     session = await _get_session(db, tenant_id=tenant_id, session_id=session_id)
-    if session.status == "CLOSED":
+    if session.status != "DRAFT":
         raise QualityError(
-            "CALIBRATION_SESSION_CLOSED",
-            "Cannot add participants to a closed session",
+            "CALIBRATION_SESSION_NOT_DRAFT",
+            "Participants can only be added while the session is DRAFT",
         )
     user = await db.scalar(
         select(User).where(User.id == user_id, User.tenant_id == tenant_id)
