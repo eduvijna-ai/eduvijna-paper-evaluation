@@ -203,16 +203,33 @@ async function publishResult(
   admin: AuthSession,
   submissionId: string,
 ): Promise<string> {
+  const headers = admin.headers;
   const prep = await request.post(
     `${apiBase}/api/v1/submissions/${submissionId}/publication/prepare`,
-    { headers: admin.headers },
+    { headers },
   );
   expect(prep.ok(), await prep.text()).toBeTruthy();
   const prid = ((await prep.json()) as { published_result_id: string })
     .published_result_id;
+
+  await expect
+    .poll(
+      async () => {
+        const ws = await request.get(
+          `${apiBase}/api/v1/submissions/${submissionId}/publication`,
+          { headers },
+        );
+        if (!ws.ok()) return "err";
+        const latest = (await ws.json()) as { latest?: { status?: string } };
+        return latest.latest?.status ?? "";
+      },
+      { timeout: 120_000 },
+    )
+    .toBe("GENERATED");
+
   const pub = await request.post(
     `${apiBase}/api/v1/publication-results/${prid}/publish`,
-    { headers: admin.headers },
+    { headers },
   );
   expect(pub.ok(), await pub.text()).toBeTruthy();
   expect(((await pub.json()) as { status: string }).status).toBe("PUBLISHED");
