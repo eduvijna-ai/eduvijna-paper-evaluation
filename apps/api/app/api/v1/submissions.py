@@ -346,8 +346,8 @@ async def list_submissions(
         await db.scalars(query.order_by(Submission.uploaded_at.desc()))
     ).all()
     titles = {
-        row.id: title
-        for row, title in (
+        aid: title
+        for aid, title in (
             await db.execute(
                 select(Assessment.id, Assessment.title).where(
                     Assessment.tenant_id == auth.tenant_id,
@@ -357,8 +357,8 @@ async def list_submissions(
         ).all()
     }
     student_names = {
-        row.id: name
-        for row, name in (
+        sid: name
+        for sid, name in (
             await db.execute(
                 select(Student.id, Student.full_name).where(
                     Student.tenant_id == auth.tenant_id,

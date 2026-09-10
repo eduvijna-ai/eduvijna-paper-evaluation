@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/item-psychometric-metric.schema.json",
+  "title": "ItemPsychometricMetric",
+  "description": "B17 per-item difficulty and discrimination metrics (PEV-048).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "run_id",
+    "question_id",
+    "question_version_id",
+    "question_code",
+    "attempt_count",
+    "max_mark",
+    "mean_raw_score",
+    "std_dev",
+    "difficulty_index",
+    "discrimination_index",
+    "discrimination_method",
+    "discrimination_status",
+    "full_credit_rate",
+    "zero_score_rate",
+    "blank_rate",
+    "difficulty_band",
+    "discrimination_band"
+  ],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "run_id": { "type": "string", "format": "uuid" },
+    "question_id": { "type": "string", "format": "uuid" },
+    "question_version_id": { "type": "string", "format": "uuid" },
+    "question_code": { "type": "string" },
+    "attempt_count": { "type": "integer", "minimum": 0 },
+    "max_mark": { "type": "number" },
+    "mean_raw_score": { "type": "number" },
+    "std_dev": { "type": "number" },
+    "difficulty_index": { "type": "number" },
+    "discrimination_index": { "type": ["number", "null"] },
+    "discrimination_method": { "type": "string" },
+    "discrimination_status": {
+      "type": "string",
+      "enum": ["OK", "UNDEFINED_VARIANCE", "INSUFFICIENT_SAMPLE"]
+    },
+    "full_credit_rate": { "type": "number" },
+    "zero_score_rate": { "type": "number" },
+    "blank_rate": { "type": ["number", "null"] },
+    "difficulty_band": { "type": ["string", "null"] },
+    "discrimination_band": { "type": ["string", "null"] }
+  }
+}
