@@ -547,21 +547,23 @@ async def create_cluster_run(
         await db.flush()
         for member_key in component:
             payload, emb = key_to_payload[member_key]
-            pr: PublishedResult = payload["pr"]
-            qe: QuestionEvaluation = payload["qe"]
+            member_pr = payload["pr"]
+            member_qe = payload["qe"]
+            assert isinstance(member_pr, PublishedResult)
+            assert isinstance(member_qe, QuestionEvaluation)
             db.add(
                 AnswerClusterMember(
                     tenant_id=tenant_id,
                     run_id=run.id,
                     cluster_id=cluster.id,
-                    published_result_id=pr.id,
-                    evaluation_run_id=pr.evaluation_run_id,
-                    question_evaluation_id=qe.id,
-                    submission_id=pr.submission_id,
+                    published_result_id=member_pr.id,
+                    evaluation_run_id=member_pr.evaluation_run_id,
+                    question_evaluation_id=member_qe.id,
+                    submission_id=member_pr.submission_id,
                     transcription_text=payload["text"],
                     transcription_hash=payload["transcription_hash"],
                     embedding=[float(x) for x in emb],
-                    final_human_approved_score=qe.final_human_approved_score,
+                    final_human_approved_score=member_qe.final_human_approved_score,
                 )
             )
 
