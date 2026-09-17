@@ -263,8 +263,13 @@ test.describe("B19 real enterprise integrations", () => {
       headers,
     });
     expect(links.ok(), await links.text()).toBeTruthy();
-    const linkId = ((await links.json()) as { items: Array<{ id: string }> }).items[0]?.id;
-    expect(linkId, "seeded LTI resource link").toBeTruthy();
+    const link = (
+      (await links.json()) as {
+        items: Array<{ id: string; assessment_id: string | null; resource_link_id: string }>;
+      }
+    ).items.find((item) => item.resource_link_id === "res-1" && item.assessment_id);
+    expect(link, "seeded LTI resource link bound to an assessment").toBeTruthy();
+    const linkId = link!.id;
 
     const nrps = await request.post(`${apiBase}/api/v1/integrations/roster-sync`, {
       headers,
@@ -287,7 +292,7 @@ test.describe("B19 real enterprise integrations", () => {
           await (
             await request.post(`${apiBase}/api/v1/integrations/credentials`, {
               headers,
-              data: { name: "e2e-machine", scopes: ["results:read"] },
+              data: { name: `e2e-machine-${Date.now()}`, scopes: ["results:read"] },
             })
           ).json()
         ).secret}`,
@@ -295,10 +300,14 @@ test.describe("B19 real enterprise integrations", () => {
     });
     expect(results.ok(), await results.text()).toBeTruthy();
     const publishedItems = (
-      (await results.json()) as { items: Array<{ id: string; status: string }> }
+      (await results.json()) as {
+        items: Array<{ id: string; status: string; assessment_id: string }>;
+      }
     ).items;
-    const published = publishedItems.find((item) => item.status === "PUBLISHED");
-    expect(published, "current PUBLISHED result").toBeTruthy();
+    const published = publishedItems.find(
+      (item) => item.status === "PUBLISHED" && item.assessment_id === link!.assessment_id,
+    );
+    expect(published, "current PUBLISHED result for the LTI-bound assessment").toBeTruthy();
 
     const pass1 = await request.post(`${apiBase}/api/v1/integrations/grade-passbacks`, {
       headers,
@@ -331,7 +340,7 @@ test.describe("B19 real enterprise integrations", () => {
 
     const cred = await request.post(`${apiBase}/api/v1/integrations/credentials`, {
       headers,
-      data: { name: "e2e-results-only", scopes: ["results:read"] },
+      data: { name: `e2e-results-only-${Date.now()}`, scopes: ["results:read"] },
     });
     expect(cred.ok(), await cred.text()).toBeTruthy();
     const secret = ((await cred.json()) as { secret: string }).secret;
