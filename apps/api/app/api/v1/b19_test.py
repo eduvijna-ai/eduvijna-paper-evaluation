@@ -25,6 +25,7 @@ from app.services.b19_test_providers import (
     require_test_providers,
     reset_test_provider_state,
     saml_idp_cert_pem,
+    set_webhook_expected_secret,
     set_webhook_fail_until,
     store_lti_login,
     webhook_inbox,
@@ -36,6 +37,7 @@ Db = Annotated[AsyncSession, Depends(get_db_session)]
 
 class WebhookFailIn(BaseModel):
     fail_until_attempt: int = 0
+    expected_secret: str | None = None
 
 
 @router.get("/b19-test/oidc/jwks")
@@ -104,7 +106,9 @@ async def test_saml_sso(
         audience=audience or f"{settings.public_base_url.rstrip('/')}/saml/sp",
         name_id=name_id,
         email=email,
-        in_response_to=RelayState if RelayState and RelayState.startswith("_") else None,
+        in_response_to=RelayState or None,
+        recipient=acs,
+        destination=acs,
     )
     html = f"""
     <html><body>
@@ -132,21 +136,28 @@ async def test_lti_authorize(
     nonce: str,
     client_id: str,
     login_hint: str = "lti-instructor-1",
+    target_link_uri: str | None = None,
+    lti_deployment_id: str = "deploy-1",
+    mismatch_target: bool = False,
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
     require_test_providers(settings)
     store_lti_login(state, nonce, redirect_uri)
     issuer = "https://b19-test.example/lti"
+    launched_target = target_link_uri or redirect_uri
+    if mismatch_target:
+        launched_target = "https://evil.example/lti/launch"
     token = issue_lti_id_token(
         issuer=issuer,
         client_id=client_id,
-        deployment_id="deploy-1",
+        deployment_id=lti_deployment_id,
         nonce=nonce,
         subject=login_hint,
         resource_link_id="res-1",
         context_id="ctx-1",
         lineitem_url=f"{settings.public_base_url.rstrip('/')}/api/v1/b19-test/ags/lineitems/1",
         memberships_url=f"{settings.public_base_url.rstrip('/')}/api/v1/b19-test/nrps/memberships",
+        target_link_uri=launched_target,
     )
     html = f"""
     <html><body>
@@ -195,7 +206,6 @@ async def test_webhook_receiver(request: Request, settings: Settings = Depends(g
         signature=request.headers.get("x-eduvijna-signature", ""),
         event_id=request.headers.get("x-eduvijna-event-id", ""),
         event_type=request.headers.get("x-eduvijna-event-type", ""),
-        secret=None,
     )
     return {"status": "ok"}
 
@@ -212,6 +222,8 @@ async def test_webhook_config(
 ) -> dict[str, int]:
     require_test_providers(settings)
     set_webhook_fail_until(payload.fail_until_attempt)
+    if payload.expected_secret is not None:
+        set_webhook_expected_secret(payload.expected_secret)
     return {"fail_until_attempt": payload.fail_until_attempt}
 
 

@@ -3527,6 +3527,23 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/WebhookDeliveryList" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/integrations/webhook-deliveries/{delivery_id}/attempts:
+    parameters:
+      - name: delivery_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listWebhookDeliveryAttempts
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Append-only webhook delivery attempts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WebhookDeliveryAttemptList" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /api/v1/integrations/webhook-deliveries/{delivery_id}/retry:
     parameters:
       - name: delivery_id
@@ -7830,10 +7847,12 @@ components:
     GradePassbackCreate:
       type: object
       additionalProperties: true
-      required: [published_result_id]
+      required: [published_result_id, resource_link_id]
       properties:
         published_result_id: { type: string, format: uuid }
-        resource_link_id: { type: ["string", "null"], format: uuid }
+        resource_link_id: { type: string, format: uuid }
+        external_user_id: { type: ["string", "null"] }
+        score: { type: ["number", "null"] }
         lti_platform_id: { type: ["string", "null"], format: uuid }
         idempotency_key: { type: ["string", "null"] }
     IntegrationCredential:
@@ -7940,6 +7959,22 @@ components:
         items:
           type: array
           items: { $ref: "#/components/schemas/WebhookDelivery" }
+    WebhookDeliveryAttemptList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            properties:
+              attempt_number: { type: integer }
+              attempted_at: { type: ["string", "null"], format: date-time }
+              http_status: { type: ["integer", "null"] }
+              error_sanitized: { type: ["string", "null"] }
+              duration_ms: { type: ["integer", "null"] }
     PublicSsoProvider:
       type: object
       additionalProperties: true

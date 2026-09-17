@@ -15,6 +15,7 @@ from app.db.models import PublishedResult, RosterSyncRun
 from app.db.session import get_db_session
 from app.services.integration_auth import IntegrationAuthContext, require_integration_scopes
 from app.services.roster import serialize_sync_run, upsert_roster_members
+from app.services.webhooks import enqueue_webhook_dispatch
 
 router = APIRouter(prefix="/api/integration/v1", tags=["integration-api"])
 Db = Annotated[AsyncSession, Depends(get_db_session)]
@@ -51,6 +52,7 @@ async def roster_upsert(
         source="SIS",
     )
     await db.commit()
+    await enqueue_webhook_dispatch()
     return serialize_sync_run(run)
 
 

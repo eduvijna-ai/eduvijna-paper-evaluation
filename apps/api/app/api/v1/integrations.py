@@ -19,6 +19,7 @@ from app.db.models import (
     LtiPlatform,
     LtiResourceLink,
     WebhookDelivery,
+    WebhookDeliveryAttempt,
     WebhookEndpoint,
 )
 from app.db.session import get_db_session
@@ -40,7 +41,7 @@ from app.services.lti import create_lti_platform, serialize_platform, tool_jwks_
 from app.services.roster import serialize_sync_run, sync_nrps_memberships, upsert_roster_members
 from app.services.webhooks import (
     create_webhook_endpoint,
-    deliver_due_webhooks,
+    enqueue_webhook_dispatch,
     retry_delivery,
     rotate_webhook_secret,
     serialize_delivery,
@@ -119,7 +120,7 @@ class GradePassbackIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     published_result_id: uuid.UUID
     resource_link_id: uuid.UUID
-    external_user_id: str
+    external_user_id: str | None = None
     score: float | None = None
 
 
@@ -285,6 +286,7 @@ async def list_resource_links(
                 "platform_id": str(row.platform_id),
                 "context_id": row.context_id,
                 "resource_link_id": row.resource_link_id,
+                "assessment_id": str(row.assessment_id) if row.assessment_id else None,
                 "ags_lineitem_url": row.ags_lineitem_url,
                 "nrps_memberships_url": row.nrps_memberships_url,
                 "last_launch_at": row.last_launch_at.isoformat() if row.last_launch_at else None,
@@ -317,8 +319,7 @@ async def start_roster_sync(
             source=payload.source,
         )
     await db.commit()
-    await deliver_due_webhooks(db)
-    await db.commit()
+    await enqueue_webhook_dispatch()
     return serialize_sync_run(run)
 
 
@@ -527,6 +528,42 @@ async def list_deliveries(
     return {"items": [serialize_delivery(row) for row in rows]}
 
 
+@router.get("/integrations/webhook-deliveries/{delivery_id}/attempts")
+async def list_delivery_attempts(
+    delivery_id: uuid.UUID,
+    db: Db,
+    auth: AuthContext = Depends(require_permissions("integration:read")),
+) -> dict[str, Any]:
+    from fastapi import HTTPException
+
+    delivery = await db.scalar(
+        select(WebhookDelivery)
+        .join(WebhookEndpoint, WebhookEndpoint.id == WebhookDelivery.endpoint_id)
+        .where(WebhookDelivery.id == delivery_id, WebhookEndpoint.tenant_id == auth.tenant_id)
+    )
+    if delivery is None:
+        raise HTTPException(404, detail={"code": "not_found", "message": "Delivery not found"})
+    rows = list(
+        await db.scalars(
+            select(WebhookDeliveryAttempt)
+            .where(WebhookDeliveryAttempt.delivery_id == delivery.id)
+            .order_by(WebhookDeliveryAttempt.attempt_number.asc())
+        )
+    )
+    return {
+        "items": [
+            {
+                "attempt_number": row.attempt_number,
+                "attempted_at": row.attempted_at.isoformat() if row.attempted_at else None,
+                "http_status": row.http_status,
+                "error_sanitized": row.error_sanitized,
+                "duration_ms": row.duration_ms,
+            }
+            for row in rows
+        ]
+    }
+
+
 @router.post("/integrations/webhook-deliveries/{delivery_id}/retry")
 async def retry_webhook(
     delivery_id: uuid.UUID,
@@ -540,4 +577,5 @@ async def retry_webhook(
         delivery_id=delivery_id,
     )
     await db.commit()
+    await enqueue_webhook_dispatch()
     return serialize_delivery(delivery)

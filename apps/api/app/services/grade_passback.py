@@ -13,7 +13,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
-from app.db.models import GradePassback, LtiPlatform, LtiResourceLink, PublishedResult
+from app.db.models import (
+    ExternalRosterIdentity,
+    GradePassback,
+    LtiPlatform,
+    LtiResourceLink,
+    PublishedResult,
+    Student,
+)
 from app.services.audit import add_audit_event
 from app.services.b19_outbound import outbound_request
 from app.services.lti import issue_lti_client_assertion
@@ -47,7 +54,7 @@ async def request_grade_passback(
     actor_user_id: uuid.UUID,
     published_result_id: uuid.UUID,
     resource_link_id: uuid.UUID,
-    external_user_id: str,
+    external_user_id: str | None = None,
     requested_score: Decimal | None = None,
     settings: Settings | None = None,
 ) -> GradePassback:
@@ -91,6 +98,56 @@ async def request_grade_passback(
     )
     if platform is None or not platform.enabled:
         raise HTTPException(400, detail={"code": "platform_disabled", "message": "LTI platform disabled"})
+    if link.assessment_id is None or link.assessment_id != published.assessment_id:
+        raise HTTPException(
+            400,
+            detail={
+                "code": "resource_mismatch",
+                "message": "Resource link is not associated with this published result",
+            },
+        )
+    if published.student_id is None:
+        raise HTTPException(
+            400,
+            detail={"code": "student_unbound", "message": "Published result has no student"},
+        )
+    student = await db.scalar(
+        select(Student).where(Student.id == published.student_id, Student.tenant_id == tenant_id)
+    )
+    if student is None:
+        raise HTTPException(404, detail={"code": "not_found", "message": "Student not found"})
+    if (
+        link.class_section_id is not None
+        and student.class_section_id is not None
+        and link.class_section_id != student.class_section_id
+    ):
+        raise HTTPException(
+            400,
+            detail={"code": "context_mismatch", "message": "Class/context association mismatch"},
+        )
+    mapping = await db.scalar(
+        select(ExternalRosterIdentity).where(
+            ExternalRosterIdentity.tenant_id == tenant_id,
+            ExternalRosterIdentity.provider_key == f"lti:{platform.id}",
+            ExternalRosterIdentity.student_id == published.student_id,
+            ExternalRosterIdentity.status == "ACTIVE",
+        )
+    )
+    if mapping is None:
+        raise HTTPException(
+            400,
+            detail={"code": "learner_unmapped", "message": "No validated roster mapping for student"},
+        )
+    derived_external_id = mapping.external_stable_id
+    if external_user_id and external_user_id != derived_external_id:
+        raise HTTPException(
+            400,
+            detail={
+                "code": "learner_mismatch",
+                "message": "Caller cannot choose an arbitrary external learner",
+            },
+        )
+    external_user_id = derived_external_id
     lineitem = link.ags_lineitem_url
     if not lineitem:
         raise HTTPException(

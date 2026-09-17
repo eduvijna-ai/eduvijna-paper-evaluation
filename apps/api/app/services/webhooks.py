@@ -274,6 +274,24 @@ def serialize_delivery(delivery: WebhookDelivery) -> dict[str, Any]:
     }
 
 
+async def _refresh_event_dispatch_state(db: AsyncSession, event: OutboundEvent) -> None:
+    deliveries = list(
+        await db.scalars(select(WebhookDelivery).where(WebhookDelivery.event_id == event.id))
+    )
+    if not deliveries:
+        event.dispatch_state = "PENDING"
+        return
+    statuses = {row.status for row in deliveries}
+    if statuses <= {"SUCCEEDED"}:
+        event.dispatch_state = "DELIVERED"
+    elif "PENDING" in statuses or "RETRYING" in statuses:
+        event.dispatch_state = "PARTIAL" if "SUCCEEDED" in statuses or "FAILED" in statuses else "DISPATCHING"
+    elif "SUCCEEDED" in statuses:
+        event.dispatch_state = "PARTIAL"
+    else:
+        event.dispatch_state = "FAILED"
+
+
 async def deliver_due_webhooks(
     db: AsyncSession, *, settings: Settings | None = None, limit: int = 50
 ) -> int:
@@ -288,6 +306,7 @@ async def deliver_due_webhooks(
                 WebhookDelivery.next_attempt_at.is_not(None),
                 WebhookDelivery.next_attempt_at <= now,
             )
+            .with_for_update(skip_locked=True)
             .limit(limit)
         )
     )
@@ -296,6 +315,12 @@ async def deliver_due_webhooks(
         if await _attempt_delivery(db, delivery, cfg):
             delivered += 1
     return delivered
+
+
+async def enqueue_webhook_dispatch(*, countdown: float = 0) -> str | None:
+    from app.tasks.celery_app import enqueue_deliver_webhooks
+
+    return await enqueue_deliver_webhooks(countdown=countdown)
 
 
 async def _attempt_delivery(
@@ -311,28 +336,28 @@ async def _attempt_delivery(
         await db.flush()
         return False
 
-    validate_public_https_url(
-        endpoint.destination_url,
-        allow_insecure=_allow_insecure(settings),
-        purpose="webhook",
-    )
-    body = serialize_event(event)
-    raw = json.dumps(body, separators=(",", ":"), sort_keys=True)
-    timestamp = str(int(time.time()))
-    secret = decrypt_secret(endpoint.encrypted_signing_secret, settings)
-    signature = sign_webhook_payload(secret=secret, timestamp=timestamp, raw_body=raw)
-    headers = {
-        "Content-Type": "application/json",
-        "X-EduVijna-Event-Id": str(event.event_uuid),
-        "X-EduVijna-Event-Type": event.event_type,
-        "X-EduVijna-Timestamp": timestamp,
-        "X-EduVijna-Signature": signature,
-        "X-EduVijna-Signature-Version": "v1",
-    }
     started = time.perf_counter()
     status_code: int | None = None
     error: str | None = None
     try:
+        validate_public_https_url(
+            endpoint.destination_url,
+            allow_insecure=_allow_insecure(settings),
+            purpose="webhook",
+        )
+        body = serialize_event(event)
+        raw = json.dumps(body, separators=(",", ":"), sort_keys=True)
+        timestamp = str(int(time.time()))
+        secret = decrypt_secret(endpoint.encrypted_signing_secret, settings)
+        signature = sign_webhook_payload(secret=secret, timestamp=timestamp, raw_body=raw)
+        headers = {
+            "Content-Type": "application/json",
+            "X-EduVijna-Event-Id": str(event.event_uuid),
+            "X-EduVijna-Event-Type": event.event_type,
+            "X-EduVijna-Timestamp": timestamp,
+            "X-EduVijna-Signature": signature,
+            "X-EduVijna-Signature-Version": "v1",
+        }
         resp = await outbound_request(
             "POST",
             endpoint.destination_url,
@@ -343,6 +368,9 @@ async def _attempt_delivery(
         status_code = resp.status_code
         if resp.status_code >= 400:
             error = f"http_{resp.status_code}"
+    except HTTPException as exc:
+        detail: dict[str, Any] = exc.detail if isinstance(exc.detail, dict) else {}
+        error = str(detail.get("code") or exc.detail or exc.__class__.__name__)
     except Exception as exc:
         error = exc.__class__.__name__
     duration_ms = int((time.perf_counter() - started) * 1000)
@@ -360,19 +388,21 @@ async def _attempt_delivery(
     if error is None:
         delivery.status = "SUCCEEDED"
         delivery.next_attempt_at = None
-        event.dispatch_state = "DELIVERED"
+        await _refresh_event_dispatch_state(db, event)
         await db.flush()
         return True
     if delivery.attempt_count >= MAX_ATTEMPTS:
         delivery.status = "FAILED"
         delivery.terminal_failure = True
         delivery.next_attempt_at = None
-        event.dispatch_state = "FAILED"
+        await _refresh_event_dispatch_state(db, event)
     else:
         delay = BACKOFF_SECONDS[min(delivery.attempt_count, len(BACKOFF_SECONDS) - 1)]
+        if settings.celery_task_always_eager:
+            delay = 0
         delivery.status = "RETRYING"
         delivery.next_attempt_at = datetime.now(UTC) + timedelta(seconds=delay)
-        event.dispatch_state = "PARTIAL"
+        await _refresh_event_dispatch_state(db, event)
     await db.flush()
     return False
 

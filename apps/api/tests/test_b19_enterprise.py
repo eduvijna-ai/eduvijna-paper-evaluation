@@ -31,6 +31,10 @@ from app.services.b19_test_providers import (
 
 @asynccontextmanager
 async def b19_client() -> AsyncIterator[AsyncClient]:
+    import os
+
+    os.environ["CELERY_TASK_ALWAYS_EAGER"] = "true"
+    os.environ["PUBLIC_BASE_URL"] = "http://test"
     await seed()
     reset_test_provider_state()
     get_settings.cache_clear()
@@ -94,7 +98,9 @@ async def test_oidc_success_and_replay() -> None:
             subject=f"oidc-user-{_uid()}",
             email=jit_email,
         )
-        callback = await client.get(authorize_url,
+        callback_parsed = urlparse(authorize_url)
+        callback = await client.get(
+            f"{callback_parsed.path}?{callback_parsed.query}",
             follow_redirects=False,
         )
         assert callback.status_code == 302, callback.text
@@ -326,6 +332,54 @@ async def test_lti_launch_and_invalid_signature() -> None:
             },
         )
         assert platform.status_code == 200, platform.text
+        async with async_session_factory() as db:
+            from app.db.models import Assessment, LtiResourceLink
+
+            tenant = await db.scalar(select(Tenant).where(Tenant.slug == "demo"))
+            assert tenant is not None
+            admin = await db.scalar(select(User).where(User.email == ADMIN_EMAIL))
+            assert admin is not None
+            assessment = await db.scalar(
+                select(Assessment).where(Assessment.tenant_id == tenant.id)
+            )
+            if assessment is None:
+                from decimal import Decimal
+
+                from app.db.models import Curriculum
+
+                curriculum = Curriculum(
+                    tenant_id=tenant.id,
+                    code=f"B19-L-{_uid()}",
+                    name="LTI",
+                    version_label="1",
+                    status="active",
+                )
+                db.add(curriculum)
+                await db.flush()
+                assessment = Assessment(
+                    tenant_id=tenant.id,
+                    curriculum_id=curriculum.id,
+                    code=f"B19-L-{_uid()}",
+                    title="LTI",
+                    assessment_type="EXAM",
+                    max_marks=Decimal("20.00"),
+                    status="ACTIVE",
+                    created_by=admin.id,
+                )
+                db.add(assessment)
+                await db.flush()
+            db.add(
+                LtiResourceLink(
+                    platform_id=uuid.UUID(platform.json()["id"]),
+                    tenant_id=tenant.id,
+                    context_id="ctx-1",
+                    resource_link_id="res-1",
+                    assessment_id=assessment.id,
+                    ags_lineitem_url="http://test/api/v1/b19-test/ags/lineitems/1",
+                    nrps_memberships_url="http://test/api/v1/b19-test/nrps/memberships",
+                )
+            )
+            await db.commit()
         login = await client.get(
             "/lti/login",
             params={
@@ -351,6 +405,7 @@ async def test_lti_launch_and_invalid_signature() -> None:
             context_id="ctx-1",
             lineitem_url="http://test/api/v1/b19-test/ags/lineitems/1",
             memberships_url="http://test/api/v1/b19-test/nrps/memberships",
+            target_link_uri="http://test/lti/launch",
         )
         launch = await client.post(
             "/lti/launch",
@@ -463,7 +518,7 @@ async def test_ags_published_only_and_idempotent() -> None:
             json={
                 "published_result_id": str(generated_id),
                 "resource_link_id": str(link_id),
-                "external_user_id": "learner-1",
+                "external_user_id": "nrps-student-1",
             },
         )
         assert bad_gen.status_code == 400
@@ -473,7 +528,7 @@ async def test_ags_published_only_and_idempotent() -> None:
             json={
                 "published_result_id": str(superseded_id),
                 "resource_link_id": str(link_id),
-                "external_user_id": "learner-1",
+                "external_user_id": "nrps-student-1",
             },
         )
         assert bad_sup.status_code == 400
@@ -483,7 +538,7 @@ async def test_ags_published_only_and_idempotent() -> None:
             json={
                 "published_result_id": str(published_id),
                 "resource_link_id": str(link_id),
-                "external_user_id": "learner-1",
+                "external_user_id": "nrps-student-1",
                 "score": 99,
             },
         )
@@ -494,7 +549,7 @@ async def test_ags_published_only_and_idempotent() -> None:
             json={
                 "published_result_id": str(published_id),
                 "resource_link_id": str(link_id),
-                "external_user_id": "learner-1",
+                "external_user_id": "nrps-student-1",
             },
         )
         assert ok.status_code == 200, ok.text
@@ -506,7 +561,7 @@ async def test_ags_published_only_and_idempotent() -> None:
             json={
                 "published_result_id": str(published_id),
                 "resource_link_id": str(link_id),
-                "external_user_id": "learner-1",
+                "external_user_id": "nrps-student-1",
             },
         )
         assert again.status_code == 200
@@ -515,6 +570,18 @@ async def test_ags_published_only_and_idempotent() -> None:
 
 async def test_webhooks_ssrf_hmac_retry() -> None:
     async with b19_client() as client:
+        from app.services.webhooks import sign_webhook_payload, verify_webhook_signature
+
+        raw = '{"event_type":"roster.sync.completed"}'
+        timestamp = "1710000000"
+        secret = "unit-hmac-secret"
+        signature = sign_webhook_payload(secret=secret, timestamp=timestamp, raw_body=raw)
+        assert verify_webhook_signature(
+            secret=secret, timestamp=timestamp, raw_body=raw, signature=signature
+        )
+        assert not verify_webhook_signature(
+            secret=secret, timestamp=timestamp, raw_body=raw, signature="v1=deadbeef"
+        )
         headers = await _login(client)
         blocked = await client.post(
             "/api/v1/integrations/webhooks",
@@ -525,22 +592,47 @@ async def test_webhooks_ssrf_hmac_retry() -> None:
                 "event_types": ["roster.sync.completed"],
             },
         )
-        # local/test allow_insecure may accept loopback; private RFC1918 must still fail when insecure off
         created = await client.post(
             "/api/v1/integrations/webhooks",
             headers=headers,
             json={
-                "name": "ok",
+                "name": f"ok-{_uid()}",
                 "destination_url": "http://test/api/v1/b19-test/webhook-receiver",
                 "event_types": ["roster.sync.completed"],
             },
         )
         assert created.status_code == 200, created.text
-        assert created.json()["signing_secret"]
-        await client.post(
+        signing_secret = created.json()["signing_secret"]
+        assert signing_secret
+        async with async_session_factory() as db:
+            from app.db.models import WebhookEndpoint
+
+            others = list(
+                await db.scalars(
+                    select(WebhookEndpoint).where(
+                        WebhookEndpoint.id != uuid.UUID(created.json()["id"])
+                    )
+                )
+            )
+            for row in others:
+                row.enabled = False
+            await db.commit()
+        cfg = await client.post(
             "/api/v1/b19-test/webhook-receiver/config",
-            json={"fail_until_attempt": 1},
+            json={"fail_until_attempt": 1, "expected_secret": signing_secret},
         )
+        assert cfg.status_code == 200
+        bad_sig = await client.post(
+            "/api/v1/b19-test/webhook-receiver",
+            content=raw,
+            headers={
+                "X-EduVijna-Timestamp": timestamp,
+                "X-EduVijna-Signature": "v1=00",
+                "X-EduVijna-Event-Id": "x",
+                "X-EduVijna-Event-Type": "roster.sync.completed",
+            },
+        )
+        assert bad_sig.status_code == 401
         cred = await client.post(
             "/api/v1/integrations/credentials",
             headers=headers,
@@ -551,7 +643,13 @@ async def test_webhooks_ssrf_hmac_retry() -> None:
             headers={"Authorization": f"Bearer {cred.json()['secret']}"},
             json={
                 "provider_key": "hook",
-                "members": [{"external_stable_id": "h1", "full_name": "Hook", "student_code": "h1"}],
+                "members": [
+                    {
+                        "external_stable_id": f"h1-{_uid()}",
+                        "full_name": "Hook",
+                        "student_code": f"h1-{_uid()}",
+                    }
+                ],
             },
         )
         assert sync.status_code == 200
@@ -562,15 +660,30 @@ async def test_webhooks_ssrf_hmac_retry() -> None:
         assert deliveries.status_code == 200
         items = deliveries.json()["items"]
         assert items
-        if items[0]["status"] != "SUCCEEDED":
-            retry = await client.post(
-                f"/api/v1/integrations/webhook-deliveries/{items[0]['id']}/retry",
-                headers=headers,
-            )
-            assert retry.status_code == 200
+        latest = items[0]
+        assert latest["status"] == "SUCCEEDED"
+        assert latest["attempt_count"] >= 2
+        attempts = await client.get(
+            f"/api/v1/integrations/webhook-deliveries/{latest['id']}/attempts",
+            headers=headers,
+        )
+        assert attempts.status_code == 200
+        assert len(attempts.json()["items"]) >= 2
         inbox = await client.get("/api/v1/b19-test/webhook-inbox")
         assert inbox.status_code == 200
-        assert inbox.json()["items"] or True
+        inbox_items = inbox.json()["items"]
+        assert inbox_items
+        last_ok = False
+        for item in inbox_items:
+            if verify_webhook_signature(
+                secret=signing_secret,
+                timestamp=item["timestamp"],
+                raw_body=item["body"],
+                signature=item["signature"],
+            ):
+                last_ok = True
+                break
+        assert last_ok
         assert blocked.status_code in {200, 400}
 
 
@@ -642,12 +755,15 @@ async def test_saml_sp_idp_replay_and_bad_signature() -> None:
 
         qs = parse_qs(urlparse(start.headers["location"]).query)
         request_id = qs["RelayState"][0]
+        acs_url = f"{settings.public_base_url.rstrip('/')}/api/v1/sso/saml/acs"
         assertion = issue_saml_response(
             issuer=issuer,
             audience=audience,
             name_id=f"saml-user-{_uid()}",
             email=f"sso.saml.{_uid()}@demo.eduvijna.local",
             in_response_to=request_id,
+            recipient=acs_url,
+            destination=acs_url,
         )
         acs = await client.post(
             "/api/v1/sso/saml/acs",
@@ -680,6 +796,8 @@ async def test_saml_sp_idp_replay_and_bad_signature() -> None:
                     audience=audience,
                     name_id=f"saml-idp-{_uid()}",
                     email=f"sso.saml.idp.{_uid()}@demo.eduvijna.local",
+                    recipient=f"{settings.public_base_url.rstrip('/')}/api/v1/sso/saml/acs",
+                    destination=f"{settings.public_base_url.rstrip('/')}/api/v1/sso/saml/acs",
                 )
             },
             follow_redirects=False,
@@ -696,6 +814,8 @@ async def test_saml_sp_idp_replay_and_bad_signature() -> None:
                     audience=audience,
                     name_id="evil",
                     email="evil@demo.eduvijna.local",
+                    recipient=f"{settings.public_base_url.rstrip('/')}/api/v1/sso/saml/acs",
+                    destination=f"{settings.public_base_url.rstrip('/')}/api/v1/sso/saml/acs",
                 )
             },
             follow_redirects=False,
@@ -773,3 +893,443 @@ async def test_oidc_invalid_signature_and_expired_state() -> None:
         assert expired.status_code == 302
         assert "invalid_state" in expired.headers["location"]
         assert start.status_code == 302
+
+
+async def test_saml_destination_and_recipient_must_match_acs() -> None:
+    async with b19_client() as client:
+        headers = await _login(client)
+        settings = get_settings()
+        issuer = f"https://b19-test.example/saml/{_uid()}"
+        audience = f"{settings.public_base_url.rstrip('/')}/saml/sp/{_uid()}"
+        acs_url = f"{settings.public_base_url.rstrip('/')}/api/v1/sso/saml/acs"
+        created = await client.post(
+            "/api/v1/integrations/identity-providers",
+            headers=headers,
+            json={
+                "name": f"SAML ACS {_uid()}",
+                "protocol": "SAML",
+                "issuer": issuer,
+                "entity_id": audience,
+                "sso_url": "http://test/api/v1/b19-test/saml/sso",
+                "saml_idp_cert": saml_idp_cert_pem(),
+                "jit_enabled": True,
+            },
+        )
+        start = await client.get(
+            "/api/v1/sso/saml/start",
+            params={"tenant_slug": "demo", "provider_id": created.json()["id"]},
+            follow_redirects=False,
+        )
+        from urllib.parse import parse_qs, urlparse
+
+        request_id = parse_qs(urlparse(start.headers["location"]).query)["RelayState"][0]
+        dest_mismatch = await client.post(
+            "/api/v1/sso/saml/acs",
+            data={
+                "SAMLResponse": issue_saml_response(
+                    issuer=issuer,
+                    audience=audience,
+                    name_id=f"saml-dest-{_uid()}",
+                    email=f"dest.{_uid()}@demo.eduvijna.local",
+                    in_response_to=request_id,
+                    recipient=acs_url,
+                    destination="https://evil.example/acs",
+                ),
+                "RelayState": request_id,
+            },
+            follow_redirects=False,
+        )
+        assert dest_mismatch.status_code == 302
+        assert "exchange_code=" not in dest_mismatch.headers["location"]
+        start2 = await client.get(
+            "/api/v1/sso/saml/start",
+            params={"tenant_slug": "demo", "provider_id": created.json()["id"]},
+            follow_redirects=False,
+        )
+        request_id2 = parse_qs(urlparse(start2.headers["location"]).query)["RelayState"][0]
+        recip_mismatch = await client.post(
+            "/api/v1/sso/saml/acs",
+            data={
+                "SAMLResponse": issue_saml_response(
+                    issuer=issuer,
+                    audience=audience,
+                    name_id=f"saml-recip-{_uid()}",
+                    email=f"recip.{_uid()}@demo.eduvijna.local",
+                    in_response_to=request_id2,
+                    recipient="https://evil.example/acs",
+                    destination=acs_url,
+                ),
+                "RelayState": request_id2,
+            },
+            follow_redirects=False,
+        )
+        assert recip_mismatch.status_code == 302
+        assert "exchange_code=" not in recip_mismatch.headers["location"]
+        ok = await client.post(
+            "/api/v1/sso/saml/acs",
+            data={
+                "SAMLResponse": issue_saml_response(
+                    issuer=issuer,
+                    audience=audience,
+                    name_id=f"saml-ok-{_uid()}",
+                    email=f"ok.{_uid()}@demo.eduvijna.local",
+                    in_response_to=request_id2,
+                    recipient=acs_url,
+                    destination=acs_url,
+                ),
+                "RelayState": request_id2,
+            },
+            follow_redirects=False,
+        )
+        assert ok.status_code == 302
+        assert "exchange_code=" in ok.headers["location"]
+
+
+async def test_lti_target_link_uri_mismatch_rejected() -> None:
+    async with b19_client() as client:
+        from app.cli.seed_b19_e2e_enterprise import seed_b19_e2e_enterprise
+
+        seeded = await seed_b19_e2e_enterprise()
+        headers = await _login(client)
+        client_id = f"lti-mis-{_uid()}"
+        deployment_id = f"deploy-{_uid()}"
+        platform = await client.post(
+            "/api/v1/integrations/lti-platforms",
+            headers=headers,
+            json={
+                "name": f"LTI Mismatch {_uid()}",
+                "issuer": "https://b19-test.example/lti",
+                "client_id": client_id,
+                "deployment_id": deployment_id,
+                "auth_login_url": "http://test/api/v1/b19-test/lti/authorize",
+                "token_url": "http://test/api/v1/b19-test/lti/token",
+                "jwks_url": "http://test/api/v1/b19-test/lti/jwks",
+            },
+        )
+        async with async_session_factory() as db:
+            from app.db.models import LtiResourceLink
+
+            tenant = await db.scalar(select(Tenant).where(Tenant.slug == "demo"))
+            assert tenant is not None
+            assessment_id = uuid.UUID(seeded["assessment_id"])
+            db.add(
+                LtiResourceLink(
+                    platform_id=uuid.UUID(platform.json()["id"]),
+                    tenant_id=tenant.id,
+                    context_id="ctx-1",
+                    resource_link_id="res-1",
+                    assessment_id=assessment_id,
+                )
+            )
+            await db.commit()
+        login = await client.get(
+            "/lti/login",
+            params={
+                "iss": "https://b19-test.example/lti",
+                "client_id": client_id,
+                "target_link_uri": "http://test/lti/launch",
+                "lti_deployment_id": deployment_id,
+            },
+            follow_redirects=False,
+        )
+        from urllib.parse import parse_qs, urlparse
+
+        qs = parse_qs(urlparse(login.headers["location"]).query)
+        token = issue_lti_id_token(
+            issuer="https://b19-test.example/lti",
+            client_id=client_id,
+            deployment_id=deployment_id,
+            nonce=qs["nonce"][0],
+            subject="lti-instructor-1",
+            resource_link_id="res-1",
+            context_id="ctx-1",
+            lineitem_url="http://test/api/v1/b19-test/ags/lineitems/1",
+            memberships_url="http://test/api/v1/b19-test/nrps/memberships",
+            target_link_uri="https://evil.example/lti/launch",
+        )
+        bad = await client.post("/lti/launch", data={"id_token": token, "state": qs["state"][0]})
+        assert bad.status_code == 400
+        assert bad.json()["error"]["code"] == "target_mismatch"
+
+
+async def test_ags_association_and_learner_mapping() -> None:
+    async with b19_client() as client:
+        from decimal import Decimal
+
+        from app.cli.seed_b19_e2e_enterprise import seed_b19_e2e_enterprise
+        from app.db.models import Assessment, Curriculum, LtiResourceLink
+
+        seeded = await seed_b19_e2e_enterprise()
+        headers = await _login(client)
+        published_id = seeded["published_result_id"]
+        generated_id = seeded["generated_result_id"]
+        superseded_id = seeded["superseded_result_id"]
+        link_id = seeded["lti_resource_link_id"]
+        async with async_session_factory() as db:
+            tenant = await db.scalar(select(Tenant).where(Tenant.slug == "demo"))
+            assert tenant is not None
+            admin = await db.scalar(select(User).where(User.email == ADMIN_EMAIL))
+            assert admin is not None
+            curriculum = Curriculum(
+                tenant_id=tenant.id,
+                code=f"B19-WR-{_uid()}",
+                name="Wrong",
+                version_label="1",
+                status="active",
+            )
+            db.add(curriculum)
+            await db.flush()
+            other_assessment = Assessment(
+                tenant_id=tenant.id,
+                curriculum_id=curriculum.id,
+                code=f"B19-WR-{_uid()}",
+                title="Wrong",
+                assessment_type="EXAM",
+                max_marks=Decimal("20.00"),
+                status="ACTIVE",
+                created_by=admin.id,
+            )
+            db.add(other_assessment)
+            await db.flush()
+            platform_id = uuid.UUID(seeded["lti_platform_id"])
+            other_link = LtiResourceLink(
+                platform_id=platform_id,
+                tenant_id=tenant.id,
+                context_id=f"ctx-wrong-{_uid()}",
+                resource_link_id=f"res-wrong-{_uid()}",
+                assessment_id=other_assessment.id,
+                ags_lineitem_url="http://test/api/v1/b19-test/ags/lineitems/1",
+            )
+            db.add(other_link)
+            await db.commit()
+            other_link_id = str(other_link.id)
+        wrong_link = await client.post(
+            "/api/v1/integrations/grade-passbacks",
+            headers=headers,
+            json={"published_result_id": published_id, "resource_link_id": other_link_id},
+        )
+        assert wrong_link.status_code == 400
+        wrong_learner = await client.post(
+            "/api/v1/integrations/grade-passbacks",
+            headers=headers,
+            json={
+                "published_result_id": published_id,
+                "resource_link_id": link_id,
+                "external_user_id": "someone-else",
+            },
+        )
+        assert wrong_learner.status_code == 400
+        iso = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "admin@b19-iso.eduvijna.local",
+                "password": "DemoAdmin!2026",
+                "tenant_slug": "b19-iso",
+            },
+        )
+        assert iso.status_code == 200, iso.text
+        iso_headers = {"Authorization": f"Bearer {iso.json()['access_token']}"}
+        cross = await client.post(
+            "/api/v1/integrations/grade-passbacks",
+            headers=iso_headers,
+            json={"published_result_id": published_id, "resource_link_id": link_id},
+        )
+        assert cross.status_code in {401, 403, 404}
+        assert (
+            await client.post(
+                "/api/v1/integrations/grade-passbacks",
+                headers=headers,
+                json={"published_result_id": generated_id, "resource_link_id": link_id},
+            )
+        ).status_code == 400
+        assert (
+            await client.post(
+                "/api/v1/integrations/grade-passbacks",
+                headers=headers,
+                json={"published_result_id": superseded_id, "resource_link_id": link_id},
+            )
+        ).status_code == 400
+        assert (
+            await client.post(
+                "/api/v1/integrations/grade-passbacks",
+                headers=headers,
+                json={
+                    "published_result_id": published_id,
+                    "resource_link_id": link_id,
+                    "score": 99,
+                },
+            )
+        ).status_code == 400
+        ok = await client.post(
+            "/api/v1/integrations/grade-passbacks",
+            headers=headers,
+            json={"published_result_id": published_id, "resource_link_id": link_id},
+        )
+        assert ok.status_code == 200, ok.text
+        assert ok.json()["state"] == "DELIVERED"
+        assert ok.json()["external_user_id"] == "nrps-student-1"
+        again = await client.post(
+            "/api/v1/integrations/grade-passbacks",
+            headers=headers,
+            json={"published_result_id": published_id, "resource_link_id": link_id},
+        )
+        assert again.status_code == 200
+        assert again.json()["id"] == ok.json()["id"]
+
+
+async def test_scim_requires_stable_external_id_not_email() -> None:
+    async with b19_client() as client:
+        from app.db.models import ExternalUserIdentity
+
+        headers = await _login(client)
+        provider = await client.post(
+            "/api/v1/integrations/identity-providers",
+            headers=headers,
+            json={"name": f"SCIM Ext {_uid()}", "protocol": "OIDC", "issuer": "https://scim-ext.example"},
+        )
+        token = await client.post(
+            f"/api/v1/integrations/identity-providers/{provider.json()['id']}/scim-token",
+            headers=headers,
+        )
+        scim_headers = {"Authorization": f"Bearer {token.json()['secret']}"}
+        email = f"scim.stable.{_uid()}@demo.eduvijna.local"
+        missing = await client.post(
+            "/scim/v2/Users",
+            headers=scim_headers,
+            json={"userName": email, "displayName": "No Ext"},
+        )
+        assert missing.status_code == 400
+        email_as_id = await client.post(
+            "/scim/v2/Users",
+            headers=scim_headers,
+            json={"userName": email, "displayName": "Email Id", "externalId": email},
+        )
+        assert email_as_id.status_code == 400
+        external_id = f"stable-{_uid()}"
+        created = await client.post(
+            "/scim/v2/Users",
+            headers=scim_headers,
+            json={"userName": email, "displayName": "Stable", "externalId": external_id},
+        )
+        assert created.status_code == 201, created.text
+        user_id = created.json()["id"]
+        new_email = f"scim.renamed.{_uid()}@demo.eduvijna.local"
+        replaced = await client.put(
+            f"/scim/v2/Users/{user_id}",
+            headers=scim_headers,
+            json={"userName": new_email, "displayName": "Renamed", "externalId": external_id},
+        )
+        assert replaced.status_code == 200
+        assert replaced.json()["externalId"] == external_id
+        assert replaced.json()["userName"] == new_email
+        async with async_session_factory() as db:
+            identity = await db.scalar(
+                select(ExternalUserIdentity).where(
+                    ExternalUserIdentity.user_id == uuid.UUID(user_id),
+                    ExternalUserIdentity.external_subject == external_id,
+                )
+            )
+            assert identity is not None
+            assert identity.external_subject == external_id
+        iso_login = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "admin@b19-iso.eduvijna.local",
+                "password": "DemoAdmin!2026",
+                "tenant_slug": "b19-iso",
+            },
+        )
+        if iso_login.status_code != 200:
+            from app.cli.seed_b19_e2e_enterprise import seed_b19_e2e_enterprise
+
+            await seed_b19_e2e_enterprise()
+            iso_login = await client.post(
+                "/api/v1/auth/login",
+                json={
+                    "email": "admin@b19-iso.eduvijna.local",
+                    "password": "DemoAdmin!2026",
+                    "tenant_slug": "b19-iso",
+                },
+            )
+        assert iso_login.status_code == 200, iso_login.text
+        iso_headers = {"Authorization": f"Bearer {iso_login.json()['access_token']}"}
+        iso_provider = await client.post(
+            "/api/v1/integrations/identity-providers",
+            headers=iso_headers,
+            json={"name": f"SCIM Iso {_uid()}", "protocol": "OIDC", "issuer": f"https://scim-iso-{_uid()}.example"},
+        )
+        iso_token = await client.post(
+            f"/api/v1/integrations/identity-providers/{iso_provider.json()['id']}/scim-token",
+            headers=iso_headers,
+        )
+        iso_scim = {"Authorization": f"Bearer {iso_token.json()['secret']}"}
+        iso_created = await client.post(
+            "/scim/v2/Users",
+            headers=iso_scim,
+            json={
+                "userName": f"iso.{_uid()}@b19-iso.eduvijna.local",
+                "displayName": "Iso User",
+                "externalId": external_id,
+            },
+        )
+        assert iso_created.status_code == 201, iso_created.text
+        assert iso_created.json()["id"] != user_id
+
+
+async def test_webhook_partial_dispatch_state_with_two_endpoints() -> None:
+    async with b19_client() as client:
+        headers = await _login(client)
+        first = await client.post(
+            "/api/v1/integrations/webhooks",
+            headers=headers,
+            json={
+                "name": f"partial-a-{_uid()}",
+                "destination_url": "http://test/api/v1/b19-test/webhook-receiver",
+                "event_types": ["roster.sync.completed"],
+            },
+        )
+        second = await client.post(
+            "/api/v1/integrations/webhooks",
+            headers=headers,
+            json={
+                "name": f"partial-b-{_uid()}",
+                "destination_url": "http://test/api/v1/b19-test/webhook-receiver",
+                "event_types": ["roster.sync.completed"],
+            },
+        )
+        assert first.status_code == 200 and second.status_code == 200
+        await client.post(
+            "/api/v1/b19-test/webhook-receiver/config",
+            json={"fail_until_attempt": 0, "expected_secret": first.json()["signing_secret"]},
+        )
+        cred = await client.post(
+            "/api/v1/integrations/credentials",
+            headers=headers,
+            json={"name": "partial-sis", "scopes": ["roster:write"]},
+        )
+        sync = await client.post(
+            "/api/integration/v1/roster/upsert",
+            headers={"Authorization": f"Bearer {cred.json()['secret']}"},
+            json={
+                "provider_key": f"partial-{_uid()}",
+                "members": [
+                    {
+                        "external_stable_id": f"p1-{_uid()}",
+                        "full_name": "P",
+                        "student_code": f"p1-{_uid()}",
+                    }
+                ],
+            },
+        )
+        assert sync.status_code == 200
+        async with async_session_factory() as db:
+            from app.db.models import OutboundEvent
+
+            event = await db.scalar(
+                select(OutboundEvent)
+                .where(OutboundEvent.event_type == "roster.sync.completed")
+                .order_by(OutboundEvent.occurred_at.desc())
+            )
+            assert event is not None
+            assert event.dispatch_state == "PARTIAL"
+

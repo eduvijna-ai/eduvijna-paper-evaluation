@@ -163,6 +163,19 @@ async def _bind_external(
     if not external_id:
         return
     provider = await _scim_provider(db, tenant_id=tenant_id)
+    current = await db.scalar(
+        select(ExternalUserIdentity).where(
+            ExternalUserIdentity.tenant_id == tenant_id,
+            ExternalUserIdentity.provider_id == provider.id,
+            ExternalUserIdentity.user_id == user.id,
+        )
+    )
+    if current is not None:
+        if current.external_subject != external_id:
+            raise HTTPException(409, detail="immutable external identity cannot be replaced")
+        current.external_email = user.email
+        await db.flush()
+        return
     existing = await db.scalar(
         select(ExternalUserIdentity).where(
             ExternalUserIdentity.tenant_id == tenant_id,
@@ -184,6 +197,11 @@ async def _bind_external(
             )
         )
         await db.flush()
+        return
+    if existing.user_id != user.id:
+        raise HTTPException(409, detail="externalId already bound")
+    existing.external_email = user.email
+    await db.flush()
 
 
 async def scim_create_user(
@@ -200,7 +218,27 @@ async def scim_create_user(
     display_name = str(payload.get("displayName") or email)
     if not email:
         raise HTTPException(400, detail="userName required")
-    external_id = str(payload.get("externalId") or email)
+    external_id = str(payload.get("externalId") or "").strip()
+    if not external_id:
+        raise HTTPException(
+            400,
+            detail={
+                "schemas": ["urn:ietf:params:scim:api:messages:2.0:Error"],
+                "detail": "externalId is required for durable SCIM identity",
+                "status": "400",
+                "scimType": "invalidValue",
+            },
+        )
+    if external_id.lower() == email:
+        raise HTTPException(
+            400,
+            detail={
+                "schemas": ["urn:ietf:params:scim:api:messages:2.0:Error"],
+                "detail": "externalId must not be the user email address",
+                "status": "400",
+                "scimType": "invalidValue",
+            },
+        )
     provider = await _scim_provider(db, tenant_id=tenant_id)
     by_external = await db.scalar(
         select(ExternalUserIdentity).where(
@@ -225,6 +263,7 @@ async def scim_create_user(
         await _bind_external(db, tenant_id=tenant_id, user=existing, external_id=external_id)
         await db.flush()
         identity = await _identity_for_user(db, tenant_id=tenant_id, user_id=existing.id)
+        await db.refresh(existing)
         return user_to_scim(existing, external_id=identity.external_subject if identity else external_id)
 
     user = User(
@@ -255,6 +294,7 @@ async def scim_create_user(
         source_entity_id=user.id,
         payload={"email": user.email, "status": user.status},
     )
+    await db.refresh(user)
     return user_to_scim(user, external_id=external_id)
 
 
@@ -302,6 +342,7 @@ async def scim_replace_user(
         after={"email": user.email, "status": user.status, "auth_version": user.auth_version},
     )
     identity = await _identity_for_user(db, tenant_id=tenant_id, user_id=user.id)
+    await db.refresh(user)
     return user_to_scim(user, external_id=identity.external_subject if identity else None)
 
 
@@ -363,6 +404,7 @@ async def scim_patch_user(
         after={"email": user.email, "status": user.status, "auth_version": user.auth_version},
     )
     identity = await _identity_for_user(db, tenant_id=tenant_id, user_id=user.id)
+    await db.refresh(user)
     return user_to_scim(user, external_id=identity.external_subject if identity else None)
 
 

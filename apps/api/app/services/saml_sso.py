@@ -13,7 +13,7 @@ from xml.etree import ElementTree as ET
 
 from fastapi import HTTPException
 from lxml import etree
-from signxml import XMLVerifier  # type: ignore[attr-defined]
+from signxml import XMLVerifier  # type: ignore[attr-defined,unused-ignore]
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -106,6 +106,15 @@ async def start_saml_login(
     encoded = base64.b64encode(authn_xml.encode("utf-8")).decode("ascii")
     redirect_url = f"{provider.sso_url}?{urlencode({'SAMLRequest': encoded, 'RelayState': request_id})}"
     return {"redirect_url": redirect_url, "request_id": request_id}
+
+
+def expected_acs_url(settings: Settings | None = None) -> str:
+    cfg = settings or get_settings()
+    return f"{cfg.public_base_url.rstrip('/')}/api/v1/sso/saml/acs"
+
+
+def _normalize_acs(url: str) -> str:
+    return url.strip().rstrip("/")
 
 
 def _parse_conditions(assertion: etree._Element) -> tuple[datetime, datetime]:
@@ -254,6 +263,14 @@ async def process_saml_response(
             400, detail={"code": "issuer_mismatch", "message": "Issuer mismatch"}
         )
 
+    acs_url = expected_acs_url(cfg)
+    destination = (root.get("Destination") or "").strip()
+    if destination and _normalize_acs(destination) != _normalize_acs(acs_url):
+        raise HTTPException(
+            400,
+            detail={"code": "destination_mismatch", "message": "SAML Destination mismatch"},
+        )
+
     assertion_id = signed_assertion.get("ID") or hash_opaque_token(saml_response_b64)
     await record_replay_or_raise(
         db,
@@ -288,11 +305,36 @@ async def process_saml_response(
         elif "role" in lname or "group" in lname:
             roles.extend(values)
 
-    # InResponseTo binding for SP-initiated
     subject_confirm = signed_assertion.find(
         ".//saml:SubjectConfirmationData", NS
     )
-    in_response_to = subject_confirm.get("InResponseTo") if subject_confirm is not None else None
+    if subject_confirm is None:
+        raise HTTPException(
+            400,
+            detail={"code": "invalid_assertion", "message": "SubjectConfirmationData missing"},
+        )
+    recipient = (subject_confirm.get("Recipient") or "").strip()
+    if not recipient or _normalize_acs(recipient) != _normalize_acs(acs_url):
+        raise HTTPException(
+            400,
+            detail={"code": "recipient_mismatch", "message": "SAML Recipient mismatch"},
+        )
+    in_response_to = subject_confirm.get("InResponseTo")
+    relay_tx = None
+    if relay_state:
+        relay_tx = await db.scalar(
+            select(AuthTransaction).where(
+                AuthTransaction.kind == "SAML",
+                AuthTransaction.state == relay_state,
+                AuthTransaction.tenant_id == provider.tenant_id,
+            )
+        )
+    if relay_tx is not None:
+        if not in_response_to or in_response_to != relay_tx.state:
+            raise HTTPException(
+                400,
+                detail={"code": "invalid_inresponseto", "message": "SP-initiated InResponseTo required"},
+            )
     if in_response_to:
         tx = await db.scalar(
             select(AuthTransaction).where(
@@ -340,13 +382,15 @@ def build_signed_assertion_for_tests(
     private_key_pem: str,
     cert_pem: str,
     in_response_to: str | None = None,
+    recipient: str | None = None,
+    destination: str | None = None,
 ) -> str:
     """Helper used by test providers to mint signed SAML Responses."""
-    from signxml import XMLSigner  # type: ignore[attr-defined]
+    from signxml import XMLSigner  # type: ignore[attr-defined,unused-ignore]
 
     subject_confirm_attrs = {
         "NotOnOrAfter": not_on_or_after.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "Recipient": audience,
+        "Recipient": recipient or expected_acs_url(),
     }
     if in_response_to:
         subject_confirm_attrs["InResponseTo"] = in_response_to
@@ -386,15 +430,19 @@ def build_signed_assertion_for_tests(
     signed_assertion = XMLSigner(c14n_algorithm="http://www.w3.org/2001/10/xml-exc-c14n#").sign(
         assertion, key=private_key_pem, cert=cert_pem
     )
+    response_attrs = {
+        "ID": f"_resp{secrets.token_hex(8)}",
+        "Version": "2.0",
+        "IssueInstant": not_before.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "Destination": destination or expected_acs_url(),
+    }
     response = etree.Element(
         "{urn:oasis:names:tc:SAML:2.0:protocol}Response",
         nsmap={
             "samlp": "urn:oasis:names:tc:SAML:2.0:protocol",
             "saml": "urn:oasis:names:tc:SAML:2.0:assertion",
         },
-        ID=f"_resp{secrets.token_hex(8)}",
-        Version="2.0",
-        IssueInstant=not_before.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        **response_attrs,
     )
     iss = etree.SubElement(response, "{urn:oasis:names:tc:SAML:2.0:assertion}Issuer")
     iss.text = issuer

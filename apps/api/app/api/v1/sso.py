@@ -20,7 +20,7 @@ from app.db.session import get_db_session
 from app.services.enterprise_identity import exchange_sso_code, list_providers, provider_public_dict
 from app.services.oidc_sso import complete_oidc_callback, start_oidc_login
 from app.services.saml_sso import process_saml_response, start_saml_login
-from app.services.webhooks import deliver_due_webhooks
+from app.services.webhooks import enqueue_webhook_dispatch
 
 router = APIRouter(tags=["enterprise-identity"])
 Db = Annotated[AsyncSession, Depends(get_db_session)]
@@ -90,8 +90,7 @@ async def oidc_callback(
     try:
         result = await complete_oidc_callback(db, code=code, state=state, settings=settings)
         await db.commit()
-        await deliver_due_webhooks(db, settings=settings)
-        await db.commit()
+        await enqueue_webhook_dispatch()
         return RedirectResponse(result["redirect_url"], status_code=302)
     except HTTPException as exc:
         detail: dict[str, Any] = exc.detail if isinstance(exc.detail, dict) else {}
@@ -133,8 +132,7 @@ async def saml_acs(
             settings=settings,
         )
         await db.commit()
-        await deliver_due_webhooks(db, settings=settings)
-        await db.commit()
+        await enqueue_webhook_dispatch()
         return RedirectResponse(result["redirect_url"], status_code=302)
     except HTTPException as exc:
         detail: dict[str, Any] = exc.detail if isinstance(exc.detail, dict) else {}

@@ -296,6 +296,14 @@ class Settings(BaseSettings):
         ),
         description="In-container base URL for B19 test-provider token/JWKS/webhook loops.",
     )
+    b19_test_webhook_signing_secret: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "B19_TEST_WEBHOOK_SIGNING_SECRET",
+            "b19_test_webhook_signing_secret",
+        ),
+        description="Deterministic HMAC secret for the gated B19 test webhook receiver.",
+    )
 
     @model_validator(mode="after")
     def require_auth_secret(self) -> "Settings":

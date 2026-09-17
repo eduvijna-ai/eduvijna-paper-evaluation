@@ -180,6 +180,8 @@ async def start_lti_login(
     }
     if lti_message_hint:
         params["lti_message_hint"] = lti_message_hint
+    params["target_link_uri"] = target_link_uri
+    params["lti_deployment_id"] = platform.deployment_id
     return f"{platform.auth_login_url}?{urlencode(params)}"
 
 
@@ -254,6 +256,14 @@ async def complete_lti_launch(
     if deployment_id != platform.deployment_id:
         raise HTTPException(400, detail={"code": "deployment_mismatch", "message": "Deployment mismatch"})
 
+    expected_target = str((tx.payload_json or {}).get("target_link_uri") or "").rstrip("/")
+    actual_target = str(claims.get("https://purl.imsglobal.org/spec/lti/claim/target_link_uri") or "").rstrip("/")
+    if not expected_target or actual_target != expected_target:
+        raise HTTPException(
+            400,
+            detail={"code": "target_mismatch", "message": "LTI target_link_uri mismatch"},
+        )
+
     jti = claims.get("jti") or hash_opaque_token(id_token)
     await record_replay_or_raise(
         db,
@@ -280,16 +290,16 @@ async def complete_lti_launch(
         )
     )
     if link is None:
-        link = LtiResourceLink(
-            platform_id=platform.id,
-            tenant_id=platform.tenant_id,
-            context_id=context_id,
-            resource_link_id=resource_link_id,
+        raise HTTPException(
+            400,
+            detail={
+                "code": "unbound_resource",
+                "message": "LTI resource link is not associated with an EduVijna assessment",
+            },
         )
-        db.add(link)
-    if lineitem:
+    if lineitem and not link.ags_lineitem_url:
         link.ags_lineitem_url = str(lineitem)
-    if memberships:
+    if memberships and not link.nrps_memberships_url:
         link.nrps_memberships_url = str(memberships)
     link.last_launch_at = now
     await db.flush()

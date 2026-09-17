@@ -20,7 +20,7 @@ from app.services.scim import (
     scim_replace_user,
     service_provider_config,
 )
-from app.services.webhooks import deliver_due_webhooks
+from app.services.webhooks import enqueue_webhook_dispatch
 
 router = APIRouter(tags=["enterprise-identity"])
 Db = Annotated[AsyncSession, Depends(get_db_session)]
@@ -66,8 +66,7 @@ async def create_user(
 ) -> dict[str, Any]:
     result = await scim_create_user(db, tenant_id=auth.tenant_id, payload=payload)
     await db.commit()
-    await deliver_due_webhooks(db)
-    await db.commit()
+    await enqueue_webhook_dispatch()
     return result
 
 
@@ -89,8 +88,7 @@ async def replace_user(
 ) -> dict[str, Any]:
     result = await scim_replace_user(db, tenant_id=auth.tenant_id, user_id=user_id, payload=payload)
     await db.commit()
-    await deliver_due_webhooks(db)
-    await db.commit()
+    await enqueue_webhook_dispatch()
     return result
 
 
@@ -103,6 +101,5 @@ async def patch_user(
 ) -> dict[str, Any]:
     result = await scim_patch_user(db, tenant_id=auth.tenant_id, user_id=user_id, payload=payload)
     await db.commit()
-    await deliver_due_webhooks(db)
-    await db.commit()
+    await enqueue_webhook_dispatch()
     return result

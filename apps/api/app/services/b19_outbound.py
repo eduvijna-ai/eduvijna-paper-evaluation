@@ -32,7 +32,10 @@ def is_b19_test_url(url: str) -> bool:
     if "/api/v1/b19-test/" not in url:
         return False
     cfg = get_settings()
-    return bool(cfg.b19_test_providers_enabled or cfg.environment.lower() in {"local", "test"})
+    if not (cfg.b19_test_providers_enabled or cfg.environment.lower() in {"local", "test"}):
+        return False
+    host = (urlparse(url).hostname or "").lower()
+    return host in {"test", "localhost", "127.0.0.1"}
 
 
 def get_jwks_signing_key(jwks_uri: str, token: str) -> Any:
@@ -98,7 +101,6 @@ def _dispatch_test(
                 signature=headers.get("x-eduvijna-signature", ""),
                 event_id=headers.get("x-eduvijna-event-id", ""),
                 event_type=headers.get("x-eduvijna-event-type", ""),
-                secret=None,
             )
             return OutboundResponse(200, {"status": "ok"})
         except HTTPException as exc:

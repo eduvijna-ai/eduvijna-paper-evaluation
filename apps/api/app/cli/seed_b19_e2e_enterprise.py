@@ -327,12 +327,101 @@ async def seed_b19_e2e_enterprise() -> dict[str, str]:
             )
             db.add(link)
             await db.flush()
+        else:
+            link.assessment_id = assessment_id
+            if not link.ags_lineitem_url:
+                link.ags_lineitem_url = f"{internal}/api/v1/b19-test/ags/lineitems/1"
+            if not link.nrps_memberships_url:
+                link.nrps_memberships_url = f"{internal}/api/v1/b19-test/nrps/memberships"
+
+        from app.core.integration_crypto import encrypt_secret
+        from app.db.models import ExternalRosterIdentity, WebhookEndpoint
+
+        student_row = await db.scalar(
+            select(Student).where(
+                Student.tenant_id == tenant.id, Student.student_code == "B19-E2E-STU"
+            )
+        )
+        if student_row is not None:
+            roster = await db.scalar(
+                select(ExternalRosterIdentity).where(
+                    ExternalRosterIdentity.tenant_id == tenant.id,
+                    ExternalRosterIdentity.provider_key == f"lti:{lti.id}",
+                    ExternalRosterIdentity.external_stable_id == "nrps-student-1",
+                )
+            )
+            if roster is None:
+                now = datetime.now(UTC)
+                db.add(
+                    ExternalRosterIdentity(
+                        tenant_id=tenant.id,
+                        provider_key=f"lti:{lti.id}",
+                        external_stable_id="nrps-student-1",
+                        student_id=student_row.id,
+                        source="NRPS",
+                        status="ACTIVE",
+                        first_seen_at=now,
+                        last_synced_at=now,
+                    )
+                )
+
+        hook_secret = settings.b19_test_webhook_signing_secret or "b19-deterministic-webhook-secret"
+        hook_dest = (
+            "http://test/api/v1/b19-test/webhook-receiver"
+            if settings.environment.lower() == "test"
+            else "http://api:8000/api/v1/b19-test/webhook-receiver"
+        )
+        hook = await db.scalar(
+            select(WebhookEndpoint).where(
+                WebhookEndpoint.tenant_id == tenant.id,
+                WebhookEndpoint.name == "B19 Test Webhook",
+            )
+        )
+        if hook is None:
+            db.add(
+                WebhookEndpoint(
+                    tenant_id=tenant.id,
+                    name="B19 Test Webhook",
+                    destination_url=hook_dest,
+                    encrypted_signing_secret=encrypt_secret(hook_secret, settings),
+                    event_types_json=[
+                        "result.published",
+                        "identity.user.provisioned",
+                        "identity.user.deactivated",
+                        "roster.sync.completed",
+                    ],
+                    enabled=True,
+                )
+            )
+
+        scim_held = await db.scalar(
+            select(User).where(
+                User.tenant_id == tenant.id, User.email == "scim.held@demo.eduvijna.local"
+            )
+        )
+        if scim_held is None:
+            scim_held = User(
+                tenant_id=tenant.id,
+                email="scim.held@demo.eduvijna.local",
+                display_name="SCIM Held User",
+                password_hash=hash_password("DemoUser!2026"),
+                status="active",
+                auth_version=1,
+            )
+            db.add(scim_held)
 
         iso = await db.scalar(select(Tenant).where(Tenant.slug == ISO_SLUG))
         if iso is None:
             iso = Tenant(slug=ISO_SLUG, name="B19 Isolation", status="active")
             db.add(iso)
             await db.flush()
+            db.add(Institution(tenant_id=iso.id, code="B19ISO", name="B19 Iso"))
+        iso_user = await db.scalar(
+            select(User).where(
+                User.tenant_id == iso.id, User.email == "admin@b19-iso.eduvijna.local"
+            )
+        )
+        if iso_user is None:
             iso_user = User(
                 tenant_id=iso.id,
                 email="admin@b19-iso.eduvijna.local",
@@ -341,16 +430,22 @@ async def seed_b19_e2e_enterprise() -> dict[str, str]:
                 status="active",
             )
             db.add(iso_user)
-            db.add(Institution(tenant_id=iso.id, code="B19ISO", name="B19 Iso"))
             await db.flush()
-            permissions: dict[str, Permission] = {}
-            for code in PERMISSION_CODES:
-                permission = await db.scalar(select(Permission).where(Permission.code == code))
-                if permission is None:
-                    permission = Permission(code=code, name=code.replace(":", " ").title())
-                    db.add(permission)
-                    await db.flush()
-                permissions[code] = permission
+        else:
+            iso_user.password_hash = hash_password("DemoAdmin!2026")
+            iso_user.status = "active"
+        permissions: dict[str, Permission] = {}
+        for code in PERMISSION_CODES:
+            permission = await db.scalar(select(Permission).where(Permission.code == code))
+            if permission is None:
+                permission = Permission(code=code, name=code.replace(":", " ").title())
+                db.add(permission)
+                await db.flush()
+            permissions[code] = permission
+        admin_role = await db.scalar(
+            select(Role).where(Role.tenant_id == iso.id, Role.code == "INSTITUTION_ADMIN")
+        )
+        if admin_role is None:
             admin_role = Role(
                 tenant_id=iso.id,
                 code="INSTITUTION_ADMIN",
@@ -366,6 +461,10 @@ async def seed_b19_e2e_enterprise() -> dict[str, str]:
                         permission_id=permissions[permission_code].id,
                     )
                 )
+        existing_iso_role = await db.scalar(
+            select(UserRole).where(UserRole.user_id == iso_user.id, UserRole.role_id == admin_role.id)
+        )
+        if existing_iso_role is None:
             db.add(UserRole(tenant_id=iso.id, user_id=iso_user.id, role_id=admin_role.id))
         await db.commit()
         return {
@@ -377,6 +476,7 @@ async def seed_b19_e2e_enterprise() -> dict[str, str]:
             "saml_provider_id": str(saml_provider.id),
             "lti_platform_id": str(lti.id),
             "lti_resource_link_id": str(link.id),
+            "student_id": str(student_row.id) if student_row is not None else "",
         }
 
 

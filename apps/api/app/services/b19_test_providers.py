@@ -31,6 +31,7 @@ _OIDC_CODES: dict[str, dict[str, Any]] = {}
 _LTI_NONCES: dict[str, dict[str, Any]] = {}
 _WEBHOOK_INBOX: list[dict[str, Any]] = []
 _WEBHOOK_FAIL_UNTIL = 0
+_WEBHOOK_EXPECTED_SECRET: str | None = None
 _AGS_SCORES: list[dict[str, Any]] = []
 _KEYS: dict[str, Any] | None = None
 
@@ -163,6 +164,8 @@ def issue_saml_response(
     name_id: str,
     email: str,
     in_response_to: str | None = None,
+    recipient: str | None = None,
+    destination: str | None = None,
 ) -> str:
     keys = _keys()
     now = datetime.now(UTC)
@@ -177,6 +180,8 @@ def issue_saml_response(
         private_key_pem=str(keys["private_pem"]),
         cert_pem=str(keys["cert_pem"]),
         in_response_to=in_response_to,
+        recipient=recipient,
+        destination=destination,
     )
 
 
@@ -192,6 +197,7 @@ def issue_lti_id_token(
     lineitem_url: str,
     memberships_url: str,
     roles: list[str] | None = None,
+    target_link_uri: str,
 ) -> str:
     now = datetime.now(UTC)
     keys = _keys()
@@ -208,7 +214,7 @@ def issue_lti_id_token(
             "https://purl.imsglobal.org/spec/lti/claim/message_type": "LtiResourceLinkRequest",
             "https://purl.imsglobal.org/spec/lti/claim/version": "1.3.0",
             "https://purl.imsglobal.org/spec/lti/claim/deployment_id": deployment_id,
-            "https://purl.imsglobal.org/spec/lti/claim/target_link_uri": "https://tool.example/launch",
+            "https://purl.imsglobal.org/spec/lti/claim/target_link_uri": target_link_uri,
             "https://purl.imsglobal.org/spec/lti/claim/resource_link": {"id": resource_link_id},
             "https://purl.imsglobal.org/spec/lti/claim/context": {"id": context_id},
             "https://purl.imsglobal.org/spec/lti/claim/roles": roles
@@ -263,6 +269,24 @@ def set_webhook_fail_until(attempt: int) -> None:
     _WEBHOOK_FAIL_UNTIL = attempt
 
 
+def set_webhook_expected_secret(secret: str | None) -> None:
+    global _WEBHOOK_EXPECTED_SECRET
+    _WEBHOOK_EXPECTED_SECRET = secret
+
+
+def expected_webhook_secret() -> str:
+    if _WEBHOOK_EXPECTED_SECRET:
+        return _WEBHOOK_EXPECTED_SECRET
+    cfg = get_settings()
+    configured = getattr(cfg, "b19_test_webhook_signing_secret", None)
+    if configured:
+        return str(configured)
+    raise HTTPException(
+        401,
+        detail={"code": "webhook_secret_unconfigured", "message": "Test webhook secret missing"},
+    )
+
+
 def record_webhook(
     *,
     raw_body: str,
@@ -270,10 +294,16 @@ def record_webhook(
     signature: str,
     event_id: str,
     event_type: str,
-    secret: str | None,
+    secret: str | None = None,
 ) -> int:
-    if secret and not verify_webhook_signature(
-        secret=secret, timestamp=timestamp, raw_body=raw_body, signature=signature
+    verify_secret = secret if secret else expected_webhook_secret()
+    if not verify_secret:
+        raise HTTPException(
+            401,
+            detail={"code": "webhook_secret_unconfigured", "message": "Test webhook secret missing"},
+        )
+    if not verify_webhook_signature(
+        secret=verify_secret, timestamp=timestamp, raw_body=raw_body, signature=signature
     ):
         raise HTTPException(401, detail={"code": "bad_signature", "message": "Invalid webhook signature"})
     _WEBHOOK_INBOX.append(
@@ -285,7 +315,9 @@ def record_webhook(
             "body": raw_body,
         }
     )
-    if len(_WEBHOOK_INBOX) <= _WEBHOOK_FAIL_UNTIL:
+    global _WEBHOOK_FAIL_UNTIL
+    if _WEBHOOK_FAIL_UNTIL > 0:
+        _WEBHOOK_FAIL_UNTIL -= 1
         raise HTTPException(500, detail={"code": "forced_failure", "message": "Configured fixture failure"})
     return 200
 
@@ -300,6 +332,7 @@ def reset_test_provider_state() -> None:
     _WEBHOOK_INBOX.clear()
     _AGS_SCORES.clear()
     set_webhook_fail_until(0)
+    set_webhook_expected_secret(None)
 
 
 def pkce_challenge(verifier: str) -> str:

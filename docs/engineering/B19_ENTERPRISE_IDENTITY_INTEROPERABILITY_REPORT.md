@@ -51,8 +51,20 @@ Versioned surface: `/api/integration/v1/*` authenticated by
 
 HMAC-SHA256 (`v1=` + `timestamp.raw_body`). Destinations are validated against
 loopback/private/link-local/multicast unless an explicit local/test escape
-hatch is enabled. Retries persist attempts and reach terminal failure after
-five attempts. Manual retry is permissioned and audited.
+hatch is enabled. Delivery rows are written in the same DB transaction as the
+`OutboundEvent`; Celery task `webhooks.deliver_due` (worker `--beat` every 2s)
+performs network POST after commit. Multi-endpoint events use `PARTIAL` until
+every delivery is terminal. Retries persist attempts and reach terminal failure
+after five attempts. Manual retry is permissioned and audited. The deterministic
+receiver verifies HMAC with `B19_TEST_WEBHOOK_SIGNING_SECRET` and never with a
+null secret.
+
+SAML ACS checks Response `Destination` and `SubjectConfirmationData.Recipient`
+against the configured ACS, plus SP-initiated `InResponseTo`. LTI launch binds
+the signed `target_link_uri` to the initiated transaction and requires a
+pre-associated assessment resource link. AGS passback derives the learner from
+`ExternalRosterIdentity` for the PublishedResult student. SCIM requires a
+non-email `externalId` as the immutable subject.
 
 ## Secret storage
 

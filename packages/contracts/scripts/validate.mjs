@@ -140,6 +140,7 @@ const requiredPaths = [
   "/api/v1/integrations/webhooks/{endpoint_id}",
   "/api/v1/integrations/webhooks/{endpoint_id}/rotate-secret",
   "/api/v1/integrations/webhooks/{endpoint_id}/deliveries",
+  "/api/v1/integrations/webhook-deliveries/{delivery_id}/attempts",
   "/api/v1/integrations/webhook-deliveries/{delivery_id}/retry",
   "/api/v1/sso/providers",
   "/api/v1/sso/oidc/start",
