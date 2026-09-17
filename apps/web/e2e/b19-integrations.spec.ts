@@ -17,7 +17,7 @@ test.describe("B19 mock enterprise integrations", () => {
     await expect(page.getByTestId("b19-integrations-workspace")).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByTestId("b19-provider-oidc")).toBeVisible();
+    await expect(page.getByTestId("b19-provider-oidc").first()).toBeVisible();
     await page.getByTestId("b19-tab-lti").click();
     await expect(page.getByTestId("b19-lti-platform")).toBeVisible();
     await page.getByTestId("b19-tab-credentials").click();

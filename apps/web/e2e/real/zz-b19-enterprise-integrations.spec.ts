@@ -283,6 +283,8 @@ test.describe("B19 real enterprise integrations", () => {
     await expect(page.getByTestId("b19-integrations-workspace")).toBeVisible({
       timeout: 30_000,
     });
-    await expect(page.getByTestId("b19-provider-oidc")).toBeVisible();
+    await expect(
+      page.getByTestId("b19-provider-oidc").filter({ hasText: "B19 Test OIDC" }),
+    ).toBeVisible();
   });
 });

@@ -20,6 +20,7 @@ from app.db.models import (
     UserRole,
 )
 from app.db.session import async_session_factory
+from tests.foreign_auth import create_foreign_user
 from tests.test_b3_submission_ingestion import _headers
 from tests.test_b6_evaluation_ledger import _ready_assessment, _to_ready_for_evaluation
 from tests.test_b7_publication_reports import _to_approved, api_client_publication
@@ -562,10 +563,11 @@ async def test_b16_grievance_accept_reject_supersede_analytics_tenant() -> None:
         assert student_analytics.status_code == 200, student_analytics.text
         assert student_analytics.json()["published_attempt_count"] == 1
 
+        foreign_user_id, foreign_tenant_id = await create_foreign_user()
         foreign = JwtAuthProvider(get_settings()).issue_access_token(
             AuthContext(
-                user_id=uuid.uuid4(),
-                tenant_id=uuid.uuid4(),
+                user_id=foreign_user_id,
+                tenant_id=foreign_tenant_id,
                 roles=frozenset({"INSTITUTION_ADMIN"}),
                 permissions=ROLE_PERMISSION_MAP["INSTITUTION_ADMIN"],
             )

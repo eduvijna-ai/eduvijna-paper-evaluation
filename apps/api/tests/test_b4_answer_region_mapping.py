@@ -18,6 +18,7 @@ from app.db.models import PipelineJob, Submission
 from app.db.session import async_session_factory
 from app.main import create_app
 from app.services.storage import ObjectStorage
+from tests.foreign_auth import create_foreign_user
 from tests.test_a2_gate_matrix import _foundation
 from tests.test_a2_review_fixes import _leaf_and_approve
 from tests.test_b3_submission_ingestion import _headers, _pdf_bytes
@@ -568,10 +569,11 @@ async def test_mapping_conflicts_permissions_and_cross_tenant() -> None:
             )
         ).status_code == 403
 
+        foreign_user_id, foreign_tenant_id = await create_foreign_user()
         foreign = JwtAuthProvider(get_settings()).issue_access_token(
             AuthContext(
-                user_id=uuid.uuid4(),
-                tenant_id=uuid.uuid4(),
+                user_id=foreign_user_id,
+                tenant_id=foreign_tenant_id,
                 roles=frozenset({"INSTITUTION_ADMIN"}),
                 permissions=frozenset({"mapping:read", "mapping:review"}),
             )
