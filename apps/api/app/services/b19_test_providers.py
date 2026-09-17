@@ -12,14 +12,12 @@ import hashlib
 import secrets
 import uuid
 from datetime import UTC, datetime, timedelta
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlencode
 
 import jwt
-from cryptography import x509
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.x509.oid import NameOID
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.rsa import RSAPrivateKey
 from fastapi import HTTPException
 
 from app.core.config import Settings, get_settings
@@ -34,6 +32,53 @@ _WEBHOOK_FAIL_UNTIL = 0
 _WEBHOOK_EXPECTED_SECRET: str | None = None
 _AGS_SCORES: list[dict[str, Any]] = []
 _KEYS: dict[str, Any] | None = None
+_B19_TEST_PRIVATE_PEM = """-----BEGIN PRIVATE KEY-----
+MIIEvQIBADANBgkqhkiG9w0BAQEFAASCBKcwggSjAgEAAoIBAQDRtOPJNFLw0NaS
+2CRF6/TGRlVaNZfprZyF++2KPVzUeDYhWL6moGLFFOzxvldAlmNHGz99wADXF0K4
+B7vS6Amig40GxGUMUtInyl22Bop758XMjFapl/2WHVzHRNF5cojEXq/h9ASwJcrc
++1LzuH9KN1G1EZOkN+qYFkShN5aUITZYZ0/TbBkaqlWozYsxG8PDJe9y8vBkI0ir
+Usf2fcwuJ66DFNyBT4/yjC9aGa3atWDSdPezh5uvx4I4+X737RTSRXcoeDpNptOa
+WYd8+eIKOcvIWMkMg4XgTv+kD0TDmmi+f44k9v/dqasWJOAVmb/z/nn8yJZC86/8
+oMVOM5dTAgMBAAECggEAAMapaE3SmHQRwJg4N0z3WOUui3Ypo/l6OQ+EMGrHrnWq
+ul+fhmCxFXj55YqwPV/p9ETOELC5isgsgHpzNjhAMgAu3xhwsaJtUkyfMDReX0Ub
+upCrRtGaK0ByVU5gkxNpgIzkSqObey5Vcq7B/JyWS4mobCK5UTfVPd8mwtcGdSuZ
+7vr/hU7xKLCq2BADP5V1Paqh48th2+vjm2hj965JrwsoQ+F9n8aqvI3YR3Rf+S4B
+eP/D1tnEGOfGv8WIwaG3vKufG2hgOVPvjZiwHwWHvm+8fx+NzkApzLsCs8vWqKLS
+8pGdaQ5rhAMcnphge0PwOt+5j2NW5D99Qpm82wBWSQKBgQDrhiH16H0KUU+5rlw5
+jF1n/N4JdjlRY1qy48ET7guu/AMk0qEE/sJoAhUAWb3mIor5IQy1VF/FjnfbmfCU
+9zrDWpqDvxWHlTAq7l7EJKSn6/dopevxrM4l+tily/z2Q4kOZHfcQBVg1x26fMpk
+gnUehspGTNutGtd9LnIVYEk3HQKBgQDj8Ck4VsuDIbM2JH6OZQDe4BJC/GuhL6tc
+XDU3+ZuEJz+sqphFhf7ReKHjYadmZU2HE325hpx+ZsgC8Uw+0JuWXk3raEGhk7LW
+03QIvEQAM3vBf/GALSbliPRoGh2WCCNYRVG9A9jBhpPtVOAaTFMuawtjLrxqpLYi
+ah0mnO4NLwKBgATiSCwAQS+Ilh2klvb+iSVR4gzSLcgZRlU1Udim9AkR4sLNt1cS
+LVfYyzSxp7Vw++7El63e7Ql8tdGQ9KMyKT7JzzByMvEXz+LkBIUOuXdd9khuQGFH
+kxLIi9uMSleU+O+ad73Sel8CtvQaCFxjNCiI5QLmLxv81YEcCHOXBo2lAoGBALGE
+eJXIAvc9Z7Ti9y0uvF7XY2GH9MqztWFY7pmJa/SgHJb8xVpf4PSCXpIXm6fDfX2V
+UHUMwRQwN9US166UCJgzGbwclgCgZseoJtYmyU7eyaMJYavRflmFL9Njg2c1L1Gv
+qtjqBgWyKcLMNzxD9QRRmazE2Ti0zqQ+wDUyQrNBAoGAefik7zsFGAWZqzYYbFEJ
+6SaZq4wuGOrmBkYHkagE8XR8ZAW8+nM9wFcclq27lAj5La/fDbW669xN04aMeFh4
+i3fQdXkA7MczyEet1d1P/v56WiBWiU55TOHTY/BH2uMRrANWOWOqu6+VJ8ZGhSmG
+QvA+bXEv/4xNvTr/KxqLoFU=
+-----END PRIVATE KEY-----
+"""
+_B19_TEST_CERT_PEM = """-----BEGIN CERTIFICATE-----
+MIICpzCCAY+gAwIBAgIBATANBgkqhkiG9w0BAQsFADAXMRUwEwYDVQQDDAxCMTkg
+VGVzdCBJZFAwHhcNMjYwMTAxMDAwMDAwWhcNMzYwMTAxMDAwMDAwWjAXMRUwEwYD
+VQQDDAxCMTkgVGVzdCBJZFAwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIB
+AQDRtOPJNFLw0NaS2CRF6/TGRlVaNZfprZyF++2KPVzUeDYhWL6moGLFFOzxvldA
+lmNHGz99wADXF0K4B7vS6Amig40GxGUMUtInyl22Bop758XMjFapl/2WHVzHRNF5
+cojEXq/h9ASwJcrc+1LzuH9KN1G1EZOkN+qYFkShN5aUITZYZ0/TbBkaqlWozYsx
+G8PDJe9y8vBkI0irUsf2fcwuJ66DFNyBT4/yjC9aGa3atWDSdPezh5uvx4I4+X73
+7RTSRXcoeDpNptOaWYd8+eIKOcvIWMkMg4XgTv+kD0TDmmi+f44k9v/dqasWJOAV
+mb/z/nn8yJZC86/8oMVOM5dTAgMBAAEwDQYJKoZIhvcNAQELBQADggEBAClPzlWF
+dxtB6Gd7vBCI3yGUtxvf6M847B1FO726Z+D4Uacza6NOh3CvgBkMaxWI9xXTUB8i
+I4IaPCi8rqHXntb2ypOAoBM8R809L7jBeXSMwl2o3fxmlbiDL+r0cYLseQ0ynwMG
+m0O6KhykfcjfiM2E0tIeuqaomNkAZCM4ybGyQ3VMt7CTHX6uHK+d6IREl8pCuPyp
+ROmmMRNZVRWQrZ2kpU8/JDadh7b0UY4mV7AdHnPuA+WuzhpyC9cvlDPCHGqm85UN
++FkYWYQ+wLojIo8WtNgfw7CbSDiZ4OWdkNV58F+7L5TrvcW+rM3c12GLKcsJ6AQk
+foPt2xcs8edkg0A=
+-----END CERTIFICATE-----
+"""
 
 
 def test_providers_enabled(settings: Settings | None = None) -> bool:
@@ -50,28 +95,14 @@ def _keys() -> dict[str, Any]:
     global _KEYS
     if _KEYS is not None:
         return _KEYS
-    key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    private_pem = key.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.PKCS8,
-        encryption_algorithm=serialization.NoEncryption(),
-    ).decode("utf-8")
+    key = cast(
+        RSAPrivateKey,
+        serialization.load_pem_private_key(_B19_TEST_PRIVATE_PEM.encode("utf-8"), password=None),
+    )
     public_pem = key.public_key().public_bytes(
         encoding=serialization.Encoding.PEM,
         format=serialization.PublicFormat.SubjectPublicKeyInfo,
     ).decode("utf-8")
-    subject = issuer = x509.Name([x509.NameAttribute(NameOID.COMMON_NAME, "B19 Test IdP")])
-    cert = (
-        x509.CertificateBuilder()
-        .subject_name(subject)
-        .issuer_name(issuer)
-        .public_key(key.public_key())
-        .serial_number(x509.random_serial_number())
-        .not_valid_before(datetime.now(UTC) - timedelta(days=1))
-        .not_valid_after(datetime.now(UTC) + timedelta(days=3650))
-        .sign(key, hashes.SHA256())
-    )
-    cert_pem = cert.public_bytes(serialization.Encoding.PEM).decode("utf-8")
     numbers = key.public_key().public_numbers()
 
     def _b64(value: int) -> str:
@@ -80,9 +111,9 @@ def _keys() -> dict[str, Any]:
 
     kid = "b19-test"
     _KEYS = {
-        "private_pem": private_pem,
+        "private_pem": _B19_TEST_PRIVATE_PEM,
         "public_pem": public_pem,
-        "cert_pem": cert_pem,
+        "cert_pem": _B19_TEST_CERT_PEM,
         "kid": kid,
         "jwks": {
             "keys": [

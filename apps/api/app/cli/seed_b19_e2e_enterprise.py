@@ -33,7 +33,7 @@ from app.db.models import (
 )
 from app.db.session import async_session_factory
 from app.services.b19_test_providers import saml_idp_cert_pem
-from app.services.enterprise_identity import create_provider
+from app.services.enterprise_identity import create_provider, update_provider
 from app.services.lti import create_lti_platform
 
 ASSESSMENT_CODE = "B19-E2E-ENT"
@@ -285,6 +285,14 @@ async def seed_b19_e2e_enterprise() -> dict[str, str]:
                 sso_url=f"{public}/api/v1/b19-test/saml/sso",
                 saml_idp_cert=saml_idp_cert_pem(),
                 jit_enabled=True,
+            )
+        else:
+            saml_provider = await update_provider(
+                db,
+                tenant_id=tenant.id,
+                actor_user_id=admin.id,
+                provider_id=saml_provider.id,
+                patch={"saml_idp_cert": saml_idp_cert_pem()},
             )
         lti = await db.scalar(
             select(LtiPlatform).where(
