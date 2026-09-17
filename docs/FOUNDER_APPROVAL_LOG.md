@@ -130,7 +130,7 @@ APP-015 governance creates **zero** migration. Future B19 implementation may int
 1. This APP-015 governance PR modifies only `docs/FOUNDER_APPROVAL_LOG.md`
 2. Do **not** modify `REQUIREMENTS_REGISTER.md` classifications
 3. Six authoritative CI jobs (Infrastructure, Contracts, Backend, Frontend, Frontend E2E, Frontend E2E Real) must succeed on the exact final governance head before squash-merge to `develop`
-4. Squash-merge parent must be exactly `d963ac0dd6e9556f69c43a460aae4c18d495508a`
+4. Squash-merge parent must be exactly `ce5a85c80a1894e3c2c112151cba0ce1d7c1a872` (APP-015.0 / PR #99 accepted develop baseline).
 5. `main` must remain `8f488b12ade2a6dffd60c8df5dc4c5fcfda9d7ce`
 6. Issue #96 may close only after governance squash-merge and final branch-state verification
 7. B19 implementation starts only after independent ChatGPT audit of this governance merge and a separate implementation authorization
