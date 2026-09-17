@@ -26,6 +26,7 @@ Copy this block for each new decision:
 
 | Date | Decision | Approver | Status | Notes |
 |------|----------|----------|--------|-------|
+| 2026-09-16 | **Approve fourth FUTURE_ENTERPRISE implementation tranche: PEV-054 and PEV-055.** Activates enterprise SSO/SCIM and LMS/SIS/LTI interoperability as bounded B19 work from `develop` after APP-014. Tenant-configured SAML 2.0 + OIDC + SCIM 2.0; LTI 1.3 Advantage; standards/provider abstractions (no vendor-hard-coded domain); grade passback only from authoritative human-approved PublishedResult; roster sync on existing tenant/student structures; public API/machine auth and outbound webhooks within the modular monolith; deterministic credential-free CI; no main promotion. | Founder / Product Architect | APPROVED | APP-015. Tranche: B19 — Enterprise Identity & Interoperability. PEV-054–055 remain formally `FUTURE_ENTERPRISE` (release-state classification unchanged). PEV-056–057 remain deferred. No `main` promotion. Governance PR documentation-only; B19 implementation requires later independently authorized feature PR after ChatGPT audit. Issue #96. Starting develop: `d963ac0dd6e9556f69c43a460aae4c18d495508a` (tree `362011e330915335e237cb4322ed45dd83940736`). Expected unchanged main: `8f488b12ade2a6dffd60c8df5dc4c5fcfda9d7ce` (tree `362011e330915335e237cb4322ed45dd83940736`). |
 | 2026-09-10 | **Approve APP-013.1 corrective release promotion.** Authorizes promotion of the independently accepted APP-013.1 release-test-governance integrity remediation from `develop` to `main`. Release/governance only; restores UI-faithful B12/B14 real-E2E finalize evidence; no new product implementation; PEV-050–051 remain formally `FUTURE_ENTERPRISE`; PEV-054–057 remain deferred; no new migration (Alembic head remains `20260910_0020`); exact-tree snapshot mandatory; no direct develop→main conflict resolution; no merge-back from main to develop; no AI provider/model deployment authorization. Founder authorization: “approved. proceed”. | Founder / Product Architect | APPROVED | APP-014. Corrective follow-up to APP-013 Issue #84 / governance PR #85 / release PR #86. APP-013.1 Issue #87 / PR #88. Accepted develop: `669968e0438caf71ae13a9bdf1bf1f6a81b925f9` (tree `c1945b460ccf070c6468790877ea954c5205a123`). Expected main until promotion: `c0b084fb1db5164104ed77bd43bdc5efb8d26092` (tree `2f143e4f9a76b67e3d64d67ae02b581d1b8a0c09`). Tracking Issue #89. |
 | 2026-09-10 | **Approve Answer Intelligence & Outcome Reporting release promotion.** Authorizes promotion of the independently accepted APP-012 / B18 + B18.1 + B18.2 Answer Clustering & CO/PO Reporting implementation (PEV-050–051) from `develop` to `main`. Release promotion only; no new product implementation; PEV-050–051 remain formally `FUTURE_ENTERPRISE`; PEV-054–057 remain deferred; exact-tree snapshot mandatory because main/develop histories intentionally diverge; no direct develop→main conflict resolution; no merge-back from main to develop; no AI provider/model deployment authorization. | Founder / Product Architect | APPROVED | APP-013. Milestone: Answer Intelligence & Outcome Reporting Release. Issue #84. Starting develop: `4148401549591472453f1bf7231727921352937e`. Expected main until promotion: `548960e6b35e5229595c9fd0ef17d9b375080e07`. Implementation already accepted through B18 (#78 / PR #79) + B18.1 (#80 / PR #81) + B18.2 (#82 / PR #83). |
 | 2026-09-10 | **Approve third FUTURE_ENTERPRISE implementation tranche: PEV-050 and PEV-051.** Activates answer clustering from transcription embeddings and CO/PO attainment reporting as bounded B18 work from `develop` after Assessment Quality & Calibration release. Clustering supports pattern discovery and advisory rubric-refinement observations only and must never mutate approved rubrics, evaluation ledger scores, ReviewActions, or publication state; CO/PO analytics report marks-weighted attainment from current PUBLISHED human-final evidence only and must never rewrite historical evaluation results; SUPERSEDED publications must not double-count; no external vector database; no main promotion. | Founder / Product Architect | APPROVED | APP-012. Tranche: B18 — Answer Clustering & CO/PO Reporting. PEV-050–051 remain formally `FUTURE_ENTERPRISE` (release-state classification unchanged). PEV-054–057 remain deferred. PEV-048/049 already released via APP-011 — do not redesign. No `main` promotion. No new infrastructure architecture. |
@@ -40,6 +41,99 @@ Copy this block for each new decision:
 | 2026-09-07 | **Approve first post-CVB AFTER_CLIENT_APPROVAL tranche: PEV-035–038.** Activates repeated error analysis, recoverable marks analysis, longitudinal mastery tracking, and the persistent student mistake notebook as the first bounded post-CVB implementation tranche from `develop` after CVB v0.1 release completion. | Founder / Product Architect | APPROVED | APP-003. One Cursor implementation engineer owns backend + frontend + contracts + tests + CI. PEV-041, PEV-043, PEV-058, PEV-059 and all FUTURE_ENTERPRISE requirements remain deferred. `main` remains release-only. |
 | 2026-09-07 | **Approve CVB v0.1 release promotion.** Authorizes the independently re-audited BUILD_NOW release candidate on `develop` after B11: 59 VERIFIED / 0 BLOCKED, B11 squash `dd6bd64faf7ddcd089c94d7c32f748ec70109840`, with promotion to `main` through the release workflow after authoritative CI succeeds. Deferred requirements remain deferred and unchanged. | Founder / Product Architect | APPROVED | Release milestone approval. Record B11 evidence in the authorized release path; do not introduce new implementation scope. Issue #1 may close only after the `main` promotion is confirmed. |
 | 2026-09-04 | **Mandatory architecture contract for Day 1 bootstrap (CVB v0.1).** Approves: modular monolith; Python 3.12 + FastAPI + SQLAlchemy 2 async + Alembic + PostgreSQL 16; Redis + Celery async; S3-compatible storage (MinIO local); Next.js + React + TypeScript + Tailwind frontend stack; pnpm monorepo; SymPy + PyMuPDF; Docker Compose deployment. **Prohibits for CVB:** Kubernetes, Temporal, Kafka, microservices split, GraphQL, native mobile, Firebase, Supabase, serverless-only architecture. **Approves** core pipeline: source evidence → structured understanding → rubric decisions → evaluation ledger → human approval → published result → learning evidence. **Approves** tenant-aware data model from first migration; evaluation ledger as source of truth; immutable raw source papers; human approval required before publication; AI provider abstraction. **Approves** 30-day BUILD_NOW vertical slice per `docs/product/MASTER_PRODUCT_SCOPE.md` and requirements PEV-001 – PEV-078 in `docs/product/REQUIREMENTS_REGISTER.md`. **Approves** Cursor A/B ownership split per master scope §7. | Founder / Product Architect | APPROVED | Day 1 bootstrap foundation. ADRs ADR-001 through ADR-010 derive from this decision. Repository: `eduvijna/eduvijna-paper-evaluation`. No requirement from business context may be deleted — deferred items use AFTER_CLIENT_APPROVAL or FUTURE_ENTERPRISE only. |
+
+---
+
+## Detailed Entry — APP-015
+
+### APP-015 — Enterprise Identity & Interoperability (B19)
+
+| Field | Value |
+|-------|-------|
+| **Date** | 2026-09-16 |
+| **Decision** | Approve activation of PEV-054 (Enterprise SSO & SCIM) and PEV-055 (LMS / SIS / LTI Integration) together as the fourth bounded `FUTURE_ENTERPRISE` implementation tranche following APP-014. Milestone / phase: **B19 — Enterprise Identity & Interoperability**. Founder authorization recorded in ChatGPT on 2026-09-16: **“ok, proceed further.”** Activation permits later bounded B19 implementation; it does **not** reclassify the requirement register. PEV-054 and PEV-055 remain formally `FUTURE_ENTERPRISE`. |
+| **Approver** | Founder / Product Architect |
+| **Status** | APPROVED |
+| **Notes** | Issue #96. Governance PR is documentation-only (`docs/FOUNDER_APPROVAL_LOG.md` only). Starting develop before governance merge: `d963ac0dd6e9556f69c43a460aae4c18d495508a` (tree `362011e330915335e237cb4322ed45dd83940736`). Expected unchanged `main`: `8f488b12ade2a6dffd60c8df5dc4c5fcfda9d7ce` (tree `362011e330915335e237cb4322ed45dd83940736`). Alembic head at governance gate: `20260910_0020` — **zero migrations** in this governance PR. B19 product implementation requires a later independently authorized feature PR, issued only after independent ChatGPT audit of this governance merge. |
+
+#### Activated scope (PEV-054 / PEV-055 only)
+
+**PEV-054 — Enterprise SSO & SCIM (authorized B19 capability):**
+
+- Tenant-configured enterprise authentication using **SAML 2.0** and **OIDC**
+- **SCIM 2.0** user provisioning lifecycle
+- Enterprise users remain tenant-bound; provisioning/deprovisioning is auditable
+- SSO integrates into existing RBAC rather than creating a second authorization system
+- Preserve existing local login and an appropriately governed platform-admin/break-glass authentication path
+
+**OIDC target:** Authorization Code flow; PKCE where applicable; `state` / `nonce` / issuer / audience-client / redirect URI validation; signed token verification; JWKS/key rotation; replay-resistant session establishment. Do not treat unsigned/unverified JWT claims as identity.
+
+**SAML target:** Signed SAML assertions/responses; tenant-bound IdP metadata/configuration; issuer / audience / ACS / time-condition / signature validation; replay protection; IdP-initiated SAML login where required by PEV-054.
+
+**Identity binding:** Bind via tenant-scoped immutable external identity (issuer + subject / NameID). Do not repeatedly identify accounts by email alone. First-login account linking/JIT rules must be explicit and auditable. No possibility of linking an identity from Tenant A into Tenant B.
+
+**SCIM lifecycle:** create, retrieve, update, activate/deactivate, and synchronization of supported identity attributes. Deactivation must prevent future access, revoke/disable active authorization as appropriate, preserve historical audit records and historical evaluation/reviewer attribution, and never destructively delete historical academic/evaluation data. SCIM Groups / complex group-to-role provisioning must not silently expand scope unless necessary for approved RBAC integration and explicitly documented in B19.
+
+**PEV-055 — LMS / SIS / LTI / public API / outbound webhooks:**
+
+- Establish enterprise interoperability across LMS, SIS, LTI, public API, and outbound webhooks
+- Use standards/provider abstractions — do not hard-code Moodle, Canvas, Blackboard, PowerSchool, etc. into the domain model
+- **LTI 1.3 / LTI Advantage** as the B19 target; do not add legacy LTI 1.1 unless separately authorized
+- Support: secure LTI launch; platform/deployment configuration per tenant; launch validation; role/context mapping; assignment/resource association; grade passback (AGS); roster synchronization (NRPS where applicable); all launches and service calls tenant-bound and replay-resistant
+
+#### Grade passback source-of-truth invariant
+
+External LMS grade passback must never create an alternative grading authority. Only authoritative EduVijna results may be passed externally. At minimum: no AI proposal, unapproved ledger score, draft result, or superseded result is passed back; grade source must correspond to the effective/current human-approved `PublishedResult`; passback must preserve source result/version identity; retry must not duplicate grades or create inconsistent state; subsequent legitimate result versions remain traceable. The evaluation ledger and publication workflow remain authoritative. External LMS/SIS state must not mutate historical ledger decisions.
+
+#### Roster / SIS invariants
+
+Roster synchronization must build on existing tenant/student/academic structures (no parallel student database). External roster identity must preserve tenant, provider, external stable ID, academic/class association, synchronization provenance, timestamps/status, and auditability. Upsert logic must be deterministic and idempotent. Do not match students solely by display name. Do not allow cross-tenant collision of external identifiers. Prefer standards/provider abstraction (OneRoster-style adapter may be used if appropriate); B19 must not become a collection of vendor-specific integrations.
+
+#### Public API / machine auth
+
+May expose/extend a versioned integration-facing API using the existing FastAPI application — **no** separate API gateway/microservice. Machine-to-machine access must use explicit tenant-scoped integration credentials/service identities with: tenant binding; scopes/permissions; rotation; revocation; expiration where appropriate; credentials never returned after initial creation where avoidable; stored secret material not plaintext; secret values not logged; full audit trail; rate/abuse controls appropriate to the existing monolith. Do not weaken existing user RBAC.
+
+#### Outbound webhook invariants
+
+May implement tenant-configurable outbound webhooks using the existing application/Celery/PostgreSQL/Redis architecture — **no** Kafka or other event platform. Required: stable event ID; explicit event type/version; tenant ID; event timestamp; minimal necessary payload; signed delivery (e.g. HMAC); delivery-attempt audit records; deterministic retry/backoff; idempotency support; observable terminal failure/dead-letter state; manual retry/replay through authorized workflow if implemented; no silent loss; no duplicate domain mutation. Delivery after authoritative state has committed. Prevent unsafe webhook destinations/SSRF; production destinations require appropriately validated HTTPS endpoints (development/test exceptions kept explicit).
+
+#### Security / privacy boundaries (future B19 must prove)
+
+Strict tenant isolation; authorization enforced server-side; external IdP/LMS/SIS metadata cannot cross tenant boundaries; no secrets in frontend bundles; no credentials in logs; no raw authentication assertions/tokens persisted unnecessarily; audit events for significant config/provisioning/auth/integration operations; replay defenses; idempotency for provisioning/sync/passback/webhooks; safe URL handling / SSRF protection; safe signature/key verification; deactivated users retain historical attribution but lose access; external integrations cannot mutate the evaluation ledger outside existing authorized domain workflows; no connector may bypass human approval or publication gates.
+
+#### Architecture constraints
+
+Remain within the approved modular monolith: Python 3.12; FastAPI; SQLAlchemy async; Alembic; PostgreSQL; Redis; Celery; MinIO/S3-compatible object storage; Next.js / React / TypeScript; existing pnpm monorepo. Continue to prohibit: Kubernetes; Temporal; Kafka; microservice split; GraphQL; Firebase; Supabase; serverless-only redesign; new native mobile architecture. Do not create separate auth, SCIM, LTI, webhook, or public-API microservices. Provider abstraction inside the modular monolith is expected.
+
+#### CI / testing governance for future B19 implementation
+
+Actual B19 implementation will require deterministic **credential-free** CI. Required CI must **not** rely on a real customer IdP, Azure AD / Entra, Okta, Google Workspace, Canvas, Moodle, Blackboard, production SIS, or any other live third-party tenant. Use deterministic local/fake/reference providers. Later B19 acceptance must include real non-skipped E2E covering representative enterprise flows:
+
+- **PEV-054:** tenant SSO configuration; successful OIDC/SAML authentication; invalid/replayed assertion/token rejection; tenant isolation; SCIM create/update/deactivate; deactivated account denied login; historical attribution retained
+- **PEV-055:** valid LTI launch; invalid launch rejection; roster sync; published-result grade passback; idempotent retry; webhook signed delivery; webhook failure + retry + eventual success/terminal failure; tenant isolation; machine credential permission boundaries
+
+These tests are **not** implemented in this governance PR; they are preserved as B19 acceptance obligations.
+
+#### Data / migration governance
+
+APP-015 governance creates **zero** migration. Future B19 implementation may introduce the next correctly ordered Alembic migration(s) only in the separate B19 implementation PR. No schema change is authorized in this governance execution. Alembic head at starting gate: `20260910_0020`.
+
+#### Explicitly deferred / out of scope
+
+- **PEV-056 — Multi-Subject Expansion:** no implementation; no new subject-understanding modules
+- **PEV-057 — Multilingual Handwriting:** no implementation; no language detection, multilingual OCR/handwriting providers, language-specific model routing, or translation architecture
+- No unrelated redesign of already accepted B16 Enterprise Operations, B17 Assessment Quality & Calibration, or B18 Answer Intelligence & Outcome Reporting
+- No `main` promotion; no Dependabot incorporation into this work; no production IdP/LMS/SIS credentials or live external services in CI
+
+#### Governance process invariants
+
+1. This APP-015 governance PR modifies only `docs/FOUNDER_APPROVAL_LOG.md`
+2. Do **not** modify `REQUIREMENTS_REGISTER.md` classifications
+3. Six authoritative CI jobs (Infrastructure, Contracts, Backend, Frontend, Frontend E2E, Frontend E2E Real) must succeed on the exact final governance head before squash-merge to `develop`
+4. Squash-merge parent must be exactly `ce5a85c80a1894e3c2c112151cba0ce1d7c1a872` (APP-015.0 / PR #99 accepted develop baseline).
+5. `main` must remain `8f488b12ade2a6dffd60c8df5dc4c5fcfda9d7ce`
+6. Issue #96 may close only after governance squash-merge and final branch-state verification
+7. B19 implementation starts only after independent ChatGPT audit of this governance merge and a separate implementation authorization
 
 ---
 
