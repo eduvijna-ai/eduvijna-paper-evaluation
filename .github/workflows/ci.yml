@@ -48,7 +48,7 @@ jobs:
             -p 19000:9000 \
             -e MINIO_ROOT_USER=eduvijna_minio \
             -e MINIO_ROOT_PASSWORD=eduvijna_minio_dev_only \
-            minio/minio:latest server /data
+            quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z server /data
           for attempt in $(seq 1 30); do
             if curl --fail --silent http://127.0.0.1:19000/minio/health/live >/dev/null; then
               exit 0
