@@ -123,13 +123,13 @@ test.describe("B19 real enterprise integrations", () => {
     const samlResponse = hiddenValue(ssoHtml, "SAMLResponse");
     const relayState = hiddenValue(ssoHtml, "RelayState");
     const acs = await request.post(`${apiBase}/api/v1/sso/saml/acs`, {
-      form: { SAMLResponse: samlResponse, RelayState: relayState },
+      multipart: { SAMLResponse: samlResponse, RelayState: relayState },
       maxRedirects: 0,
     });
     expect(acs.status()).toBe(302);
     expect(acs.headers()["location"] ?? "").toContain("exchange_code=");
     const acsReplay = await request.post(`${apiBase}/api/v1/sso/saml/acs`, {
-      form: { SAMLResponse: samlResponse, RelayState: relayState },
+      multipart: { SAMLResponse: samlResponse, RelayState: relayState },
       maxRedirects: 0,
     });
     expect(acsReplay.status()).toBe(302);
@@ -227,12 +227,12 @@ test.describe("B19 real enterprise integrations", () => {
     const idToken = hiddenValue(ltiHtml, "id_token");
     const ltiState = hiddenValue(ltiHtml, "state");
     const launch = await request.post(`${apiBase}/lti/launch`, {
-      form: { id_token: idToken, state: ltiState },
+      multipart: { id_token: idToken, state: ltiState },
     });
     expect(launch.ok(), await launch.text()).toBeTruthy();
 
     const badLaunch = await request.post(`${apiBase}/lti/launch`, {
-      form: { id_token: "not-a-jwt", state: "nope" },
+      multipart: { id_token: "not-a-jwt", state: "nope" },
     });
     expect(badLaunch.status()).toBeGreaterThanOrEqual(400);
 
@@ -252,7 +252,7 @@ test.describe("B19 real enterprise integrations", () => {
     );
     const mismatchHtml = await mismatchAuthorize.text();
     const mismatchLaunch = await request.post(`${apiBase}/lti/launch`, {
-      form: {
+      multipart: {
         id_token: hiddenValue(mismatchHtml, "id_token"),
         state: hiddenValue(mismatchHtml, "state"),
       },
