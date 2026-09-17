@@ -26,6 +26,8 @@ export interface ApiCapabilities {
   quality: DomainCapability;
   /** B16 enterprise grading / moderation / grievance operations. */
   operations: DomainCapability;
+  /** B19 enterprise identity / LTI / webhooks / machine credentials. */
+  integration: DomainCapability;
   /** Developer-facing transport badge only */
   showTransportBadge: boolean;
 }
@@ -51,6 +53,7 @@ export function getApiCapabilities(): ApiCapabilities {
       learning: "live",
       quality: "live",
       operations: "live",
+      integration: "live",
       showTransportBadge: true,
     };
   }
@@ -72,6 +75,7 @@ export function getApiCapabilities(): ApiCapabilities {
     learning: "mock",
     quality: "mock",
     operations: "mock",
+    integration: "mock",
     showTransportBadge: true,
   };
 }

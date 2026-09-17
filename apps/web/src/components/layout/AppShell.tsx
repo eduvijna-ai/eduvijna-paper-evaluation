@@ -86,6 +86,12 @@ const navItems = [
     testId: "nav-analytics",
   },
   { href: "/admin", label: "Admin", icon: Settings, testId: "nav-admin" },
+  {
+    href: "/admin/integrations",
+    label: "Integrations",
+    icon: Workflow,
+    testId: "nav-integrations",
+  },
 ];
 
 const SUBMISSION_ROUTE_RE =
