@@ -78,6 +78,12 @@ PERMISSION_CODES: Final = (
     "grievance:read",
     "grievance:create",
     "grievance:manage",
+    "integration:read",
+    "integration:manage",
+    "integration:credentials:manage",
+    "integration:roster:sync",
+    "integration:grade:passback",
+    "integration:webhook:manage",
 )
 
 ROLE_PERMISSION_MAP: Final = {
@@ -307,6 +313,7 @@ class AuthContext:
     tenant_id: UUID
     roles: frozenset[str]
     permissions: frozenset[str]
+    auth_version: int = 1
 
 
 def require_permissions(*codes: str) -> Callable[..., Awaitable[AuthContext]]:

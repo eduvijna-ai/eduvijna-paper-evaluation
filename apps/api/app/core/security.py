@@ -7,9 +7,13 @@ import jwt
 from fastapi import Depends, HTTPException
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pwdlib import PasswordHash
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.authorization import AuthContext
 from app.core.config import Settings, get_settings
+from app.db.models.user import User
+from app.db.session import get_db_session
 
 password_hasher = PasswordHash.recommended()
 bearer = HTTPBearer(auto_error=False)
@@ -37,6 +41,7 @@ class JwtAuthProvider:
                 "tenant_id": str(context.tenant_id),
                 "roles": sorted(context.roles),
                 "permissions": sorted(context.permissions),
+                "av": int(context.auth_version),
                 "iat": now,
                 "exp": now + timedelta(seconds=ttl),
                 "typ": "access",
@@ -61,6 +66,7 @@ class JwtAuthProvider:
                 tenant_id=UUID(claims["tenant_id"]),
                 roles=frozenset(claims.get("roles", [])),
                 permissions=frozenset(claims.get("permissions", [])),
+                auth_version=int(claims.get("av", 1)),
             )
         except (jwt.InvalidTokenError, ValueError, KeyError) as exc:
             raise HTTPException(status_code=401, detail="Invalid authentication token") from exc
@@ -81,7 +87,18 @@ def get_auth_provider(settings: Settings = Depends(get_settings)) -> AuthProvide
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
     provider: AuthProvider = Depends(get_auth_provider),
+    db: AsyncSession = Depends(get_db_session),
 ) -> AuthContext:
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(status_code=401, detail="Authentication required")
-    return provider.verify_access_token(credentials.credentials)
+    context = provider.verify_access_token(credentials.credentials)
+    user = await db.scalar(
+        select(User).where(User.id == context.user_id, User.tenant_id == context.tenant_id)
+    )
+    if (
+        user is None
+        or user.status != "active"
+        or int(user.auth_version) != int(context.auth_version)
+    ):
+        raise HTTPException(status_code=401, detail="Invalid authentication token")
+    return context
