@@ -363,6 +363,46 @@ export const OUTCOME_MAPPING_SET_STATUSES = ["DRAFT", "ACTIVE", "RETIRED"] as co
 export type OutcomeMappingSetStatusEnum =
   (typeof OUTCOME_MAPPING_SET_STATUSES)[number];
 
+/** B19 enterprise identity provider protocol. */
+export const IDENTITY_PROVIDER_PROTOCOLS = ["OIDC", "SAML"] as const;
+export type IdentityProviderProtocolEnum =
+  (typeof IDENTITY_PROVIDER_PROTOCOLS)[number];
+
+export const IDENTITY_PROVIDER_STATUSES = ["ACTIVE", "DISABLED"] as const;
+export type IdentityProviderStatusEnum =
+  (typeof IDENTITY_PROVIDER_STATUSES)[number];
+
+export const ACCOUNT_LINKING_POLICIES = [
+  "NONE",
+  "VERIFIED_EMAIL_EXPLICIT",
+] as const;
+export type AccountLinkingPolicyEnum =
+  (typeof ACCOUNT_LINKING_POLICIES)[number];
+
+export const ROSTER_SYNC_STATUSES = [
+  "RUNNING",
+  "SUCCEEDED",
+  "FAILED",
+] as const;
+export type RosterSyncStatusEnum = (typeof ROSTER_SYNC_STATUSES)[number];
+
+export const GRADE_PASSBACK_STATES = [
+  "PENDING",
+  "DELIVERED",
+  "FAILED",
+  "REJECTED",
+] as const;
+export type GradePassbackStateEnum = (typeof GRADE_PASSBACK_STATES)[number];
+
+export const WEBHOOK_DELIVERY_STATUSES = [
+  "PENDING",
+  "SUCCEEDED",
+  "FAILED",
+  "RETRYING",
+] as const;
+export type WebhookDeliveryStatusEnum =
+  (typeof WEBHOOK_DELIVERY_STATUSES)[number];
+
 export const GRADING_WORK_ITEM_STATUSES = [
   "QUEUED",
   "IN_PROGRESS",

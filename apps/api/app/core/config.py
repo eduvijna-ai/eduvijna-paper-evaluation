@@ -251,6 +251,59 @@ class Settings(BaseSettings):
         default=None,
         validation_alias=AliasChoices("OPENAI_API_KEY", "openai_api_key"),
     )
+    integration_secret_encryption_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "INTEGRATION_SECRET_ENCRYPTION_KEY",
+            "integration_secret_encryption_key",
+        ),
+        description="Fernet urlsafe-base64 32-byte key for integration secrets at rest.",
+    )
+    b19_test_providers_enabled: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "B19_TEST_PROVIDERS_ENABLED", "b19_test_providers_enabled"
+        ),
+    )
+    webhook_allow_insecure_destinations: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "WEBHOOK_ALLOW_INSECURE_DESTINATIONS",
+            "webhook_allow_insecure_destinations",
+        ),
+        description="Test/local escape hatch for HTTP or loopback webhook destinations.",
+    )
+    public_base_url: str = Field(
+        default="http://127.0.0.1:8000",
+        validation_alias=AliasChoices("PUBLIC_BASE_URL", "public_base_url"),
+    )
+    frontend_base_url: str = Field(
+        default="http://127.0.0.1:3000",
+        validation_alias=AliasChoices("FRONTEND_BASE_URL", "frontend_base_url"),
+    )
+    integration_rate_limit_per_minute: int = Field(
+        default=120,
+        validation_alias=AliasChoices(
+            "INTEGRATION_RATE_LIMIT_PER_MINUTE",
+            "integration_rate_limit_per_minute",
+        ),
+    )
+    b19_test_internal_base_url: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "B19_TEST_INTERNAL_BASE_URL",
+            "b19_test_internal_base_url",
+        ),
+        description="In-container base URL for B19 test-provider token/JWKS/webhook loops.",
+    )
+    b19_test_webhook_signing_secret: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "B19_TEST_WEBHOOK_SIGNING_SECRET",
+            "b19_test_webhook_signing_secret",
+        ),
+        description="Deterministic HMAC secret for the gated B19 test webhook receiver.",
+    )
 
     @model_validator(mode="after")
     def require_auth_secret(self) -> "Settings":

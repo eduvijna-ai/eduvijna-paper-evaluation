@@ -35,6 +35,7 @@ from app.services.benchmark import (
     compare_case_output,
     evaluate_release_gate,
 )
+from tests.foreign_auth import create_foreign_user
 from tests.test_b3_submission_ingestion import _headers
 from tests.test_b7_publication_reports import _to_approved, api_client_publication
 from tests.test_b8_analytics_mastery import (
@@ -445,10 +446,11 @@ async def test_b15_tenant_isolation_404() -> None:
     async with api_client_publication(text_provider="none") as client:
         headers = await _headers(client)
         ctx = await _create_locked_version(client, headers, code="TEN-01")
+        foreign_user_id, foreign_tenant_id = await create_foreign_user()
         foreign = JwtAuthProvider(get_settings()).issue_access_token(
             AuthContext(
-                user_id=uuid.uuid4(),
-                tenant_id=uuid.uuid4(),
+                user_id=foreign_user_id,
+                tenant_id=foreign_tenant_id,
                 roles=frozenset({"INSTITUTION_ADMIN"}),
                 permissions=frozenset({"quality:read", "quality:manage"}),
             )

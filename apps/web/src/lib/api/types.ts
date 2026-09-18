@@ -733,4 +733,34 @@ export interface ApiClient {
     reportId: string,
   ): Promise<import("@/lib/types/domain").OutcomeAttainmentReport>;
   exportOutcomeAttainmentReportCsv?(reportId: string): Promise<string>;
+  listIdentityProviders?(): Promise<import("@/lib/types/domain").IdentityProviderList>;
+  createIdentityProvider?(input: Record<string, unknown>): Promise<import("@/lib/types/domain").IdentityProvider>;
+  listPublicSsoProviders?(tenantSlug: string): Promise<import("@/lib/types/domain").PublicSsoProviderList>;
+  exchangeSsoCode?(exchangeCode: string): Promise<AuthSession>;
+  listLtiPlatforms?(): Promise<import("@/lib/types/domain").LtiPlatformList>;
+  listIntegrationCredentials?(): Promise<import("@/lib/types/domain").IntegrationCredentialList>;
+  createIntegrationCredential?(input: {
+    name: string;
+    scopes: string[];
+  }): Promise<import("@/lib/types/domain").IntegrationCredentialSecretResponse>;
+  rotateIntegrationCredential?(
+    id: string,
+  ): Promise<import("@/lib/types/domain").IntegrationCredentialSecretResponse>;
+  revokeIntegrationCredential?(
+    id: string,
+  ): Promise<import("@/lib/types/domain").IntegrationCredential>;
+  listWebhookEndpoints?(): Promise<import("@/lib/types/domain").WebhookEndpointList>;
+  createWebhookEndpoint?(input: {
+    name: string;
+    destination_url: string;
+    event_types: string[];
+  }): Promise<import("@/lib/types/domain").WebhookEndpointSecretResponse>;
+  listWebhookDeliveries?(
+    endpointId: string,
+  ): Promise<import("@/lib/types/domain").WebhookDeliveryList>;
+  retryWebhookDelivery?(
+    deliveryId: string,
+  ): Promise<import("@/lib/types/domain").WebhookDelivery>;
+  listGradePassbacks?(): Promise<import("@/lib/types/domain").GradePassbackList>;
+  listRosterSyncs?(): Promise<{ items: import("@/lib/types/domain").RosterSyncRun[] }>;
 }

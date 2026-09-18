@@ -18,6 +18,7 @@ from app.db.models import (
 )
 from app.db.session import async_session_factory
 from app.services.resources import ResourceError, reject_open_web_content_ref
+from tests.foreign_auth import create_foreign_user
 from tests.test_b3_submission_ingestion import _headers
 from tests.test_b7_publication_reports import _to_approved, api_client_publication
 from tests.test_b8_analytics_mastery import (
@@ -239,10 +240,11 @@ async def test_b13_tenant_isolation_and_status_gates() -> None:
         assert cannot_new_assign.status_code == 409
         assert cannot_new_assign.json()["error"]["code"] == "RESOURCE_NOT_ASSIGNABLE"
 
+        foreign_user_id, foreign_tenant_id = await create_foreign_user()
         foreign = JwtAuthProvider(get_settings()).issue_access_token(
             AuthContext(
-                user_id=uuid.uuid4(),
-                tenant_id=uuid.uuid4(),
+                user_id=foreign_user_id,
+                tenant_id=foreign_tenant_id,
                 roles=frozenset({"INSTITUTION_ADMIN"}),
                 permissions=frozenset(
                     {

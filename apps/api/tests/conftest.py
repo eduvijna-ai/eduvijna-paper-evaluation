@@ -10,6 +10,11 @@ os.environ.setdefault(
 )
 os.environ.setdefault("AUTH_TOKEN_SECRET", "test-only-secret-not-for-production")
 os.environ.setdefault("APP_ENV", "test")
+os.environ.setdefault("CELERY_TASK_ALWAYS_EAGER", "true")
+os.environ["PUBLIC_BASE_URL"] = "http://test"
+os.environ.setdefault(
+    "B19_TEST_WEBHOOK_SIGNING_SECRET", "b19-deterministic-webhook-secret"
+)
 
 from app.core.config import get_settings  # noqa: E402
 from app.db.session import engine  # noqa: E402
