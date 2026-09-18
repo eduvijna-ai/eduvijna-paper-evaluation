@@ -157,6 +157,7 @@ const requiredPaths = [
   "/api/integration/v1/health",
   "/api/integration/v1/roster/upsert",
   "/api/integration/v1/results/published",
+  "/api/v1/submissions/{id}/language",
 ];
 
 const schemaFiles = (await readdir(schemasDirectory))

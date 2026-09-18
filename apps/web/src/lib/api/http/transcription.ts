@@ -37,6 +37,20 @@ export interface B5RegionTranscriptionDto {
   confirmed_at?: string | null;
   created_at?: string;
   updated_at?: string;
+  language_code?: string | null;
+  script_code?: string | null;
+  language_source?: string | null;
+  derived_texts?: Array<{
+    id: string;
+    source_transcription_id: string;
+    kind: string;
+    text: string;
+    source_language_code: string;
+    target_language_code: string;
+    source_script_code?: string | null;
+    target_script_code?: string | null;
+    status: string;
+  }>;
 }
 
 export interface B5TranscriptionRegionDto {
@@ -68,6 +82,22 @@ export interface B5TranscriptionWorkspaceDto {
   workflow_state: string;
   transcription_state: string;
   automated_transcription_active?: boolean;
+  automation_block_code?: string | null;
+  subject_context?: {
+    subject_profile: string;
+    subject_node_id?: string | null;
+    subject_node_code?: string | null;
+    subject_node_name?: string | null;
+    subject_profile_source?: string;
+    math_verification_eligible?: boolean;
+  } | null;
+  language_context?: {
+    language_code?: string | null;
+    script_code?: string | null;
+    language_source?: string | null;
+    language_confidence?: number | string | null;
+    language_state: string;
+  } | null;
   progress?: {
     reviewed: number;
     required: number;
@@ -118,6 +148,20 @@ export function regionTranscriptionApiToView(
     status: dto.status,
     confirmed_by: dto.confirmed_by ?? null,
     confirmed_at: dto.confirmed_at ?? null,
+    language_code: dto.language_code ?? null,
+    script_code: dto.script_code ?? null,
+    language_source: dto.language_source ?? null,
+    derived_texts: (dto.derived_texts ?? []).map((row) => ({
+      id: row.id,
+      source_transcription_id: row.source_transcription_id,
+      kind: row.kind,
+      text: row.text,
+      source_language_code: row.source_language_code,
+      target_language_code: row.target_language_code,
+      source_script_code: row.source_script_code ?? null,
+      target_script_code: row.target_script_code ?? null,
+      status: row.status,
+    })),
   };
 }
 
@@ -174,6 +218,31 @@ export function transcriptionWorkspaceApiToView(
     workflow_state: dto.workflow_state as SubmissionState,
     transcription_state: dto.transcription_state as TranscriptionState,
     automated_transcription_active: Boolean(dto.automated_transcription_active),
+    automation_block_code: dto.automation_block_code ?? null,
+    subject_context: dto.subject_context
+      ? {
+          subject_profile: dto.subject_context.subject_profile,
+          subject_node_id: dto.subject_context.subject_node_id ?? null,
+          subject_node_code: dto.subject_context.subject_node_code ?? null,
+          subject_node_name: dto.subject_context.subject_node_name ?? null,
+          subject_profile_source: dto.subject_context.subject_profile_source,
+          math_verification_eligible:
+            dto.subject_context.math_verification_eligible,
+        }
+      : undefined,
+    language_context: dto.language_context
+      ? {
+          language_code: dto.language_context.language_code ?? null,
+          script_code: dto.language_context.script_code ?? null,
+          language_source: dto.language_context.language_source ?? null,
+          language_confidence:
+            dto.language_context.language_confidence === null ||
+            dto.language_context.language_confidence === undefined
+              ? null
+              : asNumber(dto.language_context.language_confidence),
+          language_state: dto.language_context.language_state,
+        }
+      : undefined,
     progress: {
       reviewed,
       required,

@@ -150,6 +150,11 @@ export interface Assessment {
   curriculum_id: string;
   created_at: string;
   updated_at: string;
+  subject_node_id?: string | null;
+  subject_profile?: string;
+  subject_node_code?: string | null;
+  subject_node_name?: string | null;
+  math_verification_eligible?: boolean;
 }
 
 export interface Question {
@@ -422,6 +427,43 @@ export interface Submission {
   storage_status?: string | null;
   /** Live B5 — transcription pipeline state */
   transcription_state?: TranscriptionState;
+  language_code?: string | null;
+  script_code?: string | null;
+  language_source?: string | null;
+  language_confidence?: number | null;
+  language_state?: string;
+  subject_context?: SubjectProfileView;
+  language_context?: LanguageContextView;
+  automation_block_code?: string | null;
+}
+
+export interface SubjectProfileView {
+  subject_profile: string;
+  subject_node_id?: string | null;
+  subject_node_code?: string | null;
+  subject_node_name?: string | null;
+  subject_profile_source?: string;
+  math_verification_eligible?: boolean;
+}
+
+export interface LanguageContextView {
+  language_code: string | null;
+  script_code: string | null;
+  language_source: string | null;
+  language_confidence: number | null;
+  language_state: string;
+}
+
+export interface TranscriptionDerivedTextView {
+  id: string;
+  source_transcription_id: string;
+  kind: "TRANSLATION" | "TRANSLITERATION" | string;
+  text: string;
+  source_language_code: string;
+  target_language_code: string;
+  source_script_code?: string | null;
+  target_script_code?: string | null;
+  status: string;
 }
 
 export interface IdentityReviewPayload {
@@ -446,6 +488,10 @@ export interface RegionTranscriptionView {
   status: string;
   confirmed_by?: string | null;
   confirmed_at?: string | null;
+  language_code?: string | null;
+  script_code?: string | null;
+  language_source?: string | null;
+  derived_texts?: TranscriptionDerivedTextView[];
 }
 
 export interface TranscriptionRegionView {
@@ -478,6 +524,9 @@ export interface TranscriptionWorkspacePayload {
   workflow_state: SubmissionState;
   transcription_state: TranscriptionState;
   automated_transcription_active: boolean;
+  automation_block_code?: string | null;
+  subject_context?: SubjectProfileView;
+  language_context?: LanguageContextView;
   progress: {
     reviewed: number;
     required: number;

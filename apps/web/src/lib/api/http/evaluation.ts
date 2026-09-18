@@ -101,6 +101,8 @@ export interface B6QuestionEvaluationDto {
   reviewed_at?: string | null;
   reviewer_feedback?: string | null;
   approved_snapshot_hash?: string | null;
+  subject_profile?: string | null;
+  math_verification_invoked?: boolean;
 }
 
 export interface B6EvaluationRunDto {

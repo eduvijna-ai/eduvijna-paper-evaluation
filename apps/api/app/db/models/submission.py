@@ -55,6 +55,16 @@ class Submission(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "'READY','FAILED','UNAVAILABLE')",
             name="ck_submissions_transcription_state",
         ),
+        CheckConstraint(
+            "language_state IN ("
+            "'UNKNOWN','CONFIRMED','REVIEW_REQUIRED','UNSUPPORTED')",
+            name="ck_submissions_language_state",
+        ),
+        CheckConstraint(
+            "language_source IS NULL OR language_source IN ("
+            "'UNKNOWN','PROVIDED','DETECTED')",
+            name="ck_submissions_language_source",
+        ),
         Index(
             "ix_submissions_tenant_assessment_workflow",
             "tenant_id",
@@ -86,6 +96,15 @@ class Submission(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     )
     transcription_state: Mapped[str] = mapped_column(
         String(32), default="NOT_STARTED", server_default="NOT_STARTED"
+    )
+    language_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    script_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    language_source: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    language_confidence: Mapped[Decimal | None] = mapped_column(
+        Numeric(5, 4), nullable=True
+    )
+    language_state: Mapped[str] = mapped_column(
+        String(32), default="UNKNOWN", server_default="UNKNOWN"
     )
     source_storage_key: Mapped[str] = mapped_column(String(512))
     source_content_sha256: Mapped[str] = mapped_column(String(64))

@@ -193,6 +193,19 @@ class TranscriptionSegment(BaseModel):
         return self
 
 
+class DerivedTextProposal(BaseModel):
+    """Derived translation/transliteration. Never replaces original transcription text."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["TRANSLATION", "TRANSLITERATION"]
+    text: str = Field(min_length=1, max_length=20_000)
+    source_language_code: str = Field(min_length=2, max_length=32)
+    target_language_code: str = Field(min_length=2, max_length=32)
+    source_script_code: str | None = Field(default=None, max_length=16)
+    target_script_code: str | None = Field(default=None, max_length=16)
+
+
 class TranscriptionInput(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -201,6 +214,11 @@ class TranscriptionInput(BaseModel):
     question_label: str | None = Field(default=None, max_length=100)
     question_type: str | None = Field(default=None, max_length=64)
     crop_content_sha256: str = Field(min_length=64, max_length=64)
+    subject_profile: str | None = Field(default=None, max_length=64)
+    language_code: str | None = Field(default=None, max_length=32)
+    script_code: str | None = Field(default=None, max_length=16)
+    language_state: str | None = Field(default=None, max_length=32)
+    subject_node_id: str | None = Field(default=None, max_length=36)
 
 
 class TranscriptionResult(BaseModel):
@@ -211,6 +229,7 @@ class TranscriptionResult(BaseModel):
     segments: list[TranscriptionSegment] = Field(default_factory=list, max_length=50)
     transcription_confidence: Decimal
     unreadable: bool = False
+    derived_texts: list[DerivedTextProposal] = Field(default_factory=list, max_length=4)
 
     @field_validator("transcription_confidence")
     @classmethod
@@ -303,6 +322,16 @@ class RubricEvaluationInput(BaseModel):
     unreadable_flag: bool = False
     math_verification_summary: dict[str, Any] | None = None
     max_mark: Decimal = Field(ge=0)
+    subject_profile: str | None = Field(default=None, max_length=64)
+    language_code: str | None = Field(default=None, max_length=32)
+    script_code: str | None = Field(default=None, max_length=16)
+    original_transcription_id: uuid.UUID | None = None
+    transcription_is_original: bool = True
+    derived_text_id: uuid.UUID | None = None
+    derived_text_kind: Literal["TRANSLATION", "TRANSLITERATION"] | None = None
+    derived_text: str | None = Field(default=None, max_length=50_000)
+    derived_source_language_code: str | None = Field(default=None, max_length=32)
+    derived_target_language_code: str | None = Field(default=None, max_length=32)
 
 
 class CriterionProposal(BaseModel):

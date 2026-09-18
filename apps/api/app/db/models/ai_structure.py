@@ -136,3 +136,45 @@ class AnswerRegionTranscription(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     confirmed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    language_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    script_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    language_source: Mapped[str | None] = mapped_column(String(32), nullable=True)
+
+
+class TranscriptionDerivedText(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """Derived translation/transliteration linked to an exact original transcription."""
+
+    __tablename__ = "transcription_derived_texts"
+    __table_args__ = (
+        CheckConstraint(
+            "kind IN ('TRANSLATION','TRANSLITERATION')",
+            name="ck_transcription_derived_texts_kind",
+        ),
+        CheckConstraint(
+            "status IN ('ACTIVE','SUPERSEDED')",
+            name="ck_transcription_derived_texts_status",
+        ),
+        Index(
+            "ix_transcription_derived_texts_tenant_source",
+            "tenant_id",
+            "source_transcription_id",
+        ),
+    )
+
+    tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
+    source_transcription_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("answer_region_transcriptions.id", ondelete="CASCADE")
+    )
+    kind: Mapped[str] = mapped_column(String(32))
+    text: Mapped[str] = mapped_column(Text)
+    source_language_code: Mapped[str] = mapped_column(String(32))
+    target_language_code: Mapped[str] = mapped_column(String(32))
+    source_script_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    target_script_code: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), default="ACTIVE", server_default="ACTIVE")
+    supersedes_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("transcription_derived_texts.id", ondelete="SET NULL"), nullable=True
+    )
+    ai_execution_record_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("ai_execution_records.id", ondelete="SET NULL"), nullable=True
+    )

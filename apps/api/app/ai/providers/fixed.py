@@ -5,9 +5,11 @@ from __future__ import annotations
 import hashlib
 from decimal import Decimal
 
+from app.ai.capability import require_provider_capability
 from app.ai.execution_metadata import FIXED_STRUCTURE_META, AIExecutionMetadata
 from app.ai.types import (
     CriterionProposal,
+    DerivedTextProposal,
     ErrorClassificationInput,
     ErrorClassificationResult,
     IdentityExtractionInput,
@@ -163,7 +165,85 @@ class FixedStructureProvider:
         self, request: TranscriptionInput
     ) -> TranscriptionResult:
         self._guard()
+        require_provider_capability(
+            provider=self.provider_name,
+            subject_profile=request.subject_profile or "UNSPECIFIED",
+            language_code=request.language_code or "en",
+            script_code=request.script_code or "Latn",
+            operation="transcribe_answer",
+        )
         short = str(request.answer_region_id).replace("-", "")[:8]
+        profile = (request.subject_profile or "UNSPECIFIED").upper()
+        language = (request.language_code or "en").lower()
+
+        if language == "hi":
+            text = "हिंदी में हल: क्षेत्रफल = लंबाई × चौड़ाई"
+            segments = [
+                TranscriptionSegment(kind="TEXT", text=text, step_index=0),
+            ]
+            return TranscriptionResult(
+                text=text,
+                latex=None,
+                segments=segments,
+                transcription_confidence=Decimal("0.8100"),
+                unreadable=False,
+                derived_texts=[
+                    DerivedTextProposal(
+                        kind="TRANSLATION",
+                        text="Solution in Hindi: area = length × width",
+                        source_language_code="hi",
+                        target_language_code="en",
+                        source_script_code="Deva",
+                        target_script_code="Latn",
+                    ),
+                    DerivedTextProposal(
+                        kind="TRANSLITERATION",
+                        text="hindi mein hal: kshetrafal = lambai × chaudaai",
+                        source_language_code="hi",
+                        target_language_code="hi-Latn",
+                        source_script_code="Deva",
+                        target_script_code="Latn",
+                    ),
+                ],
+            )
+
+        if profile == "PHYSICS":
+            text = "Newton second law: net force equals mass times acceleration."
+            return TranscriptionResult(
+                text=text,
+                latex=None,
+                segments=[TranscriptionSegment(kind="TEXT", text=text, step_index=0)],
+                transcription_confidence=Decimal("0.7600"),
+                unreadable=False,
+            )
+
+        if profile == "CHEMISTRY":
+            text = "The reaction proceeds by nucleophilic substitution at the carbonyl carbon."
+            return TranscriptionResult(
+                text=text,
+                latex=None,
+                segments=[TranscriptionSegment(kind="TEXT", text=text, step_index=0)],
+                transcription_confidence=Decimal("0.7400"),
+                unreadable=False,
+            )
+
+        if profile in {"STRUCTURED_DESCRIPTIVE", "ACCOUNTING", "STATISTICS"}:
+            text = (
+                "The passage explains how urban labour relations changed during "
+                "industrial expansion, with supporting figures in the table."
+            )
+            if profile == "ACCOUNTING":
+                text = "Dr Cash 5000; Cr Capital 5000. The journal records the owner's investment."
+            if profile == "STATISTICS":
+                text = "Mean of the sample is 12.4 with standard deviation 1.1."
+            return TranscriptionResult(
+                text=text,
+                latex=None,
+                segments=[TranscriptionSegment(kind="TEXT", text=text, step_index=0)],
+                transcription_confidence=Decimal("0.7200"),
+                unreadable=False,
+            )
+
         text = f"Fixed transcription for {short}"
         # Deterministic mixed structure for PEV-013 (TEXT + MATH + TABLE).
         segments = [
@@ -200,6 +280,13 @@ class FixedStructureProvider:
         self, request: RubricEvaluationInput
     ) -> RubricEvaluationResult:
         self._guard()
+        require_provider_capability(
+            provider=self.provider_name,
+            subject_profile=request.subject_profile or "UNSPECIFIED",
+            language_code=request.language_code or "en",
+            script_code=request.script_code or "Latn",
+            operation="evaluate_rubric",
+        )
         criteria = sorted(request.rubric_criteria, key=lambda c: c.sequence)
         tag = _exercise_tag(request)
 
