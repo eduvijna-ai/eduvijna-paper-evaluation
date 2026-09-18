@@ -377,15 +377,22 @@ async function confirmAndFinalizeTranscription(page: import("@playwright/test").
   await expect(page.getByTestId("transcription-original-text").first()).toBeVisible({
     timeout: 60_000,
   });
-  const confirmFirst = page.getByTestId("confirm-transcription").first();
-  await expect(confirmFirst).toBeEnabled({ timeout: 30_000 });
-  await confirmFirst.click();
-  for (let i = 0; i < 12; i += 1) {
-    const enabled = page.locator('[data-testid="confirm-transcription"]:not([disabled])');
-    if ((await enabled.count()) === 0) break;
-    await enabled.first().click();
-    await page.waitForTimeout(400);
+  await page.getByTestId("transcription-original-text").first().click();
+  const buttons = page.getByTestId("confirm-transcription");
+  const total = await buttons.count();
+  expect(total).toBeGreaterThan(0);
+  for (let i = 0; i < total; i += 1) {
+    const btn = buttons.nth(i);
+    if (await btn.isDisabled()) continue;
+    await btn.scrollIntoViewIfNeeded();
+    await expect(btn).toBeEnabled({ timeout: 30_000 });
+    await btn.click({ timeout: 30_000 });
+    await expect(btn).toBeDisabled({ timeout: 30_000 });
   }
+  await expect(page.locator('[data-testid="confirm-transcription"]:not([disabled])')).toHaveCount(
+    0,
+    { timeout: 30_000 },
+  );
   await expect(page.getByTestId("finalize-transcription")).toBeEnabled({
     timeout: 30_000,
   });
