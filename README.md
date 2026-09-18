@@ -2,6 +2,8 @@
 
 Enterprise AI-assisted handwritten assessment platform — Client Validation Build (CVB) v0.1.
 
+> **Current governed release status (2026-09-18):** the registered roadmap through B20 / APP-018 is released on `main`. The current release includes the original CVB vertical slice plus all implemented AFTER_CLIENT_APPROVAL and FUTURE_ENTERPRISE tranches through PEV-057. Formal release-state labels in the requirements register remain planning classifications and were not reclassified by implementation/release.
+
 ## Overview
 
 EduVijna evaluates raw, unmarked handwritten answer sheets through a structured pipeline:

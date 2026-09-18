@@ -2,7 +2,7 @@
 
 **Product:** EduVijna Enterprise Paper Evaluation  
 **Release target:** CVB v0.1  
-**Last updated:** 2026-09-18  
+**Last updated:** 2026-09-19  
 **Total requirements:** 78 (65 product capabilities + 13 architectural contract requirements)
 
 ---
@@ -98,8 +98,8 @@ Mapped 1:1 from the 65 business capabilities in the architecture contract.
 | PEV-051 | CO / PO Reporting | System shall support Course Outcome (CO), Program Outcome (PO), and formal learning-outcome reporting. | P2 | FUTURE_ENTERPRISE | Questions map to CO/PO; aggregate attainment reports exportable. **Implemented in B18 (APP-012 / Issue #76)** — release state unchanged. | Curriculum / Enterprise Reporting |
 | PEV-052 | Enterprise RBAC | System shall support role-based access control with permissions bound to roles and tenant scope. | P0 | BUILD_NOW | Roles (admin, teacher, evaluator) enforced on API; permission checks not UI-only. | Tenancy & Identity / Governance |
 | PEV-053 | Multi-Tenancy | System shall isolate data by tenant; all business records tenant-scoped with enforced query filters. | P0 | BUILD_NOW | Cross-tenant access impossible via API; tenant_id on all business tables. | Tenancy & Identity |
-| PEV-054 | Enterprise SSO & SCIM | System shall support SSO via SAML/OIDC and user provisioning via SCIM. | P2 | FUTURE_ENTERPRISE | IdP-initiated login; SCIM sync creates/deactivates users per tenant. | Enterprise Integration / Identity |
-| PEV-055 | LMS / SIS / LTI Integration | System shall integrate with LMS, SIS, LTI, public API, and outbound webhooks. | P2 | FUTURE_ENTERPRISE | LTI launch, grade passback, roster sync, webhook delivery with retry. | Enterprise Integration |
+| PEV-054 | Enterprise SSO & SCIM | System shall support SSO via SAML/OIDC and user provisioning via SCIM. | P2 | FUTURE_ENTERPRISE | IdP-initiated login; SCIM sync creates/deactivates users per tenant. **Implemented in B19 (APP-015 / Issue #100) and released via APP-016 / Issue #102** — tenant-scoped SAML/OIDC/SCIM semantics; release state unchanged. | Enterprise Integration / Identity |
+| PEV-055 | LMS / SIS / LTI Integration | System shall integrate with LMS, SIS, LTI, public API, and outbound webhooks. | P2 | FUTURE_ENTERPRISE | LTI launch, grade passback, roster sync, webhook delivery with retry. **Implemented in B19 (APP-015 / Issue #100) and released via APP-016 / Issue #102** — authoritative published-result grade passback and tenant-scoped integration controls; release state unchanged. | Enterprise Integration |
 | PEV-056 | Multi-Subject Expansion | System shall support subjects beyond Mathematics: Physics, Chemistry, Statistics, Accounting, structured descriptive subjects. | P2 | FUTURE_ENTERPRISE | Subject-specific understanding modules pluggable via AI provider contract. **Implemented in B20 (APP-017 / Issue #107)** — canonical subject remains `Assessment.subject_node_id`; no independent Subject table; Math-only verification stays Mathematics-scoped; release state unchanged. | Understanding Pipeline / AI |
 | PEV-057 | Multilingual Handwriting | System shall support multilingual handwriting recognition and evaluation. | P2 | FUTURE_ENTERPRISE | Language tag on submission; transcription model selected per language. **Implemented in B20 (APP-017 / Issue #107)** — persisted language/script/provenance/state; original-language transcription remains authoritative; derived translation/transliteration is a linked artifact; unsupported/review-required fail closed; release state unchanged. | Understanding Pipeline / AI |
 | PEV-058 | Gold Benchmark Dataset | System shall maintain a gold evaluation benchmark dataset for quality measurement. | P1 | AFTER_CLIENT_APPROVAL | Curated papers with human-adjudicated scores; versioned dataset in secure storage. **Implemented in B15 (APP-006 / Issue #53)** — release state unchanged. | Platform & AI / Quality |
@@ -209,7 +209,7 @@ Cross-reference of mandated 30-day deliverables to requirement IDs.
 ## Section E — Traceability Notes
 
 1. **No dropped requirements:** All 65 business capabilities map to PEV-001 – PEV-065. Architectural contracts PEV-066 – PEV-078 ensure BUILD_NOW deliverables are explicitly testable.
-2. **CVB subject scope:** PEV-013 Mathematics remains the BUILD_NOW default path. PEV-056/057 remain `FUTURE_ENTERPRISE` and are implemented under **B20 / APP-017 / Issue #107** (subject-profile projection + multilingual handwriting understanding) without reclassification.
+2. **CVB subject scope:** PEV-013 Mathematics remains the BUILD_NOW default path. PEV-056/057 remain `FUTURE_ENTERPRISE`, were implemented under **B20 / APP-017 / Issue #107**, and were released to `main` through **APP-018 / Issue #109** (subject-profile projection + multilingual handwriting understanding) without reclassification.
 3. **Report generation guardrail:** PEV-065 applies to PEV-026, PEV-027, PEV-028 — reports use ledger + structured generation; LLM may assist phrasing per-section, not replace ledger.
 4. **Confidence model:** PEV-061 and PEV-062 together satisfy the business rule that confidence is meaningful and dimensional (business items 61–62).
 5. **Change control:** Altering release state or priority requires entry in `docs/FOUNDER_APPROVAL_LOG.md`.
@@ -220,7 +220,7 @@ Cross-reference of mandated 30-day deliverables to requirement IDs.
 10. **APP-008 / B16 implementation:** PEV-044–046 remain `FUTURE_ENTERPRISE` in Release State (planning gate). They are implemented on `develop` under B16 / Issue #60 per APP-008 (horizontal question grading pools, configurable moderation, formal grievance re-evaluation with versioned runs/results; no double-count of superseded publications; no `main` promotion).
 11. **APP-010 / B17 implementation:** PEV-048–049 remain `FUTURE_ENTERPRISE` in Release State (planning gate). They are implemented on `develop` under B17 / Issue #67 per APP-010 (tenant-scoped psychometric runs from PUBLISHED human-final evidence; isolated blind calibration with ICC + evaluator metrics; no ledger/publication/mastery mutation; no `main` promotion). **B17.1 (Issue #71)** corrects acceptance blockers (participant freeze at ACTIVE, bounded psychometric source loading, deterministic real E2E) without changing release-state classification.
 12. **APP-012 / B18 implementation:** PEV-050–051 remain `FUTURE_ENTERPRISE` in Release State (planning gate). They are implemented on `develop` under B18 / Issue #78 per APP-012 (deterministic answer clustering from transcription embeddings with advisory review only; versioned CO/PO mapping sets with marks-weighted attainment snapshots + CSV; no ledger/rubric/publication mutation; no external vector DB; no `main` promotion).
-13. **APP-017 / B20 implementation:** PEV-056–057 remain `FUTURE_ENTERPRISE` in Release State (planning gate). They are implemented on `develop` under B20 / Issue #107 per APP-017 (curriculum-node subject profiles; multilingual language/script persistence; original-language transcription authority with derived translation/transliteration; deterministic provider capability routing; no second grading pipeline; no `main` promotion). PEV-054–055 remain as previously implemented under B19 without reclassification.
+13. **APP-015 / B19 and APP-017 / B20 enterprise completion:** PEV-054–055 remain `FUTURE_ENTERPRISE` and were implemented under B19 / APP-015 / Issue #100, then released through APP-016 / Issue #102. PEV-056–057 remain `FUTURE_ENTERPRISE`, were implemented under B20 / APP-017 / Issue #107, then released through APP-018 / Issue #109. These planning classifications remain unchanged; implementation/release did not reclassify the requirements.
 
 ---
 
@@ -228,6 +228,7 @@ Cross-reference of mandated 30-day deliverables to requirement IDs.
 
 | Version | Date | Author | Change |
 |---------|------|--------|--------|
+| 1.1 | 2026-09-19 | ChatGPT / maintenance closeout | Reconcile B19 release traceability for PEV-054–055 and record APP-018 release completion for PEV-056–057; release states unchanged |
 | 0.1 | 2026-09-04 | Cursor A (bootstrap) | Initial register — 78 requirements, zero dropped |
 | 0.2 | 2026-09-08 | Cursor | Annotate PEV-035–038 Acceptance Intent as B12/APP-003 implemented; release state unchanged |
 | 0.3 | 2026-09-08 | Cursor | Annotate PEV-041 Acceptance Intent as B13/APP-004 / Issue #45 implemented; release state unchanged; PEV-043/058/059 still deferred |

@@ -10,6 +10,24 @@
 
 CI job IDs for the final feature SHA are recorded in the Cursor implementation report after the six authoritative jobs succeed. Do not merge until independent ChatGPT B20 audit.
 
+
+## Release completion — APP-018
+
+The B20 implementation-phase restriction against `main` promotion was honored during APP-017. A later, separately governed release decision (APP-018 / Issue #109) promoted the independently accepted B20 tree to `main`.
+
+Final release evidence:
+
+- accepted B20 feature head: `5a37bf6684b224042093f1aef14b54d44182c88e`
+- B20 squash to `develop`: `3e6bc6cf085bd95d7298b270ffb50b162b57aaf3`
+- APP-018 governance merge on `develop`: `38c653d97dfae04b12d4912e0691237f120b616f`
+- exact-tree release snapshot head: `c0d9305eb51e1e85c1139647b7fea5a4173fdf24`
+- final `main`: `c43a2522afe1822150f296b635541fb9cc1922cd`
+- released tree: `087ecc1258825a32e3277894c5731129923bb8b0`
+- post-main CI run `35379990864`: all six authoritative jobs SUCCESS
+- post-main Backend: 305 passed; Frontend E2E: 35 passed; Frontend E2E Real: 27 passed
+
+PEV-056 / PEV-057 remain formally `FUTURE_ENTERPRISE`; release did not reclassify them.
+
 ## Scope (implemented)
 
 * **PEV-056** Multi-subject expansion via a deterministic projection from `Assessment.subject_node_id` / `CurriculumNode`
