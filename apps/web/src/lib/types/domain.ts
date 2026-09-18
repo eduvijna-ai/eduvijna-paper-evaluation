@@ -2091,3 +2091,158 @@ export interface OutcomeAttainmentMetric {
   contribution_count: number;
   created_at: string | null;
 }
+
+/** B19 enterprise identity provider (PEV-054). */
+export interface IdentityProvider {
+  id: string;
+  name: string;
+  protocol: string;
+  enabled: boolean;
+  status: string;
+  issuer: string | null;
+  client_id: string | null;
+  authorization_endpoint: string | null;
+  token_endpoint: string | null;
+  jwks_uri: string | null;
+  metadata_url: string | null;
+  entity_id: string | null;
+  sso_url: string | null;
+  jit_enabled: boolean;
+  account_linking_policy: string;
+  role_mapping_json: Record<string, unknown>;
+  config_json: Record<string, unknown>;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface IdentityProviderList {
+  items: IdentityProvider[];
+}
+
+export interface PublicSsoProvider {
+  id: string;
+  name: string;
+  protocol: string;
+}
+
+export interface PublicSsoProviderList {
+  items: PublicSsoProvider[];
+}
+
+export interface ScimTokenCreateResponse {
+  token: string;
+  token_prefix?: string | null;
+  provider_id?: string | null;
+  created_at?: string | null;
+}
+
+export interface LtiPlatform {
+  id: string;
+  name: string;
+  issuer: string;
+  client_id: string;
+  deployment_id: string;
+  auth_login_url: string;
+  token_url: string;
+  jwks_url: string;
+  enabled: boolean;
+  role_mapping_json: Record<string, unknown>;
+  tool_public_jwks_json: Record<string, unknown>;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface LtiPlatformList {
+  items: LtiPlatform[];
+}
+
+export interface LtiToolJwks {
+  keys: Array<Record<string, unknown>>;
+}
+
+export interface RosterSyncRun {
+  id: string;
+  provider_key: string;
+  status: string;
+  started_at: string | null;
+  finished_at: string | null;
+  summary_json: Record<string, unknown>;
+  created_at: string | null;
+}
+
+export interface GradePassback {
+  id: string;
+  lti_platform_id: string;
+  resource_link_id: string;
+  published_result_id: string;
+  published_result_version: number;
+  external_user_id: string;
+  lineitem_url: string;
+  score: number;
+  max_score: number;
+  idempotency_key: string;
+  state: string;
+  attempts: number;
+  latest_error: string | null;
+  delivered_at: string | null;
+  created_at: string | null;
+}
+
+export interface GradePassbackList {
+  items: GradePassback[];
+}
+
+export interface IntegrationCredential {
+  id: string;
+  name: string;
+  key_prefix: string;
+  scopes: string[];
+  enabled: boolean;
+  expires_at: string | null;
+  last_used_at: string | null;
+  revoked_at: string | null;
+  created_at: string | null;
+}
+
+export interface IntegrationCredentialList {
+  items: IntegrationCredential[];
+}
+
+export interface IntegrationCredentialSecretResponse {
+  credential: IntegrationCredential;
+  secret: string;
+}
+
+export interface WebhookEndpoint {
+  id: string;
+  name: string;
+  destination_url: string;
+  event_types: string[];
+  enabled: boolean;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+export interface WebhookEndpointList {
+  items: WebhookEndpoint[];
+}
+
+export interface WebhookEndpointSecretResponse {
+  endpoint: WebhookEndpoint;
+  signing_secret: string;
+}
+
+export interface WebhookDelivery {
+  id: string;
+  endpoint_id: string;
+  event_id: string | null;
+  status: string;
+  attempt_count: number;
+  next_attempt_at: string | null;
+  terminal_failure: boolean;
+  created_at: string | null;
+}
+
+export interface WebhookDeliveryList {
+  items: WebhookDelivery[];
+}

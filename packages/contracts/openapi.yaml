@@ -3219,6 +3219,596 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/QuestionAnswerMapping" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/integrations/identity-providers:
+    get:
+      operationId: listIdentityProviders
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Identity providers
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IdentityProviderList" }
+    post:
+      operationId: createIdentityProvider
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IdentityProviderCreate" }
+      responses:
+        "200":
+          description: Created provider
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IdentityProvider" }
+  /api/v1/integrations/identity-providers/{provider_id}:
+    parameters:
+      - name: provider_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      operationId: updateIdentityProvider
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IdentityProviderUpdate" }
+      responses:
+        "200":
+          description: Updated provider
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IdentityProvider" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/integrations/identity-providers/{provider_id}/scim-token:
+    parameters:
+      - name: provider_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: createOrRotateScimToken
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: One-time SCIM bearer secret
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScimTokenCreateResponse" }
+  /api/v1/integrations/lti-platforms:
+    get:
+      operationId: listLtiPlatforms
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: LTI platforms
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LtiPlatformList" }
+    post:
+      operationId: createLtiPlatform
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LtiPlatformCreate" }
+      responses:
+        "200":
+          description: Created LTI platform
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LtiPlatform" }
+  /api/v1/integrations/lti-platforms/{platform_id}/tool-jwks:
+    parameters:
+      - name: platform_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getLtiToolJwks
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Tool JWKS
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LtiToolJwks" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/integrations/roster-sync:
+    post:
+      operationId: startRosterSync
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/RosterSyncCreate" }
+      responses:
+        "200":
+          description: Roster sync run
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RosterSyncRun" }
+  /api/v1/integrations/roster-sync/{run_id}:
+    parameters:
+      - name: run_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: getRosterSync
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Roster sync status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RosterSyncRun" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/integrations/grade-passbacks:
+    get:
+      operationId: listGradePassbacks
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Grade passbacks
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GradePassbackList" }
+    post:
+      operationId: createGradePassback
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/GradePassbackCreate" }
+      responses:
+        "200":
+          description: Grade passback
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/GradePassback" }
+  /api/v1/integrations/credentials:
+    get:
+      operationId: listIntegrationCredentials
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: API credentials
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntegrationCredentialList" }
+    post:
+      operationId: createIntegrationCredential
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/IntegrationCredentialCreate" }
+      responses:
+        "200":
+          description: Created credential with one-time secret
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntegrationCredentialSecretResponse" }
+  /api/v1/integrations/credentials/{credential_id}/rotate:
+    parameters:
+      - name: credential_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: rotateIntegrationCredential
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Rotated credential with one-time secret
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntegrationCredentialSecretResponse" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/integrations/credentials/{credential_id}/revoke:
+    parameters:
+      - name: credential_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: revokeIntegrationCredential
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Revoked credential
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/IntegrationCredential" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/integrations/webhooks:
+    get:
+      operationId: listWebhookEndpoints
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Webhook endpoints
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WebhookEndpointList" }
+    post:
+      operationId: createWebhookEndpoint
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WebhookEndpointCreate" }
+      responses:
+        "200":
+          description: Created webhook with one-time signing secret
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WebhookEndpointSecretResponse" }
+  /api/v1/integrations/webhooks/{endpoint_id}:
+    parameters:
+      - name: endpoint_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      operationId: updateWebhookEndpoint
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/WebhookEndpointUpdate" }
+      responses:
+        "200":
+          description: Updated webhook
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WebhookEndpoint" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/integrations/webhooks/{endpoint_id}/rotate-secret:
+    parameters:
+      - name: endpoint_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: rotateWebhookSecret
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Rotated signing secret
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WebhookEndpointSecretResponse" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/integrations/webhooks/{endpoint_id}/deliveries:
+    parameters:
+      - name: endpoint_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listWebhookDeliveries
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Delivery attempts for endpoint
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WebhookDeliveryList" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/integrations/webhook-deliveries/{delivery_id}/attempts:
+    parameters:
+      - name: delivery_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: listWebhookDeliveryAttempts
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Append-only webhook delivery attempts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WebhookDeliveryAttemptList" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/integrations/webhook-deliveries/{delivery_id}/retry:
+    parameters:
+      - name: delivery_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: retryWebhookDelivery
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Retry scheduled
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/WebhookDelivery" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/sso/providers:
+    get:
+      operationId: listPublicSsoProviders
+      tags: [enterprise-identity]
+      parameters:
+        - name: tenant_slug
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Public SSO provider list
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PublicSsoProviderList" }
+  /api/v1/sso/oidc/start:
+    get:
+      operationId: startOidcSso
+      tags: [enterprise-identity]
+      parameters:
+        - name: tenant_slug
+          in: query
+          required: true
+          schema: { type: string }
+        - name: provider_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "302":
+          description: Redirect to IdP
+  /api/v1/sso/oidc/callback:
+    get:
+      operationId: oidcSsoCallbackGet
+      tags: [enterprise-identity]
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema: { type: string }
+        - name: state
+          in: query
+          required: false
+          schema: { type: string }
+      responses:
+        "302":
+          description: Redirect to frontend with one-time exchange code
+    post:
+      operationId: oidcSsoCallbackPost
+      tags: [enterprise-identity]
+      responses:
+        "302":
+          description: Redirect to frontend with one-time exchange code
+  /api/v1/sso/saml/start:
+    get:
+      operationId: startSamlSso
+      tags: [enterprise-identity]
+      parameters:
+        - name: tenant_slug
+          in: query
+          required: true
+          schema: { type: string }
+        - name: provider_id
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "302":
+          description: Redirect to SAML IdP
+  /api/v1/sso/saml/acs:
+    post:
+      operationId: samlAcs
+      tags: [enterprise-identity]
+      responses:
+        "302":
+          description: Redirect to frontend with one-time exchange code
+  /api/v1/sso/exchange:
+    post:
+      operationId: exchangeSsoCode
+      tags: [enterprise-identity]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SsoExchangeRequest" }
+      responses:
+        "200":
+          description: Bearer session tokens
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TokenResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /scim/v2/Users:
+    get:
+      operationId: scimListUsers
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: SCIM users
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+    post:
+      operationId: scimCreateUser
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "201":
+          description: Created SCIM user
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+  /scim/v2/Users/{user_id}:
+    parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      operationId: scimGetUser
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: SCIM user
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+    patch:
+      operationId: scimPatchUser
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "200":
+          description: Updated SCIM user
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+    put:
+      operationId: scimReplaceUser
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        "200":
+          description: Replaced SCIM user
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+  /lti/login:
+    get:
+      operationId: ltiOidcLogin
+      tags: [enterprise-identity]
+      responses:
+        "302":
+          description: LTI OIDC login redirect
+    post:
+      operationId: ltiOidcLoginPost
+      tags: [enterprise-identity]
+      responses:
+        "302":
+          description: LTI OIDC login redirect
+  /lti/launch:
+    post:
+      operationId: ltiLaunch
+      tags: [enterprise-identity]
+      responses:
+        "200":
+          description: LTI launch accepted
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+        "302":
+          description: Launch redirect
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /lti/jwks/{platform_id}:
+    parameters:
+      - name: platform_id
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: publicLtiToolJwks
+      tags: [enterprise-identity]
+      responses:
+        "200":
+          description: Public tool JWKS
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LtiToolJwks" }
+  /scim/v2/ServiceProviderConfig:
+    get:
+      operationId: scimServiceProviderConfig
+      tags: [enterprise-identity]
+      responses:
+        "200":
+          description: SCIM ServiceProviderConfig
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+  /api/integration/v1/health:
+    get:
+      operationId: integrationHealth
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Integration credential health
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+  /api/integration/v1/roster/upsert:
+    post:
+      operationId: integrationRosterUpsert
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Roster upsert
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RosterSyncRun" }
+  /api/integration/v1/results/published:
+    get:
+      operationId: integrationPublishedResults
+      tags: [enterprise-identity]
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Current published results
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
 components:
   securitySchemes:
     bearerAuth:
@@ -7067,3 +7657,343 @@ components:
         mapped_question_count: { type: integer }
         contribution_count: { type: integer }
         created_at: { type: ["string", "null"], format: date-time }
+    IdentityProvider:
+      type: object
+      additionalProperties: true
+      required: [id, name, protocol, enabled, status, jit_enabled, account_linking_policy]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        protocol: { type: string, enum: [OIDC, SAML] }
+        enabled: { type: boolean }
+        status: { type: string, enum: [ACTIVE, DISABLED] }
+        issuer: { type: ["string", "null"] }
+        client_id: { type: ["string", "null"] }
+        authorization_endpoint: { type: ["string", "null"] }
+        token_endpoint: { type: ["string", "null"] }
+        jwks_uri: { type: ["string", "null"] }
+        metadata_url: { type: ["string", "null"] }
+        entity_id: { type: ["string", "null"] }
+        sso_url: { type: ["string", "null"] }
+        jit_enabled: { type: boolean }
+        account_linking_policy:
+          type: string
+          enum: [NONE, VERIFIED_EMAIL_EXPLICIT]
+        role_mapping_json: { type: object, additionalProperties: true }
+        config_json: { type: object, additionalProperties: true }
+        created_at: { type: ["string", "null"], format: date-time }
+        updated_at: { type: ["string", "null"], format: date-time }
+    IdentityProviderList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/IdentityProvider" }
+    IdentityProviderCreate:
+      type: object
+      additionalProperties: true
+      required: [name, protocol]
+      properties:
+        name: { type: string }
+        protocol: { type: string, enum: [OIDC, SAML] }
+        enabled: { type: boolean }
+        issuer: { type: ["string", "null"] }
+        client_id: { type: ["string", "null"] }
+        client_secret: { type: ["string", "null"] }
+        authorization_endpoint: { type: ["string", "null"] }
+        token_endpoint: { type: ["string", "null"] }
+        jwks_uri: { type: ["string", "null"] }
+        metadata_url: { type: ["string", "null"] }
+        entity_id: { type: ["string", "null"] }
+        sso_url: { type: ["string", "null"] }
+        saml_idp_cert: { type: ["string", "null"] }
+        jit_enabled: { type: boolean }
+        account_linking_policy:
+          type: string
+          enum: [NONE, VERIFIED_EMAIL_EXPLICIT]
+        role_mapping_json: { type: object, additionalProperties: true }
+        config_json: { type: object, additionalProperties: true }
+    IdentityProviderUpdate:
+      type: object
+      additionalProperties: true
+      properties:
+        name: { type: string }
+        enabled: { type: boolean }
+        status: { type: string, enum: [ACTIVE, DISABLED] }
+        issuer: { type: ["string", "null"] }
+        client_id: { type: ["string", "null"] }
+        client_secret: { type: ["string", "null"] }
+        authorization_endpoint: { type: ["string", "null"] }
+        token_endpoint: { type: ["string", "null"] }
+        jwks_uri: { type: ["string", "null"] }
+        metadata_url: { type: ["string", "null"] }
+        entity_id: { type: ["string", "null"] }
+        sso_url: { type: ["string", "null"] }
+        saml_idp_cert: { type: ["string", "null"] }
+        jit_enabled: { type: boolean }
+        account_linking_policy:
+          type: string
+          enum: [NONE, VERIFIED_EMAIL_EXPLICIT]
+        role_mapping_json: { type: object, additionalProperties: true }
+        config_json: { type: object, additionalProperties: true }
+    ScimTokenCreateResponse:
+      type: object
+      additionalProperties: true
+      required: [token]
+      properties:
+        token: { type: string }
+        token_prefix: { type: ["string", "null"] }
+        provider_id: { type: ["string", "null"], format: uuid }
+        created_at: { type: ["string", "null"], format: date-time }
+    LtiPlatform:
+      type: object
+      additionalProperties: true
+      required: [id, name, issuer, client_id, deployment_id, enabled]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        issuer: { type: string }
+        client_id: { type: string }
+        deployment_id: { type: string }
+        auth_login_url: { type: string }
+        token_url: { type: string }
+        jwks_url: { type: string }
+        enabled: { type: boolean }
+        role_mapping_json: { type: object, additionalProperties: true }
+        tool_public_jwks_json: { type: object, additionalProperties: true }
+        created_at: { type: ["string", "null"], format: date-time }
+        updated_at: { type: ["string", "null"], format: date-time }
+    LtiPlatformList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/LtiPlatform" }
+    LtiPlatformCreate:
+      type: object
+      additionalProperties: true
+      required: [issuer, client_id, deployment_id, auth_login_url, token_url, jwks_url]
+      properties:
+        name: { type: string }
+        issuer: { type: string }
+        client_id: { type: string }
+        deployment_id: { type: string }
+        auth_login_url: { type: string }
+        token_url: { type: string }
+        jwks_url: { type: string }
+        enabled: { type: boolean }
+        role_mapping_json: { type: object, additionalProperties: true }
+    LtiToolJwks:
+      type: object
+      additionalProperties: true
+      required: [keys]
+      properties:
+        keys:
+          type: array
+          items: { type: object, additionalProperties: true }
+    RosterSyncCreate:
+      type: object
+      additionalProperties: true
+      required: [provider_key]
+      properties:
+        provider_key: { type: string }
+        members: { type: array, items: { type: object, additionalProperties: true } }
+        platform_id: { type: ["string", "null"], format: uuid }
+        resource_link_id: { type: ["string", "null"], format: uuid }
+    RosterSyncRun:
+      type: object
+      additionalProperties: true
+      required: [id, provider_key, status]
+      properties:
+        id: { type: string, format: uuid }
+        provider_key: { type: string }
+        status: { type: string, enum: [RUNNING, SUCCEEDED, FAILED] }
+        started_at: { type: ["string", "null"], format: date-time }
+        finished_at: { type: ["string", "null"], format: date-time }
+        summary_json: { type: object, additionalProperties: true }
+        created_at: { type: ["string", "null"], format: date-time }
+    GradePassback:
+      type: object
+      additionalProperties: true
+      required: [id, published_result_id, state, score, max_score]
+      properties:
+        id: { type: string, format: uuid }
+        lti_platform_id: { type: string, format: uuid }
+        resource_link_id: { type: string, format: uuid }
+        published_result_id: { type: string, format: uuid }
+        published_result_version: { type: integer }
+        external_user_id: { type: string }
+        lineitem_url: { type: string }
+        score: { type: number }
+        max_score: { type: number }
+        idempotency_key: { type: string }
+        state: { type: string, enum: [PENDING, DELIVERED, FAILED, REJECTED] }
+        attempts: { type: integer }
+        latest_error: { type: ["string", "null"] }
+        delivered_at: { type: ["string", "null"], format: date-time }
+        created_at: { type: ["string", "null"], format: date-time }
+    GradePassbackList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/GradePassback" }
+    GradePassbackCreate:
+      type: object
+      additionalProperties: true
+      required: [published_result_id, resource_link_id]
+      properties:
+        published_result_id: { type: string, format: uuid }
+        resource_link_id: { type: string, format: uuid }
+        external_user_id: { type: ["string", "null"] }
+        score: { type: ["number", "null"] }
+        lti_platform_id: { type: ["string", "null"], format: uuid }
+        idempotency_key: { type: ["string", "null"] }
+    IntegrationCredential:
+      type: object
+      additionalProperties: true
+      required: [id, name, key_prefix, enabled]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        key_prefix: { type: string }
+        scopes: { type: array, items: { type: string } }
+        scopes_json: { type: array, items: { type: string } }
+        enabled: { type: boolean }
+        expires_at: { type: ["string", "null"], format: date-time }
+        last_used_at: { type: ["string", "null"], format: date-time }
+        revoked_at: { type: ["string", "null"], format: date-time }
+        created_at: { type: ["string", "null"], format: date-time }
+    IntegrationCredentialList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/IntegrationCredential" }
+    IntegrationCredentialCreate:
+      type: object
+      additionalProperties: true
+      required: [name, scopes]
+      properties:
+        name: { type: string }
+        scopes: { type: array, items: { type: string } }
+        expires_at: { type: ["string", "null"], format: date-time }
+    IntegrationCredentialSecretResponse:
+      type: object
+      additionalProperties: true
+      required: [credential, secret]
+      properties:
+        credential: { $ref: "#/components/schemas/IntegrationCredential" }
+        secret: { type: string }
+    WebhookEndpoint:
+      type: object
+      additionalProperties: true
+      required: [id, name, destination_url, enabled]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        destination_url: { type: string }
+        event_types: { type: array, items: { type: string } }
+        event_types_json: { type: array, items: { type: string } }
+        enabled: { type: boolean }
+        created_at: { type: ["string", "null"], format: date-time }
+        updated_at: { type: ["string", "null"], format: date-time }
+    WebhookEndpointList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/WebhookEndpoint" }
+    WebhookEndpointCreate:
+      type: object
+      additionalProperties: true
+      required: [name, destination_url, event_types]
+      properties:
+        name: { type: string }
+        destination_url: { type: string }
+        event_types: { type: array, items: { type: string } }
+        enabled: { type: boolean }
+    WebhookEndpointUpdate:
+      type: object
+      additionalProperties: true
+      properties:
+        name: { type: string }
+        destination_url: { type: string }
+        event_types: { type: array, items: { type: string } }
+        enabled: { type: boolean }
+    WebhookEndpointSecretResponse:
+      type: object
+      additionalProperties: true
+      required: [endpoint, signing_secret]
+      properties:
+        endpoint: { $ref: "#/components/schemas/WebhookEndpoint" }
+        signing_secret: { type: string }
+    WebhookDelivery:
+      type: object
+      additionalProperties: true
+      required: [id, endpoint_id, status]
+      properties:
+        id: { type: string, format: uuid }
+        endpoint_id: { type: string, format: uuid }
+        event_id: { type: ["string", "null"], format: uuid }
+        status: { type: string, enum: [PENDING, SUCCEEDED, FAILED, RETRYING] }
+        attempt_count: { type: integer }
+        next_attempt_at: { type: ["string", "null"], format: date-time }
+        terminal_failure: { type: boolean }
+        created_at: { type: ["string", "null"], format: date-time }
+    WebhookDeliveryList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/WebhookDelivery" }
+    WebhookDeliveryAttemptList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            properties:
+              attempt_number: { type: integer }
+              attempted_at: { type: ["string", "null"], format: date-time }
+              http_status: { type: ["integer", "null"] }
+              error_sanitized: { type: ["string", "null"] }
+              duration_ms: { type: ["integer", "null"] }
+    PublicSsoProvider:
+      type: object
+      additionalProperties: true
+      required: [id, name, protocol]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        protocol: { type: string, enum: [OIDC, SAML] }
+    PublicSsoProviderList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/PublicSsoProvider" }
+    SsoExchangeRequest:
+      type: object
+      additionalProperties: false
+      required: [code]
+      properties:
+        code: { type: string }

@@ -10,18 +10,36 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import AuditEvent
 from app.middleware.correlation import get_correlation_id
 
+_FORBIDDEN_AUDIT_FRAGMENTS = ("password", "token", "bearer", "secret", "assertion")
+
+
+def _sanitize_audit_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        cleaned: dict[str, Any] = {}
+        for key, item in value.items():
+            lowered = str(key).lower()
+            if any(fragment in lowered for fragment in _FORBIDDEN_AUDIT_FRAGMENTS):
+                continue
+            cleaned[key] = _sanitize_audit_value(item)
+        return cleaned
+    if isinstance(value, list):
+        return [_sanitize_audit_value(item) for item in value]
+    return value
+
 
 def _payload_json(
     *, before: dict[str, Any] | None, after: dict[str, Any] | None
 ) -> dict[str, Any]:
     """Preserve legacy single-payload shape when only ``after`` is supplied."""
-    if before is None and after is None:
+    safe_before = _sanitize_audit_value(before) if before is not None else None
+    safe_after = _sanitize_audit_value(after) if after is not None else None
+    if safe_before is None and safe_after is None:
         return {}
-    if before is None and after is not None:
-        return after
-    if before is not None and after is None:
-        return {"before": before}
-    return {"before": before, "after": after}
+    if safe_before is None and safe_after is not None:
+        return dict(safe_after) if isinstance(safe_after, dict) else {}
+    if safe_before is not None and safe_after is None:
+        return {"before": safe_before}
+    return {"before": safe_before, "after": safe_after}
 
 
 async def add_audit_event(

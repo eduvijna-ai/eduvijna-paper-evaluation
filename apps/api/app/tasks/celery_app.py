@@ -23,6 +23,12 @@ def create_celery_app() -> Any:
         task_track_started=True,
         task_always_eager=False,
         task_store_eager_result=True,
+        beat_schedule={
+            "webhooks-deliver-due": {
+                "task": "webhooks.deliver_due",
+                "schedule": 2.0,
+            }
+        },
     )
     return app
 
@@ -303,6 +309,9 @@ async def _publication_async(
             submission_id=submission_id,
             job_id=job_id,
         )
+    from app.services.webhooks import enqueue_webhook_dispatch
+
+    await enqueue_webhook_dispatch()
 
 
 def _publication_impl(tenant_id: str, submission_id: str, job_id: str) -> dict[str, str]:
@@ -614,3 +623,73 @@ async def enqueue_authoring_curriculum_mapping(
     result = authoring_mapping_task.delay(str(tenant_id), str(run_id))
     task_id = getattr(result, "id", None)
     return str(task_id) if task_id is not None else None
+
+
+async def _deliver_webhooks_async() -> dict[str, int | str]:
+    from datetime import UTC, datetime
+
+    from sqlalchemy import select
+
+    from app.db.models import WebhookDelivery
+    from app.db.session import async_session_factory, engine
+    from app.services.webhooks import deliver_due_webhooks
+
+    settings = get_settings()
+    if not (settings.celery_task_always_eager or bool(celery_app.conf.task_always_eager)):
+        await engine.dispose()
+    processed = 0
+    async with async_session_factory() as db:
+        for _ in range(6):
+            processed += await deliver_due_webhooks(db, settings=settings)
+            await db.commit()
+            now = datetime.now(UTC)
+            due = await db.scalar(
+                select(WebhookDelivery.id)
+                .where(
+                    WebhookDelivery.status.in_(("PENDING", "RETRYING")),
+                    WebhookDelivery.terminal_failure.is_(False),
+                    WebhookDelivery.next_attempt_at.is_not(None),
+                    WebhookDelivery.next_attempt_at <= now,
+                )
+                .limit(1)
+            )
+            if due is None:
+                break
+            if not settings.celery_task_always_eager:
+                break
+    soonest = None
+    async with async_session_factory() as db:
+        soonest = await db.scalar(
+            select(WebhookDelivery.next_attempt_at)
+            .where(
+                WebhookDelivery.status == "RETRYING",
+                WebhookDelivery.terminal_failure.is_(False),
+                WebhookDelivery.next_attempt_at.is_not(None),
+            )
+            .order_by(WebhookDelivery.next_attempt_at.asc())
+            .limit(1)
+        )
+    if soonest is not None and not settings.celery_task_always_eager:
+        delay = max(0.0, (soonest - datetime.now(UTC)).total_seconds())
+        deliver_webhooks_task.apply_async(countdown=delay)
+    return {"processed": processed, "status": "ok"}
+
+
+def _deliver_webhooks_impl() -> dict[str, int | str]:
+    return asyncio.run(_deliver_webhooks_async())
+
+
+deliver_webhooks_task = cast(
+    Any, celery_app.task(name="webhooks.deliver_due")(_deliver_webhooks_impl)
+)
+
+
+async def enqueue_deliver_webhooks(*, countdown: float = 0) -> str | None:
+    settings = get_settings()
+    if settings.celery_task_always_eager or bool(celery_app.conf.task_always_eager):
+        await _deliver_webhooks_async()
+        return "eager:webhooks"
+    result = deliver_webhooks_task.apply_async(countdown=max(0.0, countdown))
+    task_id = getattr(result, "id", None)
+    return str(task_id) if task_id is not None else None
+

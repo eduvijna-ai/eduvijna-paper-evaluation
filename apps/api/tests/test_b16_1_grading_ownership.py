@@ -10,6 +10,7 @@ from httpx import AsyncClient
 from app.core.authorization import ROLE_PERMISSION_MAP, AuthContext
 from app.core.config import get_settings
 from app.core.security import JwtAuthProvider
+from tests.foreign_auth import create_foreign_user
 from tests.test_b3_submission_ingestion import _headers
 from tests.test_b6_evaluation_ledger import _ready_assessment, _to_ready_for_evaluation
 from tests.test_b7_publication_reports import api_client_publication
@@ -256,10 +257,11 @@ async def test_b16_1_governance_override_and_legacy_and_tenant() -> None:
         assert legacy_accept.status_code == 200, legacy_accept.text
 
         # Tenant isolation: foreign tenant cannot discover the QE
+        foreign_user_id, foreign_tenant_id = await create_foreign_user()
         foreign_token, _ = JwtAuthProvider(get_settings()).issue_access_token(
             AuthContext(
-                user_id=uuid.uuid4(),
-                tenant_id=uuid.uuid4(),
+                user_id=foreign_user_id,
+                tenant_id=foreign_tenant_id,
                 roles=frozenset({"INSTITUTION_ADMIN"}),
                 permissions=ROLE_PERMISSION_MAP["INSTITUTION_ADMIN"],
             )

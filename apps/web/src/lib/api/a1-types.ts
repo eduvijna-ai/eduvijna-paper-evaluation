@@ -135,4 +135,11 @@ export const A1_PERMISSIONS = {
   grievanceRead: "grievance:read",
   grievanceCreate: "grievance:create",
   grievanceManage: "grievance:manage",
+  /** B19 enterprise identity & interoperability (PEV-054/055). */
+  integrationRead: "integration:read",
+  integrationManage: "integration:manage",
+  integrationCredentialsManage: "integration:credentials:manage",
+  integrationRosterSync: "integration:roster:sync",
+  integrationGradePassback: "integration:grade:passback",
+  integrationWebhookManage: "integration:webhook:manage",
 } as const;

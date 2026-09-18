@@ -1370,6 +1370,23 @@ async def publish_result(
     from app.services.analytics import ensure_analytics_job
 
     analytics_job = await ensure_analytics_job(db, tenant_id=tenant_id, published=published)
+    from app.services.webhooks import record_outbound_event
+
+    await record_outbound_event(
+        db,
+        tenant_id=tenant_id,
+        event_type="result.published",
+        source_entity_type="published_result",
+        source_entity_id=published.id,
+        source_version=published.version_number,
+        payload={
+            "published_result_id": str(published.id),
+            "version_number": published.version_number,
+            "status": published.status,
+            "total_score": str(published.total_score),
+            "max_total_score": str(published.max_total_score),
+        },
+    )
     await db.flush()
     return published, analytics_job
 

@@ -303,7 +303,13 @@ async def login(
         raise HTTPException(401, "Invalid credentials")
     user = users[0]
     roles, permissions = await _authorization_for_user(db, user.id, user.tenant_id)
-    context = AuthContext(user.id, user.tenant_id, roles, permissions)
+    context = AuthContext(
+        user.id,
+        user.tenant_id,
+        roles,
+        permissions,
+        auth_version=int(user.auth_version),
+    )
     token, ttl = provider.issue_access_token(context)
     user.last_login_at = datetime.now(UTC)
     await db.commit()
