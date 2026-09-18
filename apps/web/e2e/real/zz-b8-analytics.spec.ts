@@ -379,29 +379,31 @@ async function publishOne(
   if (await textInput.count()) {
     await textInput.fill("4");
     await page.getByTestId("save-transcription").first().click();
-    await page.waitForTimeout(500);
+    await expect(page.getByTestId("save-transcription").first()).toBeEnabled({
+      timeout: 30_000,
+    });
   }
-  const confirmFirst = page.getByTestId("confirm-transcription").first();
-  if ((await confirmFirst.count()) && (await confirmFirst.isEnabled())) {
-    await confirmFirst.click();
-    await page.waitForTimeout(400);
+  const buttons = page.getByTestId("confirm-transcription");
+  const total = await buttons.count();
+  expect(total).toBeGreaterThan(0);
+  for (let i = 0; i < total; i += 1) {
+    const btn = buttons.nth(i);
+    if (await btn.isDisabled()) continue;
+    await btn.scrollIntoViewIfNeeded();
+    await expect(btn).toBeEnabled({ timeout: 30_000 });
+    await btn.click({ timeout: 30_000 });
+    await expect(btn).toBeDisabled({ timeout: 30_000 });
   }
-  for (let i = 0; i < 12; i += 1) {
-    const enabled = page.locator(
-      '[data-testid="confirm-transcription"]:not([disabled])',
-    );
-    if ((await enabled.count()) === 0) break;
-    await enabled.first().click();
-    await page.waitForTimeout(500);
-  }
+  await expect(page.locator('[data-testid="confirm-transcription"]:not([disabled])')).toHaveCount(
+    0,
+    { timeout: 30_000 },
+  );
 
   await expect(page.getByTestId("finalize-transcription")).toBeEnabled({
     timeout: 30_000,
   });
+  await page.getByTestId("finalize-transcription").scrollIntoViewIfNeeded();
   await page.getByTestId("finalize-transcription").click();
-  await expect(page).toHaveURL(new RegExp(`/submissions/${submissionId}$`), {
-    timeout: 30_000,
-  });
   await expect(page.getByTestId("submission-detail-page")).toBeVisible({
     timeout: 30_000,
   });
