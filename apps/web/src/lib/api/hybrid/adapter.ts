@@ -16,6 +16,7 @@ import { BenchmarkHttpApi } from "../http/benchmark";
 import { OperationsHttpApi } from "../http/operations";
 import { QualityHttpApi } from "../http/quality";
 import { OutcomeIntelligenceHttpApi } from "../http/outcome_intelligence";
+import { IntegrationsHttpApi } from "../http/integrations";
 import { ApiError } from "../http/errors";
 import { httpRequest } from "../http/client";
 import { getApiCapabilities } from "../capabilities";
@@ -1367,5 +1368,89 @@ export const HybridEduVijnaApi: ApiClient = {
       );
     }
     return MockEduVijnaApi.exportOutcomeAttainmentReportCsv!(reportId);
+  },
+  listIdentityProviders: async () => {
+    if (getApiCapabilities().integration === "live") {
+      return IntegrationsHttpApi.listIdentityProviders();
+    }
+    return MockEduVijnaApi.listIdentityProviders!();
+  },
+  createIdentityProvider: async (input) => {
+    if (getApiCapabilities().integration === "live") {
+      return IntegrationsHttpApi.createIdentityProvider(input);
+    }
+    return MockEduVijnaApi.createIdentityProvider!(input);
+  },
+  listPublicSsoProviders: async (tenantSlug) => {
+    if (getApiCapabilities().integration === "live") {
+      return IntegrationsHttpApi.listPublicSsoProviders(tenantSlug);
+    }
+    return MockEduVijnaApi.listPublicSsoProviders!(tenantSlug);
+  },
+  exchangeSsoCode: async (exchangeCode) => {
+    if (getApiCapabilities().integration === "live") {
+      return IntegrationsHttpApi.exchangeSsoCode(exchangeCode);
+    }
+    return MockEduVijnaApi.exchangeSsoCode!(exchangeCode);
+  },
+  listLtiPlatforms: async () => {
+    if (getApiCapabilities().integration === "live") {
+      return IntegrationsHttpApi.listLtiPlatforms();
+    }
+    return MockEduVijnaApi.listLtiPlatforms!();
+  },
+  listIntegrationCredentials: async () => {
+    if (getApiCapabilities().integration === "live") {
+      return IntegrationsHttpApi.listIntegrationCredentials();
+    }
+    return MockEduVijnaApi.listIntegrationCredentials!();
+  },
+  createIntegrationCredential: async (input) => {
+    if (getApiCapabilities().integration === "live") {
+      return IntegrationsHttpApi.createIntegrationCredential(input);
+    }
+    return MockEduVijnaApi.createIntegrationCredential!(input);
+  },
+  rotateIntegrationCredential: async (id) => {
+    if (getApiCapabilities().integration === "live") {
+      return IntegrationsHttpApi.rotateIntegrationCredential(id);
+    }
+    return MockEduVijnaApi.rotateIntegrationCredential!(id);
+  },
+  revokeIntegrationCredential: async (id) => {
+    if (getApiCapabilities().integration === "live") {
+      return IntegrationsHttpApi.revokeIntegrationCredential(id);
+    }
+    return MockEduVijnaApi.revokeIntegrationCredential!(id);
+  },
+  listWebhookEndpoints: async () => {
+    if (getApiCapabilities().integration === "live") {
+      return IntegrationsHttpApi.listWebhookEndpoints();
+    }
+    return MockEduVijnaApi.listWebhookEndpoints!();
+  },
+  createWebhookEndpoint: async (input) => {
+    if (getApiCapabilities().integration === "live") {
+      return IntegrationsHttpApi.createWebhookEndpoint(input);
+    }
+    return MockEduVijnaApi.createWebhookEndpoint!(input);
+  },
+  listWebhookDeliveries: async (endpointId) => {
+    if (getApiCapabilities().integration === "live") {
+      return IntegrationsHttpApi.listWebhookDeliveries(endpointId);
+    }
+    return MockEduVijnaApi.listWebhookDeliveries!(endpointId);
+  },
+  retryWebhookDelivery: async (deliveryId) => {
+    if (getApiCapabilities().integration === "live") {
+      return IntegrationsHttpApi.retryWebhookDelivery(deliveryId);
+    }
+    return MockEduVijnaApi.retryWebhookDelivery!(deliveryId);
+  },
+  listGradePassbacks: async () => {
+    if (getApiCapabilities().integration === "live") {
+      return IntegrationsHttpApi.listGradePassbacks();
+    }
+    return MockEduVijnaApi.listGradePassbacks!();
   },
 };

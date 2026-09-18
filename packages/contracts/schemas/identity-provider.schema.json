@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/identity-provider.schema.json",
+  "title": "IdentityProvider",
+  "description": "B19 enterprise identity provider (PEV-054).",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "id",
+    "name",
+    "protocol",
+    "enabled",
+    "status",
+    "jit_enabled",
+    "account_linking_policy"
+  ],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "name": { "type": "string" },
+    "protocol": { "type": "string", "enum": ["OIDC", "SAML"] },
+    "enabled": { "type": "boolean" },
+    "status": { "type": "string", "enum": ["ACTIVE", "DISABLED"] },
+    "issuer": { "type": ["string", "null"] },
+    "client_id": { "type": ["string", "null"] },
+    "authorization_endpoint": { "type": ["string", "null"] },
+    "token_endpoint": { "type": ["string", "null"] },
+    "jwks_uri": { "type": ["string", "null"] },
+    "metadata_url": { "type": ["string", "null"] },
+    "entity_id": { "type": ["string", "null"] },
+    "sso_url": { "type": ["string", "null"] },
+    "jit_enabled": { "type": "boolean" },
+    "account_linking_policy": {
+      "type": "string",
+      "enum": ["NONE", "VERIFIED_EMAIL_EXPLICIT"]
+    },
+    "role_mapping_json": { "type": "object", "additionalProperties": true },
+    "config_json": { "type": "object", "additionalProperties": true },
+    "created_at": { "type": ["string", "null"], "format": "date-time" },
+    "updated_at": { "type": ["string", "null"], "format": "date-time" }
+  }
+}

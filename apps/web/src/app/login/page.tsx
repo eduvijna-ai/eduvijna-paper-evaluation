@@ -36,6 +36,15 @@ const credentialsSchema = z.object({
   password: z.string().min(1, "Password is required"),
 });
 
+const SSO_ERROR_COPY: Record<string, string> = {
+  provider_not_configured: "Enterprise sign-in is not configured for this institution.",
+  sso_rejected: "Enterprise authentication was rejected.",
+  replay_detected: "That sign-in request was already used.",
+  invalid_state: "The sign-in session expired. Try again.",
+  user_inactive: "This account is deactivated.",
+  identity_unlinked: "This identity is not linked to an EduVijna account.",
+};
+
 type Credentials = z.infer<typeof credentialsSchema>;
 
 export default function LoginPage() {
@@ -43,6 +52,11 @@ export default function LoginPage() {
   const [mode, setMode] = useState<"mock" | "hybrid">("mock");
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [tenantSlug, setTenantSlug] = useState("demo");
+  const [ssoProviders, setSsoProviders] = useState<
+    Array<{ id: string; name: string; protocol: string }>
+  >([]);
+  const [ssoBusy, setSsoBusy] = useState(false);
 
   const {
     register,
@@ -83,6 +97,34 @@ export default function LoginPage() {
       }
       setSubmitting(false);
     }
+  }
+
+  async function discoverEnterprise() {
+    setFormError(null);
+    setSsoBusy(true);
+    try {
+      const result = await api.listPublicSsoProviders!(tenantSlug.trim() || "demo");
+      setSsoProviders(result.items);
+      if (result.items.length === 0) {
+        setFormError(SSO_ERROR_COPY.provider_not_configured);
+      }
+    } catch (err) {
+      setSsoProviders([]);
+      setFormError(
+        isApiError(err) ? err.userMessage() : SSO_ERROR_COPY.provider_not_configured,
+      );
+    } finally {
+      setSsoBusy(false);
+    }
+  }
+
+  function startEnterprise(providerId: string, protocol: string) {
+    const slug = encodeURIComponent(tenantSlug.trim() || "demo");
+    const path =
+      protocol === "SAML"
+        ? `/api/v1/sso/saml/start?tenant_slug=${slug}&provider_id=${providerId}`
+        : `/api/v1/sso/oidc/start?tenant_slug=${slug}&provider_id=${providerId}`;
+    window.location.assign(path);
   }
 
   const showDemo = mode === "mock";
@@ -175,6 +217,39 @@ export default function LoginPage() {
             >
               {submitting ? "Signing in…" : "Sign in"}
             </button>
+            <div className="border-t border-slate-700 pt-4">
+              <label className="block text-sm">
+                <span className="font-medium text-slate-200">Institution slug</span>
+                <input
+                  data-testid="login-tenant-slug"
+                  value={tenantSlug}
+                  onChange={(event) => setTenantSlug(event.target.value)}
+                  className="mt-1 w-full rounded-md border border-slate-600 bg-slate-950 px-3 py-2 text-white"
+                />
+              </label>
+              <button
+                type="button"
+                data-testid="login-enterprise-discover"
+                disabled={ssoBusy}
+                onClick={() => void discoverEnterprise()}
+                className="mt-3 w-full rounded-md border border-teal-700 px-3 py-2 text-sm font-medium text-teal-200 hover:bg-teal-950 disabled:opacity-60"
+              >
+                {ssoBusy ? "Looking up…" : "Enterprise SSO"}
+              </button>
+              <div data-testid="login-enterprise-providers" className="mt-3 space-y-2">
+                {ssoProviders.map((provider) => (
+                  <button
+                    key={provider.id}
+                    type="button"
+                    data-testid={`login-sso-${provider.protocol.toLowerCase()}`}
+                    onClick={() => startEnterprise(provider.id, provider.protocol)}
+                    className="w-full rounded-md bg-slate-800 px-3 py-2 text-left text-sm text-white"
+                  >
+                    Continue with {provider.name}
+                  </button>
+                ))}
+              </div>
+            </div>
           </form>
         )}
 

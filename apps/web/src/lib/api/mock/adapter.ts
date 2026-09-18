@@ -907,6 +907,168 @@ export const MockEduVijnaApi: ApiClient = {
   async exportOutcomeAttainmentReportCsv(reportId) {
     return mockCall(() => exportOutcomeAttainmentReportCsv(reportId));
   },
+  async listIdentityProviders() {
+    return mockCall(() => ({
+      items: [
+        {
+          id: "idp-demo-oidc",
+          name: "Demo OIDC",
+          protocol: "OIDC",
+          enabled: true,
+          status: "ACTIVE",
+          issuer: "https://idp.example",
+          client_id: "demo",
+          authorization_endpoint: null,
+          token_endpoint: null,
+          jwks_uri: null,
+          metadata_url: null,
+          entity_id: null,
+          sso_url: null,
+          jit_enabled: false,
+          account_linking_policy: "NONE",
+          role_mapping_json: {},
+          config_json: {},
+          created_at: null,
+          updated_at: null,
+        },
+      ],
+    }));
+  },
+  async createIdentityProvider(input) {
+    return mockCall(() => ({
+      id: "idp-created",
+      name: String(input.name ?? "New"),
+      protocol: String(input.protocol ?? "OIDC"),
+      enabled: true,
+      status: "ACTIVE",
+      issuer: null,
+      client_id: null,
+      authorization_endpoint: null,
+      token_endpoint: null,
+      jwks_uri: null,
+      metadata_url: null,
+      entity_id: null,
+      sso_url: null,
+      jit_enabled: false,
+      account_linking_policy: "NONE",
+      role_mapping_json: {},
+      config_json: {},
+      created_at: null,
+      updated_at: null,
+    }));
+  },
+  async listPublicSsoProviders() {
+    return mockCall(() => ({
+      items: [{ id: "idp-demo-oidc", name: "Demo OIDC", protocol: "OIDC" }],
+    }));
+  },
+  async exchangeSsoCode() {
+    return mockCall(() => this.login("admin@demo.eduvijna.local", "DemoAdmin!2026"));
+  },
+  async listLtiPlatforms() {
+    return mockCall(() => ({
+      items: [
+        {
+          id: "lti-demo",
+          name: "Demo LMS",
+          issuer: "https://lms.example",
+          client_id: "lti",
+          deployment_id: "d1",
+          auth_login_url: "https://lms.example/auth",
+          token_url: "https://lms.example/token",
+          jwks_url: "https://lms.example/jwks",
+          enabled: true,
+          role_mapping_json: {},
+          tool_public_jwks_json: { keys: [] },
+          created_at: null,
+          updated_at: null,
+        },
+      ],
+    }));
+  },
+  async listIntegrationCredentials() {
+    return mockCall(() => ({ items: [] }));
+  },
+  async createIntegrationCredential(input) {
+    return mockCall(() => ({
+      credential: {
+        id: "cred-1",
+        name: input.name,
+        key_prefix: "ev_demo",
+        scopes: input.scopes,
+        enabled: true,
+        expires_at: null,
+        last_used_at: null,
+        revoked_at: null,
+        created_at: null,
+      },
+      secret: "one-time-mock-secret",
+    }));
+  },
+  async rotateIntegrationCredential(id) {
+    return mockCall(() => ({
+      credential: {
+        id,
+        name: "rotated",
+        key_prefix: "ev_rot",
+        scopes: ["roster:read"],
+        enabled: true,
+        expires_at: null,
+        last_used_at: null,
+        revoked_at: null,
+        created_at: null,
+      },
+      secret: "rotated-mock-secret",
+    }));
+  },
+  async revokeIntegrationCredential(id) {
+    return mockCall(() => ({
+      id,
+      name: "revoked",
+      key_prefix: "ev_rev",
+      scopes: [],
+      enabled: false,
+      expires_at: null,
+      last_used_at: null,
+      revoked_at: new Date().toISOString(),
+      created_at: null,
+    }));
+  },
+  async listWebhookEndpoints() {
+    return mockCall(() => ({ items: [] }));
+  },
+  async createWebhookEndpoint(input) {
+    return mockCall(() => ({
+      endpoint: {
+        id: "wh-1",
+        name: input.name,
+        destination_url: input.destination_url,
+        event_types: input.event_types,
+        enabled: true,
+        created_at: null,
+        updated_at: null,
+      },
+      signing_secret: "mock-signing-secret",
+    }));
+  },
+  async listWebhookDeliveries() {
+    return mockCall(() => ({ items: [] }));
+  },
+  async retryWebhookDelivery(deliveryId) {
+    return mockCall(() => ({
+      id: deliveryId,
+      endpoint_id: "wh-1",
+      event_id: null,
+      status: "RETRYING",
+      attempt_count: 1,
+      next_attempt_at: null,
+      terminal_failure: false,
+      created_at: null,
+    }));
+  },
+  async listGradePassbacks() {
+    return mockCall(() => ({ items: [] }));
+  },
 };
 
 /** @deprecated Prefer MockEduVijnaApi */

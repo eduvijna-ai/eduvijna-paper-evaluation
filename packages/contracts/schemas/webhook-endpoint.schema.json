@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/webhook-endpoint.schema.json",
+  "title": "WebhookEndpoint",
+  "description": "B19 outbound webhook endpoint configuration (PEV-055).",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["id", "name", "destination_url", "enabled"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "name": { "type": "string" },
+    "destination_url": { "type": "string" },
+    "event_types": { "type": "array", "items": { "type": "string" } },
+    "event_types_json": { "type": "array", "items": { "type": "string" } },
+    "enabled": { "type": "boolean" },
+    "created_at": { "type": ["string", "null"], "format": "date-time" },
+    "updated_at": { "type": ["string", "null"], "format": "date-time" }
+  }
+}

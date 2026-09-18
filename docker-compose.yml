@@ -32,7 +32,7 @@ services:
     restart: unless-stopped
 
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-eduvijna_minio}
@@ -63,6 +63,13 @@ services:
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       AUTH_TOKEN_SECRET: ${AUTH_TOKEN_SECRET:-eduvijna_local_jwt_dev_only_change_me}
       AUTH_TOKEN_TTL_MINUTES: ${AUTH_TOKEN_TTL_MINUTES:-60}
+      B19_TEST_PROVIDERS_ENABLED: ${B19_TEST_PROVIDERS_ENABLED:-false}
+      WEBHOOK_ALLOW_INSECURE_DESTINATIONS: ${WEBHOOK_ALLOW_INSECURE_DESTINATIONS:-false}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://127.0.0.1:18000}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://127.0.0.1:3000}
+      B19_TEST_INTERNAL_BASE_URL: ${B19_TEST_INTERNAL_BASE_URL:-http://127.0.0.1:8000}
+      B19_TEST_WEBHOOK_SIGNING_SECRET: ${B19_TEST_WEBHOOK_SIGNING_SECRET:-b19-deterministic-webhook-secret}
+      INTEGRATION_SECRET_ENCRYPTION_KEY: ${INTEGRATION_SECRET_ENCRYPTION_KEY:-}
       AUTH_ALGORITHM: ${AUTH_ALGORITHM:-HS256}
       STUDENT_IMPORT_MAX_BYTES: ${STUDENT_IMPORT_MAX_BYTES:-2000000}
       STUDENT_IMPORT_MAX_ROWS: ${STUDENT_IMPORT_MAX_ROWS:-5000}
@@ -115,7 +122,7 @@ services:
   worker:
     build:
       context: ./apps/api
-    command: celery -A app.tasks.celery_app.celery_app worker --loglevel=INFO --concurrency=1
+    command: celery -A app.tasks.celery_app.celery_app worker --beat --loglevel=INFO --concurrency=1
     env_file:
       - path: .env
         required: false
@@ -126,6 +133,11 @@ services:
       GIT_SHA: ${GIT_SHA:-local-dev}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       AUTH_TOKEN_SECRET: ${AUTH_TOKEN_SECRET:-eduvijna_local_jwt_dev_only_change_me}
+      B19_TEST_PROVIDERS_ENABLED: ${B19_TEST_PROVIDERS_ENABLED:-false}
+      WEBHOOK_ALLOW_INSECURE_DESTINATIONS: ${WEBHOOK_ALLOW_INSECURE_DESTINATIONS:-false}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-http://127.0.0.1:18000}
+      B19_TEST_WEBHOOK_SIGNING_SECRET: ${B19_TEST_WEBHOOK_SIGNING_SECRET:-b19-deterministic-webhook-secret}
+      INTEGRATION_SECRET_ENCRYPTION_KEY: ${INTEGRATION_SECRET_ENCRYPTION_KEY:-}
       # In-container service DNS — do not interpolate host .env (127.0.0.1 publish ports).
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-eduvijna}:${POSTGRES_PASSWORD:-eduvijna_local_dev_only}@postgres:5432/${POSTGRES_DB:-eduvijna}
       REDIS_URL: redis://redis:6379/0
