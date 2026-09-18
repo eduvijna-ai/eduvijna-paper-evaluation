@@ -13,6 +13,16 @@ function runId(): string {
   return `${Date.now().toString(36)}${randomUUID().replace(/-/g, "").slice(0, 8)}`;
 }
 
+function detailCode(body: unknown): string | undefined {
+  const b = body as {
+    detail?: { code?: string } | string;
+    error?: { code?: string; details?: { code?: string } };
+  };
+  if (typeof b.detail === "object" && b.detail?.code) return b.detail.code;
+  if (b.error?.code) return b.error.code;
+  return b.error?.details?.code;
+}
+
 function apiBaseUrl(): string {
   return (
     process.env.E2E_API_BASE_URL ??
@@ -581,8 +591,7 @@ test.describe("B20 real multi-subject and multilingual", () => {
       { headers: { Authorization: `Bearer ${token}` } },
     );
     expect(prepare.status()).toBe(409);
-    const prepareBody = (await prepare.json()) as { detail?: { code?: string } };
-    expect(prepareBody.detail?.code).toBe("LANGUAGE_UNSUPPORTED");
+    expect(detailCode(await prepare.json())).toBe("LANGUAGE_UNSUPPORTED");
   });
 
   test("Path F — another tenant cannot access subject/language metadata", async ({

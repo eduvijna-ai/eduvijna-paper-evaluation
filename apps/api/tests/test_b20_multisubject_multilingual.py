@@ -50,7 +50,7 @@ from tests.test_b4_answer_region_mapping import _add_leaf, _ensure_student
 from tests.test_b5_ai_structure_transcription import api_client_fixed
 from tests.test_b6_evaluation_ledger import _ready_assessment, _to_ready_for_evaluation
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 API_ROOT = REPO_ROOT / "apps" / "api"
 
 
@@ -584,7 +584,7 @@ async def test_b20_mathematics_and_human_confirmation_remain() -> None:
         assert ws.status_code == 200
         # Human confirmation of transcription already happened in helper; ledger still proposals.
         body = ws.json()
-        assert body["submission"]["workflow_state"] in {
+        assert body["workflow_state"] in {
             "EVALUATION_REVIEW",
             "READY_FOR_EVALUATION",
             "EVALUATING",
