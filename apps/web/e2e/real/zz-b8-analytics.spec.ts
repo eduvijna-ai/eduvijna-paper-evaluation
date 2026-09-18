@@ -383,21 +383,49 @@ async function publishOne(
       timeout: 30_000,
     });
   }
-  const buttons = page.getByTestId("confirm-transcription");
-  const total = await buttons.count();
-  expect(total).toBeGreaterThan(0);
-  for (let i = 0; i < total; i += 1) {
-    const btn = buttons.nth(i);
-    if (await btn.isDisabled()) continue;
-    await btn.scrollIntoViewIfNeeded();
-    await expect(btn).toBeEnabled({ timeout: 30_000 });
-    await btn.click({ timeout: 30_000 });
-    await expect(btn).toBeDisabled({ timeout: 30_000 });
-  }
-  await expect(page.locator('[data-testid="confirm-transcription"]:not([disabled])')).toHaveCount(
-    0,
-    { timeout: 30_000 },
-  );
+  await expect
+    .poll(
+      async () => {
+        const buttons = page.getByTestId("confirm-transcription");
+        const total = await buttons.count();
+        for (let i = 0; i < total; i += 1) {
+          const btn = buttons.nth(i);
+          if (await btn.isEnabled()) {
+            await btn.scrollIntoViewIfNeeded();
+            await btn.click({ timeout: 30_000 });
+            await expect(btn).toBeDisabled({ timeout: 30_000 });
+          }
+        }
+        const prep = await request.post(
+          `${apiBase}/api/v1/submissions/${submissionId}/transcription/prepare`,
+          { headers },
+        );
+        if (![200, 409].includes(prep.status())) return `prep:${prep.status()}`;
+        const ws = await request.get(
+          `${apiBase}/api/v1/submissions/${submissionId}/transcription`,
+          { headers },
+        );
+        if (!ws.ok()) return `ws:${ws.status()}`;
+        const body = (await ws.json()) as {
+          items?: Array<{
+            regions?: Array<{
+              requires_transcription?: boolean;
+              active_transcription?: { status?: string } | null;
+            }>;
+          }>;
+        };
+        const pending = (body.items ?? []).flatMap((item) =>
+          (item.regions ?? []).filter(
+            (region) =>
+              region.requires_transcription &&
+              region.active_transcription?.status !== "CONFIRMED",
+          ),
+        );
+        return pending.length === 0 ? "confirmed" : `pending:${pending.length}`;
+      },
+      { timeout: 120_000 },
+    )
+    .toBe("confirmed");
 
   await expect(page.getByTestId("finalize-transcription")).toBeEnabled({
     timeout: 30_000,

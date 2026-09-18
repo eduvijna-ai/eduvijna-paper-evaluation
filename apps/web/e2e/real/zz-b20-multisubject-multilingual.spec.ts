@@ -906,6 +906,19 @@ test.describe("B20 real multi-subject and multilingual", () => {
       },
     );
     expect(detected.ok(), await detected.text()).toBeTruthy();
+    await waitUntil(
+      async () =>
+        (
+          await (
+            await request.get(`${apiBase}/api/v1/submissions/${submissionId}`, {
+              headers: { Authorization: `Bearer ${adminToken}` },
+            })
+          ).json()
+        ).workflow_state as string,
+      (state) => state === "IDENTITY_REVIEW",
+      120_000,
+      "reviewer submission identity review",
+    );
 
     const evalToken = await loginApi(
       request,
