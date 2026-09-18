@@ -493,11 +493,38 @@ export const MockEduVijnaApi: ApiClient = {
     return delay(submission);
   },
   async uploadSubmission(input) {
-    void input;
-    // B0 demo upload UI does not call this — it navigates to sub-demo-002 directly.
     const demo = submissions.find((s) => s.id === "sub-demo-002") ?? submissions[0];
     if (!demo) throw new Error("No demo submissions available");
+    if (input.languageCode) {
+      demo.language_code = input.languageCode;
+      demo.script_code = input.scriptCode ?? null;
+      demo.language_source = "PROVIDED";
+      demo.language_state =
+        input.languageCode === "ja" ? "UNSUPPORTED" : "CONFIRMED";
+      demo.automation_block_code =
+        input.languageCode === "ja" ? "LANGUAGE_UNSUPPORTED" : null;
+    }
     return delay({ ...demo });
+  },
+  async putSubmissionLanguage(submissionId, input) {
+    const submission = submissions.find((s) => s.id === submissionId);
+    if (!submission) throw new Error(`Submission not found: ${submissionId}`);
+    submission.language_code = input.language_code;
+    submission.script_code = input.script_code ?? null;
+    submission.language_source = input.source ?? "PROVIDED";
+    submission.language_state =
+      input.language_code === "ja"
+        ? "UNSUPPORTED"
+        : input.confirm === false
+          ? "REVIEW_REQUIRED"
+          : "CONFIRMED";
+    submission.automation_block_code =
+      submission.language_state === "UNSUPPORTED"
+        ? "LANGUAGE_UNSUPPORTED"
+        : submission.language_state === "REVIEW_REQUIRED"
+          ? "LANGUAGE_REVIEW_REQUIRED"
+          : null;
+    return delay({ ...submission });
   },
   async getSubmissionPageImageBlob(pageId) {
     void pageId;

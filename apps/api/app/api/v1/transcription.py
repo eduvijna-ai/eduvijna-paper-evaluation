@@ -25,6 +25,7 @@ from app.services.transcription import (
     finalize_transcription,
     put_manual_transcription,
 )
+from app.services.understanding_context import load_understanding_context
 from app.tasks.celery_app import enqueue_transcription
 
 router = APIRouter(tags=["transcription"])
@@ -78,6 +79,16 @@ async def prepare_transcription(
     except TranscriptionError as exc:
         raise _http_error(409, exc.code, exc.message) from exc
     await db.commit()
+    context = await load_understanding_context(
+        db, tenant_id=auth.tenant_id, submission=item
+    )
+    block = context.automation_block_code()
+    if block:
+        raise _http_error(
+            409,
+            block,
+            "Automated transcription is blocked until language/subject context is governed",
+        )
     if job is not None and job.status == "QUEUED":
         task_id = await enqueue_transcription(
             tenant_id=auth.tenant_id,

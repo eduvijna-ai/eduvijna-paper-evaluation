@@ -2,7 +2,7 @@
 
 **Product:** EduVijna Paper Evaluation (CVB v0.1)  
 **Package:** `apps/api/app/ai/` (runtime); architecture stub under `ai/`  
-**Last updated:** 2026-09-09  
+**Last updated:** 2026-09-18  
 **Related:** [ADR-007](adrs/ADR-007-ai-provider-abstraction.md), [EVALUATION_LEDGER.md](./EVALUATION_LEDGER.md), [SECURITY_BASELINE.md](./SECURITY_BASELINE.md)
 
 ---
@@ -40,10 +40,20 @@ Every invocation produces an **`AiExecutionRecord`** in PostgreSQL for traceabil
 
 Each B5 operation defines typed Pydantic models in `apps/api/app/ai/types.py`.
 
-### Deferred (enterprise / post-CVB)
+### Implemented in B20 (multi-subject & multilingual understanding — PEV-056 / PEV-057 / APP-017 / Issue #107)
 
-* Multi-subject structure providers beyond Mathematics (PEV-056)
-* Multilingual handwriting (PEV-057)
+Formal release state remains **FUTURE_ENTERPRISE**. B20 implements the understanding-layer expansion without a second grading pipeline.
+
+* Canonical subject remains `Assessment.subject_node_id` (CurriculumNode projection). No independent Subject table.
+* Bounded subject profiles: `MATHEMATICS`, `PHYSICS`, `CHEMISTRY`, `STATISTICS`, `ACCOUNTING`, `STRUCTURED_DESCRIPTIVE`, plus `UNSPECIFIED` (legacy unmapped) and `UNSUPPORTED` (fail-closed). Unknown metadata never silently becomes Mathematics.
+* `verify_math` / SymPy remains Mathematics-compatible only (`MATHEMATICS` and legacy `UNSPECIFIED`). Physics/Chemistry/descriptive/accounting/statistics do not enter the Math-only verification path.
+* Submission language/script is persisted (BCP-47 / ISO-15924 subset). States: `UNKNOWN` | `CONFIRMED` | `REVIEW_REQUIRED` | `UNSUPPORTED`.
+* Original-language transcription is authoritative. Translation/transliteration is a derived artifact (`TranscriptionDerivedText`) linked to the exact original transcription version; it never overwrites `AnswerRegionTranscription.text`.
+* Typed requests (`TranscriptionInput`, `RubricEvaluationInput`) carry resolved subject profile, language, script, and derived-text provenance. Evaluation `transcription_text` remains original evidence.
+* Provider capability routing is a deterministic subject × language × script × operation matrix (`app/ai/capability.py`). Unsupported combinations fail closed with stable codes (`SUBJECT_PROFILE_UNSUPPORTED`, `LANGUAGE_UNSUPPORTED`, `SCRIPT_UNSUPPORTED`, `LANGUAGE_REVIEW_REQUIRED`, `LANGUAGE_CONTEXT_REQUIRED`).
+* `AiExecutionRecord` stores redacted routing metadata (profile/language/script/operation/provider/model) — never raw answer-sheet content.
+* Fixed/local provider covers B20 fixtures (Mathematics, Physics, Chemistry, descriptive/accounting/statistics, Hindi+Devanagari with translation/transliteration, unsupported language/script). Mandatory CI remains credential-free.
+* B15 isolated replay fixtures may carry B20 context. Regression still cannot mutate ledger, publication, review, mastery, or learning evidence.
 
 ### Implemented in B15 (gold benchmark / AI regression — PEV-058 / PEV-059)
 
@@ -134,25 +144,27 @@ class RegionMappingResult:
 ### 3.4 `transcribe_answer`
 
 **Stage:** Structure — transcription  
-**Input:** Cropped answer region S3 ref, question type (math/text)  
+**Input:** Cropped answer region S3 ref, question type, **resolved subject profile, language code, script code, language state**  
 **Output:**
 
 ```python
-@dataclass
 class TranscriptionResult:
-    text: str
+    text: str                    # original-language text only
     latex: str | None
-    segments: list[TranscriptionSegment]  # step-indexed
+    segments: list[TranscriptionSegment]
     transcription_confidence: Decimal
-    unreadable: bool  # triggers UNREADABLE taxonomy, not auto-wrong
+    unreadable: bool
+    derived_texts: list[DerivedTextProposal]  # translation/transliteration; never replaces text
 ```
+
+Capability check (`transcribe_answer` × subject × language × script) runs before the provider. Unsupported combinations fail closed and do not invoke a generic Math/English fallback.
 
 ---
 
 ### 3.5 `evaluate_rubric`
 
 **Stage:** Evaluation — rubric application  
-**Input:** Frozen `RubricVersion`, `AnswerKeyVersion`, transcription, rules-engine pre-checks  
+**Input:** Frozen `RubricVersion`, `AnswerKeyVersion`, **original** transcription text, optional derived-text provenance (`original_transcription_id`, `derived_text`, source/target language). Translated text is never presented as original evidence.  
 **Output:**
 
 ```python
@@ -188,7 +200,7 @@ class MathVerificationResult:
     failure_reason: str | None
 ```
 
-SymPy runs in-process — not delegated to LLM.
+SymPy runs in-process — not delegated to LLM. **B20:** invocation is gated by `math_verification_allowed(subject_profile)`. Non-Mathematics profiles never enter this path even if an expression-like string is present.
 
 ---
 

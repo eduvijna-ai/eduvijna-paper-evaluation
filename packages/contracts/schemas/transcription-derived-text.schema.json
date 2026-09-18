@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/transcription-derived-text.schema.json",
+  "title": "TranscriptionDerivedText",
+  "description": "B20 derived translation/transliteration linked to an exact original AnswerRegionTranscription. Never overwrites original text.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "source_transcription_id",
+    "kind",
+    "text",
+    "source_language_code",
+    "target_language_code",
+    "status"
+  ],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "source_transcription_id": { "type": "string", "format": "uuid" },
+    "kind": { "type": "string", "enum": ["TRANSLATION", "TRANSLITERATION"] },
+    "text": { "type": "string" },
+    "source_language_code": { "type": "string" },
+    "target_language_code": { "type": "string" },
+    "source_script_code": { "type": ["string", "null"] },
+    "target_script_code": { "type": ["string", "null"] },
+    "status": { "type": "string", "enum": ["ACTIVE", "SUPERSEDED"] }
+  }
+}

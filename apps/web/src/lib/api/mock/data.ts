@@ -78,12 +78,18 @@ export const INSTITUTION_ID = "inst-demo-001";
 export const CURRICULUM_ID = "curr-demo-001";
 export const ASSESSMENT_ID = "assess-demo-001";
 export const ASSESSMENT_ID_2 = "assess-demo-002";
+export const ASSESSMENT_ID_PHYSICS = "assess-b20-physics";
+export const ASSESSMENT_ID_DESCRIPTIVE = "assess-b20-descriptive";
 export const STUDENT_ID = "student-demo-001";
 export const STUDENT_ID_2 = "student-demo-002";
 export const STUDENT_ID_3 = "student-demo-003";
 export const SUBMISSION_ID = "sub-demo-001";
 export const SUBMISSION_ID_2 = "sub-demo-002";
 export const SUBMISSION_ID_3 = "sub-demo-003";
+export const SUBMISSION_ID_HINDI = "sub-b20-hindi";
+export const SUBMISSION_ID_PHYSICS = "sub-b20-physics";
+export const SUBMISSION_ID_UNSUPPORTED = "sub-b20-unsupported";
+export const SUBMISSION_ID_DESCRIPTIVE = "sub-b20-descriptive";
 export const CLASS_SECTION_ID = "class-demo-10a";
 
 /** Thrown when a mock lookup would otherwise substitute another person's data. */
@@ -171,6 +177,24 @@ export const curriculumNodes: CurriculumNode[] = [
     sort_order: 0,
   },
   {
+    id: "node-subject-physics",
+    curriculum_id: CURRICULUM_ID,
+    parent_id: "node-grade-10",
+    node_type: "SUBJECT",
+    code: "PHY",
+    title: "Physics",
+    sort_order: 1,
+  },
+  {
+    id: "node-subject-descriptive",
+    curriculum_id: CURRICULUM_ID,
+    parent_id: "node-grade-10",
+    node_type: "SUBJECT",
+    code: "DESC",
+    title: "History",
+    sort_order: 2,
+  },
+  {
     id: "node-ch-quad",
     curriculum_id: CURRICULUM_ID,
     parent_id: "node-subject-math",
@@ -234,6 +258,11 @@ export const assessments: Assessment[] = [
     curriculum_id: CURRICULUM_ID,
     created_at: "2026-08-01T08:00:00Z",
     updated_at: "2026-08-14T12:00:00Z",
+    subject_node_id: "node-subject-math",
+    subject_profile: "MATHEMATICS",
+    subject_node_code: "MATH",
+    subject_node_name: "Mathematics",
+    math_verification_eligible: true,
   },
   {
     id: ASSESSMENT_ID_2,
@@ -251,6 +280,55 @@ export const assessments: Assessment[] = [
     curriculum_id: CURRICULUM_ID,
     created_at: "2026-08-25T08:00:00Z",
     updated_at: "2026-08-28T12:00:00Z",
+    subject_node_id: "node-subject-math",
+    subject_profile: "MATHEMATICS",
+    subject_node_code: "MATH",
+    subject_node_name: "Mathematics",
+    math_verification_eligible: true,
+  },
+  {
+    id: ASSESSMENT_ID_PHYSICS,
+    tenant_id: TENANT_ID,
+    institution_id: INSTITUTION_ID,
+    title: "B20 Physics — Forces",
+    code: "PHY-B20-DEMO",
+    subject: "Physics",
+    grade: "10",
+    max_marks: 20,
+    workflow_state: "ACTIVE",
+    scheduled_at: null,
+    question_count: 1,
+    submission_count: 1,
+    curriculum_id: CURRICULUM_ID,
+    created_at: "2026-09-18T08:00:00Z",
+    updated_at: "2026-09-18T08:00:00Z",
+    subject_node_id: "node-subject-physics",
+    subject_profile: "PHYSICS",
+    subject_node_code: "PHY",
+    subject_node_name: "Physics",
+    math_verification_eligible: false,
+  },
+  {
+    id: ASSESSMENT_ID_DESCRIPTIVE,
+    tenant_id: TENANT_ID,
+    institution_id: INSTITUTION_ID,
+    title: "B20 History — Labour Relations",
+    code: "DESC-B20-DEMO",
+    subject: "History",
+    grade: "10",
+    max_marks: 20,
+    workflow_state: "ACTIVE",
+    scheduled_at: null,
+    question_count: 1,
+    submission_count: 1,
+    curriculum_id: CURRICULUM_ID,
+    created_at: "2026-09-18T08:00:00Z",
+    updated_at: "2026-09-18T08:00:00Z",
+    subject_node_id: "node-subject-descriptive",
+    subject_profile: "STRUCTURED_DESCRIPTIVE",
+    subject_node_code: "DESC",
+    subject_node_name: "History",
+    math_verification_eligible: false,
   },
 ];
 
@@ -517,6 +595,159 @@ export const submissions: Submission[] = [
     page_count: 2,
     uploaded_at: "2026-08-16T10:25:00Z",
     updated_at: "2026-08-16T10:50:00Z",
+  },
+  {
+    id: SUBMISSION_ID_HINDI,
+    tenant_id: TENANT_ID,
+    assessment_id: ASSESSMENT_ID,
+    assessment_title: "Mid-Term Mathematics — Demo Set A",
+    student_id: STUDENT_ID,
+    student_display_name: "Demo Student 001",
+    roll_number_detected: "DEMO-001",
+    name_detected: "Demo Student 001",
+    workflow_state: "READY_FOR_EVALUATION",
+    student_match_state: "CONFIRMED",
+    identity_confidence: 0.94,
+    mapping_confidence: 0.9,
+    transcription_state: "REVIEW_REQUIRED",
+    page_count: 2,
+    uploaded_at: "2026-09-18T10:00:00Z",
+    updated_at: "2026-09-18T10:20:00Z",
+    language_code: "hi",
+    script_code: "Deva",
+    language_source: "PROVIDED",
+    language_confidence: null,
+    language_state: "CONFIRMED",
+    subject_context: {
+      subject_profile: "MATHEMATICS",
+      subject_node_id: "node-subject-math",
+      subject_node_code: "MATH",
+      subject_node_name: "Mathematics",
+      subject_profile_source: "CURRICULUM_NODE",
+      math_verification_eligible: true,
+    },
+    language_context: {
+      language_code: "hi",
+      script_code: "Deva",
+      language_source: "PROVIDED",
+      language_confidence: null,
+      language_state: "CONFIRMED",
+    },
+  },
+  {
+    id: SUBMISSION_ID_PHYSICS,
+    tenant_id: TENANT_ID,
+    assessment_id: ASSESSMENT_ID_PHYSICS,
+    assessment_title: "B20 Physics — Forces",
+    student_id: STUDENT_ID,
+    student_display_name: "Demo Student 001",
+    roll_number_detected: "DEMO-001",
+    name_detected: "Demo Student 001",
+    workflow_state: "READY_FOR_EVALUATION",
+    student_match_state: "CONFIRMED",
+    identity_confidence: 0.9,
+    mapping_confidence: 0.88,
+    transcription_state: "REVIEW_REQUIRED",
+    page_count: 2,
+    uploaded_at: "2026-09-18T10:00:00Z",
+    updated_at: "2026-09-18T10:20:00Z",
+    language_code: "en",
+    script_code: "Latn",
+    language_source: "PROVIDED",
+    language_confidence: null,
+    language_state: "CONFIRMED",
+    subject_context: {
+      subject_profile: "PHYSICS",
+      subject_node_id: "node-subject-physics",
+      subject_node_code: "PHY",
+      subject_node_name: "Physics",
+      subject_profile_source: "CURRICULUM_NODE",
+      math_verification_eligible: false,
+    },
+    language_context: {
+      language_code: "en",
+      script_code: "Latn",
+      language_source: "PROVIDED",
+      language_confidence: null,
+      language_state: "CONFIRMED",
+    },
+  },
+  {
+    id: SUBMISSION_ID_DESCRIPTIVE,
+    tenant_id: TENANT_ID,
+    assessment_id: ASSESSMENT_ID_DESCRIPTIVE,
+    assessment_title: "B20 History — Labour Relations",
+    student_id: STUDENT_ID,
+    student_display_name: "Demo Student 001",
+    roll_number_detected: "DEMO-001",
+    name_detected: "Demo Student 001",
+    workflow_state: "READY_FOR_EVALUATION",
+    student_match_state: "CONFIRMED",
+    identity_confidence: 0.9,
+    mapping_confidence: 0.88,
+    transcription_state: "REVIEW_REQUIRED",
+    page_count: 2,
+    uploaded_at: "2026-09-18T10:00:00Z",
+    updated_at: "2026-09-18T10:20:00Z",
+    language_code: "en",
+    script_code: "Latn",
+    language_source: "PROVIDED",
+    language_confidence: null,
+    language_state: "CONFIRMED",
+    subject_context: {
+      subject_profile: "STRUCTURED_DESCRIPTIVE",
+      subject_node_id: "node-subject-descriptive",
+      subject_node_code: "DESC",
+      subject_node_name: "History",
+      subject_profile_source: "CURRICULUM_NODE",
+      math_verification_eligible: false,
+    },
+    language_context: {
+      language_code: "en",
+      script_code: "Latn",
+      language_source: "PROVIDED",
+      language_confidence: null,
+      language_state: "CONFIRMED",
+    },
+  },
+  {
+    id: SUBMISSION_ID_UNSUPPORTED,
+    tenant_id: TENANT_ID,
+    assessment_id: ASSESSMENT_ID,
+    assessment_title: "Mid-Term Mathematics — Demo Set A",
+    student_id: STUDENT_ID,
+    student_display_name: "Demo Student 001",
+    roll_number_detected: "DEMO-001",
+    name_detected: "Demo Student 001",
+    workflow_state: "READY_FOR_EVALUATION",
+    student_match_state: "CONFIRMED",
+    identity_confidence: 0.9,
+    mapping_confidence: 0.88,
+    transcription_state: "REVIEW_REQUIRED",
+    page_count: 2,
+    uploaded_at: "2026-09-18T10:00:00Z",
+    updated_at: "2026-09-18T10:20:00Z",
+    language_code: "ja",
+    script_code: "Jpan",
+    language_source: "PROVIDED",
+    language_confidence: null,
+    language_state: "UNSUPPORTED",
+    automation_block_code: "LANGUAGE_UNSUPPORTED",
+    subject_context: {
+      subject_profile: "MATHEMATICS",
+      subject_node_id: "node-subject-math",
+      subject_node_code: "MATH",
+      subject_node_name: "Mathematics",
+      subject_profile_source: "CURRICULUM_NODE",
+      math_verification_eligible: true,
+    },
+    language_context: {
+      language_code: "ja",
+      script_code: "Jpan",
+      language_source: "PROVIDED",
+      language_confidence: null,
+      language_state: "UNSUPPORTED",
+    },
   },
 ];
 
@@ -792,6 +1023,80 @@ export function getTranscriptionWorkspace(
   if (!submission) {
     throw new MockNotFoundError("Submission not found");
   }
+
+  const hindiOriginal = "हिंदी में हल: क्षेत्रफल = लंबाई × चौड़ाई";
+  const hindiProposal = {
+    id: "tx-ai-hindi-1",
+    answer_region_id: "reg-2",
+    version_number: 1,
+    source_type: "AI" as const,
+    text: hindiOriginal,
+    latex: null,
+    transcription_confidence: 0.81,
+    unreadable: false,
+    visual_only: false,
+    status: "PROPOSED",
+    confirmed_by: null,
+    confirmed_at: null,
+    language_code: "hi",
+    script_code: "Deva",
+    language_source: "PROVIDED",
+    derived_texts: [
+      {
+        id: "tx-derived-tr-1",
+        source_transcription_id: "tx-ai-hindi-1",
+        kind: "TRANSLATION" as const,
+        text: "Solution in Hindi: area = length × width",
+        source_language_code: "hi",
+        target_language_code: "en",
+        source_script_code: "Deva",
+        target_script_code: "Latn",
+        status: "PROPOSED",
+      },
+      {
+        id: "tx-derived-tl-1",
+        source_transcription_id: "tx-ai-hindi-1",
+        kind: "TRANSLITERATION" as const,
+        text: "hindi mein hal: kshetrafal = lambai × chaudaai",
+        source_language_code: "hi",
+        target_language_code: "hi-Latn",
+        source_script_code: "Deva",
+        target_script_code: "Latn",
+        status: "PROPOSED",
+      },
+    ],
+  };
+
+  const physicsProposal = {
+    id: "tx-ai-physics-1",
+    answer_region_id: "reg-2",
+    version_number: 1,
+    source_type: "AI" as const,
+    text: "Newton second law: net force equals mass times acceleration.",
+    latex: null,
+    transcription_confidence: 0.76,
+    unreadable: false,
+    visual_only: false,
+    status: "PROPOSED",
+    confirmed_by: null,
+    confirmed_at: null,
+  };
+
+  const descriptiveProposal = {
+    id: "tx-ai-desc-1",
+    answer_region_id: "reg-2",
+    version_number: 1,
+    source_type: "AI" as const,
+    text: "The passage explains how urban labour relations changed during industrial expansion.",
+    latex: null,
+    transcription_confidence: 0.74,
+    unreadable: false,
+    visual_only: false,
+    status: "PROPOSED",
+    confirmed_by: null,
+    confirmed_at: null,
+  };
+
   const aiProposal = {
     id: "tx-ai-1",
     answer_region_id: "reg-2",
@@ -820,15 +1125,31 @@ export function getTranscriptionWorkspace(
     confirmed_by: "user-teacher-001",
     confirmed_at: "2026-08-16T11:00:00Z",
   };
+
+  const primaryProposal =
+    submissionId === SUBMISSION_ID_HINDI
+      ? hindiProposal
+      : submissionId === SUBMISSION_ID_PHYSICS
+        ? physicsProposal
+        : submissionId === SUBMISSION_ID_DESCRIPTIVE
+          ? descriptiveProposal
+          : aiProposal;
+
   return {
     submission_id: submission.id,
     workflow_state: submission.workflow_state,
     transcription_state: submission.transcription_state ?? "REVIEW_REQUIRED",
-    automated_transcription_active: true,
+    automated_transcription_active: submissionId !== SUBMISSION_ID_UNSUPPORTED,
+    automation_block_code: submission.automation_block_code ?? null,
+    subject_context: submission.subject_context,
+    language_context: submission.language_context,
     progress: {
-      reviewed: 1,
-      required: 2,
-      label: "1 of 2 evidence regions reviewed",
+      reviewed: submissionId === SUBMISSION_ID_UNSUPPORTED ? 0 : 1,
+      required: submissionId === SUBMISSION_ID_UNSUPPORTED ? 1 : 2,
+      label:
+        submissionId === SUBMISSION_ID_UNSUPPORTED
+          ? "0 of 1 evidence regions reviewed"
+          : "1 of 2 evidence regions reviewed",
     },
     items: [
       {
@@ -847,39 +1168,45 @@ export function getTranscriptionWorkspace(
             bbox: { x: 0.1, y: 0.2, width: 0.3, height: 0.15 },
             crop_url: null,
             page_index: 0,
-            latest_ai_proposal: aiProposal,
-            active_transcription: aiProposal,
+            latest_ai_proposal:
+              submissionId === SUBMISSION_ID_UNSUPPORTED ? null : primaryProposal,
+            active_transcription:
+              submissionId === SUBMISSION_ID_UNSUPPORTED ? null : primaryProposal,
             requires_transcription: true,
           },
         ],
       },
-      {
-        question_version_id: "q-2",
-        question_label: "Q2",
-        disposition: "ANSWERED",
-        mapping_state: "CONFIRMED",
-        requires_transcription: true,
-        regions: [
-          {
-            id: "reg-3",
-            label: "Q2 answer",
-            region_type: "ANSWER",
-            source_type: "HUMAN",
-            detection_confidence: 0.88,
-            bbox: { x: 0.15, y: 0.35, width: 0.35, height: 0.12 },
-            crop_url: null,
-            page_index: 0,
-            latest_ai_proposal: {
-              ...aiProposal,
-              id: "tx-ai-2",
-              answer_region_id: "reg-3",
-              text: "x = 5",
+      ...(submissionId === SUBMISSION_ID_UNSUPPORTED
+        ? []
+        : [
+            {
+              question_version_id: "q-2",
+              question_label: "Q2",
+              disposition: "ANSWERED" as const,
+              mapping_state: "CONFIRMED",
+              requires_transcription: true,
+              regions: [
+                {
+                  id: "reg-3",
+                  label: "Q2 answer",
+                  region_type: "ANSWER",
+                  source_type: "HUMAN",
+                  detection_confidence: 0.88,
+                  bbox: { x: 0.15, y: 0.35, width: 0.35, height: 0.12 },
+                  crop_url: null,
+                  page_index: 0,
+                  latest_ai_proposal: {
+                    ...aiProposal,
+                    id: "tx-ai-2",
+                    answer_region_id: "reg-3",
+                    text: "x = 5",
+                  },
+                  active_transcription: humanCorrected,
+                  requires_transcription: true,
+                },
+              ],
             },
-            active_transcription: humanCorrected,
-            requires_transcription: true,
-          },
-        ],
-      },
+          ]),
     ],
   };
 }
@@ -2282,6 +2609,10 @@ const B15_REPLAY_FIXTURE: Record<string, unknown> = {
   expected_max_marks: "5",
   expected_error_codes: ["ARITHMETIC_ERROR"],
   max_mark: "5",
+  subject_profile: "MATHEMATICS",
+  language_code: "en",
+  script_code: "Latn",
+  transcription_is_original: true,
 };
 
 let demoDatasets: BenchmarkDataset[] = [
@@ -2303,7 +2634,7 @@ let demoVersions: BenchmarkVersion[] = [
     version_number: 1,
     status: "DRAFT",
     threshold_profile_snapshot: { ...B15_DEFAULT_THRESHOLDS },
-    case_count: 0,
+    case_count: 2,
     content_hash: null,
     locked_by: null,
     locked_at: null,
@@ -2345,6 +2676,64 @@ let demoCases: BenchmarkCase[] = [
     adjudicated_by: "user-teacher-001",
     adjudicated_at: B15_AS_OF,
     replay_fixture: { ...B15_REPLAY_FIXTURE },
+    created_at: B15_AS_OF,
+    updated_at: B15_AS_OF,
+  },
+  {
+    id: "benchmark-case-b20-physics",
+    dataset_version_id: BENCHMARK_VERSION_DRAFT_ID,
+    published_result_id: BENCHMARK_PUBLISHED_RESULT_ID,
+    evaluation_run_id: BENCHMARK_EVAL_RUN_ID,
+    question_evaluation_id: `${BENCHMARK_QE_ID}-physics`,
+    question_version_id: BENCHMARK_QUESTION_VERSION_ID,
+    rubric_version_id: BENCHMARK_RUBRIC_VERSION_ID,
+    assessment_version_id: BENCHMARK_ASSESSMENT_VERSION_ID,
+    expected_final_marks: 4,
+    expected_max_marks: 5,
+    expected_error_codes: [],
+    source_ledger_hash: "d".repeat(64),
+    evidence_hash: "e".repeat(64),
+    adjudicated_by: "user-teacher-001",
+    adjudicated_at: B15_AS_OF,
+    replay_fixture: {
+      ...B15_REPLAY_FIXTURE,
+      subject_profile: "PHYSICS",
+      language_code: "en",
+      script_code: "Latn",
+      transcription_text: "Newton second law: net force equals mass times acceleration.",
+      transcription_is_original: true,
+    },
+    created_at: B15_AS_OF,
+    updated_at: B15_AS_OF,
+  },
+  {
+    id: "benchmark-case-b20-hindi",
+    dataset_version_id: BENCHMARK_VERSION_DRAFT_ID,
+    published_result_id: BENCHMARK_PUBLISHED_RESULT_ID,
+    evaluation_run_id: BENCHMARK_EVAL_RUN_ID,
+    question_evaluation_id: `${BENCHMARK_QE_ID}-hindi`,
+    question_version_id: BENCHMARK_QUESTION_VERSION_ID,
+    rubric_version_id: BENCHMARK_RUBRIC_VERSION_ID,
+    assessment_version_id: BENCHMARK_ASSESSMENT_VERSION_ID,
+    expected_final_marks: 4,
+    expected_max_marks: 5,
+    expected_error_codes: [],
+    source_ledger_hash: "f".repeat(64),
+    evidence_hash: "g".repeat(64),
+    adjudicated_by: "user-teacher-001",
+    adjudicated_at: B15_AS_OF,
+    replay_fixture: {
+      ...B15_REPLAY_FIXTURE,
+      subject_profile: "MATHEMATICS",
+      language_code: "hi",
+      script_code: "Deva",
+      transcription_text: "हिंदी में हल: क्षेत्रफल = लंबाई × चौड़ाई",
+      transcription_is_original: true,
+      derived_text: "Solution in Hindi: area = length × width",
+      derived_text_kind: "TRANSLATION",
+      derived_source_language_code: "hi",
+      derived_target_language_code: "en",
+    },
     created_at: B15_AS_OF,
     updated_at: B15_AS_OF,
   },

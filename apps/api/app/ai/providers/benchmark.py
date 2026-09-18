@@ -204,6 +204,16 @@ def replay_fixture_to_rubric_input(
         unreadable_flag=bool(replay_fixture.get("unreadable_flag")),
         math_verification_summary=replay_fixture.get("math_verification_summary"),
         max_mark=max_mark,
+        subject_profile=replay_fixture.get("subject_profile"),
+        language_code=replay_fixture.get("language_code"),
+        script_code=replay_fixture.get("script_code"),
+        transcription_is_original=bool(
+            replay_fixture.get("transcription_is_original", True)
+        ),
+        derived_text=replay_fixture.get("derived_text"),
+        derived_text_kind=replay_fixture.get("derived_text_kind"),
+        derived_source_language_code=replay_fixture.get("derived_source_language_code"),
+        derived_target_language_code=replay_fixture.get("derived_target_language_code"),
     )
 
 

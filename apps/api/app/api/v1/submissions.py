@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import uuid
+from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Annotated, Any
@@ -28,7 +29,16 @@ from app.db.models import (
 )
 from app.db.session import get_db_session
 from app.services.audit import add_audit_event
+from app.services.language_context import (
+    ERROR_LANGUAGE_REVIEW_REQUIRED,
+    LANGUAGE_STATE_REVIEW_REQUIRED,
+    LanguageContextError,
+    apply_decision_to_submission,
+    decide_detected_language,
+    decide_provided_language,
+)
 from app.services.storage import ObjectStorage, StorageImmutabilityError, raw_object_key
+from app.services.understanding_context import load_understanding_context
 from app.services.upload_scanner import get_upload_scanner
 from app.services.upload_validation import validate_and_buffer_upload
 from app.tasks import enqueue_mapping_preparation, enqueue_page_normalization
@@ -39,6 +49,15 @@ Db = Annotated[AsyncSession, Depends(get_db_session)]
 
 class IdentityConfirmIn(BaseModel):
     student_id: uuid.UUID
+
+
+class SubmissionLanguageIn(BaseModel):
+    language_code: str | None = None
+    script_code: str | None = None
+    confirm: bool = True
+    source: str = "PROVIDED"
+    confidence: Decimal | None = None
+    ambiguous: bool = False
 
 
 def _http_error(status: int, code: str, message: str) -> HTTPException:
@@ -84,6 +103,13 @@ def _dump_submission(
         "identity_confidence": float(item.identity_confidence),
         "mapping_confidence": float(item.mapping_confidence),
         "transcription_state": item.transcription_state,
+        "language_code": item.language_code,
+        "script_code": item.script_code,
+        "language_source": item.language_source,
+        "language_confidence": (
+            float(item.language_confidence) if item.language_confidence is not None else None
+        ),
+        "language_state": item.language_state,
         "source_storage_key": item.source_storage_key,
         "source_content_sha256": item.source_content_sha256,
         "original_filename": item.original_filename,
@@ -164,6 +190,8 @@ async def upload_submission(
     file: Annotated[UploadFile, File()],
     auth: AuthContext = Depends(require_permissions("submission:upload")),
     bundle_name: Annotated[str | None, Form()] = None,
+    language_code: Annotated[str | None, Form()] = None,
+    script_code: Annotated[str | None, Form()] = None,
 ) -> dict[str, Any]:
     settings = get_settings()
     assessment = await db.scalar(
@@ -219,6 +247,14 @@ async def upload_submission(
             "An identical source file already exists for this assessment",
         )
 
+    try:
+        language_decision = decide_provided_language(
+            language_code=language_code,
+            script_code=script_code,
+        )
+    except LanguageContextError as exc:
+        raise _http_error(422, exc.code, exc.message) from exc
+
     storage = ObjectStorage(settings)
     try:
         storage.ensure_bucket()
@@ -250,6 +286,7 @@ async def upload_submission(
         uploaded_by=auth.user_id,
         uploaded_at=now,
     )
+    apply_decision_to_submission(submission, language_decision)
     db.add(submission)
     try:
         await db.flush()
@@ -386,11 +423,18 @@ async def get_submission(
     auth: AuthContext = Depends(require_permissions("submission:read")),
 ) -> dict[str, Any]:
     item = await _scoped_submission(db, submission_id, auth.tenant_id)
-    return _dump_submission(
+    dump = _dump_submission(
         item,
         assessment_title=await _assessment_title(db, item.assessment_id),
         student_display_name=await _student_name(db, item.student_id),
     )
+    context = await load_understanding_context(
+        db, tenant_id=auth.tenant_id, submission=item
+    )
+    dump["subject_context"] = context.subject.as_public_dict()
+    dump["language_context"] = context.language.as_public_dict()
+    dump["automation_block_code"] = context.automation_block_code()
+    return dump
 
 
 @router.get("/submissions/{submission_id}/pages")
@@ -705,3 +749,57 @@ async def mark_identity_unmatched(
         assessment_title=await _assessment_title(db, item.assessment_id),
         student_display_name=None,
     )
+
+
+@router.put("/submissions/{submission_id}/language")
+async def put_submission_language(
+    submission_id: uuid.UUID,
+    payload: SubmissionLanguageIn,
+    db: Db,
+    auth: AuthContext = Depends(require_permissions("submission:upload")),
+) -> dict[str, Any]:
+    item = await _scoped_submission(db, submission_id, auth.tenant_id)
+    source = (payload.source or "PROVIDED").strip().upper()
+    try:
+        if source == "DETECTED":
+            decision = decide_detected_language(
+                language_code=payload.language_code,
+                script_code=payload.script_code,
+                confidence=payload.confidence,
+                ambiguous=payload.ambiguous,
+            )
+        else:
+            decision = decide_provided_language(
+                language_code=payload.language_code,
+                script_code=payload.script_code,
+            )
+            if payload.confirm is False and decision.language_state == "CONFIRMED":
+                decision = replace(
+                    decision,
+                    language_state=LANGUAGE_STATE_REVIEW_REQUIRED,
+                    gate_code=ERROR_LANGUAGE_REVIEW_REQUIRED,
+                )
+    except LanguageContextError as exc:
+        raise _http_error(422, exc.code, exc.message) from exc
+    apply_decision_to_submission(item, decision)
+    await _audit(
+        db,
+        auth,
+        item,
+        "language_updated",
+        decision.as_public_dict(),
+    )
+    await db.commit()
+    await db.refresh(item)
+    dump = _dump_submission(
+        item,
+        assessment_title=await _assessment_title(db, item.assessment_id),
+        student_display_name=await _student_name(db, item.student_id),
+    )
+    context = await load_understanding_context(
+        db, tenant_id=auth.tenant_id, submission=item
+    )
+    dump["subject_context"] = context.subject.as_public_dict()
+    dump["language_context"] = context.language.as_public_dict()
+    dump["automation_block_code"] = context.automation_block_code()
+    return dump

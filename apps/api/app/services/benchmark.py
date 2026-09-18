@@ -657,6 +657,23 @@ def _build_replay_fixture(
         "expected_max_marks": str(expected_max_marks),
         "expected_error_codes": expected_error_codes,
         "max_mark": str(qe.max_mark),
+        "subject_profile": (qe.evidence_metadata or {}).get("subject_profile"),
+        "language_code": (qe.evidence_metadata or {}).get("language_code"),
+        "script_code": (qe.evidence_metadata or {}).get("script_code"),
+        "transcription_is_original": (qe.evidence_metadata or {}).get(
+            "transcription_is_original", True
+        ),
+        "original_transcription_id": (qe.evidence_metadata or {}).get(
+            "original_transcription_id"
+        ),
+        "derived_text": (qe.evidence_metadata or {}).get("derived_text"),
+        "derived_text_kind": (qe.evidence_metadata or {}).get("derived_text_kind"),
+        "derived_source_language_code": (qe.evidence_metadata or {}).get(
+            "derived_source_language_code"
+        ),
+        "derived_target_language_code": (qe.evidence_metadata or {}).get(
+            "derived_target_language_code"
+        ),
     }
 
 

@@ -11,19 +11,69 @@ import { getApiCapabilities } from "@/lib/api/capabilities";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Button, Input, Select } from "@/components/ui/primitives";
 import { LoadingState } from "@/components/ui/FeedbackStates";
+import {
+  B20_LANGUAGE_OPTIONS,
+  B20_UNSUPPORTED_LANGUAGE_OPTION,
+} from "@/lib/b20/context";
 
 const mockSchema = z.object({
   assessmentId: z.string().min(1),
   bundleName: z.string().min(1),
+  languageCode: z.string().optional(),
+  scriptCode: z.string().optional(),
 });
 
 const liveSchema = z.object({
   assessmentId: z.string().min(1, "Select an active assessment"),
   bundleName: z.string().optional(),
+  languageCode: z.string().optional(),
+  scriptCode: z.string().optional(),
 });
 
 type MockFormValues = z.infer<typeof mockSchema>;
 type LiveFormValues = z.infer<typeof liveSchema>;
+
+function LanguageFields({
+  register,
+}: {
+  register: (name: "languageCode" | "scriptCode") => object;
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      <label className="block text-sm">
+        <span className="font-medium text-slate-800">Language</span>
+        <Select
+          data-testid="upload-language-code"
+          className="mt-1"
+          {...register("languageCode")}
+        >
+          <option value="">Omit (legacy default)</option>
+          {B20_LANGUAGE_OPTIONS.map((option) => (
+            <option key={option.language} value={option.language}>
+              {option.label}
+            </option>
+          ))}
+          <option value={B20_UNSUPPORTED_LANGUAGE_OPTION.language}>
+            {B20_UNSUPPORTED_LANGUAGE_OPTION.label}
+          </option>
+        </Select>
+      </label>
+      <label className="block text-sm">
+        <span className="font-medium text-slate-800">Script</span>
+        <Select
+          data-testid="upload-script-code"
+          className="mt-1"
+          {...register("scriptCode")}
+        >
+          <option value="">Omit (legacy default)</option>
+          <option value="Latn">Latn</option>
+          <option value="Deva">Deva</option>
+          <option value="Jpan">Jpan</option>
+        </Select>
+      </label>
+    </div>
+  );
+}
 
 function RawUnmarkedBanner() {
   return (
@@ -98,6 +148,7 @@ function MockUploadForm() {
           </span>
         )}
       </label>
+      <LanguageFields register={register} />
       <div className="rounded-md border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm text-slate-500">
         Drop zone placeholder — CVB uses synthetic fixtures, not PDF uploads.
       </div>
@@ -141,6 +192,8 @@ function LiveUploadForm() {
     defaultValues: {
       assessmentId: "",
       bundleName: "",
+      languageCode: "",
+      scriptCode: "",
     },
   });
 
@@ -176,6 +229,8 @@ function LiveUploadForm() {
           const created = await api.uploadSubmission({
             assessmentId: values.assessmentId,
             bundleName: values.bundleName,
+            languageCode: values.languageCode,
+            scriptCode: values.scriptCode,
             file,
           });
           router.push(`/submissions/${created.id}`);
@@ -213,6 +268,7 @@ function LiveUploadForm() {
           </span>
         )}
       </label>
+      <LanguageFields register={register} />
       <label className="block text-sm">
         <span className="font-medium text-slate-800">
           Bundle name <span className="font-normal text-slate-500">(optional)</span>

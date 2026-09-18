@@ -263,7 +263,18 @@ export interface ApiClient {
     assessmentId: string;
     bundleName?: string;
     file: File;
+    languageCode?: string;
+    scriptCode?: string;
   }): Promise<Submission>;
+  putSubmissionLanguage?(
+    submissionId: string,
+    input: {
+      language_code: string;
+      script_code?: string | null;
+      source?: "PROVIDED" | "DETECTED";
+      confirm?: boolean;
+    },
+  ): Promise<Submission>;
   /** B3 live page PNG. Optional — only wired in hybrid/live. */
   getSubmissionPageImageBlob?(pageId: string): Promise<Blob>;
   getIdentityReview(submissionId: string): Promise<IdentityReviewPayload>;

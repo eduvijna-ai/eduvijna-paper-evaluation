@@ -12,6 +12,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.capability import CapabilityUnsupported, require_provider_capability
 from app.ai.execution_metadata import metadata_from_provider
 from app.ai.registry import evaluation_provider_active, get_evaluation_provider
 from app.ai.tracing import (
@@ -23,6 +24,7 @@ from app.ai.tracing import (
 from app.ai.types import (
     ALL_ERROR_CODES,
     REVIEW_BLOCKING_ERROR_CODES,
+    MathVerificationResult,
     ProviderUnavailable,
     RubricCriterionSnapshot,
     RubricEvaluationInput,
@@ -43,6 +45,7 @@ from app.db.models import (
     RubricCriterion,
     RubricVersion,
     Submission,
+    TranscriptionDerivedText,
 )
 from app.services.audit import add_audit_event
 from app.services.grading_access import (
@@ -50,6 +53,8 @@ from app.services.grading_access import (
     assert_question_evaluation_review_allowed,
 )
 from app.services.math_verification import verify_math
+from app.services.subject_profile import math_verification_allowed
+from app.services.understanding_context import load_understanding_context
 
 RULES_ENGINE_VERSION = "b6.0.0"
 
@@ -246,6 +251,15 @@ async def prepare_evaluation(
         raise EvaluationError(
             "TRANSCRIPTION_NOT_READY",
             "Transcription must be READY before evaluation",
+        )
+    context = await load_understanding_context(
+        db, tenant_id=tenant_id, submission=submission
+    )
+    block_code = context.automation_block_code()
+    if block_code:
+        raise EvaluationError(
+            block_code,
+            "Automated evaluation is blocked until language/subject context is governed",
         )
 
     active = await _active_run(db, tenant_id=tenant_id, submission_id=submission.id)
@@ -453,6 +467,23 @@ async def _load_transcription_evidence(
             active = versions[0]
         if active is None:
             continue
+        if active.unreadable:
+            unreadable = True
+        if active.text:
+            texts.append(active.text)
+        if active.transcription_confidence is not None:
+            confidences.append(active.transcription_confidence)
+        derived_rows = list(
+            (
+                await db.scalars(
+                    select(TranscriptionDerivedText).where(
+                        TranscriptionDerivedText.tenant_id == tenant_id,
+                        TranscriptionDerivedText.source_transcription_id == active.id,
+                        TranscriptionDerivedText.status == "ACTIVE",
+                    )
+                )
+            ).all()
+        )
         refs.append(
             {
                 "transcription_id": str(active.id),
@@ -460,14 +491,21 @@ async def _load_transcription_evidence(
                 "status": active.status,
                 "unreadable": active.unreadable,
                 "visual_only": active.visual_only,
+                "is_original": True,
+                "language_code": active.language_code,
+                "script_code": active.script_code,
+                "derived_texts": [
+                    {
+                        "id": str(d.id),
+                        "kind": d.kind,
+                        "source_transcription_id": str(d.source_transcription_id),
+                        "source_language_code": d.source_language_code,
+                        "target_language_code": d.target_language_code,
+                    }
+                    for d in derived_rows
+                ],
             }
         )
-        if active.unreadable:
-            unreadable = True
-        if active.text:
-            texts.append(active.text)
-        if active.transcription_confidence is not None:
-            confidences.append(active.transcription_confidence)
 
     joined = "\n".join(texts)
     min_conf = min(confidences) if confidences else None
@@ -573,6 +611,38 @@ async def _evaluate_one_leaf(
     region_ids, tx_refs, tx_text, unreadable, tx_conf = await _load_transcription_evidence(
         db, tenant_id=tenant_id, mapping=mapping
     )
+    context = await load_understanding_context(
+        db, tenant_id=tenant_id, submission=submission
+    )
+    original_tx_id = None
+    derived_text = None
+    derived_kind = None
+    derived_id = None
+    derived_source_lang = None
+    derived_target_lang = None
+    if tx_refs:
+        try:
+            original_tx_id = uuid.UUID(str(tx_refs[0]["transcription_id"]))
+        except (KeyError, ValueError):
+            original_tx_id = None
+        derived_payloads = tx_refs[0].get("derived_texts") or []
+        translation = next(
+            (d for d in derived_payloads if d.get("kind") == "TRANSLATION"),
+            derived_payloads[0] if derived_payloads else None,
+        )
+        if translation:
+            derived_id = uuid.UUID(str(translation["id"]))
+            derived_kind = translation.get("kind")
+            derived_source_lang = translation.get("source_language_code")
+            derived_target_lang = translation.get("target_language_code")
+            derived_row = await db.scalar(
+                select(TranscriptionDerivedText).where(
+                    TranscriptionDerivedText.id == derived_id,
+                    TranscriptionDerivedText.tenant_id == tenant_id,
+                )
+            )
+            if derived_row is not None:
+                derived_text = derived_row.text
 
     snapshots = _criterion_snapshots(criteria)
     qe = QuestionEvaluation(
@@ -589,7 +659,16 @@ async def _evaluate_one_leaf(
         mapping_id=mapping.id,
         answer_region_ids=[str(r) for r in region_ids],
         transcription_refs=tx_refs,
-        evidence_metadata={"disposition": mapping.disposition},
+        evidence_metadata={
+            "disposition": mapping.disposition,
+            "subject_profile": context.subject.profile,
+            "language_code": context.language.language_code,
+            "script_code": context.language.script_code,
+            "math_verification_invoked": False,
+            "original_transcription_id": str(original_tx_id) if original_tx_id else None,
+            "derived_text_id": str(derived_id) if derived_id else None,
+            "derived_text_kind": derived_kind,
+        },
         max_mark=leaf.max_marks,
         criterion_snapshot=[s.model_dump(mode="json") for s in snapshots],
         identity_confidence=submission.identity_confidence,
@@ -727,19 +806,33 @@ async def _evaluate_one_leaf(
         await db.flush()
         return
 
-    # --- Math verify (optional) then AI evaluate ---
+    # --- Math verify (optional, Mathematics-compatible subjects only) then AI evaluate ---
     structured = akv.structured_answer if isinstance(akv.structured_answer, dict) else None
     expected_expr = None
     if structured:
         expected_expr = structured.get("expression") or structured.get("expected_expression")
     student_expr = tx_text.strip() or None
-    math_result = verify_math(
-        student_expr=student_expr if expected_expr else None,
-        expected_expr=str(expected_expr) if expected_expr else None,
-        structured_answer=structured,
+    math_invoked = bool(
+        math_verification_allowed(context.subject.profile) and expected_expr
     )
+    if math_invoked:
+        math_result = verify_math(
+            student_expr=student_expr if expected_expr else None,
+            expected_expr=str(expected_expr) if expected_expr else None,
+            structured_answer=structured,
+        )
+    else:
+        math_result = MathVerificationResult(
+            equivalent=None,
+            failure_reason="NOT_MATH_SUBJECT_CONTEXT" if expected_expr else None,
+        )
     qe.math_verification_confidence = math_result.math_verification_confidence
     math_summary = math_result.model_dump(mode="json")
+    qe.evidence_metadata = {
+        **(qe.evidence_metadata or {}),
+        "math_verification_invoked": math_invoked,
+        "subject_profile": context.subject.profile,
+    }
 
     eval_input = RubricEvaluationInput(
         question_version_id=leaf.id,
@@ -752,6 +845,16 @@ async def _evaluate_one_leaf(
         unreadable_flag=False,
         math_verification_summary=math_summary,
         max_mark=leaf.max_marks,
+        subject_profile=context.subject.profile,
+        language_code=context.language.routing_language_code,
+        script_code=context.language.routing_script_code,
+        original_transcription_id=original_tx_id,
+        transcription_is_original=True,
+        derived_text_id=derived_id,
+        derived_text_kind=derived_kind,
+        derived_text=derived_text,
+        derived_source_language_code=derived_source_lang,
+        derived_target_language_code=derived_target_lang,
     )
 
     started = datetime.now(UTC)
@@ -766,7 +869,40 @@ async def _evaluate_one_leaf(
             raise ProviderUnavailable("AI_PROVIDER_VISION=none")
         provider = get_evaluation_provider(settings)
         provider_name = provider.provider_name
+        require_provider_capability(
+            provider=provider_name,
+            subject_profile=context.subject.profile,
+            language_code=context.language.routing_language_code,
+            script_code=context.language.routing_script_code,
+            operation="evaluate_rubric",
+        )
         result = await provider.evaluate_rubric(eval_input)
+    except CapabilityUnsupported as exc:
+        status = "FAILED"
+        error_class = exc.code
+        qe.proposed_ai_score = None
+        qe.evaluation_confidence = None
+        qe.error_codes = ["OTHER_REVIEW_REQUIRED"]
+        qe.workflow_state = "REVIEW_REQUIRED"
+        qe.evidence_metadata = {
+            **(qe.evidence_metadata or {}),
+            "provider_error": exc.code,
+        }
+        from app.ai.types import CriterionProposal
+
+        proposals = [
+            CriterionProposal(
+                rubric_criterion_id=c.id,
+                decision="UNREADABLE",
+                proposed_marks=None,
+                error_code="OTHER_REVIEW_REQUIRED",
+                step_index=c.sequence,
+            )
+            for c in criteria
+        ]
+        await _write_criterion_rows(
+            db, tenant_id=tenant_id, qe=qe, criteria=criteria, proposals=proposals
+        )
     except ProviderUnavailable as exc:
         status = "UNAVAILABLE"
         error_class = "PROVIDER_UNAVAILABLE"
@@ -885,6 +1021,9 @@ async def _evaluate_one_leaf(
                 "submission_id": str(submission.id),
                 "question_version_id": str(leaf.id),
                 "evaluation_run_id": str(run.id),
+                "subject_profile": context.subject.profile,
+                "language_code": context.language.routing_language_code,
+                "script_code": context.language.routing_script_code,
             },
             input_refs={"answer_key_version_id": str(akv.id), "rubric_version_id": str(rv.id)},
         ),

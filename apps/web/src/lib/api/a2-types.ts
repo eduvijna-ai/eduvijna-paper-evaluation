@@ -37,6 +37,10 @@ export interface A2Assessment {
   class_section_id?: string | null;
   curriculum_id: string;
   subject_node_id?: string | null;
+  subject_profile?: string;
+  subject_node_code?: string | null;
+  subject_node_name?: string | null;
+  math_verification_eligible?: boolean;
   code: string;
   title: string;
   description?: string | null;

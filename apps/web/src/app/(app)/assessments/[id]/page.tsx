@@ -7,6 +7,7 @@ import { api } from "@/lib/api";
 import { getApiCapabilities } from "@/lib/api/capabilities";
 import { PageHeader, StatusBadge } from "@/components/layout/PageHeader";
 import { ErrorState, LoadingState } from "@/components/ui/FeedbackStates";
+import { subjectProfileLabel } from "@/lib/b20/context";
 
 export default function AssessmentDetailPage({
   params,
@@ -83,6 +84,33 @@ export default function AssessmentDetailPage({
         }
       />
       <dl className="grid gap-3 rounded-md border border-slate-200 bg-white p-4 sm:grid-cols-3 text-sm">
+        <div>
+          <dt className="text-slate-500">Subject node</dt>
+          <dd
+            data-testid="assessment-subject-node"
+            className="mt-1 font-semibold text-slate-900"
+          >
+            {data.subject_node_name ?? data.subject ?? "—"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-slate-500">Subject profile</dt>
+          <dd
+            data-testid="assessment-subject-profile"
+            className="mt-1 font-semibold text-slate-900"
+          >
+            {subjectProfileLabel(data.subject_profile)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-slate-500">Math verification</dt>
+          <dd
+            data-testid="assessment-math-verification"
+            className="mt-1 font-semibold text-slate-900"
+          >
+            {data.math_verification_eligible === false ? "Not eligible" : "Eligible"}
+          </dd>
+        </div>
         <div>
           <dt className="text-slate-500">Max marks</dt>
           <dd className="mt-1 font-semibold tabular-nums">{data.max_marks}</dd>
