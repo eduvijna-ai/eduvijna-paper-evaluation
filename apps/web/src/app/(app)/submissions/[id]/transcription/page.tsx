@@ -17,10 +17,18 @@ import { Button } from "@/components/ui/primitives";
 import type {
   EvidenceRegion,
   PaperPage,
+  TranscriptionDerivedTextView,
   TranscriptionQuestionItem,
   TranscriptionRegionView,
+  TranscriptionWorkspacePayload,
 } from "@/lib/types/domain";
 import { cn } from "@/lib/utils/cn";
+import {
+  isAutomationBlocked,
+  languageStateLabel,
+  subjectProfileLabel,
+} from "@/lib/b20/context";
+import { LanguageReviewPanel } from "@/lib/b20/LanguageReviewPanel";
 
 function regionsToEvidence(
   items: TranscriptionQuestionItem[],
@@ -69,6 +77,114 @@ function syntheticPages(items: TranscriptionQuestionItem[]): PaperPage[] {
     }));
 }
 
+function DerivedTexts({
+  items,
+}: {
+  items: TranscriptionDerivedTextView[] | undefined;
+}) {
+  if (!items?.length) return null;
+  return (
+    <div data-testid="transcription-derived-texts" className="mt-3 space-y-2">
+      {items.map((item) => (
+        <div
+          key={item.id}
+          data-testid={
+            item.kind === "TRANSLATION"
+              ? "transcription-translation"
+              : item.kind === "TRANSLITERATION"
+                ? "transcription-transliteration"
+                : "transcription-derived"
+          }
+          className="rounded-md border border-slate-200 bg-slate-50 px-3 py-2"
+        >
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-600">
+            Derived {item.kind.toLowerCase()} — not original evidence
+          </p>
+          <p
+            className="mt-1 whitespace-pre-wrap text-sm text-slate-800"
+            data-testid={`transcription-derived-text-${item.kind.toLowerCase()}`}
+          >
+            {item.text}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">
+            {item.source_language_code} → {item.target_language_code} · source{" "}
+            <span data-testid="transcription-derived-source-id">
+              {item.source_transcription_id}
+            </span>
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function B20ContextBanner({ data }: { data: TranscriptionWorkspacePayload }) {
+  const subject = data.subject_context;
+  const language = data.language_context;
+  const blocked = isAutomationBlocked(data.automation_block_code);
+  return (
+    <div
+      data-testid="transcription-b20-context"
+      className="mb-3 rounded-md border border-slate-200 bg-white px-3 py-3 text-sm"
+    >
+      <dl className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <div>
+          <dt className="text-xs text-slate-500">Subject profile</dt>
+          <dd data-testid="transcription-subject-profile" className="font-semibold">
+            {subjectProfileLabel(subject?.subject_profile)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-slate-500">Language</dt>
+          <dd data-testid="transcription-language-code" className="font-semibold">
+            {language?.language_code ?? "—"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-slate-500">Script</dt>
+          <dd data-testid="transcription-script-code" className="font-semibold">
+            {language?.script_code ?? "—"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-slate-500">Language provenance</dt>
+          <dd data-testid="transcription-language-source" className="font-semibold">
+            {language?.language_source ?? "UNKNOWN"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-slate-500">Language state</dt>
+          <dd data-testid="transcription-language-state" className="font-semibold">
+            {languageStateLabel(language?.language_state)}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-xs text-slate-500">Language confidence</dt>
+          <dd data-testid="transcription-language-confidence" className="font-semibold">
+            {language?.language_confidence ?? "—"}
+          </dd>
+        </div>
+      </dl>
+      {blocked && (
+        <p
+          data-testid="transcription-automation-block"
+          className="mt-2 rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-medium text-rose-900"
+        >
+          {data.automation_block_code} — automated transcription/evaluation is blocked
+        </p>
+      )}
+      <LanguageReviewPanel
+        submissionId={data.submission_id}
+        languageCode={language?.language_code}
+        scriptCode={language?.script_code}
+        languageSource={language?.language_source}
+        languageState={language?.language_state}
+        automationBlockCode={data.automation_block_code}
+      />
+    </div>
+  );
+}
+
 function TranscriptionCopy({
   region,
 }: {
@@ -101,9 +217,10 @@ function TranscriptionCopy({
         <p className="text-xs font-medium text-teal-800">
           Human-corrected transcription
         </p>
-        <p className="mt-1 whitespace-pre-wrap text-sm text-slate-900">
+        <p className="mt-1 whitespace-pre-wrap text-sm text-slate-900" data-testid="transcription-original-text">
           {active.text ?? active.latex ?? "—"}
         </p>
+        <DerivedTexts items={active.derived_texts} />
       </div>
     );
   }
@@ -114,7 +231,7 @@ function TranscriptionCopy({
         <p className="text-xs font-medium text-violet-800">
           AI transcription proposal — review before evaluation
         </p>
-        <p className="mt-1 whitespace-pre-wrap text-sm text-slate-900">
+        <p className="mt-1 whitespace-pre-wrap text-sm text-slate-900" data-testid="transcription-original-text">
           {ai.text ?? ai.latex ?? "—"}
         </p>
         {ai.transcription_confidence !== null && (
@@ -125,6 +242,7 @@ function TranscriptionCopy({
             />
           </div>
         )}
+        <DerivedTexts items={ai.derived_texts} />
       </div>
     );
   }
@@ -381,7 +499,7 @@ function TranscriptionReview({ id }: { id: string }) {
   const onMutationError = (err: unknown) => {
     setActionError(
       isApiError(err)
-        ? err.message || err.userMessage()
+        ? [err.code, err.message || err.userMessage()].filter(Boolean).join(" — ")
         : err instanceof Error
           ? err.message
           : "Action failed",
@@ -486,6 +604,8 @@ function TranscriptionReview({ id }: { id: string }) {
       >
         {data.progress.label}
       </p>
+
+      <B20ContextBanner data={data} />
 
       {data.automated_transcription_active && (
         <p

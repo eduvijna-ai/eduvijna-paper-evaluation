@@ -185,6 +185,8 @@ export const HybridEduVijnaApi: ApiClient = {
   listSubmissions: () => SubmissionHttpApi.listSubmissions(),
   getSubmission: (id) => SubmissionHttpApi.getSubmission(id),
   uploadSubmission: (input) => SubmissionHttpApi.uploadSubmission(input),
+  putSubmissionLanguage: (id, input) =>
+    SubmissionHttpApi.putSubmissionLanguage(id, input),
   getSubmissionPageImageBlob: (pageId) =>
     SubmissionHttpApi.getSubmissionPageImageBlob(pageId),
   getIdentityReview: (id) => SubmissionHttpApi.getIdentityReview(id),

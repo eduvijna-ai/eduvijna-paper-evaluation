@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/submission-language.schema.json",
+  "title": "SubmissionLanguage",
+  "description": "B20 language/script metadata on the submission understanding flow. Language confidence is independent of transcription_confidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["language_state"],
+  "properties": {
+    "language_code": { "type": ["string", "null"], "maxLength": 32 },
+    "script_code": { "type": ["string", "null"], "maxLength": 16 },
+    "language_source": {
+      "type": ["string", "null"],
+      "enum": ["UNKNOWN", "PROVIDED", "DETECTED", null]
+    },
+    "language_confidence": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+    "language_state": {
+      "type": "string",
+      "enum": ["UNKNOWN", "CONFIRMED", "REVIEW_REQUIRED", "UNSUPPORTED"]
+    }
+  }
+}

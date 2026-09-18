@@ -20,6 +20,7 @@ import type { AssessmentState, CurriculumNodeType } from "@/lib/types/enums";
 
 export interface AssessmentFormValues {
   curriculumId: string;
+  subjectNodeId?: string | null;
   code: string;
   title: string;
   assessmentType: string;
@@ -78,7 +79,7 @@ export function assessmentApiToView(
     institution_id: "",
     title: api.title,
     code: api.code,
-    subject: curriculum?.name ?? api.assessment_type,
+    subject: api.subject_node_name ?? curriculum?.name ?? api.assessment_type,
     grade: curriculum?.version_label ?? "—",
     max_marks: Number(api.max_marks),
     workflow_state: api.status as AssessmentState,
@@ -88,6 +89,11 @@ export function assessmentApiToView(
     curriculum_id: api.curriculum_id,
     created_at: api.created_at ?? "",
     updated_at: api.updated_at ?? api.created_at ?? "",
+    subject_node_id: api.subject_node_id ?? null,
+    subject_profile: api.subject_profile,
+    subject_node_code: api.subject_node_code ?? null,
+    subject_node_name: api.subject_node_name ?? null,
+    math_verification_eligible: api.math_verification_eligible,
   };
 }
 
@@ -96,7 +102,7 @@ export function assessmentFormToApi(form: AssessmentFormValues) {
     curriculum_id: form.curriculumId,
     academic_year_id: form.academicYearId || null,
     class_section_id: form.classSectionId || null,
-    subject_node_id: null,
+    subject_node_id: form.subjectNodeId || null,
     code: form.code.trim(),
     title: form.title.trim(),
     description: null,

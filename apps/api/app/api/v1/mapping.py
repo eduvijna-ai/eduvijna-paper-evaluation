@@ -125,6 +125,14 @@ def _dump_submission(
         "name_detected": item.name_detected,
         "identity_confidence": float(item.identity_confidence),
         "mapping_confidence": float(item.mapping_confidence),
+        "transcription_state": item.transcription_state,
+        "language_code": item.language_code,
+        "script_code": item.script_code,
+        "language_source": item.language_source,
+        "language_confidence": (
+            float(item.language_confidence) if item.language_confidence is not None else None
+        ),
+        "language_state": item.language_state,
         "source_storage_key": item.source_storage_key,
         "source_content_sha256": item.source_content_sha256,
         "original_filename": item.original_filename,

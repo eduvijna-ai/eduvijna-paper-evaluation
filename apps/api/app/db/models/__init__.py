@@ -3,6 +3,7 @@ from app.db.models.ai_structure import (
     AnswerRegionTranscription,
     SubmissionIdentityCandidate,
     SubmissionPageAnalysis,
+    TranscriptionDerivedText,
 )
 from app.db.models.audit import AuditEvent
 from app.db.models.authoring import AssessmentArtifact, AuthoringAiRun
@@ -221,6 +222,7 @@ __all__ = [
     "SubmissionIdentityCandidate",
     "SubmissionPage",
     "SubmissionPageAnalysis",
+    "TranscriptionDerivedText",
     "Tenant",
     "User",
     "UserRole",

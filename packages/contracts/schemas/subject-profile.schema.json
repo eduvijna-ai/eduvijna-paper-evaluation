@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.eduvijna.local/subject-profile.schema.json",
+  "title": "SubjectProfile",
+  "description": "B20 deterministic subject-profile projection from Assessment.subject_node_id. Not an independent subject identity.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["subject_profile"],
+  "properties": {
+    "subject_profile": {
+      "type": "string",
+      "enum": [
+        "MATHEMATICS",
+        "PHYSICS",
+        "CHEMISTRY",
+        "STATISTICS",
+        "ACCOUNTING",
+        "STRUCTURED_DESCRIPTIVE",
+        "UNSPECIFIED",
+        "UNSUPPORTED"
+      ]
+    },
+    "subject_node_id": { "type": ["string", "null"], "format": "uuid" },
+    "subject_node_code": { "type": ["string", "null"] },
+    "subject_node_name": { "type": ["string", "null"] },
+    "subject_profile_source": { "type": "string" },
+    "math_verification_eligible": { "type": "boolean" }
+  }
+}

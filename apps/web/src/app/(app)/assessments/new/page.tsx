@@ -12,11 +12,22 @@ import { getApiCapabilities } from "@/lib/api/capabilities";
 import { getSession, hasPermission } from "@/lib/auth/session";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { ErrorState, LoadingState } from "@/components/ui/FeedbackStates";
+import type { CurriculumNode } from "@/lib/types/domain";
+
+function flattenSubjectNodes(nodes: CurriculumNode[]): CurriculumNode[] {
+  const out: CurriculumNode[] = [];
+  for (const node of nodes) {
+    if (node.node_type === "SUBJECT") out.push(node);
+    if (node.children?.length) out.push(...flattenSubjectNodes(node.children));
+  }
+  return out;
+}
 
 const schema = z.object({
   title: z.string().min(3, "Enter a title"),
   code: z.string().min(2, "Enter a code"),
   curriculumId: z.string().min(1, "Choose a curriculum"),
+  subjectNodeId: z.string().optional(),
   assessmentType: z.string().min(1, "Enter an assessment type"),
   maxMarks: z.number().positive("Marks must be greater than zero"),
 });
@@ -42,6 +53,7 @@ export default function NewAssessmentPage() {
   const {
     register,
     handleSubmit,
+    watch,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -49,10 +61,19 @@ export default function NewAssessmentPage() {
       title: "Assessment Draft",
       code: "ASSESS-NEW",
       curriculumId: "",
+      subjectNodeId: "",
       assessmentType: "EXAM",
       maxMarks: 40,
     },
   });
+  const selectedCurriculumId = watch("curriculumId");
+
+  const curriculumTreeQuery = useQuery({
+    queryKey: ["curriculum", selectedCurriculumId],
+    queryFn: () => api.getCurriculum(selectedCurriculumId),
+    enabled: Boolean(selectedCurriculumId),
+  });
+  const subjectNodes = flattenSubjectNodes(curriculumTreeQuery.data?.tree ?? []);
 
   const createMutation = useMutation({
     mutationFn: async (values: FormValues) => {
@@ -61,6 +82,7 @@ export default function NewAssessmentPage() {
       }
       return api.createAssessment({
         curriculumId: values.curriculumId,
+        subjectNodeId: values.subjectNodeId || null,
         code: values.code,
         title: values.title,
         assessmentType: values.assessmentType,
@@ -155,6 +177,25 @@ export default function NewAssessmentPage() {
               {errors.curriculumId.message}
             </span>
           )}
+        </label>
+        <label className="block text-sm">
+          <span className="font-medium text-slate-800">Subject node</span>
+          <select
+            data-testid="assessment-field-subjectNodeId"
+            className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2"
+            disabled={!selectedCurriculumId}
+            {...register("subjectNodeId")}
+          >
+            <option value="">Unspecified (legacy)</option>
+            {subjectNodes.map((node) => (
+              <option key={node.id} value={node.id}>
+                {node.code} — {node.title}
+              </option>
+            ))}
+          </select>
+          <span className="mt-1 block text-xs text-slate-500">
+            Canonical subject is the curriculum node, not a separate subject store.
+          </span>
         </label>
         <label className="block text-sm">
           <span className="font-medium text-slate-800">Assessment type</span>

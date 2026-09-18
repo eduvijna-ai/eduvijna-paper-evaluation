@@ -490,14 +490,68 @@ export const MockEduVijnaApi: ApiClient = {
   async getSubmission(id) {
     const submission = submissions.find((s) => s.id === id);
     if (!submission) throw new Error(`Submission not found: ${id}`);
-    return delay(submission);
+    return delay({ ...submission });
   },
   async uploadSubmission(input) {
-    void input;
-    // B0 demo upload UI does not call this — it navigates to sub-demo-002 directly.
     const demo = submissions.find((s) => s.id === "sub-demo-002") ?? submissions[0];
     if (!demo) throw new Error("No demo submissions available");
+    if (input.languageCode) {
+      demo.language_code = input.languageCode;
+      demo.script_code = input.scriptCode ?? null;
+      demo.language_source = "PROVIDED";
+      demo.language_state =
+        input.languageCode === "ja" ? "UNSUPPORTED" : "CONFIRMED";
+      demo.automation_block_code =
+        input.languageCode === "ja" ? "LANGUAGE_UNSUPPORTED" : null;
+    }
     return delay({ ...demo });
+  },
+  async putSubmissionLanguage(submissionId, input) {
+    const submission = submissions.find((s) => s.id === submissionId);
+    if (!submission) throw new Error(`Submission not found: ${submissionId}`);
+    const samePair =
+      (submission.language_code ?? null) === input.language_code &&
+      (submission.script_code ?? null) === (input.script_code ?? null);
+    const locked =
+      Boolean(submission.transcription_state) &&
+      submission.transcription_state !== "NOT_STARTED";
+    if (locked && !samePair) {
+      throw new ApiError({
+        message: "Language/script cannot change after transcription evidence exists",
+        status: 409,
+        kind: "conflict",
+        code: "LANGUAGE_CONTEXT_LOCKED",
+      });
+    }
+    submission.language_code = input.language_code;
+    submission.script_code = input.script_code ?? null;
+    submission.language_source = input.source ?? "PROVIDED";
+    if (input.language_code === "ja") {
+      submission.language_state = "UNSUPPORTED";
+    } else if (input.source === "DETECTED") {
+      submission.language_state = "REVIEW_REQUIRED";
+    } else if (input.confirm === false) {
+      submission.language_state = "REVIEW_REQUIRED";
+    } else {
+      submission.language_state = "CONFIRMED";
+    }
+    if (input.source === "PROVIDED") {
+      submission.language_confidence = null;
+    }
+    submission.automation_block_code =
+      submission.language_state === "UNSUPPORTED"
+        ? "LANGUAGE_UNSUPPORTED"
+        : submission.language_state === "REVIEW_REQUIRED"
+          ? "LANGUAGE_REVIEW_REQUIRED"
+          : null;
+    submission.language_context = {
+      language_code: submission.language_code,
+      script_code: submission.script_code,
+      language_source: submission.language_source,
+      language_confidence: submission.language_confidence ?? null,
+      language_state: submission.language_state,
+    };
+    return delay({ ...submission });
   },
   async getSubmissionPageImageBlob(pageId) {
     void pageId;
