@@ -3,14 +3,18 @@
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
+from app.core.security import hash_password
+from app.db.models import User
 from app.db.session import get_db_session
 from app.services.b19_test_providers import (
     issue_lti_id_token,
@@ -38,6 +42,10 @@ Db = Annotated[AsyncSession, Depends(get_db_session)]
 class WebhookFailIn(BaseModel):
     fail_until_attempt: int = 0
     expected_secret: str | None = None
+
+
+class LocalPasswordIn(BaseModel):
+    password: str = Field(min_length=8, max_length=128)
 
 
 @router.get("/b19-test/oidc/jwks")
@@ -139,6 +147,7 @@ async def test_lti_authorize(
     target_link_uri: str | None = None,
     lti_deployment_id: str = "deploy-1",
     mismatch_target: bool = False,
+    unbound_assessment: bool = False,
     settings: Settings = Depends(get_settings),
 ) -> HTMLResponse:
     require_test_providers(settings)
@@ -147,14 +156,16 @@ async def test_lti_authorize(
     launched_target = target_link_uri or redirect_uri
     if mismatch_target:
         launched_target = "https://evil.example/lti/launch"
+    resource_link_id = "res-unbound" if unbound_assessment else "res-1"
+    context_id = "ctx-unbound" if unbound_assessment else "ctx-1"
     token = issue_lti_id_token(
         issuer=issuer,
         client_id=client_id,
         deployment_id=lti_deployment_id,
         nonce=nonce,
         subject=login_hint,
-        resource_link_id="res-1",
-        context_id="ctx-1",
+        resource_link_id=resource_link_id,
+        context_id=context_id,
         lineitem_url=f"{settings.public_base_url.rstrip('/')}/api/v1/b19-test/ags/lineitems/1",
         memberships_url=f"{settings.public_base_url.rstrip('/')}/api/v1/b19-test/nrps/memberships",
         target_link_uri=launched_target,
@@ -194,6 +205,25 @@ async def test_ags_score(payload: dict[str, Any], settings: Settings = Depends(g
 async def test_ags_list(settings: Settings = Depends(get_settings)) -> dict[str, Any]:
     require_test_providers(settings)
     return {"items": list_ags_scores()}
+
+
+@router.post("/b19-test/users/{user_id}/local-password")
+async def test_set_local_password(
+    user_id: uuid.UUID,
+    payload: LocalPasswordIn,
+    db: Db,
+    settings: Settings = Depends(get_settings),
+) -> dict[str, str]:
+    """Gated test-only helper: attach a local password to an existing SCIM-provisioned user."""
+    require_test_providers(settings)
+    user = await db.scalar(select(User).where(User.id == user_id))
+    if user is None:
+        raise HTTPException(
+            404, detail={"code": "not_found", "message": "User not found"}
+        )
+    user.password_hash = hash_password(payload.password)
+    await db.commit()
+    return {"status": "ok", "user_id": str(user.id)}
 
 
 @router.post("/b19-test/webhook-receiver")

@@ -247,13 +247,14 @@ async def scim_create_user(
             ExternalUserIdentity.external_subject == external_id,
         )
     )
-    existing = await db.scalar(select(User).where(User.tenant_id == tenant_id, User.email == email))
+    active = bool(payload.get("active", True))
+    # Case A — stable externalId already bound: that identity is authoritative.
     if by_external is not None:
         existing = await db.scalar(
             select(User).where(User.id == by_external.user_id, User.tenant_id == tenant_id)
         )
-    active = bool(payload.get("active", True))
-    if existing is not None:
+        if existing is None:
+            raise HTTPException(404, detail="Bound SCIM user missing")
         existing.display_name = display_name[:255]
         if active and existing.status != "active":
             existing.status = "active"
@@ -266,6 +267,32 @@ async def scim_create_user(
         await db.refresh(existing)
         return user_to_scim(existing, external_id=identity.external_subject if identity else external_id)
 
+    # Case C — new externalId but email already owned by an unrelated local user.
+    # SCIM binding provider uses account_linking_policy=NONE; never silently attach.
+    email_owner = await db.scalar(
+        select(User).where(User.tenant_id == tenant_id, User.email == email)
+    )
+    if email_owner is not None:
+        raise HTTPException(
+            409,
+            detail={
+                "code": "identity_link_required",
+                "message": (
+                    "userName matches an existing local account; "
+                    "explicit governed identity linking is required"
+                ),
+                "schemas": ["urn:ietf:params:scim:api:messages:2.0:Error"],
+                "detail": (
+                    "userName matches an existing local account; "
+                    "explicit governed identity linking is required "
+                    "(account_linking_policy does not permit automatic email binding)"
+                ),
+                "status": "409",
+                "scimType": "uniqueness",
+            },
+        )
+
+    # Case B — new externalId and unused email: provision a SCIM-owned user.
     user = User(
         tenant_id=tenant_id,
         email=email,

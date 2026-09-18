@@ -342,6 +342,29 @@ async def seed_b19_e2e_enterprise() -> dict[str, str]:
             if not link.nrps_memberships_url:
                 link.nrps_memberships_url = f"{internal}/api/v1/b19-test/nrps/memberships"
 
+        unbound = await db.scalar(
+            select(LtiResourceLink).where(
+                LtiResourceLink.tenant_id == tenant.id,
+                LtiResourceLink.platform_id == lti.id,
+                LtiResourceLink.resource_link_id == "res-unbound",
+            )
+        )
+        if unbound is None:
+            db.add(
+                LtiResourceLink(
+                    platform_id=lti.id,
+                    tenant_id=tenant.id,
+                    context_id="ctx-unbound",
+                    resource_link_id="res-unbound",
+                    assessment_id=None,
+                    ags_lineitem_url=f"{internal}/api/v1/b19-test/ags/lineitems/1",
+                    nrps_memberships_url=f"{internal}/api/v1/b19-test/nrps/memberships",
+                )
+            )
+        else:
+            unbound.assessment_id = None
+            unbound.context_id = "ctx-unbound"
+
         from app.core.integration_crypto import encrypt_secret
         from app.db.models import ExternalRosterIdentity, WebhookEndpoint
 

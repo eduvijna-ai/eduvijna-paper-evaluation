@@ -1276,6 +1276,225 @@ async def test_scim_requires_stable_external_id_not_email() -> None:
         assert iso_created.json()["id"] != user_id
 
 
+async def test_scim_new_external_id_does_not_silently_bind_existing_email() -> None:
+    async with b19_client() as client:
+        from app.db.models import ExternalUserIdentity
+
+        headers = await _login(client)
+        local_email = f"local.scim.{_uid()}@demo.eduvijna.local"
+        password = "DemoUser!2026"
+        async with async_session_factory() as db:
+            tenant = await db.scalar(select(Tenant).where(Tenant.slug == "demo"))
+            assert tenant is not None
+            local = User(
+                tenant_id=tenant.id,
+                email=local_email,
+                display_name="Local Only",
+                password_hash=hash_password(password),
+                status="active",
+                auth_version=1,
+            )
+            db.add(local)
+            await db.commit()
+            local_id = local.id
+            auth_version_before = local.auth_version
+        login = await client.post(
+            "/api/v1/auth/login",
+            json={"email": local_email, "password": password, "tenant_slug": "demo"},
+        )
+        assert login.status_code == 200, login.text
+        provider = await client.post(
+            "/api/v1/integrations/identity-providers",
+            headers=headers,
+            json={
+                "name": f"SCIM NoLink {_uid()}",
+                "protocol": "OIDC",
+                "issuer": f"https://scim-nolink-{_uid()}.example",
+            },
+        )
+        token = await client.post(
+            f"/api/v1/integrations/identity-providers/{provider.json()['id']}/scim-token",
+            headers=headers,
+        )
+        scim_headers = {"Authorization": f"Bearer {token.json()['secret']}"}
+        external_id = f"new-ext-{_uid()}"
+        conflict = await client.post(
+            "/scim/v2/Users",
+            headers=scim_headers,
+            json={
+                "userName": local_email,
+                "displayName": "Should Conflict",
+                "externalId": external_id,
+                "active": True,
+            },
+        )
+        assert conflict.status_code == 409, conflict.text
+        body = conflict.json()
+        detail = body.get("error", {}).get("details") or body.get("error") or body
+        detail_text = str(detail).lower()
+        assert "link" in detail_text or "uniqueness" in detail_text or "existing" in detail_text
+        async with async_session_factory() as db:
+            attached = await db.scalar(
+                select(ExternalUserIdentity).where(
+                    ExternalUserIdentity.user_id == local_id,
+                    ExternalUserIdentity.external_subject == external_id,
+                )
+            )
+            assert attached is None
+            local = await db.scalar(select(User).where(User.id == local_id))
+            assert local is not None
+            assert local.auth_version == auth_version_before
+            assert local.email == local_email
+            assert local.status == "active"
+        unused_email = f"scim.fresh.{_uid()}@demo.eduvijna.local"
+        fresh_ext = f"fresh-ext-{_uid()}"
+        created = await client.post(
+            "/scim/v2/Users",
+            headers=scim_headers,
+            json={
+                "userName": unused_email,
+                "displayName": "Fresh SCIM",
+                "externalId": fresh_ext,
+                "active": True,
+            },
+        )
+        assert created.status_code == 201, created.text
+        user_id = created.json()["id"]
+        renamed = f"scim.renamed.{_uid()}@demo.eduvijna.local"
+        replaced = await client.put(
+            f"/scim/v2/Users/{user_id}",
+            headers=scim_headers,
+            json={
+                "userName": renamed,
+                "displayName": "Renamed Fresh",
+                "externalId": fresh_ext,
+            },
+        )
+        assert replaced.status_code == 200, replaced.text
+        assert replaced.json()["externalId"] == fresh_ext
+        assert replaced.json()["userName"] == renamed
+        async with async_session_factory() as db:
+            identity = await db.scalar(
+                select(ExternalUserIdentity).where(
+                    ExternalUserIdentity.user_id == uuid.UUID(user_id),
+                    ExternalUserIdentity.external_subject == fresh_ext,
+                )
+            )
+            assert identity is not None
+            assert identity.external_subject == fresh_ext
+
+
+async def test_lti_launch_rejects_resource_link_without_assessment_binding() -> None:
+    async with b19_client() as client:
+        from app.cli.seed_b19_e2e_enterprise import seed_b19_e2e_enterprise
+        from app.db.models import LtiResourceLink
+
+        seeded = await seed_b19_e2e_enterprise()
+        headers = await _login(client)
+        client_id = f"lti-unbound-{_uid()}"
+        deployment_id = f"deploy-unbound-{_uid()}"
+        platform = await client.post(
+            "/api/v1/integrations/lti-platforms",
+            headers=headers,
+            json={
+                "name": f"LTI Unbound {_uid()}",
+                "issuer": "https://b19-test.example/lti",
+                "client_id": client_id,
+                "deployment_id": deployment_id,
+                "auth_login_url": "http://test/api/v1/b19-test/lti/authorize",
+                "token_url": "http://test/api/v1/b19-test/lti/token",
+                "jwks_url": "http://test/api/v1/b19-test/lti/jwks",
+            },
+        )
+        assert platform.status_code == 200, platform.text
+        platform_id = uuid.UUID(platform.json()["id"])
+        async with async_session_factory() as db:
+            tenant = await db.scalar(select(Tenant).where(Tenant.slug == "demo"))
+            assert tenant is not None
+            db.add(
+                LtiResourceLink(
+                    platform_id=platform_id,
+                    tenant_id=tenant.id,
+                    context_id="ctx-no-assess",
+                    resource_link_id="res-no-assess",
+                    assessment_id=None,
+                )
+            )
+            await db.commit()
+        login = await client.get(
+            "/lti/login",
+            params={
+                "iss": "https://b19-test.example/lti",
+                "client_id": client_id,
+                "target_link_uri": "http://test/lti/launch",
+                "lti_deployment_id": deployment_id,
+            },
+            follow_redirects=False,
+        )
+        assert login.status_code == 302
+        from urllib.parse import parse_qs, urlparse
+
+        qs = parse_qs(urlparse(login.headers["location"]).query)
+        bad_token = issue_lti_id_token(
+            issuer="https://b19-test.example/lti",
+            client_id=client_id,
+            deployment_id=deployment_id,
+            nonce=qs["nonce"][0],
+            subject="lti-instructor-1",
+            resource_link_id="res-no-assess",
+            context_id="ctx-no-assess",
+            lineitem_url="http://test/api/v1/b19-test/ags/lineitems/1",
+            memberships_url="http://test/api/v1/b19-test/nrps/memberships",
+            target_link_uri="http://test/lti/launch",
+        )
+        bad = await client.post(
+            "/lti/launch", data={"id_token": bad_token, "state": qs["state"][0]}
+        )
+        assert bad.status_code == 400, bad.text
+        assert bad.json()["error"]["code"] == "unbound_resource"
+
+        async with async_session_factory() as db:
+            tenant = await db.scalar(select(Tenant).where(Tenant.slug == "demo"))
+            assert tenant is not None
+            db.add(
+                LtiResourceLink(
+                    platform_id=platform_id,
+                    tenant_id=tenant.id,
+                    context_id="ctx-bound",
+                    resource_link_id="res-bound",
+                    assessment_id=uuid.UUID(seeded["assessment_id"]),
+                )
+            )
+            await db.commit()
+        login2 = await client.get(
+            "/lti/login",
+            params={
+                "iss": "https://b19-test.example/lti",
+                "client_id": client_id,
+                "target_link_uri": "http://test/lti/launch",
+                "lti_deployment_id": deployment_id,
+            },
+            follow_redirects=False,
+        )
+        qs2 = parse_qs(urlparse(login2.headers["location"]).query)
+        good_token = issue_lti_id_token(
+            issuer="https://b19-test.example/lti",
+            client_id=client_id,
+            deployment_id=deployment_id,
+            nonce=qs2["nonce"][0],
+            subject="lti-instructor-1",
+            resource_link_id="res-bound",
+            context_id="ctx-bound",
+            lineitem_url="http://test/api/v1/b19-test/ags/lineitems/1",
+            memberships_url="http://test/api/v1/b19-test/nrps/memberships",
+            target_link_uri="http://test/lti/launch",
+        )
+        good = await client.post(
+            "/lti/launch", data={"id_token": good_token, "state": qs2["state"][0]}
+        )
+        assert good.status_code == 200, good.text
+
+
 async def test_webhook_partial_dispatch_state_with_two_endpoints() -> None:
     async with b19_client() as client:
         headers = await _login(client)

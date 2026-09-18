@@ -297,6 +297,14 @@ async def complete_lti_launch(
                 "message": "LTI resource link is not associated with an EduVijna assessment",
             },
         )
+    if link.assessment_id is None:
+        raise HTTPException(
+            400,
+            detail={
+                "code": "unbound_resource",
+                "message": "LTI resource link is not associated with an EduVijna assessment",
+            },
+        )
     if lineitem and not link.ags_lineitem_url:
         link.ags_lineitem_url = str(lineitem)
     if memberships and not link.nrps_memberships_url:

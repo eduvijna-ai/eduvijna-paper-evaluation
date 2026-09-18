@@ -135,20 +135,6 @@ test.describe("B19 real enterprise integrations", () => {
     expect(acsReplay.status()).toBe(302);
     expect(acsReplay.headers()["location"] ?? "").toMatch(/error=/);
 
-    const heldLogin = await request.post(`${apiBase}/api/v1/auth/login`, {
-      data: {
-        email: "scim.held@demo.eduvijna.local",
-        password: "DemoUser!2026",
-        tenant_slug: "demo",
-      },
-    });
-    expect(heldLogin.ok(), await heldLogin.text()).toBeTruthy();
-    const heldToken = ((await heldLogin.json()) as { access_token: string }).access_token;
-    const heldMe = await request.get(`${apiBase}/api/v1/auth/me`, {
-      headers: { Authorization: `Bearer ${heldToken}` },
-    });
-    expect(heldMe.ok()).toBeTruthy();
-
     const scimToken = await request.post(
       `${apiBase}/api/v1/integrations/identity-providers/${oidc!.id}/scim-token`,
       { headers },
@@ -156,6 +142,18 @@ test.describe("B19 real enterprise integrations", () => {
     expect(scimToken.ok(), await scimToken.text()).toBeTruthy();
     const scimSecret = ((await scimToken.json()) as { secret: string }).secret;
     const scimHeaders = { Authorization: `Bearer ${scimSecret}` };
+
+    const collision = await request.post(`${apiBase}/scim/v2/Users`, {
+      headers: scimHeaders,
+      data: {
+        userName: "scim.held@demo.eduvijna.local",
+        displayName: "Must Not Bind",
+        externalId: "b19-scim-collision",
+        active: true,
+      },
+    });
+    expect(collision.status()).toBe(409);
+
     const created = await request.post(`${apiBase}/scim/v2/Users`, {
       headers: scimHeaders,
       data: {
@@ -172,17 +170,38 @@ test.describe("B19 real enterprise integrations", () => {
       data: { Operations: [{ op: "replace", path: "displayName", value: "B19 SCIM Updated" }] },
     });
     expect(updated.ok()).toBeTruthy();
-    const boundHeld = await request.post(`${apiBase}/scim/v2/Users`, {
+
+    const scimRevokeEmail = "b19.scim.revoke@demo.eduvijna.local";
+    const scimRevokePassword = "DemoUser!2026";
+    const revokeCreated = await request.post(`${apiBase}/scim/v2/Users`, {
       headers: scimHeaders,
       data: {
-        userName: "scim.held@demo.eduvijna.local",
-        displayName: "SCIM Held User",
-        externalId: "b19-scim-held",
+        userName: scimRevokeEmail,
+        displayName: "SCIM Revoke User",
+        externalId: "b19-scim-revoke",
         active: true,
       },
     });
-    expect(boundHeld.status()).toBe(201);
-    const heldId = ((await boundHeld.json()) as { id: string }).id;
+    expect(revokeCreated.status()).toBe(201);
+    const heldId = ((await revokeCreated.json()) as { id: string }).id;
+    const setPassword = await request.post(
+      `${apiBase}/api/v1/b19-test/users/${heldId}/local-password`,
+      { data: { password: scimRevokePassword } },
+    );
+    expect(setPassword.ok(), await setPassword.text()).toBeTruthy();
+    const heldLogin = await request.post(`${apiBase}/api/v1/auth/login`, {
+      data: {
+        email: scimRevokeEmail,
+        password: scimRevokePassword,
+        tenant_slug: "demo",
+      },
+    });
+    expect(heldLogin.ok(), await heldLogin.text()).toBeTruthy();
+    const heldToken = ((await heldLogin.json()) as { access_token: string }).access_token;
+    const heldMe = await request.get(`${apiBase}/api/v1/auth/me`, {
+      headers: { Authorization: `Bearer ${heldToken}` },
+    });
+    expect(heldMe.ok()).toBeTruthy();
     const deactivated = await request.patch(`${apiBase}/scim/v2/Users/${heldId}`, {
       headers: scimHeaders,
       data: { Operations: [{ op: "replace", path: "active", value: false }] },
@@ -194,8 +213,8 @@ test.describe("B19 real enterprise integrations", () => {
     expect(revokedMe.status()).toBe(401);
     const deniedLogin = await request.post(`${apiBase}/api/v1/auth/login`, {
       data: {
-        email: "scim.held@demo.eduvijna.local",
-        password: "DemoUser!2026",
+        email: scimRevokeEmail,
+        password: scimRevokePassword,
         tenant_slug: "demo",
       },
     });
@@ -204,9 +223,9 @@ test.describe("B19 real enterprise integrations", () => {
       headers: scimHeaders,
     });
     expect(stillThere.ok()).toBeTruthy();
-    expect(((await stillThere.json()) as { userName: string }).userName).toBe(
-      "scim.held@demo.eduvijna.local",
-    );
+    const stillBody = (await stillThere.json()) as { userName: string; active: boolean };
+    expect(stillBody.userName).toBe(scimRevokeEmail);
+    expect(stillBody.active).toBe(false);
 
     const ltiLogin = await request.get(`${apiBase}/lti/login`, {
       params: {
@@ -258,6 +277,32 @@ test.describe("B19 real enterprise integrations", () => {
       },
     });
     expect(mismatchLaunch.status()).toBeGreaterThanOrEqual(400);
+
+    const unboundLogin = await request.get(`${apiBase}/lti/login`, {
+      params: {
+        iss: "https://b19-test.example/lti",
+        client_id: "lti-client",
+        target_link_uri: `${apiBase}/lti/launch`,
+        login_hint: "lti-instructor-1",
+        lti_deployment_id: "deploy-1",
+      },
+      maxRedirects: 0,
+    });
+    expect(unboundLogin.status()).toBe(302);
+    const unboundAuthorize = await request.get(
+      `${unboundLogin.headers()["location"]}&unbound_assessment=true`,
+    );
+    const unboundHtml = await unboundAuthorize.text();
+    const unboundLaunch = await request.post(`${apiBase}/lti/launch`, {
+      multipart: {
+        id_token: hiddenValue(unboundHtml, "id_token"),
+        state: hiddenValue(unboundHtml, "state"),
+      },
+    });
+    expect(unboundLaunch.status()).toBe(400);
+    expect(((await unboundLaunch.json()) as { error: { code: string } }).error.code).toBe(
+      "unbound_resource",
+    );
 
     const links = await request.get(`${apiBase}/api/v1/integrations/lti-resource-links`, {
       headers,

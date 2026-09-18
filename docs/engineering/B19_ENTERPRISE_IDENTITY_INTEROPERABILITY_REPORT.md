@@ -27,6 +27,13 @@ External accounts bind on `(tenant, provider, immutable subject)`. Email linking
 requires `VERIFIED_EMAIL_EXPLICIT` plus a verified email claim. JIT is opt-in.
 SSO/LTI role mapping may assign only existing non-admin `ROLE_CODES`.
 
+SCIM create never silently attaches a new `externalId` to an existing local
+User solely because `userName` matches that user's email. With the SCIM binding
+provider's `account_linking_policy=NONE`, that collision returns HTTP `409`
+(`identity_link_required` / SCIM `uniqueness`) and requires explicit governed
+identity linking. Already-bound external subjects remain authoritative and
+immutable when `userName`/email changes.
+
 ## OIDC / SAML / SCIM
 
 OIDC Authorization Code + PKCE, state/nonce, JWKS signature verification, replay
@@ -39,7 +46,11 @@ deactivation incrementing `auth_version` so existing JWTs fail.
 
 LTI Advantage login + launch JWT validation, resource-link persistence, AGS
 score POST derived only from current `PublishedResult.status == "PUBLISHED"`,
-and NRPS membership ingest through the shared roster upsert.
+and NRPS membership ingest through the shared roster upsert. Launch requires a
+persisted `LtiResourceLink` with a non-null EduVijna `assessment_id`; a matching
+platform/context/resource row with `assessment_id=None` is rejected as
+`unbound_resource`. Launch never auto-creates or auto-binds assessments from
+claims.
 
 ## SIS / public machine API
 
@@ -64,7 +75,8 @@ against the configured ACS, plus SP-initiated `InResponseTo`. LTI launch binds
 the signed `target_link_uri` to the initiated transaction and requires a
 pre-associated assessment resource link. AGS passback derives the learner from
 `ExternalRosterIdentity` for the PublishedResult student. SCIM requires a
-non-email `externalId` as the immutable subject.
+non-email `externalId` as the immutable subject and does not email-link local
+accounts.
 
 ## Secret storage
 
@@ -84,13 +96,21 @@ LTI private keys are encrypted at rest. Secrets are never listed or logged.
 
 `/api/v1/b19-test/*` is available only when `B19_TEST_PROVIDERS_ENABLED` or
 `APP_ENV` is `local`/`test`. It emulates OIDC, SAML, LTI, NRPS, AGS, and a
-webhook receiver. Disabled by default in production configuration.
+webhook receiver. Disabled by default in production configuration. The gated
+`POST /api/v1/b19-test/users/{id}/local-password` fixture attaches a local
+password to a SCIM-provisioned user for Real E2E revocation proofs without
+implicit email linking.
 
 ## Tests / CI
 
-Backend pytest covers OIDC, SCIM, machine credentials, LTI, roster, AGS, and
+Backend pytest covers OIDC, SCIM (including no silent email binding), machine
+credentials, LTI (including assessment-unbound rejection), roster, AGS, and
 webhooks. Real E2E: `apps/web/e2e/real/zz-b19-enterprise-integrations.spec.ts`
 (never skipped) after `python -m app.cli.seed_b19_e2e_enterprise`.
+
+Final remediation head and authoritative CI run are recorded after the six-job
+SUCCESS workflow completes; independent ChatGPT audit acceptance is not claimed
+here.
 
 ## Deferred
 
