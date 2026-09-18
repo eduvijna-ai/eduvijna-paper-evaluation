@@ -8,6 +8,7 @@ import { ApiError } from "@/lib/api/http/errors";
 import type { Submission } from "@/lib/types/domain";
 
 const putSubmissionLanguage = vi.fn();
+const sessionPermissions = { current: ["submission:read", "submission:review"] };
 
 vi.mock("@/lib/api", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
@@ -18,6 +19,21 @@ vi.mock("@/lib/api", async () => {
     },
   };
 });
+
+vi.mock("@/lib/auth/session", () => ({
+  getSession: () => ({
+    userId: "user-eval-001",
+    displayName: "Evaluator",
+    email: "evaluator-a@demo.eduvijna.local",
+    role: "EVALUATOR",
+    roles: ["EVALUATOR"],
+    permissions: sessionPermissions.current,
+    tenantId: "t1",
+    institutionId: "inst-1",
+    expiresAt: Date.now() + 60_000,
+    authMode: "bearer",
+  }),
+}));
 
 function wrap(ui: ReactElement) {
   const client = new QueryClient({
@@ -56,6 +72,7 @@ function confirmedSubmission(overrides: Partial<Submission> = {}): Submission {
 describe("LanguageReviewPanel", () => {
   afterEach(() => {
     putSubmissionLanguage.mockReset();
+    sessionPermissions.current = ["submission:read", "submission:review"];
   });
 
   it("renders review-required detected language as needing confirmation", () => {
@@ -145,5 +162,38 @@ describe("LanguageReviewPanel", () => {
     );
     expect(screen.queryByTestId("language-review-panel")).not.toBeInTheDocument();
     expect(screen.queryByTestId("confirm-language")).not.toBeInTheDocument();
+  });
+
+  it("hides the confirmation action when the actor cannot mutate language", () => {
+    sessionPermissions.current = ["submission:read"];
+    wrap(
+      <LanguageReviewPanel
+        submissionId="sub-review"
+        languageCode="hi"
+        scriptCode="Deva"
+        languageSource="DETECTED"
+        languageState="REVIEW_REQUIRED"
+        automationBlockCode="LANGUAGE_REVIEW_REQUIRED"
+      />,
+    );
+    expect(screen.getByTestId("language-review-panel")).toBeInTheDocument();
+    expect(screen.queryByTestId("confirm-language")).not.toBeInTheDocument();
+    expect(screen.getByTestId("language-review-readonly")).toBeInTheDocument();
+  });
+
+  it("offers confirmation when the actor has submission:upload", () => {
+    sessionPermissions.current = ["submission:read", "submission:upload"];
+    wrap(
+      <LanguageReviewPanel
+        submissionId="sub-review"
+        languageCode="hi"
+        scriptCode="Deva"
+        languageSource="DETECTED"
+        languageState="REVIEW_REQUIRED"
+        automationBlockCode="LANGUAGE_REVIEW_REQUIRED"
+      />,
+    );
+    expect(screen.getByTestId("confirm-language")).toBeInTheDocument();
+    expect(screen.queryByTestId("language-review-readonly")).not.toBeInTheDocument();
   });
 });

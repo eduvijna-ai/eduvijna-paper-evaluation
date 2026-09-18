@@ -3,12 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, isApiError } from "@/lib/api";
+import { getSession } from "@/lib/auth/session";
 import { Button, Select } from "@/components/ui/primitives";
 import type { TranscriptionWorkspacePayload } from "@/lib/types/domain";
 import {
   B20_ERROR_CODES,
   B20_LANGUAGE_OPTIONS,
   buildLanguageConfirmRequest,
+  canMutateSubmissionLanguage,
   languageStateLabel,
   needsLanguageConfirmation,
 } from "@/lib/b20/context";
@@ -121,6 +123,8 @@ export function LanguageReviewPanel({
     return null;
   }
 
+  const canConfirm = canMutateSubmissionLanguage(getSession());
+
   return (
     <div
       data-testid="language-review-panel"
@@ -145,61 +149,69 @@ export function LanguageReviewPanel({
           </dd>
         </div>
       </dl>
-      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-        <label className="block">
-          <span className="text-xs font-medium">Language</span>
-          <Select
-            data-testid="language-review-language"
-            className="mt-1"
-            value={language}
-            onChange={(event) => {
-              const next = event.target.value;
-              setLanguage(next);
-              const match = options.find((row) => row.language === next);
-              if (match) setScript(match.script);
-            }}
+      {canConfirm ? (
+        <>
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-xs font-medium">Language</span>
+              <Select
+                data-testid="language-review-language"
+                className="mt-1"
+                value={language}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  setLanguage(next);
+                  const match = options.find((row) => row.language === next);
+                  if (match) setScript(match.script);
+                }}
+              >
+                {Array.from(new Map(options.map((row) => [row.language, row])).values()).map(
+                  (row) => (
+                    <option key={row.language} value={row.language}>
+                      {row.label}
+                    </option>
+                  ),
+                )}
+              </Select>
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium">Script</span>
+              <Select
+                data-testid="language-review-script"
+                className="mt-1"
+                value={script}
+                onChange={(event) => setScript(event.target.value)}
+              >
+                {scriptsForLanguage.map((row) => (
+                  <option key={`${row.language}-${row.script}`} value={row.script}>
+                    {row.script}
+                  </option>
+                ))}
+              </Select>
+            </label>
+          </div>
+          {error && (
+            <p
+              data-testid="language-review-error"
+              className="mt-3 rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-medium text-rose-900"
+            >
+              {error}
+            </p>
+          )}
+          <Button
+            className="mt-3"
+            data-testid="confirm-language"
+            disabled={!language || !script || mutation.isPending}
+            onClick={() => mutation.mutate()}
           >
-            {Array.from(new Map(options.map((row) => [row.language, row])).values()).map(
-              (row) => (
-                <option key={row.language} value={row.language}>
-                  {row.label}
-                </option>
-              ),
-            )}
-          </Select>
-        </label>
-        <label className="block">
-          <span className="text-xs font-medium">Script</span>
-          <Select
-            data-testid="language-review-script"
-            className="mt-1"
-            value={script}
-            onChange={(event) => setScript(event.target.value)}
-          >
-            {scriptsForLanguage.map((row) => (
-              <option key={`${row.language}-${row.script}`} value={row.script}>
-                {row.script}
-              </option>
-            ))}
-          </Select>
-        </label>
-      </div>
-      {error && (
-        <p
-          data-testid="language-review-error"
-          className="mt-3 rounded-md border border-rose-200 bg-rose-50 px-2 py-1 text-xs font-medium text-rose-900"
-        >
-          {error}
+            Confirm language
+          </Button>
+        </>
+      ) : (
+        <p data-testid="language-review-readonly" className="mt-3 text-xs">
+          Language confirmation requires submission:review or submission:upload.
         </p>
       )}
-      <Button
-        className="mt-3"
-        data-testid="confirm-language"
-        disabled={!language || !script || mutation.isPending}
-        onClick={() => mutation.mutate()}
-      >
-        Confirm language
-      </Button>
     </div>
   );
 }

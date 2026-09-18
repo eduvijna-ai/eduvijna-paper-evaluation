@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.authorization import AuthContext, require_permissions
+from app.core.authorization import AuthContext, require_any_permissions, require_permissions
 from app.core.config import get_settings
 from app.db.models import (
     Assessment,
@@ -760,7 +760,9 @@ async def put_submission_language(
     submission_id: uuid.UUID,
     payload: SubmissionLanguageIn,
     db: Db,
-    auth: AuthContext = Depends(require_permissions("submission:upload")),
+    auth: AuthContext = Depends(
+        require_any_permissions("submission:upload", "submission:review")
+    ),
 ) -> dict[str, Any]:
     item = await _scoped_submission(db, submission_id, auth.tenant_id)
     source = (payload.source or "PROVIDED").strip().upper()

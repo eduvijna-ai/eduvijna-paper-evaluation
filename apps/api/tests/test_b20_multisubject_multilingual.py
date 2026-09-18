@@ -20,7 +20,8 @@ from app.ai.types import (
     RubricEvaluationInput,
     TranscriptionInput,
 )
-from app.core.authorization import AuthContext
+from app.cli.seed_dev import DEMO_USER_PASSWORD
+from app.core.authorization import ROLE_PERMISSION_MAP, AuthContext
 from app.core.config import get_settings
 from app.core.security import JwtAuthProvider
 from app.db.models import (
@@ -669,6 +670,149 @@ async def test_b20_same_pair_human_confirmation_clears_review() -> None:
         assert ws["language_context"]["language_source"] == "PROVIDED"
         assert ws["language_context"]["language_state"] == "CONFIRMED"
         assert ws["items"]
+
+
+@pytest.mark.asyncio
+async def test_b20_evaluator_can_confirm_language_without_upload() -> None:
+    assert "submission:upload" not in ROLE_PERMISSION_MAP["EVALUATOR"]
+    assert "submission:review" in ROLE_PERMISSION_MAP["EVALUATOR"]
+    assert "submission:read" in ROLE_PERMISSION_MAP["EVALUATOR"]
+
+    async with api_client_fixed() as client:
+        headers = await _headers(client)
+        admin_me = await client.get("/api/v1/auth/me", headers=headers)
+        assert admin_me.status_code == 200, admin_me.text
+        assert "submission:upload" in admin_me.json()["permissions"]
+
+        data = await _ready_named(client, headers, subject_name="Mathematics")
+        upload = await client.post(
+            "/api/v1/submissions",
+            headers=headers,
+            files={"file": ("b20-eval.pdf", _pdf_bytes(), "application/pdf")},
+            data={"assessment_id": data["assessment"]["id"]},
+        )
+        assert upload.status_code == 201, upload.text
+        sid = upload.json()["id"]
+        proposed = await client.put(
+            f"/api/v1/submissions/{sid}/language",
+            headers=headers,
+            json={
+                "language_code": "hi",
+                "script_code": "Deva",
+                "source": "DETECTED",
+                "confidence": "0.4000",
+                "ambiguous": True,
+            },
+        )
+        assert proposed.status_code == 200, proposed.text
+        assert proposed.json()["language_state"] == "REVIEW_REQUIRED"
+
+        eval_login = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "evaluator-a@demo.eduvijna.local",
+                "password": DEMO_USER_PASSWORD,
+                "tenant_slug": "demo",
+            },
+        )
+        assert eval_login.status_code == 200, eval_login.text
+        eval_headers = {
+            "Authorization": f"Bearer {eval_login.json()['access_token']}"
+        }
+        me = await client.get("/api/v1/auth/me", headers=eval_headers)
+        assert me.status_code == 200, me.text
+        body = me.json()
+        assert "EVALUATOR" in body["roles"]
+        assert "submission:review" in body["permissions"]
+        assert "submission:read" in body["permissions"]
+        assert "submission:upload" not in body["permissions"]
+
+        denied_upload = await client.post(
+            "/api/v1/submissions",
+            headers=eval_headers,
+            files={"file": ("denied.pdf", _pdf_bytes(), "application/pdf")},
+            data={"assessment_id": data["assessment"]["id"]},
+        )
+        assert denied_upload.status_code == 403, denied_upload.text
+
+        confirmed = await client.put(
+            f"/api/v1/submissions/{sid}/language",
+            headers=eval_headers,
+            json={
+                "language_code": "hi",
+                "script_code": "Deva",
+                "source": "PROVIDED",
+                "confirm": True,
+            },
+        )
+        assert confirmed.status_code == 200, confirmed.text
+        result = confirmed.json()
+        assert result["language_code"] == "hi"
+        assert result["script_code"] == "Deva"
+        assert result["language_source"] == "PROVIDED"
+        assert result["language_state"] == "CONFIRMED"
+        assert result["language_confidence"] is None
+        assert result["automation_block_code"] is None
+
+
+@pytest.mark.asyncio
+async def test_b20_read_only_cannot_mutate_language() -> None:
+    async with api_client_fixed() as client:
+        headers = await _headers(client)
+        admin_me = await client.get("/api/v1/auth/me", headers=headers)
+        assert admin_me.status_code == 200, admin_me.text
+        data = await _ready_named(client, headers, subject_name="Mathematics")
+        upload = await client.post(
+            "/api/v1/submissions",
+            headers=headers,
+            files={"file": ("b20-ro.pdf", _pdf_bytes(), "application/pdf")},
+            data={"assessment_id": data["assessment"]["id"]},
+        )
+        assert upload.status_code == 201, upload.text
+        sid = upload.json()["id"]
+        proposed = await client.put(
+            f"/api/v1/submissions/{sid}/language",
+            headers=headers,
+            json={
+                "language_code": "hi",
+                "script_code": "Deva",
+                "source": "DETECTED",
+                "confidence": "0.4000",
+                "ambiguous": True,
+            },
+        )
+        assert proposed.status_code == 200, proposed.text
+
+        read_token = JwtAuthProvider(get_settings()).issue_access_token(
+            AuthContext(
+                user_id=uuid.UUID(admin_me.json()["id"]),
+                tenant_id=uuid.UUID(admin_me.json()["tenant_id"]),
+                roles=frozenset({"AUDITOR"}),
+                permissions=frozenset({"submission:read"}),
+            )
+        )[0]
+        read_headers = {"Authorization": f"Bearer {read_token}"}
+        readable = await client.get(f"/api/v1/submissions/{sid}", headers=read_headers)
+        assert readable.status_code == 200, readable.text
+        denied = await client.put(
+            f"/api/v1/submissions/{sid}/language",
+            headers=read_headers,
+            json={
+                "language_code": "hi",
+                "script_code": "Deva",
+                "source": "PROVIDED",
+                "confirm": True,
+            },
+        )
+        assert denied.status_code == 403, denied.text
+        persisted = await client.get(f"/api/v1/submissions/{sid}", headers=headers)
+        assert persisted.status_code == 200, persisted.text
+        body = persisted.json()
+        assert body["language_code"] == "hi"
+        assert body["script_code"] == "Deva"
+        assert body["language_source"] == "DETECTED"
+        assert body["language_state"] == "REVIEW_REQUIRED"
+        assert body["automation_block_code"] == "LANGUAGE_REVIEW_REQUIRED"
 
 
 @pytest.mark.asyncio

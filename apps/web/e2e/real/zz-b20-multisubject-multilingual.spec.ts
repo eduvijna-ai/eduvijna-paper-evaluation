@@ -6,6 +6,8 @@ test.setTimeout(600_000);
 
 const ADMIN_EMAIL = "admin@demo.eduvijna.local";
 const ADMIN_PASSWORD = "DemoAdmin!2026";
+const EVALUATOR_EMAIL = "evaluator-a@demo.eduvijna.local";
+const DEMO_USER_PASSWORD = "DemoUser!2026";
 const ISO_EMAIL = "admin@b19-iso.eduvijna.local";
 const ISO_TENANT = "b19-iso";
 
@@ -273,10 +275,14 @@ async function createLeafAssessment(
   };
 }
 
-async function uiLogin(page: import("@playwright/test").Page) {
+async function uiLogin(
+  page: import("@playwright/test").Page,
+  email = ADMIN_EMAIL,
+  password = ADMIN_PASSWORD,
+) {
   await page.goto("/login");
-  await page.getByTestId("login-email").fill(ADMIN_EMAIL);
-  await page.getByTestId("login-password").fill(ADMIN_PASSWORD);
+  await page.getByTestId("login-email").fill(email);
+  await page.getByTestId("login-password").fill(password);
   await page.getByTestId("login-submit").click();
   await expect(page.getByTestId("app-shell")).toBeVisible({ timeout: 30_000 });
 }
@@ -858,6 +864,110 @@ test.describe("B20 real multi-subject and multilingual", () => {
     await expect(page.getByTestId("transcription-original-text").first()).toBeVisible({
       timeout: 60_000,
     });
+  });
+
+  test("Path G reviewer — EVALUATOR confirms language without submission:upload", async ({
+    page,
+    request,
+  }) => {
+    const apiBase = apiBaseUrl();
+    const adminToken = await loginApi(request, apiBase);
+    const created = await createLeafAssessment(request, apiBase, adminToken, {
+      prefix: "B20GR",
+      subject: { code: "MATH", name: "Mathematics", metadata: { subject_profile: "MATHEMATICS" } },
+      prompt: "Find the area.",
+      answer: "length times width",
+    });
+    const pdf = await buildPdf("B20GR");
+    const upload = await request.post(`${apiBase}/api/v1/submissions`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+      multipart: {
+        assessment_id: created.assessmentId,
+        file: {
+          name: "b20-eval.pdf",
+          mimeType: "application/pdf",
+          buffer: pdf,
+        },
+      },
+    });
+    expect(upload.status(), await upload.text()).toBe(201);
+    const submissionId = ((await upload.json()) as { id: string }).id;
+    const detected = await request.put(
+      `${apiBase}/api/v1/submissions/${submissionId}/language`,
+      {
+        headers: { Authorization: `Bearer ${adminToken}` },
+        data: {
+          language_code: "hi",
+          script_code: "Deva",
+          source: "DETECTED",
+          confidence: 0.4,
+          ambiguous: true,
+        },
+      },
+    );
+    expect(detected.ok(), await detected.text()).toBeTruthy();
+
+    const evalToken = await loginApi(
+      request,
+      apiBase,
+      EVALUATOR_EMAIL,
+      DEMO_USER_PASSWORD,
+    );
+    const me = await request.get(`${apiBase}/api/v1/auth/me`, {
+      headers: { Authorization: `Bearer ${evalToken}` },
+    });
+    expect(me.ok(), await me.text()).toBeTruthy();
+    const meBody = (await me.json()) as { roles: string[]; permissions: string[] };
+    expect(meBody.roles).toContain("EVALUATOR");
+    expect(meBody.permissions).toContain("submission:review");
+    expect(meBody.permissions).toContain("submission:read");
+    expect(meBody.permissions).not.toContain("submission:upload");
+
+    const deniedUpload = await request.post(`${apiBase}/api/v1/submissions`, {
+      headers: { Authorization: `Bearer ${evalToken}` },
+      multipart: {
+        assessment_id: created.assessmentId,
+        file: {
+          name: "denied.pdf",
+          mimeType: "application/pdf",
+          buffer: pdf,
+        },
+      },
+    });
+    expect(deniedUpload.status()).toBe(403);
+
+    await uiLogin(page, EVALUATOR_EMAIL, DEMO_USER_PASSWORD);
+    await page.goto(`/submissions/${submissionId}`);
+    await expect(page.getByTestId("submission-detail-page")).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.getByTestId("submission-language-code")).toHaveText("hi");
+    await expect(page.getByTestId("submission-language-source")).toHaveText("DETECTED");
+    await expect(page.getByTestId("confirm-language")).toBeVisible();
+    await page.getByTestId("confirm-language").click();
+    await expect(page.getByTestId("submission-language-source")).toHaveText("PROVIDED", {
+      timeout: 30_000,
+    });
+    await expect(page.getByTestId("submission-language-state")).toContainText(/Confirmed/i);
+
+    const afterUi = await request.get(`${apiBase}/api/v1/submissions/${submissionId}`, {
+      headers: { Authorization: `Bearer ${evalToken}` },
+    });
+    expect(afterUi.ok(), await afterUi.text()).toBeTruthy();
+    const confirmedBody = (await afterUi.json()) as {
+      language_code: string;
+      script_code: string;
+      language_source: string;
+      language_state: string;
+      language_confidence: number | null;
+      automation_block_code: string | null;
+    };
+    expect(confirmedBody.language_code).toBe("hi");
+    expect(confirmedBody.script_code).toBe("Deva");
+    expect(confirmedBody.language_source).toBe("PROVIDED");
+    expect(confirmedBody.language_state).toBe("CONFIRMED");
+    expect(confirmedBody.language_confidence).toBeNull();
+    expect(confirmedBody.automation_block_code).toBeNull();
   });
 
   test("Path F — another tenant cannot access subject/language metadata", async ({

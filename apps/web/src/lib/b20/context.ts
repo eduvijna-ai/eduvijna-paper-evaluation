@@ -70,6 +70,27 @@ export function isAutomationBlocked(code: string | null | undefined): boolean {
   );
 }
 
+export function canMutateSubmissionLanguage(session: {
+  authMode?: string;
+  role?: string;
+  permissions?: string[];
+} | null): boolean {
+  if (!session) return false;
+  if (session.authMode === "demo") {
+    return (
+      session.role === "PLATFORM_ADMIN" ||
+      session.role === "TEACHER" ||
+      (session.permissions ?? []).includes("submission:review") ||
+      (session.permissions ?? []).includes("submission:upload")
+    );
+  }
+  const permissions = session.permissions ?? [];
+  return (
+    permissions.includes("submission:review") ||
+    permissions.includes("submission:upload")
+  );
+}
+
 export function needsLanguageConfirmation(
   languageState?: string | null,
   automationBlockCode?: string | null,

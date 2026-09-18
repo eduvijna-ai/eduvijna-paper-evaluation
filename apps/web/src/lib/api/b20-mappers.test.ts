@@ -13,6 +13,7 @@ import { ApiError } from "@/lib/api/http/errors";
 import {
   B20_ERROR_CODES,
   buildLanguageConfirmRequest,
+  canMutateSubmissionLanguage,
   isAutomationBlocked,
   isMathVerificationEligible,
   languageStateLabel,
@@ -269,6 +270,30 @@ describe("B20 language confirmation helpers", () => {
       needsLanguageConfirmation("UNSUPPORTED", "LANGUAGE_UNSUPPORTED"),
     ).toBe(false);
     expect(isAutomationBlocked("LANGUAGE_UNSUPPORTED")).toBe(true);
+  });
+
+  it("allows language mutation for review or upload, not read-only", () => {
+    expect(
+      canMutateSubmissionLanguage({
+        authMode: "bearer",
+        role: "EVALUATOR",
+        permissions: ["submission:read", "submission:review"],
+      }),
+    ).toBe(true);
+    expect(
+      canMutateSubmissionLanguage({
+        authMode: "bearer",
+        role: "TEACHER",
+        permissions: ["submission:read", "submission:upload"],
+      }),
+    ).toBe(true);
+    expect(
+      canMutateSubmissionLanguage({
+        authMode: "bearer",
+        role: "AUDITOR",
+        permissions: ["submission:read"],
+      }),
+    ).toBe(false);
   });
 });
 
