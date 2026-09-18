@@ -403,7 +403,16 @@ async function publishOne(
     timeout: 30_000,
   });
   await page.getByTestId("finalize-transcription").scrollIntoViewIfNeeded();
+  const finalizeResponse = page.waitForResponse(
+    (res) =>
+      res.url().includes(`/api/v1/submissions/${submissionId}/transcription/finalize`) &&
+      res.request().method() === "POST",
+    { timeout: 30_000 },
+  );
   await page.getByTestId("finalize-transcription").click();
+  const finalized = await finalizeResponse;
+  expect(finalized.ok(), await finalized.text()).toBeTruthy();
+  await page.goto(`/submissions/${submissionId}`);
   await expect(page.getByTestId("submission-detail-page")).toBeVisible({
     timeout: 30_000,
   });
