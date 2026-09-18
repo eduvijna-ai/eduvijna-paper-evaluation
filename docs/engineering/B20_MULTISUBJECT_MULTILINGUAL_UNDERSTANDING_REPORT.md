@@ -31,10 +31,10 @@ Bounded profiles:
 | `STATISTICS` | not eligible |
 | `ACCOUNTING` | not eligible |
 | `STRUCTURED_DESCRIPTIVE` | not eligible |
-| `UNSPECIFIED` (unmapped/legacy node name such as `Subject {suffix}`) | eligible for backward-compatible Mathematics pipeline |
-| `UNSUPPORTED` (explicit invalid metadata) | fail closed; never Mathematics |
+| `UNSPECIFIED` | eligible only when `subject_node_id` is genuinely missing (legacy pre-B20 rows) |
+| `UNSUPPORTED` | fail closed; never Mathematics. Used for present unknown nodes, unresolved tenant-scoped node IDs, and explicit invalid metadata |
 
-Unknown or unsupported configuration fails closed. The implementation never silently falls back to Mathematics for an explicit unknown profile.
+Unknown or unsupported configuration fails closed. A present `CurriculumNode` whose code/name/metadata do not map to a known B20 profile resolves to `UNSUPPORTED` (`math_verification_eligible = false`) and blocks automation with `SUBJECT_PROFILE_UNSUPPORTED`. The implementation never silently falls back to Mathematics for an unknown configured subject. `UNSPECIFIED` remains only for genuine missing `subject_node_id` on historical Mathematics-era rows.
 
 ## Language / script persistence
 
@@ -88,7 +88,7 @@ Unsupported combinations produce stable codes:
 * `LANGUAGE_UNSUPPORTED`
 * `SCRIPT_UNSUPPORTED`
 * `LANGUAGE_REVIEW_REQUIRED`
-* `LANGUAGE_CONTEXT_REQUIRED`
+* `LANGUAGE_CONTEXT_LOCKED`
 
 The fixed provider and evaluation/transcription services call this check. They do not silently invoke a generic provider.
 
@@ -97,7 +97,7 @@ The fixed provider and evaluation/transcription services call this check. They d
 ## API / UX
 
 * Upload accepts optional `language_code` / `script_code`
-* `PUT /api/v1/submissions/{id}/language` confirms or records detected language
+* `PUT /api/v1/submissions/{id}/language` confirms or records detected language until transcription evidence exists. After any `AnswerRegionTranscription` exists, or once evaluation/publication states are reached, a material language/script change is rejected with `LANGUAGE_CONTEXT_LOCKED`. Idempotent same-value updates remain safe.
 * Assessment create/read expose resolved `subject_profile` from the curriculum node
 * Transcription workspace returns subject/language context, original text, and derived texts
 * Frontend: assessment subject profile, upload language/script, transcription original vs translation, unsupported/review banner
@@ -114,7 +114,7 @@ Deterministic fixtures: Mathematics baseline, Physics non-Math, Hindi multilingu
 * Backend: `apps/api/tests/test_b20_multisubject_multilingual.py`
 * Frontend unit: `apps/web/src/lib/api/b20-mappers.test.ts`, `b20-openapi-contract.test.ts`
 * Mock Playwright: `apps/web/e2e/b20-multisubject-multilingual.spec.ts`
-* Real Playwright: `apps/web/e2e/real/zz-b20-multisubject-multilingual.spec.ts` (Paths A–F, never skipped)
+* Real Playwright: `apps/web/e2e/real/zz-b20-multisubject-multilingual.spec.ts` (Paths A–F, never skipped). Paths B and C continue through UI transcription confirmation, finalization, and the evaluation workspace, then read `subject_profile` / `math_verification_invoked` from the real evaluation API. Path D confirms and finalizes the original Hindi transcription through the UI.
 
 ## Non-scope (honored)
 

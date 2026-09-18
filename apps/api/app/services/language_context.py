@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Literal
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 LANGUAGE_STATE_UNKNOWN = "UNKNOWN"
 LANGUAGE_STATE_CONFIRMED = "CONFIRMED"
@@ -48,7 +52,18 @@ ERROR_LANGUAGE_UNSUPPORTED = "LANGUAGE_UNSUPPORTED"
 ERROR_SCRIPT_UNSUPPORTED = "SCRIPT_UNSUPPORTED"
 ERROR_LANGUAGE_REVIEW_REQUIRED = "LANGUAGE_REVIEW_REQUIRED"
 ERROR_LANGUAGE_CONTEXT_REQUIRED = "LANGUAGE_CONTEXT_REQUIRED"
+ERROR_LANGUAGE_CONTEXT_LOCKED = "LANGUAGE_CONTEXT_LOCKED"
 ERROR_SUBJECT_PROFILE_UNSUPPORTED = "SUBJECT_PROFILE_UNSUPPORTED"
+
+_LANGUAGE_LOCK_WORKFLOW_STATES: frozenset[str] = frozenset(
+    {
+        "EVALUATING",
+        "EVALUATION_REVIEW",
+        "MODERATION_REVIEW",
+        "APPROVED",
+        "PUBLISHED",
+    }
+)
 
 
 class LanguageContextError(ValueError):
@@ -307,6 +322,68 @@ def apply_decision_to_submission(submission: Any, decision: LanguageDecision) ->
     submission.language_source = decision.language_source
     submission.language_confidence = decision.language_confidence
     submission.language_state = decision.language_state
+
+
+def language_script_unchanged(
+    current_language: str | None,
+    current_script: str | None,
+    next_language: str | None,
+    next_script: str | None,
+) -> bool:
+    def _lang(value: str | None) -> str | None:
+        try:
+            return canonicalize_language_code(value)
+        except LanguageContextError:
+            token = (value or "").strip().lower()
+            return token or None
+
+    def _script(value: str | None) -> str | None:
+        try:
+            return canonicalize_script_code(value)
+        except LanguageContextError:
+            token = (value or "").strip()
+            return token or None
+
+    return _lang(current_language) == _lang(next_language) and _script(
+        current_script
+    ) == _script(next_script)
+
+
+async def submission_has_transcription_evidence(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    submission_id: uuid.UUID,
+) -> bool:
+    from app.db.models import AnswerRegion, AnswerRegionTranscription, SubmissionPage
+
+    found = await db.scalar(
+        select(AnswerRegionTranscription.id)
+        .join(
+            AnswerRegion,
+            AnswerRegion.id == AnswerRegionTranscription.answer_region_id,
+        )
+        .join(SubmissionPage, SubmissionPage.id == AnswerRegion.submission_page_id)
+        .where(
+            AnswerRegionTranscription.tenant_id == tenant_id,
+            SubmissionPage.submission_id == submission_id,
+        )
+        .limit(1)
+    )
+    return found is not None
+
+
+async def language_context_is_locked(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    submission: Any,
+) -> bool:
+    if getattr(submission, "workflow_state", None) in _LANGUAGE_LOCK_WORKFLOW_STATES:
+        return True
+    return await submission_has_transcription_evidence(
+        db, tenant_id=tenant_id, submission_id=submission.id
+    )
 
 
 LanguageState = Literal["UNKNOWN", "CONFIRMED", "REVIEW_REQUIRED", "UNSUPPORTED"]

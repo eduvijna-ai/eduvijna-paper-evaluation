@@ -153,6 +153,43 @@ async def _ready_named(
     return data
 
 
+async def _map_two_leaves(
+    client: AsyncClient, headers: dict[str, str], sid: str
+) -> None:
+    student_id = await _ensure_student(client, headers)
+    assert (
+        await client.post(
+            f"/api/v1/submissions/{sid}/identity/confirm",
+            headers=headers,
+            json={"student_id": student_id},
+        )
+    ).status_code == 200
+    mapping = await client.get(f"/api/v1/submissions/{sid}/mapping", headers=headers)
+    mbody = mapping.json()
+    leaves = [n for n in mbody["questions"] if n.get("is_leaf_scorable")]
+    region_id = mbody["regions"][0]["id"]
+    await client.put(
+        f"/api/v1/submissions/{sid}/question-mappings/{leaves[0]['question_version_id']}",
+        headers=headers,
+        json={"disposition": "ANSWERED", "region_ids": [region_id]},
+    )
+    await client.post(
+        f"/api/v1/submissions/{sid}/question-mappings/{leaves[0]['question_version_id']}/confirm",
+        headers=headers,
+    )
+    await client.put(
+        f"/api/v1/submissions/{sid}/question-mappings/{leaves[1]['question_version_id']}",
+        headers=headers,
+        json={"disposition": "BLANK", "region_ids": []},
+    )
+    await client.post(
+        f"/api/v1/submissions/{sid}/question-mappings/{leaves[1]['question_version_id']}/confirm",
+        headers=headers,
+    )
+    fin = await client.post(f"/api/v1/submissions/{sid}/mapping/finalize", headers=headers)
+    assert fin.status_code == 200, fin.text
+
+
 def test_b20_subject_profile_never_falls_back_to_math() -> None:
     class _Node:
         id = uuid.uuid4()
@@ -164,6 +201,47 @@ def test_b20_subject_profile_never_falls_back_to_math() -> None:
     assert resolved.profile == SUBJECT_PROFILE_UNSUPPORTED
     assert resolved.profile != SUBJECT_PROFILE_MATHEMATICS
     assert math_verification_allowed(resolved.profile) is False
+
+    present_unmapped = resolve_subject_profile(
+        type(
+            "N",
+            (),
+            {
+                "id": uuid.uuid4(),
+                "code": "ASTRONOMY",
+                "name": "Astronomy",
+                "metadata_json": {},
+            },
+        )()
+    )
+    assert present_unmapped.profile == SUBJECT_PROFILE_UNSUPPORTED
+    assert present_unmapped.math_verification_eligible is False
+    assert math_verification_allowed(present_unmapped.profile) is False
+
+    suffixed = resolve_subject_profile(
+        type(
+            "N",
+            (),
+            {
+                "id": uuid.uuid4(),
+                "code": "ASTRONOMY_abc123",
+                "name": "Astronomy",
+                "metadata_json": {},
+            },
+        )()
+    )
+    assert suffixed.profile == SUBJECT_PROFILE_UNSUPPORTED
+    assert suffixed.math_verification_eligible is False
+
+    missing = resolve_subject_profile(None, subject_node_id=None)
+    assert missing.profile == SUBJECT_PROFILE_UNSPECIFIED
+    assert missing.math_verification_eligible is True
+    assert math_verification_allowed(missing.profile) is True
+
+    unresolved = resolve_subject_profile(None, subject_node_id=uuid.uuid4())
+    assert unresolved.profile == SUBJECT_PROFILE_UNSUPPORTED
+    assert unresolved.math_verification_eligible is False
+    assert math_verification_allowed(unresolved.profile) is False
 
     physics = resolve_subject_profile(
         type(
@@ -274,6 +352,77 @@ async def test_b20_unknown_subject_is_not_mathematics() -> None:
         )
         assert got.json()["subject_profile"] == SUBJECT_PROFILE_UNSUPPORTED
         assert got.json()["subject_profile"] != SUBJECT_PROFILE_MATHEMATICS
+        assert got.json()["math_verification_eligible"] is False
+
+
+@pytest.mark.asyncio
+async def test_b20_present_unknown_subject_node_fails_closed() -> None:
+    async with api_client_fixed() as client:
+        headers = await _headers(client)
+        data = await _ready_named(
+            client,
+            headers,
+            subject_name="Astronomy",
+            subject_code="ASTRONOMY",
+            metadata={},
+        )
+        got = await client.get(
+            f"/api/v1/assessments/{data['assessment']['id']}", headers=headers
+        )
+        body = got.json()
+        assert body["subject_profile"] == SUBJECT_PROFILE_UNSUPPORTED
+        assert body["math_verification_eligible"] is False
+        upload = await client.post(
+            "/api/v1/submissions",
+            headers=headers,
+            files={"file": ("astro.pdf", _pdf_bytes(), "application/pdf")},
+            data={"assessment_id": data["assessment"]["id"]},
+        )
+        assert upload.status_code == 201, upload.text
+        sid = upload.json()["id"]
+        await _map_two_leaves(client, headers, sid)
+        prep = await client.post(
+            f"/api/v1/submissions/{sid}/transcription/prepare", headers=headers
+        )
+        assert prep.status_code == 409, prep.text
+        assert _detail_code(prep) == "SUBJECT_PROFILE_UNSUPPORTED"
+        eval_prep = await client.post(
+            f"/api/v1/submissions/{sid}/evaluation/prepare", headers=headers
+        )
+        assert eval_prep.status_code == 409, eval_prep.text
+        assert _detail_code(eval_prep) == "SUBJECT_PROFILE_UNSUPPORTED"
+
+
+@pytest.mark.asyncio
+async def test_b20_unknown_subject_code_with_suffix_fails_closed() -> None:
+    async with api_client_fixed() as client:
+        headers = await _headers(client)
+        suffix = uuid.uuid4().hex[:8]
+        data = await _ready_named(
+            client,
+            headers,
+            subject_name="Astronomy",
+            subject_code=f"ASTRONOMY_{suffix}",
+            metadata={},
+        )
+        got = await client.get(
+            f"/api/v1/assessments/{data['assessment']['id']}", headers=headers
+        )
+        assert got.json()["subject_profile"] == SUBJECT_PROFILE_UNSUPPORTED
+        assert got.json()["math_verification_eligible"] is False
+        upload = await client.post(
+            "/api/v1/submissions",
+            headers=headers,
+            files={"file": ("astro-suf.pdf", _pdf_bytes(), "application/pdf")},
+            data={"assessment_id": data["assessment"]["id"]},
+        )
+        sid = upload.json()["id"]
+        await _map_two_leaves(client, headers, sid)
+        prep = await client.post(
+            f"/api/v1/submissions/{sid}/transcription/prepare", headers=headers
+        )
+        assert prep.status_code == 409, prep.text
+        assert _detail_code(prep) == "SUBJECT_PROFILE_UNSUPPORTED"
 
 
 @pytest.mark.asyncio
@@ -412,6 +561,138 @@ async def test_b20_detected_low_confidence_requires_review() -> None:
         assert proposed.json()["language_source"] == "DETECTED"
         assert proposed.json()["language_confidence"] == pytest.approx(0.4)
         assert proposed.json()["automation_block_code"] == "LANGUAGE_REVIEW_REQUIRED"
+
+
+@pytest.mark.asyncio
+async def test_b20_language_context_locked_after_transcription() -> None:
+    async with api_client_fixed() as client:
+        headers = await _headers(client)
+        data = await _ready_named(client, headers, subject_name="Mathematics")
+        upload = await client.post(
+            "/api/v1/submissions",
+            headers=headers,
+            files={"file": ("b20-lock.pdf", _pdf_bytes(), "application/pdf")},
+            data={
+                "assessment_id": data["assessment"]["id"],
+                "language_code": "en",
+                "script_code": "Latn",
+            },
+        )
+        assert upload.status_code == 201, upload.text
+        sid = upload.json()["id"]
+        before_tx = await client.put(
+            f"/api/v1/submissions/{sid}/language",
+            headers=headers,
+            json={"language_code": "hi", "script_code": "Deva"},
+        )
+        assert before_tx.status_code == 200, before_tx.text
+        assert before_tx.json()["language_code"] == "hi"
+        restored = await client.put(
+            f"/api/v1/submissions/{sid}/language",
+            headers=headers,
+            json={"language_code": "en", "script_code": "Latn"},
+        )
+        assert restored.status_code == 200, restored.text
+        assert restored.json()["language_code"] == "en"
+        assert restored.json()["script_code"] == "Latn"
+
+        await _map_two_leaves(client, headers, sid)
+        workspace = await client.get(
+            f"/api/v1/submissions/{sid}/transcription", headers=headers
+        )
+        assert workspace.status_code == 200, workspace.text
+        original_items = workspace.json()["items"]
+        originals: list[tuple[str, str | None, list]] = []
+        for item in original_items:
+            for region in item["regions"]:
+                active = region.get("active_transcription") or region.get(
+                    "latest_ai_proposal"
+                )
+                if active and active.get("id"):
+                    originals.append(
+                        (
+                            active["id"],
+                            active.get("text"),
+                            list(active.get("derived_texts") or []),
+                        )
+                    )
+        assert originals
+        async with async_session_factory() as db:
+            exec_before = list(
+                (
+                    await db.scalars(
+                        select(AiExecutionRecord).where(
+                            AiExecutionRecord.submission_id == uuid.UUID(sid)
+                        )
+                    )
+                ).all()
+            )
+            before_ids = {row.id for row in exec_before}
+
+        locked = await client.put(
+            f"/api/v1/submissions/{sid}/language",
+            headers=headers,
+            json={"language_code": "hi", "script_code": "Deva"},
+        )
+        assert locked.status_code == 409, locked.text
+        assert _detail_code(locked) == "LANGUAGE_CONTEXT_LOCKED"
+        got = await client.get(f"/api/v1/submissions/{sid}", headers=headers)
+        assert got.json()["language_code"] == "en"
+        assert got.json()["script_code"] == "Latn"
+        after_ws = await client.get(
+            f"/api/v1/submissions/{sid}/transcription", headers=headers
+        )
+        after_items = after_ws.json()["items"]
+        after_originals: list[tuple[str, str | None, list]] = []
+        for item in after_items:
+            for region in item["regions"]:
+                active = region.get("active_transcription") or region.get(
+                    "latest_ai_proposal"
+                )
+                if active and active.get("id"):
+                    after_originals.append(
+                        (
+                            active["id"],
+                            active.get("text"),
+                            list(active.get("derived_texts") or []),
+                        )
+                    )
+        assert after_originals == originals
+        async with async_session_factory() as db:
+            exec_after = list(
+                (
+                    await db.scalars(
+                        select(AiExecutionRecord).where(
+                            AiExecutionRecord.submission_id == uuid.UUID(sid)
+                        )
+                    )
+                ).all()
+            )
+            assert {row.id for row in exec_after} == before_ids
+        same = await client.put(
+            f"/api/v1/submissions/{sid}/language",
+            headers=headers,
+            json={"language_code": "en", "script_code": "Latn"},
+        )
+        assert same.status_code == 200, same.text
+        assert same.json()["language_code"] == "en"
+        assert same.json()["script_code"] == "Latn"
+
+        foreign_user_id, foreign_tenant_id = await create_foreign_user()
+        token = JwtAuthProvider(get_settings()).issue_access_token(
+            AuthContext(
+                user_id=foreign_user_id,
+                tenant_id=foreign_tenant_id,
+                roles=frozenset({"INSTITUTION_ADMIN"}),
+                permissions=frozenset({"submission:upload"}),
+            )
+        )[0]
+        isolated = await client.put(
+            f"/api/v1/submissions/{sid}/language",
+            headers={"Authorization": f"Bearer {token}"},
+            json={"language_code": "hi", "script_code": "Deva"},
+        )
+        assert isolated.status_code == 404
 
 
 @pytest.mark.asyncio
@@ -572,10 +853,9 @@ async def test_b20_mathematics_and_human_confirmation_remain() -> None:
         data = await _ready_assessment(client, headers)
         sid = await _to_ready_for_evaluation(client, headers, data)
         workspace = await client.get(f"/api/v1/submissions/{sid}/transcription", headers=headers)
-        assert workspace.json()["subject_context"]["subject_profile"] in {
-            SUBJECT_PROFILE_MATHEMATICS,
-            SUBJECT_PROFILE_UNSPECIFIED,
-        }
+        assert workspace.json()["subject_context"]["subject_profile"] == (
+            SUBJECT_PROFILE_MATHEMATICS
+        )
         prep = await client.post(
             f"/api/v1/submissions/{sid}/evaluation/prepare", headers=headers
         )

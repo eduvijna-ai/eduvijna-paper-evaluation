@@ -247,11 +247,6 @@ async def prepare_evaluation(
             "IDENTITY_NOT_CONFIRMED",
             "Student identity must be CONFIRMED before evaluation",
         )
-    if submission.transcription_state != "READY":
-        raise EvaluationError(
-            "TRANSCRIPTION_NOT_READY",
-            "Transcription must be READY before evaluation",
-        )
     context = await load_understanding_context(
         db, tenant_id=tenant_id, submission=submission
     )
@@ -260,6 +255,11 @@ async def prepare_evaluation(
         raise EvaluationError(
             block_code,
             "Automated evaluation is blocked until language/subject context is governed",
+        )
+    if submission.transcription_state != "READY":
+        raise EvaluationError(
+            "TRANSCRIPTION_NOT_READY",
+            "Transcription must be READY before evaluation",
         )
 
     active = await _active_run(db, tenant_id=tenant_id, submission_id=submission.id)
@@ -1253,6 +1253,10 @@ def _dump_question_evaluation(
         "reviewed_at": qe.reviewed_at.isoformat() if qe.reviewed_at else None,
         "reviewer_feedback": qe.reviewer_feedback,
         "approved_snapshot_hash": qe.approved_snapshot_hash,
+        "subject_profile": (qe.evidence_metadata or {}).get("subject_profile"),
+        "math_verification_invoked": bool(
+            (qe.evidence_metadata or {}).get("math_verification_invoked")
+        ),
     }
 
 

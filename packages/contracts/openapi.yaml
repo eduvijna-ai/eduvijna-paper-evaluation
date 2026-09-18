@@ -783,7 +783,7 @@ paths:
               schema: { $ref: "#/components/schemas/Submission" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "409": { description: Language/script unsupported or review required }
+        "409": { description: Language context locked, unsupported, or review required }
         "422": { description: Invalid language/script }
   /api/v1/submissions/{id}/pages:
     parameters: [{ $ref: "#/components/parameters/Id" }]
@@ -5203,6 +5203,8 @@ components:
         reviewed_at: { type: [string, "null"], format: date-time }
         reviewer_feedback: { type: [string, "null"] }
         approved_snapshot_hash: { type: [string, "null"] }
+        subject_profile: { type: [string, "null"] }
+        math_verification_invoked: { type: boolean }
     EvaluationRunDetail:
       allOf:
         - { $ref: "#/components/schemas/EvaluationRun" }

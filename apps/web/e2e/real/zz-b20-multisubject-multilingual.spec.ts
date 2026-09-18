@@ -373,6 +373,85 @@ async function openTranscriptionWorkspace(page: import("@playwright/test").Page)
   });
 }
 
+async function confirmAndFinalizeTranscription(page: import("@playwright/test").Page) {
+  await expect(page.getByTestId("transcription-original-text").first()).toBeVisible({
+    timeout: 60_000,
+  });
+  const confirmFirst = page.getByTestId("confirm-transcription").first();
+  await expect(confirmFirst).toBeEnabled({ timeout: 30_000 });
+  await confirmFirst.click();
+  for (let i = 0; i < 12; i += 1) {
+    const enabled = page.locator('[data-testid="confirm-transcription"]:not([disabled])');
+    if ((await enabled.count()) === 0) break;
+    await enabled.first().click();
+    await page.waitForTimeout(400);
+  }
+  await expect(page.getByTestId("finalize-transcription")).toBeEnabled({
+    timeout: 30_000,
+  });
+  await page.getByTestId("finalize-transcription").click();
+  await expect(page.getByTestId("submission-detail-page")).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(page.getByTestId("link-evaluation")).toBeVisible({ timeout: 30_000 });
+}
+
+async function enterEvaluationWorkspace(page: import("@playwright/test").Page) {
+  await page.getByTestId("link-evaluation").click();
+  await expect(page.getByTestId("evaluation-workspace-page")).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(page.getByTestId("evaluation-workspace-page")).toHaveAttribute(
+    "data-evaluation-mode",
+    "live",
+  );
+}
+
+function submissionIdFromUrl(url: string): string {
+  const id = url.split("/submissions/")[1]?.split("/")[0];
+  expect(id).toBeTruthy();
+  return id as string;
+}
+
+async function waitForEvaluationEvidence(
+  request: APIRequestContext,
+  apiBase: string,
+  token: string,
+  submissionId: string,
+  expectedProfile: string,
+) {
+  return waitUntil(
+    async () => {
+      const res = await request.get(
+        `${apiBase}/api/v1/submissions/${submissionId}/evaluation`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      expect(res.status()).toBe(200);
+      return (await res.json()) as {
+        workflow_state?: string;
+        question_evaluations?: Array<{
+          subject_profile?: string;
+          math_verification_invoked?: boolean;
+          workflow_state?: string;
+        }>;
+      };
+    },
+    (body) => {
+      if (body.workflow_state !== "EVALUATION_REVIEW") return false;
+      const qes = body.question_evaluations ?? [];
+      if (qes.length === 0) return false;
+      return qes.every(
+        (qe) =>
+          qe.subject_profile === expectedProfile &&
+          qe.math_verification_invoked === false &&
+          qe.workflow_state !== "PENDING",
+      );
+    },
+    180_000,
+    `${expectedProfile} evaluation evidence without Math verification`,
+  );
+}
+
 test.describe("B20 real multi-subject and multilingual", () => {
   test("Path A — Mathematics regression through the real pipeline", async ({
     page,
@@ -466,6 +545,23 @@ test.describe("B20 real multi-subject and multilingual", () => {
     await expect(page.getByTestId("transcription-original-text").first()).toContainText(
       /Newton|force|mass/i,
     );
+    await confirmAndFinalizeTranscription(page);
+    await enterEvaluationWorkspace(page);
+    const submissionId = submissionIdFromUrl(page.url());
+    const evidence = await waitForEvaluationEvidence(
+      request,
+      apiBase,
+      token,
+      submissionId,
+      "PHYSICS",
+    );
+    expect(evidence.workflow_state).toBe("EVALUATION_REVIEW");
+    const qes = evidence.question_evaluations ?? [];
+    expect(qes.length).toBeGreaterThan(0);
+    for (const qe of qes) {
+      expect(qe.subject_profile).toBe("PHYSICS");
+      expect(qe.math_verification_invoked).toBe(false);
+    }
   });
 
   test("Path C — structured descriptive subject travels the governed path", async ({
@@ -509,6 +605,23 @@ test.describe("B20 real multi-subject and multilingual", () => {
     await expect(page.getByTestId("transcription-original-text").first()).toBeVisible({
       timeout: 60_000,
     });
+    await confirmAndFinalizeTranscription(page);
+    await enterEvaluationWorkspace(page);
+    const submissionId = submissionIdFromUrl(page.url());
+    const evidence = await waitForEvaluationEvidence(
+      request,
+      apiBase,
+      token,
+      submissionId,
+      "STRUCTURED_DESCRIPTIVE",
+    );
+    expect(evidence.workflow_state).toBe("EVALUATION_REVIEW");
+    const qes = evidence.question_evaluations ?? [];
+    expect(qes.length).toBeGreaterThan(0);
+    for (const qe of qes) {
+      expect(qe.subject_profile).toBe("STRUCTURED_DESCRIPTIVE");
+      expect(qe.math_verification_invoked).toBe(false);
+    }
   });
 
   test("Path D — Hindi Devanagari original transcription remains authoritative", async ({
@@ -547,6 +660,58 @@ test.describe("B20 real multi-subject and multilingual", () => {
     await expect(page.getByTestId("transcription-transliteration")).toBeVisible();
     const derivedSource = page.getByTestId("transcription-derived-source-id").first();
     await expect(derivedSource).not.toHaveText("");
+    const originalBeforeConfirm = await page
+      .getByTestId("transcription-original-text")
+      .first()
+      .textContent();
+    expect(originalBeforeConfirm).toContain("हिंदी में हल");
+    const submissionId = submissionIdFromUrl(page.url());
+    await confirmAndFinalizeTranscription(page);
+
+    const confirmed = await request.get(
+      `${apiBase}/api/v1/submissions/${submissionId}/transcription`,
+      { headers: { Authorization: `Bearer ${token}` } },
+    );
+    expect(confirmed.status()).toBe(200);
+    const confirmedBody = (await confirmed.json()) as {
+      language_context?: { language_code?: string; script_code?: string };
+      items?: Array<{
+        regions?: Array<{
+          active_transcription?: {
+            id?: string;
+            status?: string;
+            text?: string;
+            language_code?: string;
+            script_code?: string;
+            derived_texts?: Array<{
+              kind?: string;
+              text?: string;
+              source_transcription_id?: string;
+            }>;
+          };
+        }>;
+      }>;
+    };
+    expect(confirmedBody.language_context?.language_code).toBe("hi");
+    expect(confirmedBody.language_context?.script_code).toBe("Deva");
+    const actives = (confirmedBody.items ?? []).flatMap((item) =>
+      (item.regions ?? []).map((region) => region.active_transcription),
+    );
+    const active = actives.find(
+      (row) => row?.status === "CONFIRMED" && (row.text ?? "").includes("हिंदी में हल"),
+    );
+    expect(active).toBeTruthy();
+    expect(active?.language_code).toBe("hi");
+    expect(active?.script_code).toBe("Deva");
+    const derived = active?.derived_texts ?? [];
+    const translation = derived.find((row) => row.kind === "TRANSLATION");
+    const transliteration = derived.find((row) => row.kind === "TRANSLITERATION");
+    expect(translation).toBeTruthy();
+    expect(transliteration).toBeTruthy();
+    expect(translation?.text).toContain("Solution in Hindi");
+    expect(translation?.text).not.toBe(active?.text);
+    expect(translation?.source_transcription_id).toBe(active?.id);
+    expect(transliteration?.source_transcription_id).toBe(active?.id);
 
     await page.goto(submissionUrl);
     await expect(page.getByTestId("submission-language-code")).toHaveText("hi");

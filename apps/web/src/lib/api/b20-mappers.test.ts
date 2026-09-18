@@ -57,6 +57,29 @@ describe("B20 subject profile mappers", () => {
     expect(subjectProfileLabel(view.subject_profile)).toBe("Unspecified");
   });
 
+  it("treats a present unknown subject profile as unsupported, not Math-eligible", () => {
+    const view = assessmentApiToView({
+      id: "a3",
+      tenant_id: "t1",
+      curriculum_id: "c1",
+      subject_node_id: "node-astronomy",
+      subject_profile: "UNSUPPORTED",
+      subject_node_code: "ASTRONOMY",
+      subject_node_name: "Astronomy",
+      math_verification_eligible: false,
+      code: "ASTRO-1",
+      title: "Astronomy",
+      assessment_type: "EXAM",
+      max_marks: "10.00",
+      status: "ACTIVE",
+    });
+    expect(view.subject_node_id).toBe("node-astronomy");
+    expect(view.subject_profile).toBe("UNSUPPORTED");
+    expect(view.math_verification_eligible).toBe(false);
+    expect(isMathVerificationEligible(view.subject_profile)).toBe(false);
+    expect(B20_ERROR_CODES.LANGUAGE_CONTEXT_LOCKED).toBe("LANGUAGE_CONTEXT_LOCKED");
+  });
+
   it("sends subject_node_id on create and never a disconnected subject store id", () => {
     expect(
       assessmentFormToApi({

@@ -45,12 +45,12 @@ Each B5 operation defines typed Pydantic models in `apps/api/app/ai/types.py`.
 Formal release state remains **FUTURE_ENTERPRISE**. B20 implements the understanding-layer expansion without a second grading pipeline.
 
 * Canonical subject remains `Assessment.subject_node_id` (CurriculumNode projection). No independent Subject table.
-* Bounded subject profiles: `MATHEMATICS`, `PHYSICS`, `CHEMISTRY`, `STATISTICS`, `ACCOUNTING`, `STRUCTURED_DESCRIPTIVE`, plus `UNSPECIFIED` (legacy unmapped) and `UNSUPPORTED` (fail-closed). Unknown metadata never silently becomes Mathematics.
-* `verify_math` / SymPy remains Mathematics-compatible only (`MATHEMATICS` and legacy `UNSPECIFIED`). Physics/Chemistry/descriptive/accounting/statistics do not enter the Math-only verification path.
+* Bounded subject profiles: `MATHEMATICS`, `PHYSICS`, `CHEMISTRY`, `STATISTICS`, `ACCOUNTING`, `STRUCTURED_DESCRIPTIVE`, plus `UNSPECIFIED` (legacy missing `subject_node_id` only) and `UNSUPPORTED` (fail-closed for present unknown nodes, unresolved node IDs, and invalid metadata). Unknown configured subjects never silently become Mathematics.
+* `verify_math` / SymPy remains Mathematics-compatible only (`MATHEMATICS` and genuine legacy `UNSPECIFIED`). Physics/Chemistry/descriptive/accounting/statistics and any present unknown subject do not enter the Math-only verification path.
 * Submission language/script is persisted (BCP-47 / ISO-15924 subset). States: `UNKNOWN` | `CONFIRMED` | `REVIEW_REQUIRED` | `UNSUPPORTED`.
 * Original-language transcription is authoritative. Translation/transliteration is a derived artifact (`TranscriptionDerivedText`) linked to the exact original transcription version; it never overwrites `AnswerRegionTranscription.text`.
 * Typed requests (`TranscriptionInput`, `RubricEvaluationInput`) carry resolved subject profile, language, script, and derived-text provenance. Evaluation `transcription_text` remains original evidence.
-* Provider capability routing is a deterministic subject × language × script × operation matrix (`app/ai/capability.py`). Unsupported combinations fail closed with stable codes (`SUBJECT_PROFILE_UNSUPPORTED`, `LANGUAGE_UNSUPPORTED`, `SCRIPT_UNSUPPORTED`, `LANGUAGE_REVIEW_REQUIRED`, `LANGUAGE_CONTEXT_REQUIRED`).
+* Provider capability routing is a deterministic subject × language × script × operation matrix (`app/ai/capability.py`). Unsupported combinations fail closed with stable codes (`SUBJECT_PROFILE_UNSUPPORTED`, `LANGUAGE_UNSUPPORTED`, `SCRIPT_UNSUPPORTED`, `LANGUAGE_REVIEW_REQUIRED`, `LANGUAGE_CONTEXT_REQUIRED`, `LANGUAGE_CONTEXT_LOCKED`).
 * `AiExecutionRecord` stores redacted routing metadata (profile/language/script/operation/provider/model) — never raw answer-sheet content.
 * Fixed/local provider covers B20 fixtures (Mathematics, Physics, Chemistry, descriptive/accounting/statistics, Hindi+Devanagari with translation/transliteration, unsupported language/script). Mandatory CI remains credential-free.
 * B15 isolated replay fixtures may carry B20 context. Regression still cannot mutate ledger, publication, review, mastery, or learning evidence.

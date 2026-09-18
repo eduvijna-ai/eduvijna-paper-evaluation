@@ -32,6 +32,9 @@ KNOWN_SUBJECT_PROFILES: frozenset[str] = frozenset(
     }
 )
 
+# UNSPECIFIED is Mathematics-compatible only for genuine legacy rows with no
+# subject_node_id. A present CurriculumNode that does not map to a known
+# profile is UNSUPPORTED and never Math-eligible.
 MATH_VERIFICATION_PROFILES: frozenset[str] = frozenset(
     {
         SUBJECT_PROFILE_MATHEMATICS,
@@ -130,13 +133,23 @@ def resolve_subject_profile(
     subject_node_id: Any | None = None,
 ) -> SubjectProfileResolution:
     """Project a bounded profile from the canonical curriculum subject node."""
-    node_id = str(node.id) if node is not None else (
-        str(subject_node_id) if subject_node_id else None
-    )
+    raw_id = str(subject_node_id).strip() if subject_node_id else None
+    if raw_id in {"", "None"}:
+        raw_id = None
+    node_id = str(node.id) if node is not None else raw_id
     if node is None:
+        if node_id:
+            return SubjectProfileResolution(
+                profile=SUBJECT_PROFILE_UNSUPPORTED,
+                subject_node_id=node_id,
+                subject_node_code=None,
+                subject_node_name=None,
+                source="SUBJECT_NODE_UNRESOLVED",
+                math_verification_eligible=False,
+            )
         return SubjectProfileResolution(
             profile=SUBJECT_PROFILE_UNSPECIFIED,
-            subject_node_id=node_id,
+            subject_node_id=None,
             subject_node_code=None,
             subject_node_name=None,
             source="MISSING_SUBJECT_NODE",
@@ -177,15 +190,13 @@ def resolve_subject_profile(
                 math_verification_eligible=mapped in MATH_VERIFICATION_PROFILES,
             )
 
-    # Unmapped names are not Mathematics. Legacy fixtures without a known family
-    # stay UNSPECIFIED so existing Mathematics-era pipelines remain green.
     return SubjectProfileResolution(
-        profile=SUBJECT_PROFILE_UNSPECIFIED,
+        profile=SUBJECT_PROFILE_UNSUPPORTED,
         subject_node_id=str(node.id),
         subject_node_code=node.code,
         subject_node_name=node.name,
         source="UNMAPPED_NODE",
-        math_verification_eligible=True,
+        math_verification_eligible=False,
     )
 
 

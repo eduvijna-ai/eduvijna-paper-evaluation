@@ -30,12 +30,15 @@ from app.db.models import (
 from app.db.session import get_db_session
 from app.services.audit import add_audit_event
 from app.services.language_context import (
+    ERROR_LANGUAGE_CONTEXT_LOCKED,
     ERROR_LANGUAGE_REVIEW_REQUIRED,
     LANGUAGE_STATE_REVIEW_REQUIRED,
     LanguageContextError,
     apply_decision_to_submission,
     decide_detected_language,
     decide_provided_language,
+    language_context_is_locked,
+    language_script_unchanged,
 )
 from app.services.storage import ObjectStorage, StorageImmutabilityError, raw_object_key
 from app.services.understanding_context import load_understanding_context
@@ -781,6 +784,32 @@ async def put_submission_language(
                 )
     except LanguageContextError as exc:
         raise _http_error(422, exc.code, exc.message) from exc
+    if language_script_unchanged(
+        item.language_code,
+        item.script_code,
+        decision.language_code,
+        decision.script_code,
+    ):
+        dump = _dump_submission(
+            item,
+            assessment_title=await _assessment_title(db, item.assessment_id),
+            student_display_name=await _student_name(db, item.student_id),
+        )
+        context = await load_understanding_context(
+            db, tenant_id=auth.tenant_id, submission=item
+        )
+        dump["subject_context"] = context.subject.as_public_dict()
+        dump["language_context"] = context.language.as_public_dict()
+        dump["automation_block_code"] = context.automation_block_code()
+        return dump
+    if await language_context_is_locked(
+        db, tenant_id=auth.tenant_id, submission=item
+    ):
+        raise _http_error(
+            409,
+            ERROR_LANGUAGE_CONTEXT_LOCKED,
+            "Language/script cannot change after transcription evidence exists",
+        )
     apply_decision_to_submission(item, decision)
     await _audit(
         db,
