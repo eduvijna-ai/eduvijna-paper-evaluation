@@ -45,6 +45,7 @@ from app.services.curriculum import (
 from app.services.mark_reconciliation import reconcile_marks
 from app.services.readiness import ensure_assessment_ready
 from app.services.rubric_reconciliation import reconcile_rubric
+from app.services.understanding_context import enrich_assessment_dump
 
 router = APIRouter()
 Db = Annotated[AsyncSession, Depends(get_db_session)]
@@ -465,7 +466,10 @@ async def list_assessments(
         .where(Assessment.tenant_id == auth.tenant_id)
         .order_by(Assessment.created_at.desc())
     )
-    return [_dump(item) for item in rows]
+    return [
+        await enrich_assessment_dump(db, tenant_id=auth.tenant_id, payload=_dump(item))
+        for item in rows
+    ]
 
 
 @router.post("/assessments", status_code=201)
@@ -498,7 +502,7 @@ async def create_assessment(
     await _commit(db)
     result = _dump(item)
     result["initial_version_id"] = version.id
-    return result
+    return await enrich_assessment_dump(db, tenant_id=auth.tenant_id, payload=result)
 
 
 @router.get("/assessments/{assessment_id}")
@@ -507,7 +511,11 @@ async def get_assessment(
     db: Db,
     auth: AuthContext = Depends(require_permissions("assessment:read")),
 ) -> dict[str, Any]:
-    return _dump(await _scoped(db, Assessment, assessment_id, auth.tenant_id))
+    return await enrich_assessment_dump(
+        db,
+        tenant_id=auth.tenant_id,
+        payload=_dump(await _scoped(db, Assessment, assessment_id, auth.tenant_id)),
+    )
 
 
 @router.patch("/assessments/{assessment_id}")

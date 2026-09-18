@@ -765,6 +765,26 @@ paths:
                 $ref: "#/components/schemas/Submission"
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/language:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    put:
+      operationId: putSubmissionLanguage
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SubmissionLanguageInput" }
+      responses:
+        "200":
+          description: Updated submission language context
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Submission" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: Language context locked, unsupported, or review required }
+        "422": { description: Invalid language/script }
   /api/v1/submissions/{id}/pages:
     parameters: [{ $ref: "#/components/parameters/Id" }]
     get:
@@ -4048,7 +4068,21 @@ components:
     Assessment:
       allOf:
         - { $ref: "#/components/schemas/AssessmentInput" }
-        - { type: object, required: [id, tenant_id, status], properties: { id: { type: string, format: uuid }, tenant_id: { type: string, format: uuid }, status: { type: string } } }
+        - {
+            type: object,
+            required: [id, tenant_id, status],
+            properties:
+              {
+                id: { type: string, format: uuid },
+                tenant_id: { type: string, format: uuid },
+                status: { type: string },
+                subject_profile: { type: string },
+                subject_node_code: { type: [string, "null"] },
+                subject_node_name: { type: [string, "null"] },
+                subject_profile_source: { type: [string, "null"] },
+                math_verification_eligible: { type: boolean },
+              },
+          }
     AssessmentVersionInput:
       type: object
       required: [title, max_marks]
@@ -4433,6 +4467,8 @@ components:
       properties:
         assessment_id: { type: string, format: uuid }
         bundle_name: { type: [string, "null"] }
+        language_code: { type: [string, "null"] }
+        script_code: { type: [string, "null"] }
         file: { type: string, format: binary }
     Submission:
       type: object
@@ -4505,10 +4541,100 @@ components:
         storage_status: { type: string, enum: [PENDING, AVAILABLE, FAILED] }
         page_count: { type: integer }
         bundle_name: { type: [string, "null"] }
+        language_code: { type: [string, "null"] }
+        script_code: { type: [string, "null"] }
+        language_source:
+          type: [string, "null"]
+          enum: [UNKNOWN, PROVIDED, DETECTED, null]
+        language_confidence: { type: [number, "null"], minimum: 0, maximum: 1 }
+        language_state:
+          type: string
+          enum: [UNKNOWN, CONFIRMED, REVIEW_REQUIRED, UNSUPPORTED]
+        subject_context: { $ref: "#/components/schemas/SubjectProfile" }
+        language_context: { $ref: "#/components/schemas/LanguageContext" }
+        automation_block_code:
+          type: [string, "null"]
+          enum:
+            [
+              SUBJECT_PROFILE_UNSUPPORTED,
+              LANGUAGE_UNSUPPORTED,
+              LANGUAGE_REVIEW_REQUIRED,
+              SCRIPT_UNSUPPORTED,
+              LANGUAGE_CONTEXT_REQUIRED,
+              null,
+            ]
         uploaded_by: { type: string, format: uuid }
         uploaded_at: { type: string, format: date-time }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+    SubmissionLanguageInput:
+      type: object
+      additionalProperties: false
+      properties:
+        language_code: { type: [string, "null"] }
+        script_code: { type: [string, "null"] }
+        confirm: { type: boolean, default: true }
+        source: { type: string, enum: [PROVIDED, DETECTED], default: PROVIDED }
+        confidence: { type: [number, "null"], minimum: 0, maximum: 1 }
+        ambiguous: { type: boolean, default: false }
+    SubjectProfile:
+      type: object
+      additionalProperties: false
+      required: [subject_profile]
+      properties:
+        subject_profile:
+          type: string
+          enum:
+            [
+              MATHEMATICS,
+              PHYSICS,
+              CHEMISTRY,
+              STATISTICS,
+              ACCOUNTING,
+              STRUCTURED_DESCRIPTIVE,
+              UNSPECIFIED,
+              UNSUPPORTED,
+            ]
+        subject_node_id: { type: [string, "null"], format: uuid }
+        subject_node_code: { type: [string, "null"] }
+        subject_node_name: { type: [string, "null"] }
+        subject_profile_source: { type: string }
+        math_verification_eligible: { type: boolean }
+    LanguageContext:
+      type: object
+      additionalProperties: false
+      required: [language_state]
+      properties:
+        language_code: { type: [string, "null"] }
+        script_code: { type: [string, "null"] }
+        language_source: { type: [string, "null"] }
+        language_confidence: { type: [number, "null"] }
+        language_state:
+          type: string
+          enum: [UNKNOWN, CONFIRMED, REVIEW_REQUIRED, UNSUPPORTED]
+    TranscriptionDerivedText:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          id,
+          source_transcription_id,
+          kind,
+          text,
+          source_language_code,
+          target_language_code,
+          status,
+        ]
+      properties:
+        id: { type: string, format: uuid }
+        source_transcription_id: { type: string, format: uuid }
+        kind: { type: string, enum: [TRANSLATION, TRANSLITERATION] }
+        text: { type: string }
+        source_language_code: { type: string }
+        target_language_code: { type: string }
+        source_script_code: { type: [string, "null"] }
+        target_script_code: { type: [string, "null"] }
+        status: { type: string, enum: [ACTIVE, SUPERSEDED] }
     SubmissionPage:
       type: object
       required: [id, tenant_id, submission_id, page_index, page_number, label, width, height]
@@ -4839,6 +4965,12 @@ components:
         confirmed_at: { type: [string, "null"], format: date-time }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+        language_code: { type: [string, "null"] }
+        script_code: { type: [string, "null"] }
+        language_source: { type: [string, "null"] }
+        derived_texts:
+          type: array
+          items: { $ref: "#/components/schemas/TranscriptionDerivedText" }
     ManualTranscriptionInput:
       type: object
       additionalProperties: false
@@ -4913,6 +5045,9 @@ components:
               UNAVAILABLE,
             ]
         automated_transcription_active: { type: boolean }
+        automation_block_code: { type: [string, "null"] }
+        subject_context: { $ref: "#/components/schemas/SubjectProfile" }
+        language_context: { $ref: "#/components/schemas/LanguageContext" }
         progress: { $ref: "#/components/schemas/TranscriptionProgress" }
         items:
           type: array
@@ -5068,6 +5203,8 @@ components:
         reviewed_at: { type: [string, "null"], format: date-time }
         reviewer_feedback: { type: [string, "null"] }
         approved_snapshot_hash: { type: [string, "null"] }
+        subject_profile: { type: [string, "null"] }
+        math_verification_invoked: { type: boolean }
     EvaluationRunDetail:
       allOf:
         - { $ref: "#/components/schemas/EvaluationRun" }

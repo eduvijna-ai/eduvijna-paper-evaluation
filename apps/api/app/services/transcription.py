@@ -9,6 +9,7 @@ from typing import Any
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.capability import CapabilityUnsupported, require_provider_capability
 from app.ai.execution_metadata import metadata_from_provider
 from app.ai.registry import get_structure_provider, structure_provider_active
 from app.ai.tracing import (
@@ -28,10 +29,12 @@ from app.db.models import (
     QuestionVersion,
     Submission,
     SubmissionPage,
+    TranscriptionDerivedText,
 )
 from app.services.audit import add_audit_event
 from app.services.crop_generation import ensure_region_crop
 from app.services.storage import ObjectStorage
+from app.services.understanding_context import load_understanding_context
 
 
 class TranscriptionError(RuntimeError):
@@ -55,6 +58,24 @@ async def ensure_transcription_job_and_state(
             "INVALID_WORKFLOW_STATE",
             "Transcription requires READY_FOR_EVALUATION",
         )
+
+    context = await load_understanding_context(
+        db, tenant_id=tenant_id, submission=submission
+    )
+    block_code = context.automation_block_code()
+    if block_code:
+        submission.transcription_state = "REVIEW_REQUIRED"
+        await add_audit_event(
+            db,
+            tenant_id=tenant_id,
+            actor_user_id=None,
+            entity_type="Submission",
+            entity_id=submission.id,
+            action="transcription_automation_blocked",
+            after={"code": block_code, **context.routing_metadata()},
+        )
+        await db.flush()
+        return None
 
     if submission.transcription_state == "READY":
         return None
@@ -182,7 +203,27 @@ async def run_transcription_pipeline(
             await db.commit()
             return
 
+        context = await load_understanding_context(
+            db, tenant_id=tenant_id, submission=submission
+        )
+        block_code = context.automation_block_code()
+        if block_code:
+            submission.transcription_state = "REVIEW_REQUIRED"
+            job.status = "SUCCEEDED"
+            job.error_code = block_code
+            job.error_detail = "Automated transcription blocked by B20 language/subject gate"
+            job.finished_at = datetime.now(UTC)
+            await db.commit()
+            return
+
         provider = get_structure_provider(settings)
+        require_provider_capability(
+            provider=provider.provider_name,
+            subject_profile=context.subject.profile,
+            language_code=context.language.routing_language_code,
+            script_code=context.language.routing_script_code,
+            operation="transcribe_answer",
+        )
         mappings = list(
             (
                 await db.scalars(
@@ -282,6 +323,11 @@ async def run_transcription_pipeline(
                     question_label=qv.display_label if qv else None,
                     question_type=None,
                     crop_content_sha256=crop_hash,
+                    subject_profile=context.subject.profile,
+                    language_code=context.language.routing_language_code,
+                    script_code=context.language.routing_script_code,
+                    language_state=context.language.language_state,
+                    subject_node_id=context.subject.subject_node_id,
                 )
                 started = datetime.now(UTC)
                 input_hash = canonical_input_hash(request.model_dump(mode="json"))
@@ -301,6 +347,11 @@ async def run_transcription_pipeline(
                     error_class = "ProviderUnavailable"
                     result = None
                     response_summary = {"error": str(exc)[:200]}
+                except CapabilityUnsupported as exc:
+                    status = "FAILED"
+                    error_class = exc.code
+                    result = None
+                    response_summary = {"error": str(exc)[:200], "code": exc.code}
                 except Exception as exc:
                     status = "FAILED"
                     error_class = type(exc).__name__
@@ -319,6 +370,9 @@ async def run_transcription_pipeline(
                         entity_ids={
                             "submission_id": str(submission.id),
                             "answer_region_id": str(region.id),
+                            "subject_profile": context.subject.profile,
+                            "language_code": context.language.routing_language_code,
+                            "script_code": context.language.routing_script_code,
                         },
                         input_refs={"crop_content_sha256": crop_hash},
                     ),
@@ -328,6 +382,9 @@ async def run_transcription_pipeline(
                     input_refs={
                         "crop_storage_key": crop_key,
                         "crop_content_sha256": crop_hash,
+                        "subject_profile": context.subject.profile,
+                        "language_code": context.language.routing_language_code,
+                        "script_code": context.language.routing_script_code,
                     },
                     input_hash=input_hash,
                     latency_ms=int((finished - started).total_seconds() * 1000),
@@ -366,8 +423,27 @@ async def run_transcription_pipeline(
                     status="REVIEW_REQUIRED",
                     ai_execution_record_id=exec_row.id,
                     created_by=None,
+                    language_code=context.language.language_code,
+                    script_code=context.language.script_code,
+                    language_source=context.language.language_source,
                 )
                 db.add(row)
+                await db.flush()
+                for derived in result.derived_texts:
+                    db.add(
+                        TranscriptionDerivedText(
+                            tenant_id=tenant_id,
+                            source_transcription_id=row.id,
+                            kind=derived.kind,
+                            text=derived.text,
+                            source_language_code=derived.source_language_code,
+                            target_language_code=derived.target_language_code,
+                            source_script_code=derived.source_script_code,
+                            target_script_code=derived.target_script_code,
+                            status="ACTIVE",
+                            ai_execution_record_id=exec_row.id,
+                        )
+                    )
                 # Projection for backward compatibility — never auto-confirm.
                 region.transcription = result.text
                 region.transcription_confidence = result.transcription_confidence
@@ -418,6 +494,9 @@ async def build_transcription_workspace(
     tenant_id: uuid.UUID,
     submission: Submission,
 ) -> dict[str, Any]:
+    context = await load_understanding_context(
+        db, tenant_id=tenant_id, submission=submission
+    )
     mappings = list(
         (
             await db.scalars(
@@ -516,9 +595,20 @@ async def build_transcription_workspace(
                 else None
             )
 
-            def dump_tx(tx: AnswerRegionTranscription | None) -> dict[str, Any] | None:
+            async def dump_tx(tx: AnswerRegionTranscription | None) -> dict[str, Any] | None:
                 if tx is None:
                     return None
+                derived_rows = list(
+                    (
+                        await db.scalars(
+                            select(TranscriptionDerivedText).where(
+                                TranscriptionDerivedText.tenant_id == tenant_id,
+                                TranscriptionDerivedText.source_transcription_id == tx.id,
+                                TranscriptionDerivedText.status == "ACTIVE",
+                            )
+                        )
+                    ).all()
+                )
                 return {
                     "id": str(tx.id),
                     "answer_region_id": str(tx.answer_region_id),
@@ -539,6 +629,23 @@ async def build_transcription_workspace(
                     "confirmed_at": tx.confirmed_at.isoformat() if tx.confirmed_at else None,
                     "created_at": tx.created_at.isoformat(),
                     "updated_at": tx.updated_at.isoformat(),
+                    "language_code": tx.language_code,
+                    "script_code": tx.script_code,
+                    "language_source": tx.language_source,
+                    "derived_texts": [
+                        {
+                            "id": str(d.id),
+                            "source_transcription_id": str(d.source_transcription_id),
+                            "kind": d.kind,
+                            "text": d.text,
+                            "source_language_code": d.source_language_code,
+                            "target_language_code": d.target_language_code,
+                            "source_script_code": d.source_script_code,
+                            "target_script_code": d.target_script_code,
+                            "status": d.status,
+                        }
+                        for d in derived_rows
+                    ],
                 }
 
             region_payloads.append(
@@ -557,8 +664,8 @@ async def build_transcription_workspace(
                     "crop_url": crop_url,
                     "page_image_url": page_url,
                     "page_index": page.page_index if page else None,
-                    "latest_ai_proposal": dump_tx(ai_proposal),
-                    "active_transcription": dump_tx(active),
+                    "latest_ai_proposal": await dump_tx(ai_proposal),
+                    "active_transcription": await dump_tx(active),
                     "requires_transcription": needs,
                 }
             )
@@ -581,6 +688,9 @@ async def build_transcription_workspace(
         "workflow_state": submission.workflow_state,
         "transcription_state": submission.transcription_state,
         "automated_transcription_active": spa(),
+        "automation_block_code": context.automation_block_code(),
+        "subject_context": context.subject.as_public_dict(),
+        "language_context": context.language.as_public_dict(),
         "progress": {
             "reviewed": reviewed,
             "required": required,
@@ -625,6 +735,20 @@ async def put_manual_transcription(
             AnswerRegionTranscription.answer_region_id == region.id,
         )
     )
+    page = await db.scalar(
+        select(SubmissionPage).where(
+            SubmissionPage.id == region.submission_page_id,
+            SubmissionPage.tenant_id == tenant_id,
+        )
+    )
+    submission = None
+    if page is not None:
+        submission = await db.scalar(
+            select(Submission).where(
+                Submission.id == page.submission_id,
+                Submission.tenant_id == tenant_id,
+            )
+        )
     row = AnswerRegionTranscription(
         tenant_id=tenant_id,
         answer_region_id=region.id,
@@ -639,6 +763,9 @@ async def put_manual_transcription(
         status="REVIEW_REQUIRED",
         supersedes_transcription_id=prior.id if prior else None,
         created_by=user_id,
+        language_code=submission.language_code if submission is not None else None,
+        script_code=submission.script_code if submission is not None else None,
+        language_source=submission.language_source if submission is not None else "PROVIDED",
     )
     db.add(row)
     region.transcription = row.text
@@ -683,6 +810,15 @@ async def finalize_transcription(
         raise TranscriptionError(
             "TRANSCRIPTION_RUNNING",
             "Transcription worker is still running",
+        )
+    context = await load_understanding_context(
+        db, tenant_id=tenant_id, submission=submission
+    )
+    block_code = context.automation_block_code()
+    if block_code:
+        raise TranscriptionError(
+            block_code,
+            "Transcription cannot be finalized until language/subject context is governed",
         )
 
     mappings = list(

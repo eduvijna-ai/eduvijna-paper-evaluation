@@ -37,6 +37,27 @@ export interface B3SubmissionDto {
   updated_at?: string | null;
   created_at?: string | null;
   transcription_state?: string | null;
+  language_code?: string | null;
+  script_code?: string | null;
+  language_source?: string | null;
+  language_confidence?: number | string | null;
+  language_state?: string | null;
+  subject_context?: {
+    subject_profile: string;
+    subject_node_id?: string | null;
+    subject_node_code?: string | null;
+    subject_node_name?: string | null;
+    subject_profile_source?: string;
+    math_verification_eligible?: boolean;
+  } | null;
+  language_context?: {
+    language_code?: string | null;
+    script_code?: string | null;
+    language_source?: string | null;
+    language_confidence?: number | string | null;
+    language_state: string;
+  } | null;
+  automation_block_code?: string | null;
 }
 
 export interface B3PaperPageDto {
@@ -106,6 +127,39 @@ export function submissionApiToView(dto: B3SubmissionDto): Submission {
     storage_status: dto.storage_status ?? null,
     transcription_state: (dto.transcription_state ??
       "NOT_STARTED") as TranscriptionState,
+    language_code: dto.language_code ?? null,
+    script_code: dto.script_code ?? null,
+    language_source: dto.language_source ?? null,
+    language_confidence:
+      dto.language_confidence === null || dto.language_confidence === undefined
+        ? null
+        : asNumber(dto.language_confidence),
+    language_state: dto.language_state ?? "UNKNOWN",
+    subject_context: dto.subject_context
+      ? {
+          subject_profile: dto.subject_context.subject_profile,
+          subject_node_id: dto.subject_context.subject_node_id ?? null,
+          subject_node_code: dto.subject_context.subject_node_code ?? null,
+          subject_node_name: dto.subject_context.subject_node_name ?? null,
+          subject_profile_source: dto.subject_context.subject_profile_source,
+          math_verification_eligible:
+            dto.subject_context.math_verification_eligible,
+        }
+      : undefined,
+    language_context: dto.language_context
+      ? {
+          language_code: dto.language_context.language_code ?? null,
+          script_code: dto.language_context.script_code ?? null,
+          language_source: dto.language_context.language_source ?? null,
+          language_confidence:
+            dto.language_context.language_confidence === null ||
+            dto.language_context.language_confidence === undefined
+              ? null
+              : asNumber(dto.language_context.language_confidence),
+          language_state: dto.language_context.language_state,
+        }
+      : undefined,
+    automation_block_code: dto.automation_block_code ?? null,
   };
 }
 
@@ -209,6 +263,17 @@ export interface UploadSubmissionInput {
   assessmentId: string;
   bundleName?: string;
   file: File;
+  languageCode?: string;
+  scriptCode?: string;
+}
+
+export interface PutSubmissionLanguageInput {
+  language_code: string;
+  script_code?: string | null;
+  source?: "PROVIDED" | "DETECTED";
+  confirm?: boolean;
+  confidence?: number | null;
+  ambiguous?: boolean;
 }
 
 /**
@@ -255,6 +320,12 @@ export const SubmissionHttpApi = {
     if (input.bundleName?.trim()) {
       form.append("bundle_name", input.bundleName.trim());
     }
+    if (input.languageCode?.trim()) {
+      form.append("language_code", input.languageCode.trim());
+    }
+    if (input.scriptCode?.trim()) {
+      form.append("script_code", input.scriptCode.trim());
+    }
     form.append("file", input.file, input.file.name);
     const row = await httpRequest<B3SubmissionDto>("/api/v1/submissions", {
       method: "POST",
@@ -269,5 +340,16 @@ export const SubmissionHttpApi = {
 
   async getSubmissionSourceBlob(id: string): Promise<Blob> {
     return fetchAuthenticatedBlob(`/api/v1/submissions/${id}/source`);
+  },
+
+  async putSubmissionLanguage(
+    submissionId: string,
+    input: PutSubmissionLanguageInput,
+  ): Promise<Submission> {
+    const row = await httpRequest<B3SubmissionDto>(
+      `/api/v1/submissions/${submissionId}/language`,
+      { method: "PUT", body: input },
+    );
+    return submissionApiToView(row);
   },
 };

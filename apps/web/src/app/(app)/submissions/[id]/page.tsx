@@ -7,6 +7,8 @@ import { api } from "@/lib/api";
 import { getApiCapabilities } from "@/lib/api/capabilities";
 import { PageHeader, StatusBadge } from "@/components/layout/PageHeader";
 import { ConfidenceIndicator, ErrorState, LoadingState } from "@/components/ui/FeedbackStates";
+import { languageStateLabel, subjectProfileLabel } from "@/lib/b20/context";
+import { LanguageReviewPanel } from "@/lib/b20/LanguageReviewPanel";
 
 const POLL_STATES = new Set(["UPLOADED", "PROCESSING", "EVALUATING"]);
 const TERMINAL_AFTER_IDENTITY = new Set([
@@ -369,6 +371,57 @@ export default function SubmissionDetailPage({
           </div>
         )}
       </dl>
+
+      {(data.subject_context || data.language_context || data.language_code) && (
+        <dl
+          data-testid="submission-b20-context"
+          className="mb-6 grid gap-3 rounded-md border border-slate-200 bg-white p-4 sm:grid-cols-2 lg:grid-cols-4 text-sm"
+        >
+          <div>
+            <dt className="text-slate-500">Subject profile</dt>
+            <dd data-testid="submission-subject-profile" className="mt-1 font-semibold">
+              {subjectProfileLabel(
+                data.subject_context?.subject_profile ?? data.subject_context?.subject_profile,
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-slate-500">Language</dt>
+            <dd data-testid="submission-language-code" className="mt-1 font-semibold">
+              {data.language_context?.language_code ?? data.language_code ?? "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-slate-500">Script</dt>
+            <dd data-testid="submission-script-code" className="mt-1 font-semibold">
+              {data.language_context?.script_code ?? data.script_code ?? "—"}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-slate-500">Language state</dt>
+            <dd data-testid="submission-language-state" className="mt-1 font-semibold">
+              {languageStateLabel(
+                data.language_context?.language_state ?? data.language_state,
+              )}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-slate-500">Language provenance</dt>
+            <dd data-testid="submission-language-source" className="mt-1 font-semibold">
+              {data.language_context?.language_source ?? data.language_source ?? "UNKNOWN"}
+            </dd>
+          </div>
+        </dl>
+      )}
+
+      <LanguageReviewPanel
+        submissionId={id}
+        languageCode={data.language_context?.language_code ?? data.language_code}
+        scriptCode={data.language_context?.script_code ?? data.script_code}
+        languageSource={data.language_context?.language_source ?? data.language_source}
+        languageState={data.language_context?.language_state ?? data.language_state}
+        automationBlockCode={data.automation_block_code}
+      />
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2">
         <div className="rounded-md border border-slate-200 bg-white p-4">
