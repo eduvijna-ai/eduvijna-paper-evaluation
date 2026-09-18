@@ -26,6 +26,7 @@ Copy this block for each new decision:
 
 | Date | Decision | Approver | Status | Notes |
 |------|----------|----------|--------|-------|
+| 2026-09-18 | **Approve final FUTURE_ENTERPRISE implementation tranche: PEV-056 and PEV-057.** Activates multi-subject understanding beyond Mathematics and multilingual handwriting as bounded B20 work after APP-016/B19 release completion. Subject/language support must extend the existing typed AI-provider abstraction, preserve original-language/source provenance, keep Mathematics behavior backward-compatible, retain separate transcription/evaluation confidence dimensions and all human-review/publication gates, and use deterministic credential-free CI. No model training/fine-tuning, no open-web enrichment, no provider deployment, and no main promotion. Founder authorization: “ok, go ahead to next steps”. | Founder / Product Architect | APPROVED | APP-017. Tranche: B20 — Multi-Subject & Multilingual Understanding. PEV-056–057 remain formally `FUTURE_ENTERPRISE` (release-state classification unchanged). Issue #105. Starting develop: `e0ac2b1a03a985b58087c7c2b5c281934ffb43a9` (tree `04ca96b02928c8a7efba423d6dc77b8e9f7982b9`). Expected unchanged main: `5ce220dd87c1c038d9bda18d175a77d8695179ff` (same tree). Alembic head at governance gate: `20260917_0021`. Governance PR documentation-only; B20 implementation requires later independent authorization after audit. |
 | 2026-09-18 | **Approve Enterprise Identity & Interoperability release promotion.** Authorizes governed promotion of the independently accepted APP-015 / B19 Enterprise Identity & Interoperability implementation (PEV-054–055) from `develop` to `main`. Release/governance only; no new product implementation; PEV-054–055 remain formally `FUTURE_ENTERPRISE`; PEV-056–057 remain deferred; Alembic head remains `20260917_0021`; exact-tree snapshot mandatory because main/develop histories intentionally diverge; no direct develop→main history merge; no merge-back from main to develop; no production IdP/LMS/SIS credential deployment. Founder authorization: “proceed”. | Founder / Product Architect | APPROVED | APP-016. Milestone: Enterprise Identity & Interoperability Release. Issue #102. Accepted develop: `6f80d6d43bb0b9f8e96288147cd35c17f93042f1` (tree `389cb0cf4fc2c23c266d5b2701f302ad27af00ca`). Expected main until promotion: `8f488b12ade2a6dffd60c8df5dc4c5fcfda9d7ce` (tree `362011e330915335e237cb4322ed45dd83940736`). B19 accepted via Issue #100 / PR #101 after CI run `35306547812` (all six authoritative jobs SUCCESS). |
 | 2026-09-16 | **Approve fourth FUTURE_ENTERPRISE implementation tranche: PEV-054 and PEV-055.** Activates enterprise SSO/SCIM and LMS/SIS/LTI interoperability as bounded B19 work from `develop` after APP-014. Tenant-configured SAML 2.0 + OIDC + SCIM 2.0; LTI 1.3 Advantage; standards/provider abstractions (no vendor-hard-coded domain); grade passback only from authoritative human-approved PublishedResult; roster sync on existing tenant/student structures; public API/machine auth and outbound webhooks within the modular monolith; deterministic credential-free CI; no main promotion. | Founder / Product Architect | APPROVED | APP-015. Tranche: B19 — Enterprise Identity & Interoperability. PEV-054–055 remain formally `FUTURE_ENTERPRISE` (release-state classification unchanged). PEV-056–057 remain deferred. No `main` promotion. Governance PR documentation-only; B19 implementation requires later independently authorized feature PR after ChatGPT audit. Issue #96. Starting develop: `d963ac0dd6e9556f69c43a460aae4c18d495508a` (tree `362011e330915335e237cb4322ed45dd83940736`). Expected unchanged main: `8f488b12ade2a6dffd60c8df5dc4c5fcfda9d7ce` (tree `362011e330915335e237cb4322ed45dd83940736`). |
 | 2026-09-10 | **Approve APP-013.1 corrective release promotion.** Authorizes promotion of the independently accepted APP-013.1 release-test-governance integrity remediation from `develop` to `main`. Release/governance only; restores UI-faithful B12/B14 real-E2E finalize evidence; no new product implementation; PEV-050–051 remain formally `FUTURE_ENTERPRISE`; PEV-054–057 remain deferred; no new migration (Alembic head remains `20260910_0020`); exact-tree snapshot mandatory; no direct develop→main conflict resolution; no merge-back from main to develop; no AI provider/model deployment authorization. Founder authorization: “approved. proceed”. | Founder / Product Architect | APPROVED | APP-014. Corrective follow-up to APP-013 Issue #84 / governance PR #85 / release PR #86. APP-013.1 Issue #87 / PR #88. Accepted develop: `669968e0438caf71ae13a9bdf1bf1f6a81b925f9` (tree `c1945b460ccf070c6468790877ea954c5205a123`). Expected main until promotion: `c0b084fb1db5164104ed77bd43bdc5efb8d26092` (tree `2f143e4f9a76b67e3d64d67ae02b581d1b8a0c09`). Tracking Issue #89. |
@@ -42,6 +43,93 @@ Copy this block for each new decision:
 | 2026-09-07 | **Approve first post-CVB AFTER_CLIENT_APPROVAL tranche: PEV-035–038.** Activates repeated error analysis, recoverable marks analysis, longitudinal mastery tracking, and the persistent student mistake notebook as the first bounded post-CVB implementation tranche from `develop` after CVB v0.1 release completion. | Founder / Product Architect | APPROVED | APP-003. One Cursor implementation engineer owns backend + frontend + contracts + tests + CI. PEV-041, PEV-043, PEV-058, PEV-059 and all FUTURE_ENTERPRISE requirements remain deferred. `main` remains release-only. |
 | 2026-09-07 | **Approve CVB v0.1 release promotion.** Authorizes the independently re-audited BUILD_NOW release candidate on `develop` after B11: 59 VERIFIED / 0 BLOCKED, B11 squash `dd6bd64faf7ddcd089c94d7c32f748ec70109840`, with promotion to `main` through the release workflow after authoritative CI succeeds. Deferred requirements remain deferred and unchanged. | Founder / Product Architect | APPROVED | Release milestone approval. Record B11 evidence in the authorized release path; do not introduce new implementation scope. Issue #1 may close only after the `main` promotion is confirmed. |
 | 2026-09-04 | **Mandatory architecture contract for Day 1 bootstrap (CVB v0.1).** Approves: modular monolith; Python 3.12 + FastAPI + SQLAlchemy 2 async + Alembic + PostgreSQL 16; Redis + Celery async; S3-compatible storage (MinIO local); Next.js + React + TypeScript + Tailwind frontend stack; pnpm monorepo; SymPy + PyMuPDF; Docker Compose deployment. **Prohibits for CVB:** Kubernetes, Temporal, Kafka, microservices split, GraphQL, native mobile, Firebase, Supabase, serverless-only architecture. **Approves** core pipeline: source evidence → structured understanding → rubric decisions → evaluation ledger → human approval → published result → learning evidence. **Approves** tenant-aware data model from first migration; evaluation ledger as source of truth; immutable raw source papers; human approval required before publication; AI provider abstraction. **Approves** 30-day BUILD_NOW vertical slice per `docs/product/MASTER_PRODUCT_SCOPE.md` and requirements PEV-001 – PEV-078 in `docs/product/REQUIREMENTS_REGISTER.md`. **Approves** Cursor A/B ownership split per master scope §7. | Founder / Product Architect | APPROVED | Day 1 bootstrap foundation. ADRs ADR-001 through ADR-010 derive from this decision. Repository: `eduvijna/eduvijna-paper-evaluation`. No requirement from business context may be deleted — deferred items use AFTER_CLIENT_APPROVAL or FUTURE_ENTERPRISE only. |
+
+---
+
+## Detailed Entry — APP-017
+
+### APP-017 — Multi-Subject & Multilingual Understanding (B20)
+
+| Field | Value |
+|-------|-------|
+| **Date** | 2026-09-18 |
+| **Decision** | Approve activation of PEV-056 (Multi-Subject Expansion) and PEV-057 (Multilingual Handwriting) together as the final bounded `FUTURE_ENTERPRISE` implementation tranche after successful APP-016 / B19 release completion. Milestone / phase: **B20 — Multi-Subject & Multilingual Understanding**. Founder authorization recorded in ChatGPT on 2026-09-18: **“ok, go ahead to next steps.”** Activation permits a later separately authorized B20 implementation; it does **not** reclassify the requirements register or authorize a `main` promotion. |
+| **Approver** | Founder / Product Architect |
+| **Status** | APPROVED |
+| **Notes** | Issue #105. Governance PR is documentation-only (`docs/FOUNDER_APPROVAL_LOG.md` only). Starting develop: `e0ac2b1a03a985b58087c7c2b5c281934ffb43a9` (tree `04ca96b02928c8a7efba423d6dc77b8e9f7982b9`). Expected unchanged main during governance/implementation: `5ce220dd87c1c038d9bda18d175a77d8695179ff` (tree `04ca96b02928c8a7efba423d6dc77b8e9f7982b9`). Alembic head at governance gate: `20260917_0021`. |
+
+#### Activated scope
+
+**PEV-056 — Multi-Subject Expansion**
+
+- Extend understanding beyond Mathematics to the requirement-register subjects: Physics, Chemistry, Statistics, Accounting, and structured descriptive subjects.
+- Use pluggable subject profiles/capabilities through the existing typed AI provider contract rather than duplicated end-to-end grading pipelines.
+- Subject metadata used for understanding/evaluation must be tenant/assessment/question scoped and auditable.
+- Existing Mathematics behavior remains backward-compatible.
+- Mathematics-specific symbolic verification such as SymPy remains explicitly math-scoped; do not apply it blindly to other subjects.
+- Subject-specific structured signals may assist understanding/evaluation proposals but must never create an alternative score store or bypass rubric/ledger/human approval.
+
+**PEV-057 — Multilingual Handwriting**
+
+- Preserve explicit language/script metadata and provenance through submission/understanding.
+- Provider/model selection for transcription may depend on supported language/script only through the existing provider registry/contract.
+- Original-language transcription remains authoritative source evidence.
+- Translation/transliteration, if used, is a derived and traceable artifact and must never silently replace original evidence.
+- Ambiguous/unsupported language or script must fail closed to review/unsupported state rather than silently guessing and continuing.
+- Multilingual support retains the existing separate `transcription_confidence` dimension; do not introduce a generic combined AI-confidence score.
+- Any translated/normalized context used during evaluation must retain original-language linkage and remain subordinate to the approved rubric + evaluation-ledger + human-final authority.
+
+#### Binding authority / pipeline invariants
+
+1. Preserve source evidence → structured understanding → rubric decisions → evaluation ledger → human approval → published result → learning evidence.
+2. AI remains proposal/understanding infrastructure; teacher/institution remains final authority.
+3. Low-confidence and unreadable handling remains mandatory; no subject/language route may auto-publish around review gates.
+4. Existing moderation, grievance, supersession, analytics, mastery, and published-result semantics remain authoritative.
+5. No subject/language capability may mutate historical ledger decisions outside existing authorized workflows.
+6. No cross-tenant subject/language configuration or source-evidence leakage.
+
+#### AI/provider and quality controls
+
+1. Reuse the existing AI provider abstraction; frontend and API handlers do not call vendor SDKs directly.
+2. Every AI invocation continues recording provider/model/template/prompt/version metadata.
+3. Mandatory CI remains deterministic and credential-free using fixed/local fixtures.
+4. No live customer/provider credential is required by authoritative CI.
+5. No model training/fine-tuning, training-data export, or cross-tenant pooled model learning is authorized.
+6. Extend B15 gold/regression evidence for representative B20 subject/language cases where provider/model behavior is release-relevant.
+7. Benchmark/regression results remain quality gates only; they do not automatically deploy a provider/model.
+8. No hidden open-web search, crawling, or subject-content enrichment.
+
+#### B20 acceptance expectations for later implementation
+
+A separately authorized B20 feature PR must prove at minimum:
+
+- existing Mathematics regression remains green;
+- representative non-Mathematics structured subject flow;
+- representative structured descriptive subject flow;
+- representative non-default language/script handwriting flow;
+- unsupported/ambiguous language rejection or human-review routing;
+- original-language provenance retained when translation/transliteration exists;
+- no silent translation substitution;
+- low-confidence/unreadable review gates;
+- tenant isolation;
+- deterministic provider/model selection + execution metadata;
+- evaluation ledger and human-publication authority preserved;
+- backend/frontend/contracts/tests plus mandatory non-skipped Real E2E;
+- all six authoritative CI jobs SUCCESS on the exact final feature head.
+
+#### Architecture / non-scope
+
+Remain within the accepted modular monolith and current stack. Do not introduce Kubernetes, Temporal, Kafka, a microservice split, GraphQL, Firebase, Supabase, serverless-only redesign, or a separate AI gateway/service.
+
+This activation does not authorize:
+
+- any requirement outside PEV-056 / PEV-057;
+- release-state reclassification;
+- production provider/model deployment;
+- model training/fine-tuning;
+- open-web content/search;
+- redesign of accepted B16–B19 capabilities;
+- any `main` promotion.
 
 ---
 
