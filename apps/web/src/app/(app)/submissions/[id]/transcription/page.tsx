@@ -28,6 +28,7 @@ import {
   languageStateLabel,
   subjectProfileLabel,
 } from "@/lib/b20/context";
+import { LanguageReviewPanel } from "@/lib/b20/LanguageReviewPanel";
 
 function regionsToEvidence(
   items: TranscriptionQuestionItem[],
@@ -172,6 +173,14 @@ function B20ContextBanner({ data }: { data: TranscriptionWorkspacePayload }) {
           {data.automation_block_code} — automated transcription/evaluation is blocked
         </p>
       )}
+      <LanguageReviewPanel
+        submissionId={data.submission_id}
+        languageCode={language?.language_code}
+        scriptCode={language?.script_code}
+        languageSource={language?.language_source}
+        languageState={language?.language_state}
+        automationBlockCode={data.automation_block_code}
+      />
     </div>
   );
 }

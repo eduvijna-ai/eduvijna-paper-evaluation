@@ -8,6 +8,7 @@ import { getApiCapabilities } from "@/lib/api/capabilities";
 import { PageHeader, StatusBadge } from "@/components/layout/PageHeader";
 import { ConfidenceIndicator, ErrorState, LoadingState } from "@/components/ui/FeedbackStates";
 import { languageStateLabel, subjectProfileLabel } from "@/lib/b20/context";
+import { LanguageReviewPanel } from "@/lib/b20/LanguageReviewPanel";
 
 const POLL_STATES = new Set(["UPLOADED", "PROCESSING", "EVALUATING"]);
 const TERMINAL_AFTER_IDENTITY = new Set([
@@ -404,8 +405,23 @@ export default function SubmissionDetailPage({
               )}
             </dd>
           </div>
+          <div>
+            <dt className="text-slate-500">Language provenance</dt>
+            <dd data-testid="submission-language-source" className="mt-1 font-semibold">
+              {data.language_context?.language_source ?? data.language_source ?? "UNKNOWN"}
+            </dd>
+          </div>
         </dl>
       )}
+
+      <LanguageReviewPanel
+        submissionId={id}
+        languageCode={data.language_context?.language_code ?? data.language_code}
+        scriptCode={data.language_context?.script_code ?? data.script_code}
+        languageSource={data.language_context?.language_source ?? data.language_source}
+        languageState={data.language_context?.language_state ?? data.language_state}
+        automationBlockCode={data.automation_block_code}
+      />
 
       <div className="mb-6 grid gap-3 sm:grid-cols-2">
         <div className="rounded-md border border-slate-200 bg-white p-4">

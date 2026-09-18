@@ -31,8 +31,11 @@ from app.db.models import (
 )
 from app.db.session import async_session_factory
 from app.services.language_context import (
+    apply_decision_to_submission,
     decide_detected_language,
     decide_provided_language,
+    language_context_equivalent,
+    language_script_unchanged,
 )
 from app.services.math_verification import verify_math
 from app.services.subject_profile import (
@@ -277,6 +280,29 @@ def test_b20_language_and_capability_routing() -> None:
     omitted = decide_provided_language(language_code=None, script_code=None)
     assert omitted.language_state == "UNKNOWN"
     assert omitted.gate_code is None
+
+    class _DetectedSub:
+        language_code = "hi"
+        script_code = "Deva"
+        language_source = "DETECTED"
+        language_state = "REVIEW_REQUIRED"
+        language_confidence = Decimal("0.4000")
+
+    detected_sub = _DetectedSub()
+    provided_same_pair = decide_provided_language(language_code="hi", script_code="Deva")
+    assert language_script_unchanged(
+        detected_sub.language_code,
+        detected_sub.script_code,
+        provided_same_pair.language_code,
+        provided_same_pair.script_code,
+    )
+    assert language_context_equivalent(detected_sub, detected)
+    assert not language_context_equivalent(detected_sub, provided_same_pair)
+    apply_decision_to_submission(detected_sub, provided_same_pair)
+    assert detected_sub.language_source == "PROVIDED"
+    assert detected_sub.language_state == "CONFIRMED"
+    assert detected_sub.language_confidence is None
+    assert language_context_equivalent(detected_sub, provided_same_pair)
 
     ok = check_provider_capability(
         provider="fixed",
@@ -561,6 +587,88 @@ async def test_b20_detected_low_confidence_requires_review() -> None:
         assert proposed.json()["language_source"] == "DETECTED"
         assert proposed.json()["language_confidence"] == pytest.approx(0.4)
         assert proposed.json()["automation_block_code"] == "LANGUAGE_REVIEW_REQUIRED"
+
+
+@pytest.mark.asyncio
+async def test_b20_same_pair_human_confirmation_clears_review() -> None:
+    async with api_client_fixed() as client:
+        headers = await _headers(client)
+        data = await _ready_named(client, headers, subject_name="Mathematics")
+        upload = await client.post(
+            "/api/v1/submissions",
+            headers=headers,
+            files={"file": ("b20-confirm.pdf", _pdf_bytes(), "application/pdf")},
+            data={"assessment_id": data["assessment"]["id"]},
+        )
+        assert upload.status_code == 201, upload.text
+        sid = upload.json()["id"]
+        proposed = await client.put(
+            f"/api/v1/submissions/{sid}/language",
+            headers=headers,
+            json={
+                "language_code": "hi",
+                "script_code": "Deva",
+                "source": "DETECTED",
+                "confidence": "0.4000",
+                "ambiguous": True,
+            },
+        )
+        assert proposed.status_code == 200, proposed.text
+        assert proposed.json()["language_code"] == "hi"
+        assert proposed.json()["script_code"] == "Deva"
+        assert proposed.json()["language_state"] == "REVIEW_REQUIRED"
+        assert proposed.json()["language_source"] == "DETECTED"
+        assert proposed.json()["language_confidence"] == pytest.approx(0.4)
+        assert proposed.json()["automation_block_code"] == "LANGUAGE_REVIEW_REQUIRED"
+
+        confirmed = await client.put(
+            f"/api/v1/submissions/{sid}/language",
+            headers=headers,
+            json={
+                "language_code": "hi",
+                "script_code": "Deva",
+                "source": "PROVIDED",
+                "confirm": True,
+            },
+        )
+        assert confirmed.status_code == 200, confirmed.text
+        body = confirmed.json()
+        assert body["language_code"] == "hi"
+        assert body["script_code"] == "Deva"
+        assert body["language_source"] == "PROVIDED"
+        assert body["language_state"] == "CONFIRMED"
+        assert body["language_confidence"] is None
+        assert body["automation_block_code"] is None
+        assert body["language_context"]["language_source"] == "PROVIDED"
+        assert body["language_context"]["language_state"] == "CONFIRMED"
+
+        idempotent = await client.put(
+            f"/api/v1/submissions/{sid}/language",
+            headers=headers,
+            json={
+                "language_code": "hi",
+                "script_code": "Deva",
+                "source": "PROVIDED",
+                "confirm": True,
+            },
+        )
+        assert idempotent.status_code == 200, idempotent.text
+        assert idempotent.json()["language_state"] == "CONFIRMED"
+        assert idempotent.json()["language_source"] == "PROVIDED"
+        assert idempotent.json()["automation_block_code"] is None
+
+        await _map_two_leaves(client, headers, sid)
+        workspace = await client.get(
+            f"/api/v1/submissions/{sid}/transcription", headers=headers
+        )
+        assert workspace.status_code == 200, workspace.text
+        ws = workspace.json()
+        assert ws["automation_block_code"] is None
+        assert ws["language_context"]["language_code"] == "hi"
+        assert ws["language_context"]["script_code"] == "Deva"
+        assert ws["language_context"]["language_source"] == "PROVIDED"
+        assert ws["language_context"]["language_state"] == "CONFIRMED"
+        assert ws["items"]
 
 
 @pytest.mark.asyncio

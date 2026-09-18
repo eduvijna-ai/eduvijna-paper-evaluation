@@ -766,6 +766,100 @@ test.describe("B20 real multi-subject and multilingual", () => {
     expect(detailCode(await prepare.json())).toBe("LANGUAGE_UNSUPPORTED");
   });
 
+  test("Path G — UI confirms detected hi/Deva without changing the pair", async ({
+    page,
+    request,
+  }) => {
+    const apiBase = apiBaseUrl();
+    const token = await loginApi(request, apiBase);
+    const created = await createLeafAssessment(request, apiBase, token, {
+      prefix: "B20G",
+      subject: { code: "MATH", name: "Mathematics", metadata: { subject_profile: "MATHEMATICS" } },
+      prompt: "Find the area.",
+      answer: "length times width",
+    });
+
+    await uiLogin(page);
+    await uploadViaUi(page, created.assessmentId, await buildPdf("B20G"));
+    const submissionId = submissionIdFromUrl(page.url());
+
+    const detected = await request.put(
+      `${apiBase}/api/v1/submissions/${submissionId}/language`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+        data: {
+          language_code: "hi",
+          script_code: "Deva",
+          source: "DETECTED",
+          confidence: 0.4,
+          ambiguous: true,
+        },
+      },
+    );
+    expect(detected.ok(), await detected.text()).toBeTruthy();
+    const detectedBody = (await detected.json()) as {
+      language_code: string;
+      script_code: string;
+      language_source: string;
+      language_state: string;
+      automation_block_code: string | null;
+    };
+    expect(detectedBody.language_code).toBe("hi");
+    expect(detectedBody.script_code).toBe("Deva");
+    expect(detectedBody.language_source).toBe("DETECTED");
+    expect(detectedBody.language_state).toBe("REVIEW_REQUIRED");
+    expect(detectedBody.automation_block_code).toBe("LANGUAGE_REVIEW_REQUIRED");
+
+    await page.reload();
+    await expect(page.getByTestId("submission-detail-page")).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.getByTestId("submission-language-code")).toHaveText("hi");
+    await expect(page.getByTestId("submission-script-code")).toHaveText("Deva");
+    await expect(page.getByTestId("submission-language-source")).toHaveText("DETECTED");
+    await expect(page.getByTestId("submission-language-state")).toContainText(
+      /Review required/i,
+    );
+    await expect(page.getByTestId("language-review-panel")).toBeVisible();
+    await expect(page.getByTestId("language-review-language")).toHaveValue("hi");
+    await expect(page.getByTestId("language-review-script")).toHaveValue("Deva");
+    await page.getByTestId("confirm-language").click();
+    await expect(page.getByTestId("submission-language-source")).toHaveText("PROVIDED", {
+      timeout: 30_000,
+    });
+    await expect(page.getByTestId("submission-language-state")).toContainText(/Confirmed/i);
+    await expect(page.getByTestId("language-review-panel")).toHaveCount(0);
+
+    const afterUi = await request.get(`${apiBase}/api/v1/submissions/${submissionId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(afterUi.ok(), await afterUi.text()).toBeTruthy();
+    const confirmedBody = (await afterUi.json()) as {
+      language_code: string;
+      script_code: string;
+      language_source: string;
+      language_state: string;
+      automation_block_code: string | null;
+    };
+    expect(confirmedBody.language_code).toBe("hi");
+    expect(confirmedBody.script_code).toBe("Deva");
+    expect(confirmedBody.language_source).toBe("PROVIDED");
+    expect(confirmedBody.language_state).toBe("CONFIRMED");
+    expect(confirmedBody.automation_block_code).toBeNull();
+
+    await confirmIdentityAndMap(page, created.studentId);
+    await openTranscriptionWorkspace(page);
+    await expect(page.getByTestId("transcription-language-code")).toHaveText("hi");
+    await expect(page.getByTestId("transcription-script-code")).toHaveText("Deva");
+    await expect(page.getByTestId("transcription-language-source")).toContainText(/PROVIDED/i);
+    await expect(page.getByTestId("transcription-language-state")).toContainText(/Confirmed/i);
+    await expect(page.getByTestId("transcription-automation-block")).toHaveCount(0);
+    await expect(page.getByTestId("language-review-panel")).toHaveCount(0);
+    await expect(page.getByTestId("transcription-original-text").first()).toBeVisible({
+      timeout: 60_000,
+    });
+  });
+
   test("Path F — another tenant cannot access subject/language metadata", async ({
     request,
   }) => {

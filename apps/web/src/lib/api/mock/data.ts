@@ -90,6 +90,7 @@ export const SUBMISSION_ID_HINDI = "sub-b20-hindi";
 export const SUBMISSION_ID_PHYSICS = "sub-b20-physics";
 export const SUBMISSION_ID_UNSUPPORTED = "sub-b20-unsupported";
 export const SUBMISSION_ID_DESCRIPTIVE = "sub-b20-descriptive";
+export const SUBMISSION_ID_LANGUAGE_REVIEW = "sub-b20-language-review";
 export const CLASS_SECTION_ID = "class-demo-10a";
 
 /** Thrown when a mock lookup would otherwise substitute another person's data. */
@@ -747,6 +748,45 @@ export const submissions: Submission[] = [
       language_source: "PROVIDED",
       language_confidence: null,
       language_state: "UNSUPPORTED",
+    },
+  },
+  {
+    id: SUBMISSION_ID_LANGUAGE_REVIEW,
+    tenant_id: TENANT_ID,
+    assessment_id: ASSESSMENT_ID,
+    assessment_title: "Mid-Term Mathematics — Demo Set A",
+    student_id: STUDENT_ID,
+    student_display_name: "Demo Student 001",
+    roll_number_detected: "DEMO-001",
+    name_detected: "Demo Student 001",
+    workflow_state: "IDENTITY_REVIEW",
+    student_match_state: "REVIEW_REQUIRED",
+    identity_confidence: 0.72,
+    mapping_confidence: 0,
+    transcription_state: "NOT_STARTED",
+    page_count: 2,
+    uploaded_at: "2026-09-18T10:00:00Z",
+    updated_at: "2026-09-18T10:05:00Z",
+    language_code: "hi",
+    script_code: "Deva",
+    language_source: "DETECTED",
+    language_confidence: 0.4,
+    language_state: "REVIEW_REQUIRED",
+    automation_block_code: "LANGUAGE_REVIEW_REQUIRED",
+    subject_context: {
+      subject_profile: "MATHEMATICS",
+      subject_node_id: "node-subject-math",
+      subject_node_code: "MATH",
+      subject_node_name: "Mathematics",
+      subject_profile_source: "CURRICULUM_NODE",
+      math_verification_eligible: true,
+    },
+    language_context: {
+      language_code: "hi",
+      script_code: "Deva",
+      language_source: "DETECTED",
+      language_confidence: 0.4,
+      language_state: "REVIEW_REQUIRED",
     },
   },
 ];

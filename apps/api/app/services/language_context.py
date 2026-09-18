@@ -324,6 +324,34 @@ def apply_decision_to_submission(submission: Any, decision: LanguageDecision) ->
     submission.language_state = decision.language_state
 
 
+def _confidence_equivalent(current: Any, requested: Decimal | None) -> bool:
+    if current is None and requested is None:
+        return True
+    if current is None or requested is None:
+        return False
+    return Decimal(str(current)) == Decimal(str(requested))
+
+
+def language_context_equivalent(submission: Any, decision: LanguageDecision) -> bool:
+    """True when pair, provenance, state, and confidence already match the request."""
+    current_source = getattr(submission, "language_source", None) or LANGUAGE_SOURCE_UNKNOWN
+    current_state = getattr(submission, "language_state", None) or LANGUAGE_STATE_UNKNOWN
+    return (
+        language_script_unchanged(
+            getattr(submission, "language_code", None),
+            getattr(submission, "script_code", None),
+            decision.language_code,
+            decision.script_code,
+        )
+        and current_source == decision.language_source
+        and current_state == decision.language_state
+        and _confidence_equivalent(
+            getattr(submission, "language_confidence", None),
+            decision.language_confidence,
+        )
+    )
+
+
 def language_script_unchanged(
     current_language: str | None,
     current_script: str | None,

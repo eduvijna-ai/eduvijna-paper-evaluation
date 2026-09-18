@@ -37,6 +37,7 @@ from app.services.language_context import (
     apply_decision_to_submission,
     decide_detected_language,
     decide_provided_language,
+    language_context_equivalent,
     language_context_is_locked,
     language_script_unchanged,
 )
@@ -784,12 +785,21 @@ async def put_submission_language(
                 )
     except LanguageContextError as exc:
         raise _http_error(422, exc.code, exc.message) from exc
-    if language_script_unchanged(
+    same_pair = language_script_unchanged(
         item.language_code,
         item.script_code,
         decision.language_code,
         decision.script_code,
+    )
+    if not same_pair and await language_context_is_locked(
+        db, tenant_id=auth.tenant_id, submission=item
     ):
+        raise _http_error(
+            409,
+            ERROR_LANGUAGE_CONTEXT_LOCKED,
+            "Language/script cannot change after transcription evidence exists",
+        )
+    if language_context_equivalent(item, decision):
         dump = _dump_submission(
             item,
             assessment_title=await _assessment_title(db, item.assessment_id),
@@ -802,14 +812,6 @@ async def put_submission_language(
         dump["language_context"] = context.language.as_public_dict()
         dump["automation_block_code"] = context.automation_block_code()
         return dump
-    if await language_context_is_locked(
-        db, tenant_id=auth.tenant_id, submission=item
-    ):
-        raise _http_error(
-            409,
-            ERROR_LANGUAGE_CONTEXT_LOCKED,
-            "Language/script cannot change after transcription evidence exists",
-        )
     apply_decision_to_submission(item, decision)
     await _audit(
         db,

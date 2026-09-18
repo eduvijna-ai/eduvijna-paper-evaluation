@@ -97,10 +97,10 @@ The fixed provider and evaluation/transcription services call this check. They d
 ## API / UX
 
 * Upload accepts optional `language_code` / `script_code`
-* `PUT /api/v1/submissions/{id}/language` confirms or records detected language until transcription evidence exists. After any `AnswerRegionTranscription` exists, or once evaluation/publication states are reached, a material language/script change is rejected with `LANGUAGE_CONTEXT_LOCKED`. Idempotent same-value updates remain safe.
+* `PUT /api/v1/submissions/{id}/language` distinguishes material language/script changes from same-pair governance transitions. Human confirmation of a detected pair (`PROVIDED` + `confirm`) applies `CONFIRMED` even when the codes are unchanged, and does not copy detection confidence as human confidence. After any `AnswerRegionTranscription` exists, or once evaluation/publication states are reached, a material pair change is rejected with `LANGUAGE_CONTEXT_LOCKED`. Fully equivalent same-context updates remain idempotent.
 * Assessment create/read expose resolved `subject_profile` from the curriculum node
 * Transcription workspace returns subject/language context, original text, and derived texts
-* Frontend: assessment subject profile, upload language/script, transcription original vs translation, unsupported/review banner
+* Frontend: assessment subject profile, upload language/script, transcription original vs translation, unsupported/review banner, and a Confirm language action when `REVIEW_REQUIRED`
 * Live UUID API failures do not fall back to mock data
 
 ## B15
@@ -114,7 +114,7 @@ Deterministic fixtures: Mathematics baseline, Physics non-Math, Hindi multilingu
 * Backend: `apps/api/tests/test_b20_multisubject_multilingual.py`
 * Frontend unit: `apps/web/src/lib/api/b20-mappers.test.ts`, `b20-openapi-contract.test.ts`
 * Mock Playwright: `apps/web/e2e/b20-multisubject-multilingual.spec.ts`
-* Real Playwright: `apps/web/e2e/real/zz-b20-multisubject-multilingual.spec.ts` (Paths A–F, never skipped). Paths B and C continue through UI transcription confirmation, finalization, and the evaluation workspace, then read `subject_profile` / `math_verification_invoked` from the real evaluation API. Path D confirms and finalizes the original Hindi transcription through the UI.
+* Real Playwright: `apps/web/e2e/real/zz-b20-multisubject-multilingual.spec.ts` (Paths A–G, never skipped). Paths B and C continue through UI transcription confirmation, finalization, and the evaluation workspace, then read `subject_profile` / `math_verification_invoked` from the real evaluation API. Path D confirms and finalizes the original Hindi transcription through the UI. Path G establishes detected `hi`/`Deva` `REVIEW_REQUIRED` via API setup, then confirms the same pair through the UI Confirm language action before continuing into governed transcription.
 
 ## Non-scope (honored)
 

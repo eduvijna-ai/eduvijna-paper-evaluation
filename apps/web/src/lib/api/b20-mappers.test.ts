@@ -12,9 +12,11 @@ import { HybridEduVijnaApi } from "@/lib/api/hybrid/adapter";
 import { ApiError } from "@/lib/api/http/errors";
 import {
   B20_ERROR_CODES,
+  buildLanguageConfirmRequest,
   isAutomationBlocked,
   isMathVerificationEligible,
   languageStateLabel,
+  needsLanguageConfirmation,
   subjectProfileLabel,
 } from "@/lib/b20/context";
 
@@ -245,6 +247,28 @@ describe("B20 transcription workspace original vs derived", () => {
     expect(active?.derived_texts?.[0]?.text).not.toBe(active?.text);
     expect(view.language_context?.language_code).toBe("hi");
     expect(view.subject_context?.subject_profile).toBe("MATHEMATICS");
+  });
+});
+
+describe("B20 language confirmation helpers", () => {
+  it("builds a provided confirmation payload without detection confidence", () => {
+    expect(buildLanguageConfirmRequest("hi", "Deva")).toEqual({
+      language_code: "hi",
+      script_code: "Deva",
+      source: "PROVIDED",
+      confirm: true,
+    });
+  });
+
+  it("requires confirmation only for review-required language", () => {
+    expect(
+      needsLanguageConfirmation("REVIEW_REQUIRED", "LANGUAGE_REVIEW_REQUIRED"),
+    ).toBe(true);
+    expect(needsLanguageConfirmation("CONFIRMED", null)).toBe(false);
+    expect(
+      needsLanguageConfirmation("UNSUPPORTED", "LANGUAGE_UNSUPPORTED"),
+    ).toBe(false);
+    expect(isAutomationBlocked("LANGUAGE_UNSUPPORTED")).toBe(true);
   });
 });
 

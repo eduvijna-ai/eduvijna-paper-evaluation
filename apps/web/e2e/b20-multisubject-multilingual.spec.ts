@@ -88,6 +88,23 @@ test.describe("B20 mock multi-subject and multilingual", () => {
     await expect(page.getByTestId("transcription-automated-notice")).toHaveCount(0);
   });
 
+  test("review-required language can be confirmed without changing the pair", async ({
+    page,
+  }) => {
+    await openAuthed(page, "/submissions/sub-b20-language-review");
+    await expect(page.getByTestId("submission-language-code")).toHaveText("hi");
+    await expect(page.getByTestId("submission-script-code")).toHaveText("Deva");
+    await expect(page.getByTestId("submission-language-source")).toHaveText("DETECTED");
+    await expect(page.getByTestId("submission-language-state")).toContainText(
+      /Review required/i,
+    );
+    await expect(page.getByTestId("language-review-panel")).toBeVisible();
+    await page.getByTestId("confirm-language").click();
+    await expect(page.getByTestId("submission-language-source")).toHaveText("PROVIDED");
+    await expect(page.getByTestId("submission-language-state")).toContainText(/Confirmed/i);
+    await expect(page.getByTestId("language-review-panel")).toHaveCount(0);
+  });
+
   test("physics transcription workspace is not math-labeled", async ({ page }) => {
     await openAuthed(page, "/submissions/sub-b20-physics/transcription");
     await expect(page.getByTestId("transcription-subject-profile")).toContainText(

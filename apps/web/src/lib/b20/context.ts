@@ -69,3 +69,28 @@ export function isAutomationBlocked(code: string | null | undefined): boolean {
     code as (typeof B20_ERROR_CODES)[keyof typeof B20_ERROR_CODES],
   );
 }
+
+export function needsLanguageConfirmation(
+  languageState?: string | null,
+  automationBlockCode?: string | null,
+): boolean {
+  if ((languageState ?? "").toUpperCase() === "REVIEW_REQUIRED") return true;
+  return automationBlockCode === B20_ERROR_CODES.LANGUAGE_REVIEW_REQUIRED;
+}
+
+export function buildLanguageConfirmRequest(
+  languageCode: string,
+  scriptCode: string,
+): {
+  language_code: string;
+  script_code: string;
+  source: "PROVIDED";
+  confirm: true;
+} {
+  return {
+    language_code: languageCode,
+    script_code: scriptCode,
+    source: "PROVIDED",
+    confirm: true,
+  };
+}
