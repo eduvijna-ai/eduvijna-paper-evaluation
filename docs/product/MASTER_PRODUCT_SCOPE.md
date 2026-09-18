@@ -6,6 +6,8 @@
 **Status:** Active — Day 1 architecture contract approved  
 **Last updated:** 2026-09-04
 
+> **Current release status (2026-09-18):** This document remains the historical CVB planning baseline. The full registered roadmap has since been implemented through B20 and governed releases through APP-018. All 78 requirements remain in the requirements register with their original planning classifications; implementation/release did not reclassify them. Current release evidence is recorded in the requirements register, founder approval log, phase reports, and final verification section of `docs/engineering/VERIFICATION_REPORT.md`.
+
 ---
 
 ## 1. Product Vision

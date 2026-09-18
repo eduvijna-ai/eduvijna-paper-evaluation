@@ -145,3 +145,67 @@ section before PR handoff.
 - Contracts validation and `docker compose config --quiet`: PASS
 - Live curl/JSON smoke: health/login 200, curriculum/node/assessment create 201,
   AI proposal 503 with `AI_PROVIDER_UNAVAILABLE`
+
+
+---
+
+## Final Governed Release Verification — APP-018 / B20
+
+**Verification date:** 2026-09-19  
+**Release milestone:** APP-018 — Multi-Subject & Multilingual Understanding Release  
+**Tracking:** Issue #109 / governance PR #110 / release PR #111
+
+This section records the final repository-level release verification after completion of the registered roadmap. Earlier sections above remain historical verification evidence for their original phases.
+
+### Final refs
+
+| Item | Value |
+|------|-------|
+| Final `main` | `c43a2522afe1822150f296b635541fb9cc1922cd` |
+| Final `develop` | `38c653d97dfae04b12d4912e0691237f120b616f` |
+| Exact shared Git tree | `087ecc1258825a32e3277894c5731129923bb8b0` |
+| Alembic head | `20260918_0022` |
+| Alembic down revision | `20260917_0021` |
+
+The final `main` and `develop` commits intentionally have different Git histories but the exact same repository tree. APP-018 used the conflict-safe exact-tree snapshot pattern: no direct `develop` → `main` history merge and no `main` → `develop` merge-back.
+
+### APP-018 CI evidence
+
+**Pre-release snapshot CI:** run `35378934309` on snapshot head `c0d9305eb51e1e85c1139647b7fea5a4173fdf24` — all six authoritative jobs SUCCESS, run attempt 1.
+
+**Post-main CI:** run `35379990864` on exact final `main` SHA `c43a2522afe1822150f296b635541fb9cc1922cd` — all six authoritative jobs SUCCESS, run attempt 1.
+
+Post-main counts:
+
+- Backend: **305 passed**, 3 warnings
+- Frontend E2E: **35 passed**
+- Frontend E2E Real: **27 passed**
+
+Authoritative jobs:
+
+1. Infrastructure
+2. Contracts
+3. Backend
+4. Frontend
+5. Frontend E2E
+6. Frontend E2E Real
+
+### Roadmap completion status
+
+The requirements register contains **78 requirements**:
+
+- 59 `BUILD_NOW`
+- 8 `AFTER_CLIENT_APPROVAL`
+- 11 `FUTURE_ENTERPRISE`
+
+All AFTER_CLIENT_APPROVAL and FUTURE_ENTERPRISE implementation tranches were completed and governed through B12–B20 / APP-003–APP-018. Their formal release-state labels remain unchanged because those labels are planning classifications, not implementation-status fields.
+
+The final B20 release includes PEV-056 Multi-Subject Expansion and PEV-057 Multilingual Handwriting while preserving the canonical pipeline:
+
+`source evidence → structured understanding → rubric decisions → evaluation ledger → human approval → published result → learning evidence`
+
+AI remains proposal/understanding infrastructure; institution/teacher remains final authority.
+
+### Maintenance boundary after APP-018
+
+No additional product tranche is registered after PEV-057. Subsequent work belongs to separately bounded maintenance, documentation, operational hardening, or newly approved product scope. Existing Dependabot PRs are not implicitly approved by APP-018.
