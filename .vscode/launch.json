@@ -1,0 +1,112 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "EduVijna Backend — Local MAT",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "app.main:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "18000",
+        "--reload"
+      ],
+      "cwd": "${workspaceFolder}/apps/api",
+      "python": "${workspaceFolder}/apps/api/.venv/Scripts/python.exe",
+      "windows": {
+        "python": "${workspaceFolder}/apps/api/.venv/Scripts/python.exe"
+      },
+      "linux": {
+        "python": "${workspaceFolder}/apps/api/.venv/bin/python"
+      },
+      "osx": {
+        "python": "${workspaceFolder}/apps/api/.venv/bin/python"
+      },
+      "envFile": "${workspaceFolder}/apps/api/.env.local",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "preLaunchTask": "Prepare Local API Dependencies"
+    },
+    {
+      "name": "EduVijna Celery Worker — Local MAT",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "celery",
+      "args": [
+        "-A",
+        "app.tasks.celery_app.celery_app",
+        "worker",
+        "--loglevel=INFO",
+        "--concurrency=1"
+      ],
+      "windows": {
+        "python": "${workspaceFolder}/apps/api/.venv/Scripts/python.exe",
+        "args": [
+          "-A",
+          "app.tasks.celery_app.celery_app",
+          "worker",
+          "--pool=solo",
+          "--loglevel=INFO",
+          "--concurrency=1"
+        ]
+      },
+      "linux": {
+        "python": "${workspaceFolder}/apps/api/.venv/bin/python"
+      },
+      "osx": {
+        "python": "${workspaceFolder}/apps/api/.venv/bin/python"
+      },
+      "cwd": "${workspaceFolder}/apps/api",
+      "python": "${workspaceFolder}/apps/api/.venv/Scripts/python.exe",
+      "envFile": "${workspaceFolder}/apps/api/.env.local",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "EduVijna Celery Beat — Local MAT",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "celery",
+      "args": [
+        "-A",
+        "app.tasks.celery_app.celery_app",
+        "beat",
+        "--loglevel=INFO"
+      ],
+      "cwd": "${workspaceFolder}/apps/api",
+      "python": "${workspaceFolder}/apps/api/.venv/Scripts/python.exe",
+      "windows": {
+        "python": "${workspaceFolder}/apps/api/.venv/Scripts/python.exe"
+      },
+      "linux": {
+        "python": "${workspaceFolder}/apps/api/.venv/bin/python"
+      },
+      "osx": {
+        "python": "${workspaceFolder}/apps/api/.venv/bin/python"
+      },
+      "envFile": "${workspaceFolder}/apps/api/.env.local",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ],
+  "compounds": [
+    {
+      "name": "EduVijna Backend + Worker — Local MAT",
+      "configurations": [
+        "EduVijna Backend — Local MAT",
+        "EduVijna Celery Worker — Local MAT",
+        "EduVijna Celery Beat — Local MAT"
+      ],
+      "preLaunchTask": "Prepare Local API Dependencies",
+      "stopAll": true,
+      "presentation": {
+        "order": 1,
+        "group": "MAT",
+        "hidden": false
+      }
+    }
+  ]
+}
