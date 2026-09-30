@@ -62,9 +62,9 @@ def test_harness_score_case_independent_metrics() -> None:
     assert all(value == 1.0 for value in metrics.values())
 
 
-def test_openai_provider_retries_then_routes_unavailable() -> None:
+@pytest.mark.asyncio
+async def test_openai_provider_retries_then_routes_unavailable() -> None:
     """Transient failures exhaust retries as ProviderUnavailable (review path)."""
-    import asyncio
     import uuid
 
     from app.ai.providers.openai import OpenAIStructureProvider, is_transient_openai_failure
@@ -92,18 +92,14 @@ def test_openai_provider_retries_then_routes_unavailable() -> None:
         max_attempts=3,
         backoff_seconds=(0.0, 0.0, 0.0),
     )
-
-    async def _run() -> None:
-        with pytest.raises(ProviderUnavailable):
-            await provider.transcribe_answer(
-                TranscriptionInput(
-                    submission_id=uuid.uuid4(),
-                    answer_region_id=uuid.uuid4(),
-                    crop_content_sha256="a" * 64,
-                )
+    with pytest.raises(ProviderUnavailable):
+        await provider.transcribe_answer(
+            TranscriptionInput(
+                submission_id=uuid.uuid4(),
+                answer_region_id=uuid.uuid4(),
+                crop_content_sha256="a" * 64,
             )
-
-    asyncio.run(_run())
+        )
     assert calls["n"] == 3
 
 
