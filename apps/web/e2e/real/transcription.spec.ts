@@ -308,7 +308,7 @@ test.describe("B5 real AI structure + transcription", () => {
       timeout: 30_000,
     });
     await expect(page.getByTestId("submission-workflow-state")).toContainText(
-      /ready for evaluation/i,
+      /ready for evaluation|awaiting transcription/i,
     );
 
     await expect

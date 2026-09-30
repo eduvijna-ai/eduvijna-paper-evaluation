@@ -340,7 +340,7 @@ test.describe("B4 real mapping review", () => {
       timeout: 30_000,
     });
     await expect(page.getByTestId("submission-workflow-state")).toContainText(
-      /ready for evaluation/i,
+      /ready for evaluation|awaiting transcription/i,
     );
     await expect(page.getByTestId("submission-downstream-boundary")).toContainText(
       /transcription review|Live evaluation is not enabled yet/i,

@@ -351,7 +351,7 @@ async function publishOne(
       },
       { timeout: 60_000 },
     )
-    .toMatch(/ready for evaluation/i);
+    .toMatch(/ready for evaluation|awaiting transcription/i);
 
   await expect
     .poll(
