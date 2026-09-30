@@ -44,14 +44,14 @@ jobs:
       - name: Start MinIO for B3 storage tests
         working-directory: .
         run: |
-          IMAGE=quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
-          for attempt in $(seq 1 5); do
-            if docker pull "$IMAGE"; then
-              break
-            fi
-            echo "MinIO pull attempt $attempt failed; retrying..."
-            sleep $((attempt * 5))
-          done
+          # Prefer Docker Hub; quay.io is intermittently unauthorized on GHA runners.
+          IMAGE=minio/minio:RELEASE.2025-09-07T16-13-09Z
+          FALLBACK=minio/minio:latest
+          if ! docker pull "$IMAGE"; then
+            echo "Pinned MinIO pull failed; falling back to $FALLBACK"
+            IMAGE="$FALLBACK"
+            docker pull "$IMAGE"
+          fi
           docker run -d --name minio-b3 \
             -p 19000:9000 \
             -e MINIO_ROOT_USER=eduvijna_minio \
