@@ -26,7 +26,7 @@ This document is the **gate criteria** for declaring a pilot/production environm
 | AI production provider | **EXTERNAL_INPUT_REQUIRED** | [AI_PROVIDER_READINESS.md](./AI_PROVIDER_READINESS.md) |
 | Real paper corpus | **EXTERNAL_INPUT_REQUIRED** | Gate `REAL_PAPER_CORPUS_GATE` |
 | Performance / reliability proof | Provisional | [PERFORMANCE_RELIABILITY.md](./PERFORMANCE_RELIABILITY.md) |
-| Backup / restore / DR drill | Isolated disposable only | [BACKUP_RESTORE_DR.md](./BACKUP_RESTORE_DR.md) |
+| Backup / restore / DR drill | **PASS (disposable)** | [BACKUP_RESTORE_DR.md](./BACKUP_RESTORE_DR.md) — evidence `DR_DRILL_20260930111437` |
 | Observability / alerting | Design documented | [OBSERVABILITY_ALERTING.md](./OBSERVABILITY_ALERTING.md) |
 | Environment configuration | Fail-closed production | [ENVIRONMENT_CONFIGURATION.md](./ENVIRONMENT_CONFIGURATION.md) |
 | Migrations to head `20260918_0022` | Documented | [MIGRATION_RUNBOOK.md](./MIGRATION_RUNBOOK.md) |

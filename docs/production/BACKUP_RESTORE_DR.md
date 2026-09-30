@@ -91,6 +91,14 @@ Stubs may call `pg_dump` / `pg_restore` / `aws s3 sync` (or compatible) **only**
 
 Or use `dr-restore-drill.*` once disposable env vars are set.
 
+**Preferred Windows/local executed drill (real, not stub):**
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File infra/scripts/run-disposable-dr-drill.ps1
+```
+
+This spins **temporary** Postgres (`25432`) + MinIO (`29000`) only, seeds synthetic rows/objects, `pg_dump`/`pg_restore`, `aws s3 sync` backup/restore, verifies row counts + FK join + object payload, confirms MAT containers on `15432`/`19000` remain healthy, then tears down disposable resources only.
+
 ---
 
 ## 7. Migration recovery after restore
@@ -105,7 +113,7 @@ Or use `dr-restore-drill.*` once disposable env vars are set.
 
 | Date | Drill ID | Disposable targets | Duration | Result | Notes |
 |------|----------|--------------------|----------|--------|-------|
-| | | | | PENDING | |
+| 2026-09-30 | `DR_DRILL_20260930111437` | PG `25432` / MinIO `29000`; DB `eduvijna_disposable_drill`; bucket `eduvijna-disposable-drill` | ~23s | **PASS** | Evidence: [evidence/DR_DRILL_20260930111437.txt](./evidence/DR_DRILL_20260930111437.txt). MAT postgres+minio remained healthy. |
 
 ---
 
@@ -113,5 +121,5 @@ Or use `dr-restore-drill.*` once disposable env vars are set.
 
 | Role | Date | Decision |
 |------|------|----------|
-| Engineering | | Scripts + procedure documented |
-| Founder / ops | | RPO/RTO TBD; MAT volumes untouched |
+| Engineering | 2026-09-30 | Disposable DR drill **PASS**; scripts + evidence recorded |
+| Founder / ops | | RPO/RTO TBD (EXTERNAL_INPUT_REQUIRED); MAT volumes untouched |

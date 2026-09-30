@@ -1,0 +1,20 @@
+EduVijna disposable DR drill evidence
+started_at_utc=2026-09-30T05:44:37.6446170Z
+backup_root=C:\Users\kanne\AppData\Local\Temp\eduvijna-dr-drill-20260930111437
+mat_ports_untouched=15432,19000
+disposable_ports=25432,29000
+pre_backup_row_count=1
+object_seeded=synthetic/paper-page-1.bin
+postgres_dump_bytes=6082
+object_backup_file_count=1
+disposable_destroyed=yes
+post_restore_row_count=1
+post_restore_fk_join_count=1
+restored_object_payload_match=True
+mat_postgres_status=Up 7 minutes (healthy)
+mat_minio_status=Up 7 minutes (healthy)
+postgres_restore=PASS
+object_storage_restore=PASS
+mat_compose_untouched=PASS
+finished_at_utc=2026-09-30T05:45:00.9446982Z
+RESULT=PASS
