@@ -44,24 +44,19 @@ jobs:
       - name: Start MinIO for B3 storage tests
         working-directory: .
         run: |
-          # Prefer Docker Hub; quay.io is intermittently unauthorized on GHA runners.
-          IMAGE=minio/minio:RELEASE.2025-09-07T16-13-09Z
-          FALLBACK=minio/minio:latest
-          if ! docker pull "$IMAGE"; then
-            echo "Pinned MinIO pull failed; falling back to $FALLBACK"
-            IMAGE="$FALLBACK"
-            docker pull "$IMAGE"
-          fi
+          # Official minio/minio images are source-only now; use Bitnami for CI.
+          IMAGE=bitnami/minio:2025.7.23
+          docker pull "$IMAGE"
           docker run -d --name minio-b3 \
             -p 19000:9000 \
             -e MINIO_ROOT_USER=eduvijna_minio \
             -e MINIO_ROOT_PASSWORD=eduvijna_minio_dev_only \
-            "$IMAGE" server /data
-          for attempt in $(seq 1 30); do
+            "$IMAGE"
+          for attempt in $(seq 1 45); do
             if curl --fail --silent http://127.0.0.1:19000/minio/health/live >/dev/null; then
               exit 0
             fi
-            sleep 1
+            sleep 2
           done
           docker logs minio-b3
           exit 1
