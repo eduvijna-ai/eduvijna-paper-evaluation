@@ -74,7 +74,22 @@ if ! looks_disposable "${DB_NAME:-}" && ! looks_disposable "${DISPOSABLE_BACKUP_
   fi
 fi
 
-echo "${SCRIPT_NAME}: STUB — would backup Postgres from [${TARGET_DESC}] to [${DISPOSABLE_BACKUP_PATH}]"
-echo "${SCRIPT_NAME}: Implement with pg_dump against DISPOSABLE_* only. No MAT volumes."
-echo "${SCRIPT_NAME}: Example (not executed): pg_dump --format=custom --file=\"\$DISPOSABLE_BACKUP_PATH\" \"\$DISPOSABLE_DATABASE_URL\""
+# Prefer the end-to-end disposable Docker drill on Windows/local:
+#   powershell -NoProfile -ExecutionPolicy Bypass -File infra/scripts/run-disposable-dr-drill.ps1
+if [ "${DR_EXECUTE-}" = "1" ] && command -v pg_dump >/dev/null 2>&1; then
+  mkdir -p "$(dirname "${DISPOSABLE_BACKUP_PATH}")"
+  if [ -n "${DISPOSABLE_DATABASE_URL-}" ]; then
+    pg_dump --format=custom --file="${DISPOSABLE_BACKUP_PATH}" "${DISPOSABLE_DATABASE_URL}"
+  else
+    export PGPASSWORD="${DISPOSABLE_POSTGRES_PASSWORD-}"
+    pg_dump -h "${DISPOSABLE_POSTGRES_HOST}" -p "${DISPOSABLE_POSTGRES_PORT}" \
+      -U "${DISPOSABLE_POSTGRES_USER}" -d "${DISPOSABLE_POSTGRES_DB}" \
+      --format=custom --file="${DISPOSABLE_BACKUP_PATH}"
+  fi
+  echo "${SCRIPT_NAME}: backed up [${TARGET_DESC}] -> [${DISPOSABLE_BACKUP_PATH}]"
+  exit 0
+fi
+
+echo "${SCRIPT_NAME}: safety-validated; set DR_EXECUTE=1 with pg_dump available to run, or use run-disposable-dr-drill.ps1"
+echo "${SCRIPT_NAME}: target=[${TARGET_DESC}] path=[${DISPOSABLE_BACKUP_PATH}]"
 exit 0
