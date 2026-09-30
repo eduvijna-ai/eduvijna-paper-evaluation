@@ -211,6 +211,14 @@ async function createTwoLeafAssessment(
   return { assessmentId, studentId: ((await student.json()) as { id: string }).id };
 }
 
+async function loginUi(page: Page): Promise<void> {
+  await page.goto("/login");
+  await page.getByTestId("login-email").fill(ADMIN_EMAIL);
+  await page.getByTestId("login-password").fill(ADMIN_PASSWORD);
+  await page.getByTestId("login-submit").click();
+  await expect(page.getByTestId("app-shell")).toBeVisible({ timeout: 30_000 });
+}
+
 async function reachApproved(
   page: Page,
   request: APIRequestContext,
@@ -220,11 +228,7 @@ async function reachApproved(
   studentId: string,
   pdf: Buffer,
 ): Promise<string> {
-  await page.goto("/login");
-  await page.getByTestId("login-email").fill(ADMIN_EMAIL);
-  await page.getByTestId("login-password").fill(ADMIN_PASSWORD);
-  await page.getByTestId("login-submit").click();
-  await expect(page.getByTestId("app-shell")).toBeVisible({ timeout: 30_000 });
+  await loginUi(page);
 
   await page.goto("/submissions/upload");
   await page.getByTestId("upload-assessment").selectOption(assessmentId);
@@ -297,7 +301,7 @@ async function reachApproved(
       },
       { timeout: 60_000 },
     )
-    .toMatch(/ready for evaluation/i);
+    .toMatch(/ready for evaluation|awaiting transcription/i);
 
   await expect
     .poll(
@@ -351,7 +355,8 @@ async function reachApproved(
   });
   await expect(page.getByTestId("link-evaluation")).toBeVisible();
 
-  // Drive evaluation to APPROVED via API for reliability; UI publication is covered below.
+  // Intentional: evaluation accept/override/finalize via API (UI covered in
+  // evaluation.spec.ts). Keeps this suite focused on publication + persistence.
   const headers = { Authorization: `Bearer ${token}` };
   await expect
     .poll(
@@ -426,11 +431,11 @@ async function reachApproved(
 }
 
 test.describe("B7 publication + reports (real API)", () => {
-  test("generate package, consumer 404 before publish, success after; analytics live and learning workspace for student", async ({
+  test("pipeline publish + analytics; persisted after logout/re-login", async ({
     page,
     request,
   }) => {
-    test.setTimeout(420_000);
+    test.setTimeout(480_000);
     const apiBase =
       process.env.API_UPSTREAM_URL?.replace(/\/$/, "") ?? "http://127.0.0.1:18000";
     const token = await loginApi(request, apiBase);
@@ -544,6 +549,72 @@ test.describe("B7 publication + reports (real API)", () => {
     await expect(page.getByTestId("analytics-published-attempts")).toContainText(
       "1",
     );
+
+    await page.goto(`/learning/${studentId}`);
+    await expect(page.getByTestId("adaptive-learning-page")).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.getByTestId("adaptive-learning-page")).toHaveAttribute(
+      "data-learning-mode",
+      "live",
+    );
+
+    // PREPROD-002: logout + fresh login must still see backend-persisted state
+    // (not sessionStorage / in-memory UI cache alone).
+    await page.getByTestId("logout-button").click();
+    await expect(page.getByTestId("login-page")).toBeVisible({
+      timeout: 15_000,
+    });
+    await loginUi(page);
+
+    const tokenAfter = await loginApi(request, apiBase);
+    const headersAfter = { Authorization: `Bearer ${tokenAfter}` };
+
+    const submissionAfter = await request.get(
+      `${apiBase}/api/v1/submissions/${submissionId}`,
+      { headers: headersAfter },
+    );
+    expect(submissionAfter.ok()).toBeTruthy();
+    const submissionBody = (await submissionAfter.json()) as {
+      workflow_state?: string;
+    };
+    expect(String(submissionBody.workflow_state ?? "")).toMatch(/PUBLISHED/i);
+
+    const publishedAfter = await request.get(
+      `${apiBase}/api/v1/submissions/${submissionId}/published-result`,
+      { headers: headersAfter },
+    );
+    expect(publishedAfter.ok()).toBeTruthy();
+
+    const analyticsAfter = await request.get(
+      `${apiBase}/api/v1/analytics/assessments/${assessmentId}`,
+      { headers: headersAfter },
+    );
+    expect(analyticsAfter.ok()).toBeTruthy();
+    const analyticsBody = (await analyticsAfter.json()) as {
+      published_attempt_count: number;
+    };
+    expect(analyticsBody.published_attempt_count).toBe(1);
+
+    await page.goto(`/submissions/${submissionId}`);
+    await expect(page.getByTestId("submission-workflow-state")).toContainText(
+      /published/i,
+      { timeout: 30_000 },
+    );
+    await expect(page.getByTestId("submission-published-immutable")).toBeVisible();
+
+    await page.goto(`/analytics/assessments/${assessmentId}`);
+    await expect(page.getByTestId("assessment-analytics-page")).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(page.getByTestId("analytics-published-attempts")).toContainText(
+      "1",
+    );
+
+    await page.goto(`/reports/student/${studentId}/assessment/${assessmentId}`);
+    await expect(page.getByTestId("student-report-page")).toBeVisible({
+      timeout: 30_000,
+    });
 
     await page.goto(`/learning/${studentId}`);
     await expect(page.getByTestId("adaptive-learning-page")).toBeVisible({

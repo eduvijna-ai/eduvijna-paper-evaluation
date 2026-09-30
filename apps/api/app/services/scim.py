@@ -8,9 +8,10 @@ from datetime import UTC, datetime
 from typing import Any
 
 from fastapi import HTTPException
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.pagination import clamp_limit
 from app.db.models import EnterpriseIdentityProvider, ExternalUserIdentity, User
 from app.services.audit import add_audit_event
 from app.services.webhooks import record_outbound_event
@@ -118,9 +119,12 @@ async def scim_list_users(
                         "Resources": [],
                     }
                 query = query.where(User.id.in_(user_ids))
-    rows = list(await db.scalars(query.order_by(User.created_at)))
-    start = max(start_index - 1, 0)
-    page = rows[start : start + count]
+    total = int(await db.scalar(select(func.count()).select_from(query.subquery())) or 0)
+    offset = max(int(start_index) - 1, 0)
+    page_limit = clamp_limit(count, default=100, maximum=500)
+    page = list(
+        await db.scalars(query.order_by(User.created_at).offset(offset).limit(page_limit))
+    )
     resources = []
     for user in page:
         identity = await _identity_for_user(db, tenant_id=tenant_id, user_id=user.id)
@@ -129,7 +133,7 @@ async def scim_list_users(
         )
     return {
         "schemas": ["urn:ietf:params:scim:api:messages:2.0:ListResponse"],
-        "totalResults": len(rows),
+        "totalResults": total,
         "startIndex": start_index,
         "itemsPerPage": len(page),
         "Resources": resources,

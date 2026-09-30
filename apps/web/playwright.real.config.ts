@@ -1,9 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Real A1 backend integration suite.
- * Requires API at NEXT_PUBLIC_API_BASE_URL (default http://127.0.0.1:8000)
- * seeded via `docker compose exec api python -m app.cli.seed_dev`.
+ * Real-backend Playwright suite (hybrid UI → live API).
+ * CI: Frontend job in .github/workflows/ci.yml (Compose + seed + pnpm test:e2e:real).
+ * Local: disposable stack only; see e2e/real/README.md and
+ * docs/engineering/PREPROD_REAL_E2E_COVERAGE.md. Never destroy founder MAT volumes.
+ * API_UPSTREAM_URL defaults to http://127.0.0.1:18000 (Compose publish port).
  */
 export default defineConfig({
   testDir: "./e2e/real",

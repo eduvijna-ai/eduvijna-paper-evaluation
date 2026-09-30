@@ -39,12 +39,10 @@ celery_app = create_celery_app()
 async def _normalize_async(
     tenant_id: uuid.UUID, submission_id: uuid.UUID, job_id: uuid.UUID
 ) -> None:
-    from app.db.session import async_session_factory, engine
+    from app.db.celery_session import celery_session
     from app.services.page_normalization import run_page_normalization
 
-    # Celery uses a fresh asyncio loop per task; dispose pooled connections first.
-    await engine.dispose()
-    async with async_session_factory() as db:
+    async with celery_session() as db:
         await run_page_normalization(
             db,
             tenant_id=tenant_id,
@@ -96,11 +94,10 @@ async def enqueue_page_normalization(
 async def _mapping_prepare_async(
     tenant_id: uuid.UUID, submission_id: uuid.UUID, job_id: uuid.UUID
 ) -> None:
-    from app.db.session import async_session_factory, engine
+    from app.db.celery_session import celery_session
     from app.services.mapping_prepare import run_mapping_preparation
 
-    await engine.dispose()
-    async with async_session_factory() as db:
+    async with celery_session() as db:
         await run_mapping_preparation(
             db,
             tenant_id=tenant_id,
@@ -146,11 +143,10 @@ async def enqueue_mapping_preparation(
 async def _identity_async(
     tenant_id: uuid.UUID, submission_id: uuid.UUID, job_id: uuid.UUID
 ) -> None:
-    from app.db.session import async_session_factory, engine
+    from app.db.celery_session import celery_session
     from app.services.identity_ai import run_identity_extraction
 
-    await engine.dispose()
-    async with async_session_factory() as db:
+    async with celery_session() as db:
         await run_identity_extraction(
             db,
             tenant_id=tenant_id,
@@ -198,11 +194,10 @@ async def enqueue_identity_extraction(
 async def _transcription_async(
     tenant_id: uuid.UUID, submission_id: uuid.UUID, job_id: uuid.UUID
 ) -> None:
-    from app.db.session import async_session_factory, engine
+    from app.db.celery_session import celery_session
     from app.services.transcription import run_transcription_pipeline
 
-    await engine.dispose()
-    async with async_session_factory() as db:
+    async with celery_session() as db:
         await run_transcription_pipeline(
             db,
             tenant_id=tenant_id,
@@ -248,11 +243,10 @@ async def enqueue_transcription(
 async def _evaluation_async(
     tenant_id: uuid.UUID, submission_id: uuid.UUID, job_id: uuid.UUID
 ) -> None:
-    from app.db.session import async_session_factory, engine
+    from app.db.celery_session import celery_session
     from app.services.evaluation import run_evaluation_pipeline
 
-    await engine.dispose()
-    async with async_session_factory() as db:
+    async with celery_session() as db:
         await run_evaluation_pipeline(
             db,
             tenant_id=tenant_id,
@@ -298,11 +292,10 @@ async def enqueue_evaluation(
 async def _publication_async(
     tenant_id: uuid.UUID, submission_id: uuid.UUID, job_id: uuid.UUID
 ) -> None:
-    from app.db.session import async_session_factory, engine
+    from app.db.celery_session import celery_session
     from app.services.publication import run_publication_pipeline
 
-    await engine.dispose()
-    async with async_session_factory() as db:
+    async with celery_session() as db:
         await run_publication_pipeline(
             db,
             tenant_id=tenant_id,
@@ -351,11 +344,10 @@ async def enqueue_publication(
 async def _analytics_async(
     tenant_id: uuid.UUID, published_result_id: uuid.UUID, job_id: uuid.UUID
 ) -> None:
-    from app.db.session import async_session_factory, engine
+    from app.db.celery_session import celery_session
     from app.services.analytics import materialize_published_result
 
-    await engine.dispose()
-    async with async_session_factory() as db:
+    async with celery_session() as db:
         await materialize_published_result(
             db,
             tenant_id=tenant_id,
@@ -405,11 +397,10 @@ async def enqueue_analytics(
     return str(task_id) if task_id is not None else None
 
 async def _learning_plan_async(tenant_id: uuid.UUID, run_id: uuid.UUID) -> None:
-    from app.db.session import async_session_factory, engine
+    from app.db.celery_session import celery_session
     from app.services.learning import run_learning_plan_pipeline
 
-    await engine.dispose()
-    async with async_session_factory() as db:
+    async with celery_session() as db:
         await run_learning_plan_pipeline(db, tenant_id=tenant_id, run_id=run_id)
 
 
@@ -441,11 +432,10 @@ async def enqueue_learning_plan(
 async def _improvement_blueprint_async(
     tenant_id: uuid.UUID, blueprint_id: uuid.UUID
 ) -> None:
-    from app.db.session import async_session_factory, engine
+    from app.db.celery_session import celery_session
     from app.services.learning import run_blueprint_pipeline
 
-    await engine.dispose()
-    async with async_session_factory() as db:
+    async with celery_session() as db:
         await run_blueprint_pipeline(db, tenant_id=tenant_id, blueprint_id=blueprint_id)
 
 
@@ -484,11 +474,10 @@ async def enqueue_improvement_blueprint(
 
 
 async def _authoring_parse_async(tenant_id: uuid.UUID, run_id: uuid.UUID) -> None:
-    from app.db.session import async_session_factory, engine
+    from app.db.celery_session import celery_session
     from app.services.authoring_ai import run_parse_pipeline
 
-    await engine.dispose()
-    async with async_session_factory() as db:
+    async with celery_session() as db:
         await run_parse_pipeline(db, tenant_id=tenant_id, run_id=run_id)
 
 
@@ -518,11 +507,10 @@ async def enqueue_authoring_parse(
 
 
 async def _authoring_answer_key_async(tenant_id: uuid.UUID, run_id: uuid.UUID) -> None:
-    from app.db.session import async_session_factory, engine
+    from app.db.celery_session import celery_session
     from app.services.authoring_ai import run_propose_answer_key_pipeline
 
-    await engine.dispose()
-    async with async_session_factory() as db:
+    async with celery_session() as db:
         await run_propose_answer_key_pipeline(db, tenant_id=tenant_id, run_id=run_id)
 
 
@@ -553,11 +541,10 @@ async def enqueue_authoring_answer_key(
 
 
 async def _authoring_rubric_async(tenant_id: uuid.UUID, run_id: uuid.UUID) -> None:
-    from app.db.session import async_session_factory, engine
+    from app.db.celery_session import celery_session
     from app.services.authoring_ai import run_propose_rubric_pipeline
 
-    await engine.dispose()
-    async with async_session_factory() as db:
+    async with celery_session() as db:
         await run_propose_rubric_pipeline(db, tenant_id=tenant_id, run_id=run_id)
 
 
@@ -587,11 +574,10 @@ async def enqueue_authoring_rubric(
 
 
 async def _authoring_mapping_async(tenant_id: uuid.UUID, run_id: uuid.UUID) -> None:
-    from app.db.session import async_session_factory, engine
+    from app.db.celery_session import celery_session
     from app.services.authoring_ai import run_suggest_curriculum_mapping_pipeline
 
-    await engine.dispose()
-    async with async_session_factory() as db:
+    async with celery_session() as db:
         await run_suggest_curriculum_mapping_pipeline(
             db, tenant_id=tenant_id, run_id=run_id
         )
@@ -630,45 +616,44 @@ async def _deliver_webhooks_async() -> dict[str, int | str]:
 
     from sqlalchemy import select
 
+    from app.db.celery_session import celery_session_factory
     from app.db.models import WebhookDelivery
-    from app.db.session import async_session_factory, engine
     from app.services.webhooks import deliver_due_webhooks
 
     settings = get_settings()
-    if not (settings.celery_task_always_eager or bool(celery_app.conf.task_always_eager)):
-        await engine.dispose()
     processed = 0
-    async with async_session_factory() as db:
-        for _ in range(6):
-            processed += await deliver_due_webhooks(db, settings=settings)
-            await db.commit()
-            now = datetime.now(UTC)
-            due = await db.scalar(
-                select(WebhookDelivery.id)
+    soonest = None
+    async with celery_session_factory() as session_factory:
+        async with session_factory() as db:
+            for _ in range(6):
+                processed += await deliver_due_webhooks(db, settings=settings)
+                await db.commit()
+                now = datetime.now(UTC)
+                due = await db.scalar(
+                    select(WebhookDelivery.id)
+                    .where(
+                        WebhookDelivery.status.in_(("PENDING", "RETRYING")),
+                        WebhookDelivery.terminal_failure.is_(False),
+                        WebhookDelivery.next_attempt_at.is_not(None),
+                        WebhookDelivery.next_attempt_at <= now,
+                    )
+                    .limit(1)
+                )
+                if due is None:
+                    break
+                if not settings.celery_task_always_eager:
+                    break
+        async with session_factory() as db:
+            soonest = await db.scalar(
+                select(WebhookDelivery.next_attempt_at)
                 .where(
-                    WebhookDelivery.status.in_(("PENDING", "RETRYING")),
+                    WebhookDelivery.status == "RETRYING",
                     WebhookDelivery.terminal_failure.is_(False),
                     WebhookDelivery.next_attempt_at.is_not(None),
-                    WebhookDelivery.next_attempt_at <= now,
                 )
+                .order_by(WebhookDelivery.next_attempt_at.asc())
                 .limit(1)
             )
-            if due is None:
-                break
-            if not settings.celery_task_always_eager:
-                break
-    soonest = None
-    async with async_session_factory() as db:
-        soonest = await db.scalar(
-            select(WebhookDelivery.next_attempt_at)
-            .where(
-                WebhookDelivery.status == "RETRYING",
-                WebhookDelivery.terminal_failure.is_(False),
-                WebhookDelivery.next_attempt_at.is_not(None),
-            )
-            .order_by(WebhookDelivery.next_attempt_at.asc())
-            .limit(1)
-        )
     if soonest is not None and not settings.celery_task_always_eager:
         delay = max(0.0, (soonest - datetime.now(UTC)).total_seconds())
         deliver_webhooks_task.apply_async(countdown=delay)

@@ -64,13 +64,9 @@ export function TeacherReviewActions({
 
   const visibleActions = ACTIONS.filter((item) => {
     if (!liveMode) return true;
-    // Hide non-live correction workflows in live mode (also shown disabled below if kept)
+    // OCR/mapping correction actions are out of production scope — hide entirely.
     return !isLiveDisabledTeacherAction(item.action);
   });
-
-  const disabledLiveActions = liveMode
-    ? ACTIONS.filter((item) => isLiveDisabledTeacherAction(item.action))
-    : [];
 
   return (
     <div data-testid="teacher-review-actions" className="space-y-3">
@@ -105,21 +101,6 @@ export function TeacherReviewActions({
             </button>
           );
         })}
-        {disabledLiveActions.map((item) => (
-          <button
-            key={item.action}
-            type="button"
-            disabled
-            data-testid={`teacher-action-${item.action}`}
-            title="Correction workflow not live yet"
-            className="rounded-md border border-slate-200 px-3 py-2 text-left text-sm font-medium text-slate-400 opacity-60"
-          >
-            {item.label}
-            <span className="mt-0.5 block text-xs font-normal text-slate-500">
-              Correction workflow not live yet
-            </span>
-          </button>
-        ))}
       </div>
 
       {pending && needsReason(pending) && (

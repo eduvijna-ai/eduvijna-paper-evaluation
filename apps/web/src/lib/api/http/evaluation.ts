@@ -383,7 +383,8 @@ export const EvaluationHttpApi = {
   ): Promise<TeacherActionResult> {
     if (isLiveDisabledTeacherAction(action)) {
       throw new ApiError({
-        message: "Correction workflow not live yet.",
+        message:
+          "OCR/mapping correction actions are out of production scope; use Change score / Escalate or return to transcription/mapping workspaces.",
         status: 400,
         kind: "validation",
         code: "CORRECTION_NOT_LIVE",

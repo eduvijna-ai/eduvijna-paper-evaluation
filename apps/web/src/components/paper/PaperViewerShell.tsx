@@ -195,6 +195,27 @@ export function EvidenceRegionOverlay({
 
 const ZOOM_STEPS = [0.75, 1, 1.25, 1.5, 2] as const;
 
+export type PaperViewerImageStatus = "idle" | "loading" | "ready" | "error";
+
+export function paperViewerStatusLabel(opts: {
+  mode: "synthetic" | "live";
+  pageImageUrl?: string | null;
+  imageStatus?: PaperViewerImageStatus;
+  drawEnabled?: boolean;
+}): string {
+  if (opts.drawEnabled) return "Draw mode";
+  if (opts.mode === "live") {
+    if (opts.pageImageUrl || opts.imageStatus === "ready") {
+      return "Live page image";
+    }
+    if (opts.imageStatus === "error") {
+      return "Page image unavailable";
+    }
+    return "Loading page image…";
+  }
+  return "Mock sketch (no live PDF)";
+}
+
 export function PaperViewerShell({
   pages,
   regions,
@@ -206,6 +227,7 @@ export function PaperViewerShell({
   showMarks = false,
   mode = "synthetic",
   pageImageUrl = null,
+  imageStatus,
   drawEnabled = false,
   onRegionDrawn,
 }: {
@@ -220,6 +242,8 @@ export function PaperViewerShell({
   /** Live B3 pages render a real PNG; synthetic keeps the fixture sketch. */
   mode?: "synthetic" | "live";
   pageImageUrl?: string | null;
+  /** Optional load status for live page images (loading / error messaging). */
+  imageStatus?: PaperViewerImageStatus;
   /** When true, pointer drag draws a new normalized region on the page surface. */
   drawEnabled?: boolean;
   onRegionDrawn?: (bbox: {
@@ -247,6 +271,12 @@ export function PaperViewerShell({
   const selected = regions.find((r) => r.id === selectedRegionId);
   const activePage = pages[pageIndex] ?? pages[0];
   const liveImage = mode === "live" && Boolean(pageImageUrl);
+  const statusLabel = paperViewerStatusLabel({
+    mode,
+    pageImageUrl,
+    imageStatus,
+    drawEnabled,
+  });
 
   const goPage = (delta: number) => {
     const next = pages[pageIndex + delta];
@@ -338,12 +368,11 @@ export function PaperViewerShell({
               +
             </button>
           </div>
-          <span className="text-xs text-slate-500">
-            {drawEnabled
-              ? "Draw mode"
-              : liveImage
-                ? "Live page image"
-                : "Synthetic · no PDFs"}
+          <span
+            data-testid="paper-viewer-status"
+            className="text-xs text-slate-500"
+          >
+            {statusLabel}
           </span>
         </div>
       </div>

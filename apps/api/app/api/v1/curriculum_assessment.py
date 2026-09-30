@@ -10,6 +10,7 @@ from sqlalchemy import func, inspect, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.pagination import clamp_limit, clamp_offset
 from app.core.authorization import AuthContext, require_permissions
 from app.db.models import (
     AcademicYear,
@@ -282,10 +283,19 @@ async def _validate_curriculum_node(
 
 @router.get("/curricula")
 async def list_curricula(
-    db: Db, auth: AuthContext = Depends(require_permissions("curriculum:read"))
+    db: Db,
+    auth: AuthContext = Depends(require_permissions("curriculum:read")),
+    limit: int | None = None,
+    offset: int | None = None,
 ) -> list[dict[str, Any]]:
+    page_limit = clamp_limit(limit)
+    page_offset = clamp_offset(offset)
     rows = await db.scalars(
-        select(Curriculum).where(Curriculum.tenant_id == auth.tenant_id).order_by(Curriculum.code)
+        select(Curriculum)
+        .where(Curriculum.tenant_id == auth.tenant_id)
+        .order_by(Curriculum.code)
+        .limit(page_limit)
+        .offset(page_offset)
     )
     return [_dump(item) for item in rows]
 
@@ -459,12 +469,19 @@ async def _validate_assessment_refs(
 
 @router.get("/assessments")
 async def list_assessments(
-    db: Db, auth: AuthContext = Depends(require_permissions("assessment:read"))
+    db: Db,
+    auth: AuthContext = Depends(require_permissions("assessment:read")),
+    limit: int | None = None,
+    offset: int | None = None,
 ) -> list[dict[str, Any]]:
+    page_limit = clamp_limit(limit)
+    page_offset = clamp_offset(offset)
     rows = await db.scalars(
         select(Assessment)
         .where(Assessment.tenant_id == auth.tenant_id)
         .order_by(Assessment.created_at.desc())
+        .limit(page_limit)
+        .offset(page_offset)
     )
     return [
         await enrich_assessment_dump(db, tenant_id=auth.tenant_id, payload=_dump(item))

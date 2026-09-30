@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://eduvijna.local/ai/benchmarks/manifests/v1/schema.json",
+  "title": "EduVijna AI quality harness manifest v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["manifest_version", "name", "cases"],
+  "properties": {
+    "manifest_version": {
+      "type": "string",
+      "const": "1"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 2000
+    },
+    "real_paper_corpus": {
+      "type": "boolean",
+      "default": false,
+      "description": "Must remain false until REAL_PAPER_CORPUS_GATE is satisfied."
+    },
+    "provider_default": {
+      "type": "string",
+      "enum": ["fixed", "openai", "none"],
+      "default": "fixed"
+    },
+    "metric_keys": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "student_identity_accuracy",
+          "answer_region_accuracy",
+          "question_mapping_accuracy",
+          "transcription_accuracy",
+          "evaluation_marking_accuracy",
+          "teacher_vs_ai_score_agreement"
+        ]
+      },
+      "uniqueItems": true,
+      "minItems": 1
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/case" }
+    }
+  },
+  "$defs": {
+    "category": {
+      "type": "string",
+      "enum": [
+        "clean_handwriting",
+        "poor_handwriting",
+        "crossed_out",
+        "continuation",
+        "faint",
+        "rotated",
+        "pen_colors",
+        "math",
+        "equations",
+        "fractions",
+        "tables",
+        "diagrams",
+        "incomplete",
+        "alternate_methods",
+        "multi_subject",
+        "multilingual"
+      ]
+    },
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "categories", "gold"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9._-]{0,119}$"
+        },
+        "categories": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/category" },
+          "uniqueItems": true,
+          "minItems": 1
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 1000
+        },
+        "fixture_ref": {
+          "type": "string",
+          "description": "Optional path or B15 replay fixture id; never embed secrets."
+        },
+        "gold": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "student_id": { "type": ["string", "null"] },
+            "answer_region_ids": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "question_mappings": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["region_id", "question_version_id"],
+                "properties": {
+                  "region_id": { "type": "string" },
+                  "question_version_id": { "type": "string" }
+                }
+              }
+            },
+            "transcription_text": { "type": ["string", "null"] },
+            "final_marks": { "type": ["string", "number", "null"] },
+            "max_marks": { "type": ["string", "number", "null"] },
+            "teacher_final_marks": { "type": ["string", "number", "null"] },
+            "error_codes": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        },
+        "fixed_prediction": {
+          "type": "object",
+          "description": "Deterministic prediction used when --provider fixed (safe CI).",
+          "additionalProperties": false,
+          "properties": {
+            "student_id": { "type": ["string", "null"] },
+            "answer_region_ids": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "question_mappings": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["region_id", "question_version_id"],
+                "properties": {
+                  "region_id": { "type": "string" },
+                  "question_version_id": { "type": "string" }
+                }
+              }
+            },
+            "transcription_text": { "type": ["string", "null"] },
+            "proposed_marks": { "type": ["string", "number", "null"] },
+            "error_codes": {
+              "type": "array",
+              "items": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

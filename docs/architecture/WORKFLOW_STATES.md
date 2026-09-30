@@ -62,7 +62,7 @@ DRAFT ──cancel──▶ ARCHIVED
 | `PROCESSING` | Pipeline stages running |
 | `IDENTITY_REVIEW` | Student match uncertain |
 | `MAPPING_REVIEW` | Question mapping uncertain |
-| `READY_FOR_EVALUATION` | Structure complete; eval queued |
+| `READY_FOR_EVALUATION` | Structure (mapping) complete. Evaluation may start only when `transcription_state=READY` (B5 gate); until then the submission awaits transcription review. |
 | `EVALUATING` | Rubric evaluation in progress |
 | `EVALUATION_REVIEW` | Human review of proposed marks |
 | `APPROVED` | All questions approved; reports may generate |
@@ -103,7 +103,7 @@ FAILED ──manual retry──▶ UPLOADED | PROCESSING
 | `PROCESSING` | `READY_FOR_EVALUATION` | Structure stages pass |
 | `IDENTITY_REVIEW` | `PROCESSING` | Identity confirmed; resume pipeline |
 | `MAPPING_REVIEW` | `READY_FOR_EVALUATION` | Mapping confirmed |
-| `READY_FOR_EVALUATION` | `EVALUATING` | Evaluation job start |
+| `READY_FOR_EVALUATION` | `EVALUATING` | Evaluation job start (requires `transcription_state=READY`) |
 | `EVALUATING` | `EVALUATION_REVIEW` | Ledger drafts written |
 | `EVALUATION_REVIEW` | `APPROVED` | All questions ACCEPTED/OVERRIDDEN |
 | `EVALUATION_REVIEW` | `EVALUATING` | Targeted re-eval |

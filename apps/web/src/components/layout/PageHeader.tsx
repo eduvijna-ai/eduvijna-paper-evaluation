@@ -17,6 +17,8 @@ const toneClasses: Record<StatusTone, string> = {
 interface StatusBadgeProps {
   kind: DomainStatusKind;
   state: string;
+  /** When kind is submission, refine READY_FOR_EVALUATION vs transcription gate. */
+  transcriptionState?: string | null;
   className?: string;
   "data-testid"?: string;
 }
@@ -24,10 +26,11 @@ interface StatusBadgeProps {
 export function StatusBadge({
   kind,
   state,
+  transcriptionState,
   className,
   "data-testid": testId,
 }: StatusBadgeProps) {
-  const visual = resolveStatusVisual(kind, state);
+  const visual = resolveStatusVisual(kind, state, { transcriptionState });
   return (
     <span
       data-testid={testId ?? `status-badge-${kind}-${state}`}

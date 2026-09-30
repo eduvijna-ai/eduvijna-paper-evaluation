@@ -1,0 +1,51 @@
+{
+  "manifest_version": "1",
+  "name": "fixtures.safe",
+  "description": "Credential-free fixed-provider case for harness wiring tests. Not a real-paper corpus.",
+  "real_paper_corpus": false,
+  "provider_default": "fixed",
+  "metric_keys": [
+    "student_identity_accuracy",
+    "answer_region_accuracy",
+    "question_mapping_accuracy",
+    "transcription_accuracy",
+    "evaluation_marking_accuracy",
+    "teacher_vs_ai_score_agreement"
+  ],
+  "cases": [
+    {
+      "id": "safe-fixed-001",
+      "categories": ["clean_handwriting", "math"],
+      "notes": "Deterministic match against gold; does not claim REAL_PAPER PASS.",
+      "fixture_ref": "apps/api/tests/fixtures/b15/synthetic_gold_case.json#synthetic-gold-001",
+      "gold": {
+        "student_id": "00000000-0000-4000-8000-000000000101",
+        "answer_region_ids": ["region-1"],
+        "question_mappings": [
+          {
+            "region_id": "region-1",
+            "question_version_id": "00000000-0000-4000-8000-000000000001"
+          }
+        ],
+        "transcription_text": "EXERCISE:PARTIAL anonymized answer text",
+        "final_marks": "3.5000",
+        "max_marks": "5.0000",
+        "teacher_final_marks": "3.5000",
+        "error_codes": ["ARITHMETIC_ERROR"]
+      },
+      "fixed_prediction": {
+        "student_id": "00000000-0000-4000-8000-000000000101",
+        "answer_region_ids": ["region-1"],
+        "question_mappings": [
+          {
+            "region_id": "region-1",
+            "question_version_id": "00000000-0000-4000-8000-000000000001"
+          }
+        ],
+        "transcription_text": "EXERCISE:PARTIAL anonymized answer text",
+        "proposed_marks": "3.5000",
+        "error_codes": ["ARITHMETIC_ERROR"]
+      }
+    }
+  ]
+}

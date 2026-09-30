@@ -32,8 +32,8 @@ services:
     restart: unless-stopped
 
   minio:
-    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
-    command: server /data --console-address ":9001"
+    # Official MinIO images are source-only; Bitnami free tags moved to bitnamilegacy.
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-eduvijna_minio}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-eduvijna_minio_dev_only}
@@ -41,7 +41,7 @@ services:
       - "${MINIO_API_PORT:-19000}:9000"
       - "${MINIO_CONSOLE_PORT:-19001}:9001"
     volumes:
-      - miniodata:/data
+      - miniodata:/bitnami/minio/data
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:9000/minio/health/live || exit 1"]
       interval: 10s
@@ -123,6 +123,8 @@ services:
     build:
       context: ./apps/api
     command: celery -A app.tasks.celery_app.celery_app worker --beat --loglevel=INFO --concurrency=1
+    healthcheck:
+      disable: true
     env_file:
       - path: .env
         required: false

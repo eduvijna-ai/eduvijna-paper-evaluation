@@ -196,7 +196,7 @@ describe("B6 accept / override validation", () => {
     expect(result.workflow_state).toBe("ESCALATED");
   });
 
-  it("flags OCR/mapping correction actions as not live", () => {
+  it("flags OCR/mapping correction actions as out of production scope for live HTTP", () => {
     expect(isLiveDisabledTeacherAction("OCR_TRANSCRIPTION_ERROR")).toBe(true);
     expect(isLiveDisabledTeacherAction("MAPPING_ERROR")).toBe(true);
     expect(isLiveDisabledTeacherAction("ACCEPT")).toBe(false);

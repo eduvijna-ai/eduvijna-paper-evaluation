@@ -33,6 +33,26 @@ class Settings(BaseSettings):
         default="postgresql+asyncpg://eduvijna:eduvijna_local_dev_only@localhost:5432/eduvijna",
         validation_alias=AliasChoices("DATABASE_URL", "database_url"),
     )
+    database_pool_size: int = Field(
+        default=5,
+        validation_alias=AliasChoices("DATABASE_POOL_SIZE", "database_pool_size"),
+    )
+    database_max_overflow: int = Field(
+        default=10,
+        validation_alias=AliasChoices("DATABASE_MAX_OVERFLOW", "database_max_overflow"),
+    )
+    database_pool_timeout_seconds: int = Field(
+        default=30,
+        validation_alias=AliasChoices(
+            "DATABASE_POOL_TIMEOUT_SECONDS", "database_pool_timeout_seconds"
+        ),
+    )
+    database_pool_recycle_seconds: int = Field(
+        default=1800,
+        validation_alias=AliasChoices(
+            "DATABASE_POOL_RECYCLE_SECONDS", "database_pool_recycle_seconds"
+        ),
+    )
     log_level: str = Field(
         default="INFO",
         validation_alias=AliasChoices("LOG_LEVEL", "log_level"),
@@ -311,6 +331,39 @@ class Settings(BaseSettings):
             if self.environment.lower() not in {"local", "test"}:
                 raise ValueError("AUTH_TOKEN_SECRET is required outside local/test")
             self.auth_token_secret = "eduvijna_local_jwt_dev_only_change_me"
+        return self
+
+    @model_validator(mode="after")
+    def production_fail_closed(self) -> "Settings":
+        """Refuse unsafe local/test escapes when APP_ENV is production/prod."""
+        if self.environment.lower() not in {"production", "prod"}:
+            return self
+
+        errors: list[str] = []
+        if not self.auth_token_secret:
+            errors.append("AUTH_TOKEN_SECRET is required in production")
+
+        for label, value in (
+            ("AI_PROVIDER_VISION", self.ai_provider_vision),
+            ("AI_PROVIDER_TEXT", self.ai_provider_text),
+            ("AI_PROVIDER_AUTHORING", self.ai_provider_authoring),
+        ):
+            if (value or "").strip().lower() == "fixed":
+                errors.append(f"{label}=fixed is forbidden in production")
+
+        if (self.upload_scanner or "").strip().lower() == "fixed":
+            errors.append("UPLOAD_SCANNER=fixed is forbidden in production")
+
+        if self.b19_test_providers_enabled:
+            errors.append("B19_TEST_PROVIDERS_ENABLED must be false in production")
+
+        if self.webhook_allow_insecure_destinations:
+            errors.append(
+                "WEBHOOK_ALLOW_INSECURE_DESTINATIONS must be false in production"
+            )
+
+        if errors:
+            raise ValueError("; ".join(errors))
         return self
 
 

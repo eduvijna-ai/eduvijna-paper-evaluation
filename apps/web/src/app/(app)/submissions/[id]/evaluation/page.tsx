@@ -55,6 +55,10 @@ export default function EvaluationWorkspacePage({
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [gateReady, setGateReady] = useState(!liveMode);
+  const [pageImageUrl, setPageImageUrl] = useState<string | null>(null);
+  const [pageImageStatus, setPageImageStatus] = useState<
+    "idle" | "loading" | "ready" | "error"
+  >("idle");
   const prepareStartedRef = useRef(false);
 
   const submissionQuery = useQuery({
@@ -126,6 +130,36 @@ export default function EvaluationWorkspacePage({
       setActivePageId((prev) => prev ?? data.pages[0]!.id);
     }
   }, [data, selectedQuestionId]);
+
+  useEffect(() => {
+    if (!liveMode || !activePageId || !api.getSubmissionPageImageBlob) {
+      setPageImageUrl(null);
+      setPageImageStatus("idle");
+      return;
+    }
+    let revoked = false;
+    let objectUrl: string | null = null;
+    setPageImageStatus("loading");
+    setPageImageUrl(null);
+    void api
+      .getSubmissionPageImageBlob(activePageId)
+      .then((blob) => {
+        if (revoked) return;
+        objectUrl = URL.createObjectURL(blob);
+        setPageImageUrl(objectUrl);
+        setPageImageStatus("ready");
+      })
+      .catch(() => {
+        if (!revoked) {
+          setPageImageUrl(null);
+          setPageImageStatus("error");
+        }
+      });
+    return () => {
+      revoked = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [liveMode, activePageId]);
 
   const questionId =
     selectedQuestionId ?? data?.selected_question_id ?? "";
@@ -376,6 +410,9 @@ export default function EvaluationWorkspacePage({
             selectedRegionId={selectedRegionId}
             onPageSelect={setActivePageId}
             onRegionSelect={setSelectedRegionId}
+            mode={liveMode ? "live" : "synthetic"}
+            pageImageUrl={liveMode ? pageImageUrl : null}
+            imageStatus={liveMode ? pageImageStatus : undefined}
           />
         </div>
 

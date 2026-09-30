@@ -99,7 +99,11 @@ export default function DashboardPage() {
                 key: "state",
                 header: "State",
                 cell: (r) => (
-                  <StatusBadge kind="submission" state={r.workflow_state} />
+                  <StatusBadge
+                    kind="submission"
+                    state={r.workflow_state}
+                    transcriptionState={r.transcription_state}
+                  />
                 ),
               },
               {

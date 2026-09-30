@@ -71,6 +71,15 @@ playwright-report/
 test-results/
 blob-report/
 
+# PREPROD-003 AI quality harness generated reports
+ai/benchmarks/results/*
+!ai/benchmarks/results/.gitkeep
+!ai/benchmarks/results/README.md
+
+# PREPROD-005 load test local artifacts
+infra/load/out/
+infra/load/*.log
+
 # Build artifacts
 .next/
 out/

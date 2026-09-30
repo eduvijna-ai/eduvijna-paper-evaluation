@@ -1,0 +1,116 @@
+# Example AI quality harness manifest (v1)
+# REAL_PAPER_CORPUS_GATE = EXTERNAL_INPUT_REQUIRED
+# real_paper_corpus must stay false until an authorized corpus is supplied.
+
+manifest_version: "1"
+name: fixtures.example
+description: >
+  Illustrative cases covering every supported category. Replace fixture_ref /
+  gold with authorized corpus items before claiming real-paper PASS.
+real_paper_corpus: false
+provider_default: fixed
+metric_keys:
+  - student_identity_accuracy
+  - answer_region_accuracy
+  - question_mapping_accuracy
+  - transcription_accuracy
+  - evaluation_marking_accuracy
+  - teacher_vs_ai_score_agreement
+
+cases:
+  - id: ex-clean-handwriting
+    categories: [clean_handwriting]
+    notes: Baseline legible sample (placeholder).
+    gold:
+      student_id: "00000000-0000-4000-8000-000000000101"
+      answer_region_ids: ["r1"]
+      question_mappings:
+        - { region_id: r1, question_version_id: "qv-1" }
+      transcription_text: "x = 2"
+      final_marks: "2.0"
+      max_marks: "2.0"
+      teacher_final_marks: "2.0"
+      error_codes: []
+    fixed_prediction:
+      student_id: "00000000-0000-4000-8000-000000000101"
+      answer_region_ids: ["r1"]
+      question_mappings:
+        - { region_id: r1, question_version_id: "qv-1" }
+      transcription_text: "x = 2"
+      proposed_marks: "2.0"
+      error_codes: []
+
+  - id: ex-poor-handwriting
+    categories: [poor_handwriting]
+    gold: { transcription_text: null, final_marks: null }
+    fixed_prediction: { transcription_text: null, proposed_marks: null }
+
+  - id: ex-crossed-out
+    categories: [crossed_out]
+    gold: { transcription_text: "final answer 5", final_marks: "1.0" }
+    fixed_prediction: { transcription_text: "final answer 5", proposed_marks: "1.0" }
+
+  - id: ex-continuation
+    categories: [continuation]
+    gold: { answer_region_ids: ["r1", "r2"] }
+    fixed_prediction: { answer_region_ids: ["r1", "r2"] }
+
+  - id: ex-faint
+    categories: [faint]
+    gold: { transcription_text: null }
+    fixed_prediction: { transcription_text: null }
+
+  - id: ex-rotated
+    categories: [rotated]
+    gold: { answer_region_ids: ["r1"] }
+    fixed_prediction: { answer_region_ids: ["r1"] }
+
+  - id: ex-pen-colors
+    categories: [pen_colors]
+    gold: { transcription_text: "blue pen answer" }
+    fixed_prediction: { transcription_text: "blue pen answer" }
+
+  - id: ex-math
+    categories: [math]
+    gold: { transcription_text: "2+2=4", final_marks: "1.0", max_marks: "1.0" }
+    fixed_prediction: { transcription_text: "2+2=4", proposed_marks: "1.0" }
+
+  - id: ex-equations
+    categories: [equations]
+    gold: { transcription_text: "E=mc^2" }
+    fixed_prediction: { transcription_text: "E=mc^2" }
+
+  - id: ex-fractions
+    categories: [fractions]
+    gold: { transcription_text: "1/2 + 1/3 = 5/6" }
+    fixed_prediction: { transcription_text: "1/2 + 1/3 = 5/6" }
+
+  - id: ex-tables
+    categories: [tables]
+    gold: { transcription_text: "| a | b |" }
+    fixed_prediction: { transcription_text: "| a | b |" }
+
+  - id: ex-diagrams
+    categories: [diagrams]
+    gold: { transcription_text: null, final_marks: null }
+    fixed_prediction: { transcription_text: null, proposed_marks: null }
+
+  - id: ex-incomplete
+    categories: [incomplete]
+    gold: { final_marks: "0.5", max_marks: "2.0", error_codes: ["INCOMPLETE"] }
+    fixed_prediction: { proposed_marks: "0.5", error_codes: ["INCOMPLETE"] }
+
+  - id: ex-alternate-methods
+    categories: [alternate_methods]
+    gold: { final_marks: "3.0", teacher_final_marks: "3.0" }
+    fixed_prediction: { proposed_marks: "3.0" }
+
+  - id: ex-multi-subject
+    categories: [multi_subject]
+    gold: { final_marks: "2.0" }
+    fixed_prediction: { proposed_marks: "2.0" }
+
+  - id: ex-multilingual
+    categories: [multilingual]
+    gold: { transcription_text: "उत्तर" }
+    fixed_prediction: { transcription_text: "उत्तर" }
