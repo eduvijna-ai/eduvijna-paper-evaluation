@@ -6,7 +6,7 @@ import uuid
 from datetime import UTC, date, datetime, timedelta
 from typing import Annotated, Any, cast
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Request, UploadFile
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -282,13 +282,23 @@ async def _authorization_for_user(
 
 @router.post("/auth/login", response_model=TokenOut)
 async def login(
-    payload: LoginRequest, db: Db, provider: AuthProvider = Depends(get_auth_provider)
+    payload: LoginRequest,
+    request: Request,
+    db: Db,
+    provider: AuthProvider = Depends(get_auth_provider),
 ) -> TokenOut:
+    from app.services.auth_rate_limit import (
+        check_auth_login_rate_limit,
+        record_auth_login_failure,
+    )
+
+    email = payload.email.strip().lower()
+    check_auth_login_rate_limit(request=request, email=email)
     query = (
         select(User)
         .join(Tenant, Tenant.id == User.tenant_id)
         .where(
-            User.email == payload.email.strip().lower(),
+            User.email == email,
             User.status == "active",
             Tenant.status == "active",
         )
@@ -301,6 +311,7 @@ async def login(
         or not users[0].password_hash
         or not verify_password(payload.password, users[0].password_hash)
     ):
+        record_auth_login_failure(request=request, email=email)
         raise HTTPException(401, "Invalid credentials")
     user = users[0]
     roles, permissions = await _authorization_for_user(db, user.id, user.tenant_id)

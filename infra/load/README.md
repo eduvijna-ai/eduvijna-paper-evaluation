@@ -27,6 +27,26 @@ export LOAD_TEST_BASE_URL=http://127.0.0.1:18000
 Prefer a disposable compose project with alternate publish ports and a
 non-MAT database name. Do **not** commit secrets or bearer tokens into this folder.
 
+## Disposable stack + full evidence runner
+
+```powershell
+# Bring up isolated stack (ports 28000/25432/26379/29000)
+docker compose -p eduvijna-disposable-load --env-file infra/load/disposable.env `
+  -f docker-compose.yml -f docker-compose.disposable.yml up -d --build postgres redis minio api worker
+docker compose -p eduvijna-disposable-load --env-file infra/load/disposable.env `
+  -f docker-compose.yml -f docker-compose.disposable.yml exec -T api python -m alembic -c alembic.ini upgrade head
+docker compose -p eduvijna-disposable-load --env-file infra/load/disposable.env `
+  -f docker-compose.yml -f docker-compose.disposable.yml exec -T api python -m app.cli.seed_dev
+# Ensure MinIO bucket exists, then:
+$env:LOAD_TEST_BASE_URL="http://127.0.0.1:28000"
+python infra/load/run_perf_reliability_evidence.py
+# Tear down ONLY disposable project:
+docker compose -p eduvijna-disposable-load --env-file infra/load/disposable.env `
+  -f docker-compose.yml -f docker-compose.disposable.yml down -v
+```
+
+Upload path is `POST /api/v1/submissions` (multipart `assessment_id` + `file`). Use unique PDF bytes per request to avoid content-hash duplicate `409`.
+
 ## Scenarios
 
 | Scenario | Script / notes | Target |

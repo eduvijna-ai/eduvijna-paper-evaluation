@@ -209,8 +209,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--upload-path",
-        default="/api/v1/submissions/upload",
-        help="Upload path (auth/assessment query may be required on real stacks)",
+        default="/api/v1/submissions",
+        help="Upload path POST multipart (auth + assessment_id form field required)",
     )
     parser.add_argument("--health-path", default="/health")
     args = parser.parse_args(argv)

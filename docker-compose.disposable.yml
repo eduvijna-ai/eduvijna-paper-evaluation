@@ -1,0 +1,36 @@
+# Override for disposable load/reliability project only.
+# Used with: docker compose -p eduvijna-disposable-load --env-file infra/load/disposable.env \
+#   -f docker-compose.yml -f docker-compose.disposable.yml ...
+services:
+  api:
+    environment:
+      DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-5}
+      DATABASE_MAX_OVERFLOW: ${DATABASE_MAX_OVERFLOW:-10}
+      DATABASE_POOL_TIMEOUT_SECONDS: ${DATABASE_POOL_TIMEOUT_SECONDS:-30}
+      DATABASE_POOL_RECYCLE_SECONDS: ${DATABASE_POOL_RECYCLE_SECONDS:-1800}
+      AUTH_LOGIN_FAIL_LIMIT_PER_EMAIL_PER_MINUTE: ${AUTH_LOGIN_FAIL_LIMIT_PER_EMAIL_PER_MINUTE:-10}
+      AUTH_LOGIN_FAIL_LIMIT_PER_IP_PER_MINUTE: ${AUTH_LOGIN_FAIL_LIMIT_PER_IP_PER_MINUTE:-30}
+      S3_BUCKET: ${S3_BUCKET:-eduvijna-disposable-load}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-drillminio}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-drillminio_disposable}
+      AI_PROVIDER_VISION: ${AI_PROVIDER_VISION:-fixed}
+      AI_PROVIDER_TEXT: ${AI_PROVIDER_TEXT:-fixed}
+      AI_PROVIDER_AUTHORING: ${AI_PROVIDER_AUTHORING:-fixed}
+      UPLOAD_SCANNER: ${UPLOAD_SCANNER:-fixed}
+  worker:
+    environment:
+      DATABASE_POOL_SIZE: ${DATABASE_POOL_SIZE:-5}
+      DATABASE_MAX_OVERFLOW: ${DATABASE_MAX_OVERFLOW:-10}
+      DATABASE_POOL_TIMEOUT_SECONDS: ${DATABASE_POOL_TIMEOUT_SECONDS:-30}
+      DATABASE_POOL_RECYCLE_SECONDS: ${DATABASE_POOL_RECYCLE_SECONDS:-1800}
+      S3_BUCKET: ${S3_BUCKET:-eduvijna-disposable-load}
+      S3_ACCESS_KEY: ${S3_ACCESS_KEY:-drillminio}
+      S3_SECRET_KEY: ${S3_SECRET_KEY:-drillminio_disposable}
+      AI_PROVIDER_VISION: ${AI_PROVIDER_VISION:-fixed}
+      AI_PROVIDER_TEXT: ${AI_PROVIDER_TEXT:-fixed}
+      AI_PROVIDER_AUTHORING: ${AI_PROVIDER_AUTHORING:-fixed}
+      UPLOAD_SCANNER: ${UPLOAD_SCANNER:-fixed}
+  minio:
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-drillminio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-drillminio_disposable}

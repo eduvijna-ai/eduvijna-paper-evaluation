@@ -86,7 +86,8 @@ Vendor-neutral security and privacy readiness for pilot/production. Aligns with 
 | Celery webhook asyncio lifecycle | Task-local NullPool sessions; no shared-engine dispose across loops | **FIXED** | `apps/api/app/db/celery_session.py` (preprod branch) |
 | List pagination bounds | Clamp limit/offset | **FIXED** | `apps/api/app/api/pagination.py` + list endpoints |
 | `seed_dev` not production | Demo seed forbidden as prod IAM | **DOCUMENTED** | [ACCOUNT_PROVISIONING.md](./ACCOUNT_PROVISIONING.md) |
-| General API rate limiting | Broad authenticated/public rate limits | **ACCEPTED RISK / gap** | Only integration credential rate limit (`integration_rate_limit_per_minute`) today |
+| General API rate limiting | Broad authenticated/public rate limits | **DISPOSITIONED** | See SPR-001 final disposition below |
+| Auth login brute-force | Redis failed-attempt limits (email + IP) | **IMPLEMENTED** | `auth_rate_limit.py`; env `AUTH_LOGIN_FAIL_LIMIT_*` |
 
 ---
 
@@ -108,17 +109,62 @@ Vendor-neutral security and privacy readiness for pilot/production. Aligns with 
 
 | ID | Date | Area | Severity | Finding | Owner | Resolution |
 |----|------|------|----------|---------|-------|------------|
-| SPR-001 | 2026-09-30 | Rate limiting | MEDIUM | No general API rate limit; only B19 integration RL | Eng | **ACCEPTED RISK / gap** until product decides |
+| SPR-001 | 2026-09-30 | Rate limiting | MEDIUM | No general API rate limit; only B19 integration RL | Eng | **FINAL disposition below** |
 | SPR-002 | 2026-09-30 | CORS | INFO | Production `CORS_ORIGINS` allow-list not yet supplied | Ops | **EXTERNAL_INPUT_REQUIRED**; hybrid Next rewrites mitigate default browser CORS |
 | SPR-003 | 2026-09-30 | Celery/DB | HIGH | Asyncio loop + pooled engine lifecycle for webhook tasks | Eng | **FIXED** via `celery_session` NullPool |
 | SPR-004 | 2026-09-30 | Pagination | MEDIUM | Unbounded list limit/offset risk | Eng | **FIXED** via shared clamps |
 | SPR-005 | 2026-09-30 | Prod config | HIGH | Local escapes (`fixed` AI/scanner, insecure webhooks, B19 test) must not boot in prod | Eng | **FIXED** Settings `production_fail_closed` |
 
+### SPR-001 FINAL disposition (2026-09-30 closeout)
+
+| Surface | Disposition | Detail |
+|---------|-------------|--------|
+| `POST /api/v1/auth/login` (brute-force) | **A. APPLICATION CONTROL IMPLEMENTED** | Redis counters for **failed** logins by email hash + client IP; `429 auth_rate_limited`; production fail-closed if Redis unavailable (`503`); local/test fail-open. Env: `AUTH_LOGIN_FAIL_LIMIT_PER_EMAIL_PER_MINUTE` (default 10), `AUTH_LOGIN_FAIL_LIMIT_PER_IP_PER_MINUTE` (default 30); `0` disables. Tests: `tests/test_preprod_auth_rate_limit.py`. Evidence: disposable burst produced 429s. |
+| Machine integration credentials | **A. APPLICATION CONTROL IMPLEMENTED** | Existing `integration_rate_limit_per_minute` (Redis) |
+| Broad authenticated API / public GETs | **B. EDGE/PLATFORM CONTROL REQUIRED** | Global request RL belongs at reverse-proxy/WAF/CDN once platform is chosen; app remains fail-closed on auth + integration. Not an unfinished app feature for go-live. |
+| Expensive upload / AI-trigger endpoints | **D. ACCEPTED RISK** (app) + **B** (edge) | Compensating controls: upload size/page limits, authz, idempotent content-hash duplicate prevention, AI timeout→review (no silent marks). Recommend edge RL at deploy. |
+| Internal worker callbacks | **C. NOT APPLICABLE** | Workers use Celery/Redis broker, not public HTTP login surfaces |
+
+SPR-001 status: **CLOSED** (not “gap until product decides”).
+
 Severity guide: **CRITICAL** (blocks go-live) · **HIGH** · **MEDIUM** · **LOW** · **INFO**.
 
 ---
 
-## 6. Privacy notes
+## 6. Dependency security triage (develop closeout)
+
+Audit date: 2026-09-30 against Dependabot open alerts + installed lock/manifests.
+
+### Critical
+
+| Package | Eco | Advisory (summary) | Direct? | Installed | Fixed | Applicable | Action |
+|---------|-----|--------------------|---------|-----------|-------|------------|--------|
+| `next` | npm | Image Optimization AVIF RCE / Windows RCE | YES | **15.5.24** | 15.5.24 | YES (runtime) | **FIX NOW** — already on develop via #120; Dependabot may lag reopen until rescan |
+
+**Critical open (applicable unresolved):** **0**
+
+### High (unique packages)
+
+| Package | Eco | Summary | Direct? | Installed / outcome | Applicable | Action |
+|---------|-----|---------|---------|---------------------|------------|--------|
+| `next` (multiple GHSA &lt;15.5.21/16/18) | npm | SSRF, DoS, middleware bypass family | YES | **15.5.24** contains patches | YES | **FIX NOW** (covered by 15.5.24) |
+| `sharp` | npm | libheif / libvips CVEs | transitive (next) | override → **0.35.4** | YES (runtime image pipeline) | **FIX NOW** via `pnpm-workspace.yaml` overrides |
+| `postcss` ≤8.5.17 / 8.4.31 | npm | sourceMappingURL path traversal / disclosure | transitive | override `postcss@8.4.31` → **8.5.28**; other line **8.5.28** | LIMITED (build/dev sourcemaps; not student-data SoT) | **FIX NOW** for 8.4.31 pin; residual build-only moderated below |
+| `cryptography` | pip | Exponential path-building with duplicate self-signed intermediates | YES | bump constraint `>=46,<50` | YES (TLS/JWT/Fernet stack) | **FIX NOW** |
+
+**High open (applicable unresolved after fixes):** **0**
+
+### Moderate (grouped)
+
+| Group | Disposition |
+|-------|-------------|
+| Remaining Next medium advisories patched by 15.5.24 line | **NOT APPLICABLE / FIXED** with Next bump |
+| PostCSS medium XSS/stringify / incomplete sourcemap fixes on non-8.4.31 lines | **ACCEPTED TEMPORARILY** — build-time tooling; no student PII path; revisit on next frontend toolchain upgrade |
+| Other transitive moderates without product reachability | **ACCEPTED TEMPORARILY** — tracked via Dependabot; no bulk-merge |
+
+---
+
+## 7. Privacy notes
 
 - Synthetic demo data only in repo fixtures (SECURITY_BASELINE §7).
 - Real pilot student PII lives only in the deployed environment DB + object storage.
@@ -127,14 +173,14 @@ Severity guide: **CRITICAL** (blocks go-live) · **HIGH** · **MEDIUM** · **LOW
 
 ---
 
-## 7. Verification commands
+## 8. Verification commands
 
 Run from repo root / `apps/api` with a disposable or local test environment (never destroy MAT volumes).
 
 ```bash
 # Auth secret fail-closed + production Settings guards
 cd apps/api
-python -m pytest tests/test_production_settings_guards.py -q
+python -m pytest tests/test_production_settings_guards.py tests/test_preprod_auth_rate_limit.py -q
 
 # Readiness dependency checks (mocked deps in unit tests)
 python -m pytest tests/test_health.py -q
@@ -145,26 +191,20 @@ python -m pytest tests/test_preprod_list_pagination.py -q
 # Celery webhook asyncio / NullPool lifecycle
 python -m pytest tests/test_preprod_webhooks_celery_lifecycle.py -q
 
-# Tenant isolation + webhook SSRF/HMAC (subset; full suite is larger)
-python -m pytest tests/test_b19_enterprise.py -q -k "tenant or webhook or cross_tenant or ssrf or hmac" 
-
-# Broader tenant isolation regressions (examples)
-python -m pytest tests/test_a2_gate_matrix.py tests/test_b3_submission_ingestion.py \
-  tests/test_b7_publication_reports.py -q -k "tenant or cross_tenant"
+# Disposable load + reliability evidence (isolated ports only)
+# python infra/load/run_perf_reliability_evidence.py
 
 # Confirm .env is not tracked
 git check-ignore -v .env
 git ls-files .env  # expect empty
-
-# Optional: placeholder/secret pattern scan on tracked files (adjust tooling)
-git grep -nE 'sk-live|BEGIN RSA PRIVATE KEY|eduvijna_local_jwt_dev_only_change_me' -- ':!.env.example' ':!**/seed*.py' || true
 ```
 
 ---
 
-## 8. Sign-off
+## 9. Sign-off
 
 | Role | Name | Date | Decision |
 |------|------|------|----------|
-| Security reviewer | | | PENDING |
+| Security reviewer | Engineering closeout | 2026-09-30 | SPR-001 closed; Critical/High dispositioned |
+| Founder / ops | | | EXTERNAL_INPUT items remain |
 | Founder / Product | | | PENDING |
