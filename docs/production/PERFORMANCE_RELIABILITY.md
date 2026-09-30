@@ -22,6 +22,7 @@ Load scripts require `LOAD_TEST_BASE_URL` and refuse default MAT ports unless
 
 | Scenario | PROVISIONAL target | Measurement |
 |----------|--------------------|-------------|
+| Baseline health + authenticated lists | p95 &lt; 2 s (PROVISIONAL) | `infra/load/run_load.py --scenario baseline` |
 | Health / ready under moderate concurrency | p95 &lt; 500 ms | `infra/load/run_load.py --scenario health` |
 | Submissions list (100+ requests) | p95 &lt; 2 s (authenticated disposable) | `--scenario list` |
 | Concurrent uploads (≈30) | p95 &lt; 5 s for accept/enqueue (not full pipeline) | `--scenario uploads` |

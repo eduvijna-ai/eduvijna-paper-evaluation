@@ -136,6 +136,13 @@ async def _timed_post_multipart(
     stats.add(time.perf_counter() - started, status, error)
 
 
+_BASELINE_LIST_PATHS = (
+    "/api/v1/submissions",
+    "/api/v1/students",
+    "/api/v1/assessments",
+)
+
+
 async def run_scenario(
     *,
     base: str,
@@ -143,6 +150,7 @@ async def run_scenario(
     concurrency: int,
     requests: int,
     list_path: str,
+    list_paths: list[str],
     upload_path: str,
     health_path: str,
 ) -> LatencyStats:
@@ -160,6 +168,10 @@ async def run_scenario(
                     await _timed_get(client, list_path, stats)
                 elif scenario == "health":
                     await _timed_get(client, health_path, stats)
+                elif scenario == "baseline":
+                    # Rotate health + authenticated list endpoints for p50/p95/p99.
+                    paths = [health_path, *list_paths]
+                    await _timed_get(client, paths[i % len(paths)], stats)
                 else:
                     raise SystemExit(f"Unknown scenario: {scenario}")
 
@@ -171,21 +183,29 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="EduVijna disposable load scaffolding")
     parser.add_argument(
         "--scenario",
-        choices=["uploads", "list", "health"],
+        choices=["baseline", "uploads", "list", "health"],
         required=True,
-        help="uploads≈30 concurrent; list=submissions listing; health=DB/API pressure proxy",
+        help=(
+            "baseline=health + list endpoints; uploads≈30 concurrent; "
+            "list=single list path; health=liveness pressure"
+        ),
     )
     parser.add_argument("--concurrency", type=int, default=30)
     parser.add_argument(
         "--requests",
         type=int,
         default=0,
-        help="Total requests (defaults: uploads=30, list=120, health=200)",
+        help="Total requests (defaults: baseline=120, uploads=30, list=120, health=200)",
     )
     parser.add_argument(
         "--list-path",
         default="/api/v1/submissions",
         help="Path for listing pressure (auth may be required)",
+    )
+    parser.add_argument(
+        "--list-paths",
+        default=",".join(_BASELINE_LIST_PATHS),
+        help="Comma-separated list paths for --scenario baseline",
     )
     parser.add_argument(
         "--upload-path",
@@ -196,11 +216,14 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     base = _require_base_url()
-    defaults = {"uploads": 30, "list": 120, "health": 200}
+    defaults = {"baseline": 120, "uploads": 30, "list": 120, "health": 200}
     total = args.requests or defaults[args.scenario]
     concurrency = args.concurrency
     if args.scenario == "uploads" and args.requests == 0:
         concurrency = min(concurrency, 30)
+    list_paths = [p.strip() for p in str(args.list_paths).split(",") if p.strip()]
+    if not list_paths:
+        list_paths = list(_BASELINE_LIST_PATHS)
 
     print(f"LOAD_TEST_BASE_URL={base}")
     print(
@@ -215,6 +238,7 @@ def main(argv: list[str] | None = None) -> int:
             concurrency=concurrency,
             requests=total,
             list_path=args.list_path,
+            list_paths=list_paths,
             upload_path=args.upload_path,
             health_path=args.health_path,
         )

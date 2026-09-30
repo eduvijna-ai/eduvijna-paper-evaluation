@@ -31,6 +31,7 @@ non-MAT database name. Do **not** commit secrets or bearer tokens into this fold
 
 | Scenario | Script / notes | Target |
 |----------|----------------|--------|
+| Baseline health + lists | `run_load.py --scenario baseline` | Disposable API |
 | Concurrent uploads (~30) | `run_load.py --scenario uploads` | Disposable API |
 | 100+ submissions listing pressure | `run_load.py --scenario list` | Disposable API |
 | Worker restart smoke | See notes below | Disposable worker |
@@ -48,7 +49,10 @@ cd infra/load
 python -m pip install httpx   # if not already available via apps/api venv
 export LOAD_TEST_BASE_URL=http://127.0.0.1:<disposable-api-port>
 export LOAD_TEST_ALLOW_LOCAL=1   # only for intentional local disposable runs
-export LOAD_TEST_AUTH_TOKEN=...  # optional Bearer token; never commit
+export LOAD_TEST_AUTH_TOKEN=...  # Bearer for authenticated lists; never commit
+
+# Recommended first pass: health + submissions/students/assessments lists
+python run_load.py --scenario baseline --requests 120 --concurrency 20
 
 python run_load.py --scenario uploads --concurrency 30
 python run_load.py --scenario list --requests 120
@@ -57,7 +61,7 @@ python run_load.py --scenario health --requests 200 --concurrency 20
 
 Output includes measured **p50 / p95 / p99** latency (seconds) and error counts.
 SLOs in [`docs/production/PERFORMANCE_RELIABILITY.md`](../../docs/production/PERFORMANCE_RELIABILITY.md)
-are labeled **PROVISIONAL**.
+are labeled **PROVISIONAL** (not contractual until founder-accepted).
 
 ## Manual interruption notes (do not automate against MAT)
 
