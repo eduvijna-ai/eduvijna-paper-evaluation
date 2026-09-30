@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -41,6 +43,54 @@ from app.ai.types import (
 
 JsonCaller = Callable[[str, dict[str, Any]], Awaitable[dict[str, Any]]]
 
+logger = logging.getLogger(__name__)
+
+# Bounded retries for transient OpenAI/network failures only.
+_DEFAULT_MAX_ATTEMPTS = 3
+_DEFAULT_BACKOFF_SECONDS = (0.5, 1.0, 2.0)
+
+
+def _exception_status_code(exc: BaseException) -> int | None:
+    for attr in ("status_code", "status"):
+        value = getattr(exc, attr, None)
+        if isinstance(value, int):
+            return value
+    response = getattr(exc, "response", None)
+    if response is not None:
+        value = getattr(response, "status_code", None)
+        if isinstance(value, int):
+            return value
+    return None
+
+
+def is_transient_openai_failure(exc: BaseException) -> bool:
+    """Return True for timeouts / rate limits / 5xx-style transient failures."""
+    name = type(exc).__name__
+    if name in {
+        "APITimeoutError",
+        "APIConnectionError",
+        "RateLimitError",
+        "InternalServerError",
+        "TimeoutError",
+        "asyncio.TimeoutError",
+    }:
+        return True
+    status = _exception_status_code(exc)
+    if status in {408, 409, 425, 429, 500, 502, 503, 504}:
+        return True
+    # httpx / generic transport hints (message only; no silent mark invention)
+    message = str(exc).lower()
+    return any(
+        token in message
+        for token in (
+            "timed out",
+            "timeout",
+            "connection reset",
+            "temporarily unavailable",
+            "rate limit",
+        )
+    )
+
 
 class OpenAIStructureProvider:
     """Implements StructureAIProvider and EvaluationAIProvider."""
@@ -66,6 +116,8 @@ class OpenAIStructureProvider:
         model_curriculum_mapping_proposal: str | None = None,
         timeout_seconds: int = 60,
         caller: JsonCaller | None = None,
+        max_attempts: int = _DEFAULT_MAX_ATTEMPTS,
+        backoff_seconds: tuple[float, ...] = _DEFAULT_BACKOFF_SECONDS,
     ) -> None:
         self._api_key = api_key
         self._models = {
@@ -90,6 +142,8 @@ class OpenAIStructureProvider:
         }
         self._timeout = timeout_seconds
         self._caller = caller
+        self._max_attempts = max(1, max_attempts)
+        self._backoff_seconds = backoff_seconds or _DEFAULT_BACKOFF_SECONDS
 
     def execution_metadata(self, operation: str) -> AIExecutionMetadata:
         model = self._models.get(operation) or next(iter(self._models.values()))
@@ -99,32 +153,83 @@ class OpenAIStructureProvider:
         if not self._api_key and self._caller is None:
             raise ProviderUnavailable("OPENAI_API_KEY is not configured")
 
+    async def _call_with_retry(
+        self, operation: str, invoke: Callable[[], Awaitable[dict[str, Any]]]
+    ) -> dict[str, Any]:
+        """Retry transient failures; never invent marks on exhaustion.
+
+        Terminal failures raise ``ProviderUnavailable`` (or the original non-
+        transient error) so callers route to REVIEW_REQUIRED / unavailable
+        states instead of fabricating scores.
+        """
+        last_exc: BaseException | None = None
+        for attempt in range(1, self._max_attempts + 1):
+            try:
+                return await invoke()
+            except ProviderUnavailable:
+                raise
+            except Exception as exc:  # noqa: BLE001 — classify then re-raise
+                last_exc = exc
+                if not is_transient_openai_failure(exc) or attempt >= self._max_attempts:
+                    break
+                delay = self._backoff_seconds[
+                    min(attempt - 1, len(self._backoff_seconds) - 1)
+                ]
+                logger.warning(
+                    "openai_transient_retry operation=%s attempt=%s/%s delay=%s error=%s",
+                    operation,
+                    attempt,
+                    self._max_attempts,
+                    delay,
+                    type(exc).__name__,
+                )
+                await asyncio.sleep(delay)
+        assert last_exc is not None
+        if is_transient_openai_failure(last_exc):
+            raise ProviderUnavailable(
+                f"OpenAI transient failure after {self._max_attempts} attempts "
+                f"for {operation}: {type(last_exc).__name__}"
+            ) from last_exc
+        raise last_exc
+
     async def _complete(self, operation: str, payload: dict[str, Any]) -> dict[str, Any]:
         self._require()
         if self._caller is not None:
-            return await self._caller(operation, payload)
-        try:
-            from openai import AsyncOpenAI
-        except ImportError as exc:  # pragma: no cover
-            raise ProviderUnavailable("openai SDK is not installed") from exc
-        client = AsyncOpenAI(api_key=self._api_key, timeout=self._timeout)
-        model = self._models[operation]
-        response = await client.chat.completions.create(
-            model=model,
-            response_format={"type": "json_object"},
-            messages=[
-                {
-                    "role": "system",
-                    "content": f"Return JSON only for EduVijna {operation}.",
-                },
-                {"role": "user", "content": json.dumps(payload)},
-            ],
-        )
-        content = response.choices[0].message.content or "{}"
-        data = json.loads(content)
-        if not isinstance(data, dict):
-            raise ValueError("OpenAI response must be a JSON object")
-        return data
+
+            async def _via_caller() -> dict[str, Any]:
+                assert self._caller is not None
+                return await self._caller(operation, payload)
+
+            return await self._call_with_retry(operation, _via_caller)
+
+        async def _invoke() -> dict[str, Any]:
+            try:
+                from openai import AsyncOpenAI
+            except ImportError as exc:  # pragma: no cover
+                raise ProviderUnavailable("openai SDK is not installed") from exc
+            client = AsyncOpenAI(api_key=self._api_key, timeout=self._timeout)
+            model = self._models[operation]
+            response = await client.chat.completions.create(
+                model=model,
+                response_format={"type": "json_object"},
+                messages=[
+                    {
+                        "role": "system",
+                        "content": f"Return JSON only for EduVijna {operation}.",
+                    },
+                    {"role": "user", "content": json.dumps(payload)},
+                ],
+            )
+            content = response.choices[0].message.content or "{}"
+            try:
+                data = json.loads(content)
+            except json.JSONDecodeError as exc:
+                raise ValueError("OpenAI response was not valid JSON") from exc
+            if not isinstance(data, dict):
+                raise ValueError("OpenAI response must be a JSON object")
+            return data
+
+        return await self._call_with_retry(operation, _invoke)
 
     async def extract_student_identity(
         self, request: IdentityExtractionInput
@@ -208,55 +313,66 @@ class OpenAIStructureProvider:
         self._require()
         if self._caller is not None:
             # Tests/mocks receive page text + image byte sizes, not raw base64.
-            return await self._caller(
-                operation,
-                {
-                    **text_payload,
-                    "visual_page_count": len(image_pngs),
-                    "visual_image_bytes": [len(b) for b in image_pngs],
-                },
-            )
-        try:
-            from openai import AsyncOpenAI
-        except ImportError as exc:  # pragma: no cover
-            raise ProviderUnavailable("openai SDK is not installed") from exc
-        import base64
-
-        client = AsyncOpenAI(api_key=self._api_key, timeout=self._timeout)
-        model = self._models[operation]
-        user_content: list[dict[str, Any]] = [
-            {
-                "type": "text",
-                "text": (
-                    "Parse this question paper into JSON matching QuestionPaperParseResult. "
-                    f"Evidence summary: {json.dumps(text_payload)}"
-                ),
+            caller_payload = {
+                **text_payload,
+                "visual_page_count": len(image_pngs),
+                "visual_image_bytes": [len(b) for b in image_pngs],
             }
-        ]
-        for png in image_pngs[:20]:
-            b64 = base64.standard_b64encode(png).decode("ascii")
-            user_content.append(
+
+            async def _via_caller() -> dict[str, Any]:
+                assert self._caller is not None
+                return await self._caller(operation, caller_payload)
+
+            return await self._call_with_retry(operation, _via_caller)
+
+        async def _invoke() -> dict[str, Any]:
+            try:
+                from openai import AsyncOpenAI
+            except ImportError as exc:  # pragma: no cover
+                raise ProviderUnavailable("openai SDK is not installed") from exc
+            import base64
+
+            client = AsyncOpenAI(api_key=self._api_key, timeout=self._timeout)
+            model = self._models[operation]
+            user_content: list[dict[str, Any]] = [
                 {
-                    "type": "image_url",
-                    "image_url": {"url": f"data:image/png;base64,{b64}"},
+                    "type": "text",
+                    "text": (
+                        "Parse this question paper into JSON matching "
+                        "QuestionPaperParseResult. "
+                        f"Evidence summary: {json.dumps(text_payload)}"
+                    ),
                 }
+            ]
+            for png in image_pngs[:20]:
+                b64 = base64.standard_b64encode(png).decode("ascii")
+                user_content.append(
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/png;base64,{b64}"},
+                    }
+                )
+            response = await client.chat.completions.create(  # type: ignore[call-overload]
+                model=model,
+                response_format={"type": "json_object"},
+                messages=[
+                    {
+                        "role": "system",
+                        "content": f"Return JSON only for EduVijna {operation}.",
+                    },
+                    {"role": "user", "content": user_content},
+                ],
             )
-        response = await client.chat.completions.create(  # type: ignore[call-overload]
-            model=model,
-            response_format={"type": "json_object"},
-            messages=[
-                {
-                    "role": "system",
-                    "content": f"Return JSON only for EduVijna {operation}.",
-                },
-                {"role": "user", "content": user_content},
-            ],
-        )
-        content = response.choices[0].message.content or "{}"
-        data = json.loads(content)
-        if not isinstance(data, dict):
-            raise ValueError("OpenAI response must be a JSON object")
-        return data
+            content = response.choices[0].message.content or "{}"
+            try:
+                data = json.loads(content)
+            except json.JSONDecodeError as exc:
+                raise ValueError("OpenAI response was not valid JSON") from exc
+            if not isinstance(data, dict):
+                raise ValueError("OpenAI response must be a JSON object")
+            return data
+
+        return await self._call_with_retry(operation, _invoke)
 
     async def parse_question_paper(
         self, request: QuestionPaperParseInput

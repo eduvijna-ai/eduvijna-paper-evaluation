@@ -126,10 +126,11 @@ jobs:
         run: pnpm typecheck
       - name: Unit tests
         run: pnpm test
-      - name: Build
+      - name: Build (production-representative)
         run: pnpm build
         env:
-          NEXT_PUBLIC_API_MODE: mock
+          NEXT_PUBLIC_API_MODE: hybrid
+          NEXT_PUBLIC_DEPLOYMENT_TARGET: production
 
   frontend-e2e:
     name: Frontend E2E

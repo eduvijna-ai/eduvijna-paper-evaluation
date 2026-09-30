@@ -67,7 +67,11 @@ export default function SubmissionsPage() {
             key: "state",
             header: "Pipeline",
             cell: (r) => (
-              <StatusBadge kind="submission" state={r.workflow_state} />
+              <StatusBadge
+                kind="submission"
+                state={r.workflow_state}
+                transcriptionState={r.transcription_state}
+              />
             ),
           },
           {

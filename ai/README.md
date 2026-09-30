@@ -37,3 +37,15 @@ OPENAI_API_KEY   # openai mode only
 ```
 
 Frontend never holds provider credentials. All paths: API → Celery → provider.
+
+## Pre-production quality harness (PREPROD-003)
+
+Offline independent metrics live under [`ai/benchmarks/`](./benchmarks/README.md)
+(extends B15; does not replace in-product gold regression).
+
+```
+REAL_PAPER_CORPUS_GATE = EXTERNAL_INPUT_REQUIRED
+AI_PRODUCTION_PROVIDER_GATE = EXTERNAL_INPUT_REQUIRED
+```
+
+See also [`docs/production/AI_PROVIDER_READINESS.md`](../docs/production/AI_PROVIDER_READINESS.md).

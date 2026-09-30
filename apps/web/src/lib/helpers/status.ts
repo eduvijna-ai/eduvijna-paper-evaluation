@@ -55,7 +55,17 @@ export function getAssessmentStatus(state: AssessmentState): StatusVisual {
   return assessmentLabels[state];
 }
 
-export function getSubmissionStatus(state: SubmissionState): StatusVisual {
+export function getSubmissionStatus(
+  state: SubmissionState,
+  transcriptionState?: string | null,
+): StatusVisual {
+  if (
+    state === "READY_FOR_EVALUATION" &&
+    transcriptionState != null &&
+    transcriptionState !== "READY"
+  ) {
+    return { label: "Awaiting transcription", tone: "warning" };
+  }
   return submissionLabels[state];
 }
 
@@ -78,12 +88,16 @@ export type DomainStatusKind =
 export function resolveStatusVisual(
   kind: DomainStatusKind,
   state: string,
+  options?: { transcriptionState?: string | null },
 ): StatusVisual {
   switch (kind) {
     case "assessment":
       return getAssessmentStatus(state as AssessmentState);
     case "submission":
-      return getSubmissionStatus(state as SubmissionState);
+      return getSubmissionStatus(
+        state as SubmissionState,
+        options?.transcriptionState,
+      );
     case "identity":
       return getIdentityStatus(state as IdentityMatchState);
     case "evaluation":

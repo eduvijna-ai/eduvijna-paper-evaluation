@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.pagination import clamp_limit, clamp_offset
 from app.core.authorization import AuthContext, require_any_permissions, require_permissions
 from app.core.config import get_settings
 from app.db.models import (
@@ -379,12 +380,20 @@ async def list_submissions(
     db: Db,
     auth: AuthContext = Depends(require_permissions("submission:read")),
     assessment_id: uuid.UUID | None = None,
+    limit: int | None = None,
+    offset: int | None = None,
 ) -> list[dict[str, Any]]:
+    page_limit = clamp_limit(limit)
+    page_offset = clamp_offset(offset)
     query = select(Submission).where(Submission.tenant_id == auth.tenant_id)
     if assessment_id is not None:
         query = query.where(Submission.assessment_id == assessment_id)
     rows = (
-        await db.scalars(query.order_by(Submission.uploaded_at.desc()))
+        await db.scalars(
+            query.order_by(Submission.uploaded_at.desc())
+            .limit(page_limit)
+            .offset(page_offset)
+        )
     ).all()
     titles = {
         aid: title

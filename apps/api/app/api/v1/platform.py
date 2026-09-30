@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.pagination import clamp_limit, clamp_offset
 from app.core.authorization import AuthContext, require_permissions
 from app.core.config import Settings, get_settings
 from app.core.security import AuthProvider, get_auth_provider, verify_password
@@ -692,14 +693,21 @@ async def commit_import(
 
 @router.get("/students", response_model=list[StudentOut])
 async def list_students(
-    db: Db, auth: AuthContext = Depends(require_permissions("student:read"))
+    db: Db,
+    auth: AuthContext = Depends(require_permissions("student:read")),
+    limit: int | None = None,
+    offset: int | None = None,
 ) -> list[Student]:
+    page_limit = clamp_limit(limit)
+    page_offset = clamp_offset(offset)
     return list(
         (
             await db.execute(
                 select(Student)
                 .where(Student.tenant_id == auth.tenant_id)
                 .order_by(Student.full_name)
+                .limit(page_limit)
+                .offset(page_offset)
             )
         ).scalars()
     )
@@ -748,14 +756,21 @@ async def patch_student(
 
 @router.get("/guardians", response_model=list[GuardianOut])
 async def list_guardians(
-    db: Db, auth: AuthContext = Depends(require_permissions("guardian:read"))
+    db: Db,
+    auth: AuthContext = Depends(require_permissions("guardian:read")),
+    limit: int | None = None,
+    offset: int | None = None,
 ) -> list[Guardian]:
+    page_limit = clamp_limit(limit)
+    page_offset = clamp_offset(offset)
     return list(
         (
             await db.execute(
                 select(Guardian)
                 .where(Guardian.tenant_id == auth.tenant_id)
                 .order_by(Guardian.display_name)
+                .limit(page_limit)
+                .offset(page_offset)
             )
         ).scalars()
     )

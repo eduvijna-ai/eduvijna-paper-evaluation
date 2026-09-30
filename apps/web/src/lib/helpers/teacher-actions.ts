@@ -21,7 +21,7 @@ export interface TeacherActionResult {
   message: string;
 }
 
-/** Actions that require a correction workflow not yet live on B6. */
+/** OCR/mapping correction actions — deferred / out of production scope for the live HTTP path. */
 export const LIVE_DISABLED_TEACHER_ACTIONS: TeacherReviewAction[] = [
   "OCR_TRANSCRIPTION_ERROR",
   "MAPPING_ERROR",

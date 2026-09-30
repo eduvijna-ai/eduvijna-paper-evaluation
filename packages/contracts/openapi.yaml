@@ -17,20 +17,20 @@ paths:
   /ready:
     get:
       operationId: ready
-      summary: Dependency readiness check
+      summary: Dependency readiness check (postgres, redis, object storage)
       responses:
         "200":
-          description: API dependencies are ready
+          description: All required dependencies are ready
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StatusResponse"
+                $ref: "#/components/schemas/ReadyResponse"
         "503":
           description: A required dependency is unavailable
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ErrorEnvelope"
+                $ref: "#/components/schemas/ReadyResponse"
   /api/v1/system/version:
     get:
       operationId: systemVersion
@@ -3857,6 +3857,38 @@ components:
         status:
           type: string
           examples: [ok]
+    DependencyCheck:
+      type: object
+      additionalProperties: false
+      required: [status, required]
+      properties:
+        status:
+          type: string
+          examples: [ok, fail]
+        required:
+          type: boolean
+        detail:
+          type: string
+          nullable: true
+    ReadyResponse:
+      type: object
+      additionalProperties: false
+      required: [status, checks]
+      properties:
+        status:
+          type: string
+          examples: [ready, not_ready]
+        checks:
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/DependencyCheck"
+          properties:
+            postgres:
+              $ref: "#/components/schemas/DependencyCheck"
+            redis:
+              $ref: "#/components/schemas/DependencyCheck"
+            object_storage:
+              $ref: "#/components/schemas/DependencyCheck"
     VersionResponse:
       type: object
       additionalProperties: false

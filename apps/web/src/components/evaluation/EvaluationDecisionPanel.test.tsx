@@ -81,7 +81,36 @@ describe("EvaluationDecisionPanel", () => {
       /No automatic score proposed/i,
     );
     expect(screen.getByTestId("teacher-action-ACCEPT")).toBeDisabled();
-    expect(screen.getByTestId("teacher-action-OCR_TRANSCRIPTION_ERROR")).toBeDisabled();
-    expect(screen.getByTestId("teacher-action-MAPPING_ERROR")).toBeDisabled();
+  });
+
+  it("hides OCR/mapping correction actions in liveMode", () => {
+    render(
+      <EvaluationDecisionPanel ledger={ledger} onAction={vi.fn()} liveMode />,
+    );
+    expect(
+      screen.queryByTestId("teacher-action-OCR_TRANSCRIPTION_ERROR"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("teacher-action-MAPPING_ERROR"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("teacher-action-ACCEPT")).toBeInTheDocument();
+    expect(screen.getByTestId("teacher-action-CHANGE_SCORE")).toBeInTheDocument();
+    expect(screen.getByTestId("teacher-action-ESCALATE")).toBeInTheDocument();
+  });
+
+  it("keeps OCR/mapping correction actions in mock mode", () => {
+    render(
+      <EvaluationDecisionPanel
+        ledger={ledger}
+        onAction={vi.fn()}
+        liveMode={false}
+      />,
+    );
+    expect(
+      screen.getByTestId("teacher-action-OCR_TRANSCRIPTION_ERROR"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByTestId("teacher-action-MAPPING_ERROR"),
+    ).toBeInTheDocument();
   });
 });

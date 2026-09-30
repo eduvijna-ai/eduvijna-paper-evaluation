@@ -284,7 +284,11 @@ export default function SubmissionDetailPage({
 
       <div className="mb-4 flex flex-wrap gap-2">
         <span data-testid="submission-workflow-state">
-          <StatusBadge kind="submission" state={data.workflow_state} />
+          <StatusBadge
+            kind="submission"
+            state={data.workflow_state}
+            transcriptionState={data.transcription_state}
+          />
         </span>
         <span data-testid="submission-identity-state">
           <StatusBadge kind="identity" state={data.student_match_state} />
