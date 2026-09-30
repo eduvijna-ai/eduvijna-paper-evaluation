@@ -1,3 +1,8 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# Security closeout overrides (justified HIGH/CRITICAL transitive fixes)
+overrides:
+  sharp: "0.35.4"
+  postcss@8.4.31: "8.5.28"

@@ -17,7 +17,7 @@ Vendor-neutral expectations for health probes, logs, correlation, and an alert r
 | Endpoint | Meaning | Probe use |
 |----------|---------|-----------|
 | `GET /health` | Process liveness (`{"status":"ok"}`) | Restart unhealthy tasks/containers |
-| `GET /ready` | DB connectivity (`SELECT 1`); `503` if DB not ready | Remove from load until ready |
+| `GET /ready` | Dependency readiness: postgres + redis + object storage; `503` with per-check detail | Remove from load until ready |
 
 Frontend may proxy these (`/health`, `/ready` → API). Also useful: `GET /api/v1/system/version` (when deployed) for build identity (`API_VERSION`, `GIT_SHA`).
 
@@ -45,9 +45,13 @@ Severity: **P1** page immediately · **P2** business hours urgent · **P3** tick
 | Signal | Suggested severity | Condition (tune after baseline) | First response |
 |--------|-------------------|----------------------------------|----------------|
 | API `/health` failing | P1 | Continuous fail across instances | Check process/deploy; rollback image if bad release ([ROLLBACK_RUNBOOK.md](./ROLLBACK_RUNBOOK.md)) |
-| API `/ready` failing | P1 | DB unreachable | Check Postgres connectivity, credentials, migration lock; do not destroy volumes |
+| API `/ready` failing | P1 | DB/Redis/object-storage check fail | Inspect dependency named in JSON `checks`; restore disposable/prod dependency — do not destroy MAT |
+| Redis unavailable | P1/P2 | `/ready` redis=`fail`; workers cannot consume | Restore Redis; expect empty broker (not SoT); re-enqueue if needed |
+| Object storage unavailable | P1 | `/ready` object_storage=`fail`; uploads error/timeout | Restore MinIO/S3; verify no false AVAILABLE without object |
+| Auth login rate-limited | P2/P3 | Log event `auth_login_rate_limited`; HTTP 429 | Confirm not a bug (burst); check IP/email abuse; do not log passwords |
 | Elevated 5xx rate | P1/P2 | Sustained above baseline | Correlate by `X-Correlation-ID`; check recent deploy/config |
 | Celery worker down | P1 | No heartbeats / consumer missing | Restart worker; inspect broker `REDIS_URL` / `CELERY_BROKER_URL` |
+| AI provider timeouts | P2 | Rising `ProviderUnavailable` / REVIEW_REQUIRED | Check provider status; do not force marks; use fixed provider only in non-prod |
 | Queue depth growth | P2 | Backlog exceeds provisional threshold | Scale workers **only if platform allows**; check stuck tasks / AI timeouts |
 | Task failure spike | P2 | `pipeline_jobs` FAILED surge | Inspect error detail; AI vs storage vs code regression |
 | Redis unavailable | P1 | Broker ping fail | Restore Redis; note jobs may need re-enqueue — DB remains SoT |

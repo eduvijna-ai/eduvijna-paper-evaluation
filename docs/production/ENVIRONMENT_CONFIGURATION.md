@@ -35,12 +35,29 @@ Production must be **fail-closed**: missing auth secret outside `local`/`test` r
 | `POSTGRES_HOST` / `POSTGRES_PORT` / `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | Compose-oriented; prefer URL in non-Compose | Password via secret manager |
 | `POSTGRES_PUBLISH_PORT` | Local only (`15432` MAT/local default) | Do not expose casually in production |
 
-**Pool / timeout:** Current API engine uses SQLAlchemy `create_async_engine(..., pool_pre_ping=True)` without dedicated `DB_POOL_*` env vars in `config.py`. Production pool size, `pool_timeout`, statement timeouts, and server `max_connections` are **ops-tuned** (EXTERNAL_INPUT_REQUIRED for platform limits). Document chosen values here when set:
+**Pool / timeout:** Configurable via Settings / env:
+
+| Knob | Env | Default |
+|------|-----|---------|
+| Pool size | `DATABASE_POOL_SIZE` | 5 |
+| Max overflow | `DATABASE_MAX_OVERFLOW` | 10 |
+| Pool timeout (s) | `DATABASE_POOL_TIMEOUT_SECONDS` | 30 |
+| Recycle (s) | `DATABASE_POOL_RECYCLE_SECONDS` | 1800 |
+
+Auth login rate limits (Redis):
+
+| Knob | Env | Default |
+|------|-----|---------|
+| Failed logins / email / min | `AUTH_LOGIN_FAIL_LIMIT_PER_EMAIL_PER_MINUTE` | 10 (`0` disables) |
+| Failed logins / IP / min | `AUTH_LOGIN_FAIL_LIMIT_PER_IP_PER_MINUTE` | 30 (`0` disables) |
+| Integration API / min | `INTEGRATION_RATE_LIMIT_PER_MINUTE` | 120 |
+
+Production platform connection ceilings remain **EXTERNAL_INPUT_REQUIRED**. Record chosen platform max_connections / proxy RL here when known.
 
 | Knob | Current code default | Production plan |
 |------|----------------------|-----------------|
 | `pool_pre_ping` | `True` | Keep |
-| Pool size / overflow | SQLAlchemy defaults | TBD |
+| Pool size / overflow | See env table above | Ops-tuned |
 | Statement / lock timeout | DB/server setting | TBD |
 
 ---

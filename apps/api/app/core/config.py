@@ -308,6 +308,28 @@ class Settings(BaseSettings):
             "integration_rate_limit_per_minute",
         ),
     )
+    auth_login_fail_limit_per_email_per_minute: int = Field(
+        default=10,
+        validation_alias=AliasChoices(
+            "AUTH_LOGIN_FAIL_LIMIT_PER_EMAIL_PER_MINUTE",
+            "auth_login_fail_limit_per_email_per_minute",
+        ),
+        description=(
+            "Failed login attempts per email per minute before 429. "
+            "Set 0 to disable email-scoped auth rate limiting."
+        ),
+    )
+    auth_login_fail_limit_per_ip_per_minute: int = Field(
+        default=30,
+        validation_alias=AliasChoices(
+            "AUTH_LOGIN_FAIL_LIMIT_PER_IP_PER_MINUTE",
+            "auth_login_fail_limit_per_ip_per_minute",
+        ),
+        description=(
+            "Failed login attempts per client IP per minute before 429. "
+            "Set 0 to disable IP-scoped auth rate limiting."
+        ),
+    )
     b19_test_internal_base_url: str | None = Field(
         default=None,
         validation_alias=AliasChoices(
