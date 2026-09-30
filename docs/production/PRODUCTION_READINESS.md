@@ -33,6 +33,7 @@ This document is the **gate criteria** for declaring a pilot/production environm
 | Deployment platform decision | **EXTERNAL_INPUT_REQUIRED** | No invented AWS/Azure/GCP architecture |
 | Account provisioning plan | Documented | [ACCOUNT_PROVISIONING.md](./ACCOUNT_PROVISIONING.md) |
 | Post-deploy smoke | Checklist ready | [PRODUCTION_SMOKE_CHECKLIST.md](./PRODUCTION_SMOKE_CHECKLIST.md) |
+| Automated real-backend E2E (CI) | Spine + re-login persistence | [PREPROD_REAL_E2E_COVERAGE.md](../engineering/PREPROD_REAL_E2E_COVERAGE.md) — not a substitute for founder E2E |
 
 ---
 
