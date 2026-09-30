@@ -27,7 +27,7 @@ class _FakeRedis:
     def expire(self, key: str, _seconds: int) -> None:
         return None
 
-    def pipeline(self) -> "_FakePipe":
+    def pipeline(self) -> _FakePipe:
         return _FakePipe(self)
 
 
@@ -36,11 +36,11 @@ class _FakePipe:
         self._redis = redis
         self._ops: list[tuple[str, str]] = []
 
-    def incr(self, key: str) -> "_FakePipe":
+    def incr(self, key: str) -> _FakePipe:
         self._ops.append(("incr", key))
         return self
 
-    def expire(self, key: str, _seconds: int) -> "_FakePipe":
+    def expire(self, key: str, _seconds: int) -> _FakePipe:
         self._ops.append(("expire", key))
         return self
 
