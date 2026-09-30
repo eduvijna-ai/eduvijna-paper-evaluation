@@ -14,8 +14,7 @@ RUN pip install --no-cache-dir --prefix=/install .
 FROM python:3.12-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    APP_ENV=production
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
 RUN apt-get update \
@@ -31,7 +30,9 @@ COPY alembic.ini ./alembic.ini
 USER eduvijna
 EXPOSE 8000
 
-# Production API runtime: no --reload. Override command for Celery worker/beat.
+# Do not bake APP_ENV=production — this image is shared by local/CI Compose
+# (APP_ENV=local + fixed providers) and production deploys (must set APP_ENV=production).
+# Override command for Celery worker/beat; disable HEALTHCHECK on worker in compose.
 HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=3 \
   CMD curl -f http://127.0.0.1:8000/health || exit 1
 
