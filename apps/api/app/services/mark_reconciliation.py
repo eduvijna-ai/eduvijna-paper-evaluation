@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Sequence
 from decimal import Decimal
 from typing import Any, Protocol
 
@@ -49,11 +50,11 @@ def effective_max_marks(
                 raise ValueError("ANY_N children must have equal effective max marks")
         return (Decimal(count) * per_child).quantize(Decimal("0.01"))
 
-    return sum(child_totals, Decimal("0.00")).quantize(Decimal("0.01"))
+    return sum(child_totals, start=Decimal("0.00")).quantize(Decimal("0.01"))
 
 
 def reconcile_marks(
-    questions: list[_QuestionLike], assessment_max_marks: Decimal
+    questions: Sequence[_QuestionLike], assessment_max_marks: Decimal
 ) -> tuple[bool, Decimal]:
     """Effective assessment maximum from roots (supports ANY_N choice groups)."""
     if not questions:
@@ -63,9 +64,10 @@ def reconcile_marks(
     children = _children_map(questions)
     roots = [q for q in questions if q.parent_question_version_id is None]
     try:
-        total = sum(effective_max_marks(root, children) for root in roots).quantize(
-            Decimal("0.01")
-        )
+        total = sum(
+            (effective_max_marks(root, children) for root in roots),
+            start=Decimal("0.00"),
+        ).quantize(Decimal("0.01"))
     except ValueError:
         return False, Decimal("0.00")
     expected = Decimal(assessment_max_marks).quantize(Decimal("0.01"))

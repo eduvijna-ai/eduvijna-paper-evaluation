@@ -196,7 +196,10 @@ def validate_question_tree(
 
     expected = Decimal(assessment_max_marks).quantize(Decimal("0.01"))
     try:
-        actual = sum(_proposed_effective_max(root) for root in roots).quantize(Decimal("0.01"))
+        actual = sum(
+            (_proposed_effective_max(root) for root in roots),
+            start=Decimal("0.00"),
+        ).quantize(Decimal("0.01"))
     except AuthoringAiError:
         raise
     except ValueError as exc:
