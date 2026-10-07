@@ -49,6 +49,73 @@ async function buildFixturePdf(): Promise<Buffer> {
   return Buffer.from(await doc.save());
 }
 
+async function finalizeEvaluationViaApi(
+  request: APIRequestContext,
+  apiBase: string,
+  headers: Record<string, string>,
+  submissionId: string,
+  minQuestionEvaluations = 1,
+): Promise<void> {
+  await expect
+    .poll(
+      async () => {
+        const prep = await request.post(
+          `${apiBase}/api/v1/submissions/${submissionId}/evaluation/prepare`,
+          { headers },
+        );
+        if (![200, 409].includes(prep.status())) return `prep:${prep.status()}`;
+        const ws = await request.get(
+          `${apiBase}/api/v1/submissions/${submissionId}/evaluation`,
+          { headers },
+        );
+        if (!ws.ok()) return `ws:${ws.status()}`;
+        const body = (await ws.json()) as {
+          workflow_state?: string;
+          question_evaluations?: Array<{
+            id: string;
+            proposed_ai_score: number | string | null;
+            max_mark: number | string;
+            workflow_state: string;
+          }>;
+        };
+        const qes = body.question_evaluations ?? [];
+        if (qes.length < minQuestionEvaluations) return `qes:${qes.length}`;
+        for (const qe of qes) {
+          if (qe.workflow_state === "ACCEPTED" || qe.workflow_state === "OVERRIDDEN") {
+            continue;
+          }
+          if (qe.proposed_ai_score !== null && qe.proposed_ai_score !== undefined) {
+            const acc = await request.post(
+              `${apiBase}/api/v1/question-evaluations/${qe.id}/accept`,
+              { headers },
+            );
+            if (![200, 409].includes(acc.status())) return `accept:${acc.status()}`;
+          } else {
+            const over = await request.post(
+              `${apiBase}/api/v1/question-evaluations/${qe.id}/override`,
+              {
+                headers,
+                data: {
+                  score: Number(qe.max_mark) > 0 ? Number(qe.max_mark) : 0,
+                  reason: "UAT E2E override",
+                },
+              },
+            );
+            if (![200, 409].includes(over.status())) return `override:${over.status()}`;
+          }
+        }
+        const fin = await request.post(
+          `${apiBase}/api/v1/submissions/${submissionId}/evaluation/finalize`,
+          { headers },
+        );
+        if (!fin.ok()) return `fin:${fin.status()}:${await fin.text()}`;
+        return (await fin.json()).workflow_state ?? "unknown";
+      },
+      { timeout: 180_000 },
+    )
+    .toBe("APPROVED");
+}
+
 async function buildAnswerSheetPdf(label: string): Promise<Buffer> {
   const doc = await PDFDocument.create();
   const font = await doc.embedFont(StandardFonts.Helvetica);
@@ -85,7 +152,10 @@ test.describe("UAT critical path", () => {
     ).toBe(201);
   });
 
-  test("curriculum create and node persist after reload", async ({ page }) => {
+  test("curriculum create and node persist after reload", async ({ page, request, baseURL }) => {
+    const apiBase = apiBaseFromEnv(baseURL);
+    const token = await loginApi(request, apiBase);
+    const headers = { Authorization: `Bearer ${token}` };
     await loginUi(page);
     const suffix = runId();
     const code = `UAT-CUR-${suffix}`;
@@ -103,9 +173,34 @@ test.describe("UAT critical path", () => {
     await page.getByTestId("curriculum-node-name").fill("Algebra unit");
     await page.getByTestId("curriculum-node-sequence").fill("3");
     await page.getByTestId("curriculum-node-submit").click();
-    await expect(page.getByText("Algebra unit")).toBeVisible({ timeout: 20_000 });
+    const curriculumId = page.url().split("/curriculum/")[1]?.split(/[/?#]/)[0] ?? "";
+    expect(curriculumId).toBeTruthy();
+    let nodeId = "";
+    await expect
+      .poll(
+        async () => {
+          const tree = await request.get(
+            `${apiBase}/api/v1/curricula/${curriculumId}/tree`,
+            { headers },
+          );
+          if (!tree.ok()) return "pending";
+          const nodes = (await tree.json()) as Array<{
+            id: string;
+            name: string;
+            sequence: number;
+          }>;
+          const row = nodes.find((n) => n.name === "Algebra unit");
+          if (!row) return "missing";
+          nodeId = row.id;
+          return row.sequence === 3 ? "ok" : `seq:${row.sequence}`;
+        },
+        { timeout: 30_000 },
+      )
+      .toBe("ok");
+    const nodeRow = page.getByTestId(`curriculum-node-${nodeId}`);
+    await expect(nodeRow).toContainText("Algebra unit");
     await page.reload();
-    await expect(page.getByText("Algebra unit")).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByTestId(`curriculum-node-${nodeId}`)).toContainText("Algebra unit");
     await page.goto("/curriculum");
     await expect(page.getByText(code)).toBeVisible({ timeout: 20_000 });
   });
@@ -172,7 +267,11 @@ test.describe("UAT critical path", () => {
       )
       .toBe("Renamed unit|inactive|Preserved description");
     await page.reload();
-    await expect(page.getByText("Renamed unit")).toBeVisible();
+    await expect(page.getByTestId(`curriculum-node-${nodeId}`)).toContainText("Renamed unit");
+    await expect(page.getByTestId(`curriculum-node-status-${nodeId}`)).toHaveText("inactive");
+    await expect(page.getByTestId(`curriculum-node-description-${nodeId}`)).toHaveText(
+      "Preserved description",
+    );
   });
 
   test("Maths-IIB ANY_N fixture parse, save, apply, and reconcile", async ({
@@ -384,7 +483,7 @@ test.describe("UAT critical path", () => {
     await expect(page.getByTestId("question-paper-vs-answer-sheet-guidance")).toBeVisible();
   });
 
-  test("upload through evaluation finalize and publication prepare", async ({
+  test("upload through evaluation approve and published result", async ({
     page,
     request,
     baseURL,
@@ -587,38 +686,83 @@ test.describe("UAT critical path", () => {
       await textInput.fill("4");
       await page.getByTestId("save-transcription").first().click();
     }
-    const confirm = page.getByTestId("confirm-transcription").first();
-    if ((await confirm.count()) && (await confirm.isEnabled())) {
-      await confirm.click();
+    for (let i = 0; i < 12; i += 1) {
+      const confirm = page.locator('[data-testid="confirm-transcription"]:not([disabled])');
+      if ((await confirm.count()) === 0) break;
+      await confirm.first().click();
+      await page.waitForTimeout(400);
     }
     await expect(page.getByTestId("finalize-transcription")).toBeEnabled({
       timeout: 60_000,
     });
     await page.getByTestId("finalize-transcription").click();
 
-    await expect
-      .poll(
-        async () => {
-          const prep = await request.post(
-            `${apiBase}/api/v1/submissions/${submissionId}/evaluation/prepare`,
-            { headers },
-          );
-          if (![200, 409].includes(prep.status())) return `prep:${prep.status()}`;
-          const fin = await request.post(
-            `${apiBase}/api/v1/submissions/${submissionId}/evaluation/finalize`,
-            { headers },
-          );
-          if (!fin.ok()) return `fin:${fin.status()}`;
-          return (await fin.json()).workflow_state ?? "unknown";
-        },
-        { timeout: 180_000 },
-      )
-      .toBe("APPROVED");
+    expect(
+      (await request.get(`${apiBase}/api/v1/submissions/${submissionId}/published-result`, {
+        headers,
+      })).status(),
+    ).toBe(404);
+
+    await finalizeEvaluationViaApi(request, apiBase, headers, submissionId, 1);
 
     const pubPrep = await request.post(
       `${apiBase}/api/v1/submissions/${submissionId}/publication/prepare`,
       { headers },
     );
     expect([200, 409]).toContain(pubPrep.status());
+    let publishedResultId = "";
+    if (pubPrep.ok()) {
+      publishedResultId = ((await pubPrep.json()) as { published_result_id: string })
+        .published_result_id;
+    } else {
+      const ws = await request.get(
+        `${apiBase}/api/v1/submissions/${submissionId}/publication`,
+        { headers },
+      );
+      expect(ws.ok()).toBeTruthy();
+      const body = (await ws.json()) as {
+        result?: { id?: string };
+        published_result?: { id?: string };
+      };
+      publishedResultId = body.result?.id ?? body.published_result?.id ?? "";
+    }
+    expect(publishedResultId).toBeTruthy();
+
+    await expect
+      .poll(
+        async () => {
+          const ws = await request.get(
+            `${apiBase}/api/v1/submissions/${submissionId}/publication`,
+            { headers },
+          );
+          if (!ws.ok()) return `ws:${ws.status()}`;
+          const body = (await ws.json()) as {
+            result?: { status?: string };
+            published_result?: { status?: string };
+          };
+          return body.result?.status ?? body.published_result?.status ?? "";
+        },
+        { timeout: 120_000 },
+      )
+      .toMatch(/GENERATED/i);
+
+    const publish = await request.post(
+      `${apiBase}/api/v1/publication-results/${publishedResultId}/publish`,
+      { headers },
+    );
+    expect(publish.ok()).toBeTruthy();
+
+    await expect
+      .poll(
+        async () =>
+          (
+            await request.get(
+              `${apiBase}/api/v1/submissions/${submissionId}/published-result`,
+              { headers },
+            )
+          ).status(),
+        { timeout: 60_000 },
+      )
+      .toBe(200);
   });
 });
