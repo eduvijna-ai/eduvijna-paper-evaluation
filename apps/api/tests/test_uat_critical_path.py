@@ -10,15 +10,14 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from PIL import Image
+from sqlalchemy import text
 
 from app.ai.fixtures.maths_iib_uat import build_maths_iib_proposal
 from app.db.models import QuestionVersion
+from app.db.session import async_session_factory
 from app.services.authoring_ai import validate_question_tree
 from app.services.choice_groups import find_choice_group_over_attempts
 from app.services.mark_reconciliation import reconcile_marks
-from sqlalchemy import text
-
-from app.db.session import async_session_factory
 from tests.test_b3_submission_ingestion import (
     _active_assessment,
     _headers,
