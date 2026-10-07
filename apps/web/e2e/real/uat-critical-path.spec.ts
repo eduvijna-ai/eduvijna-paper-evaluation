@@ -59,7 +59,7 @@ test.describe("UAT critical path", () => {
     await loginUi(page);
     await page.goto("/assessments");
     await page.locator("table tbody tr").first().click();
-    await page.getByRole("link", { name: "Questions" }).click();
+    await page.getByTestId("link-questions").click();
     await expect(page.getByTestId("question-paper-workflow-guide")).toBeVisible();
     await expect(page.getByTestId("workflow-step-apply")).toBeVisible();
   });

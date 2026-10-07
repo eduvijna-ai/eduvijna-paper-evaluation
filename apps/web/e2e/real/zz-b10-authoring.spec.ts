@@ -119,8 +119,8 @@ test.describe("B10 real authoring AI flows", () => {
       timeout: 20_000,
     });
     await expect(page.getByTestId("question-paper-authoring")).toBeVisible();
-    await expect(page.getByTestId("ai-proposal-truth-notice")).toContainText(
-      /teacher apply/i,
+    await expect(page.getByTestId("question-paper-workflow-guide")).toContainText(
+      /apply question structure/i,
     );
 
     const sourcePrompt = `Solve 2x + 3 = 7 for ${suffix}.`;
