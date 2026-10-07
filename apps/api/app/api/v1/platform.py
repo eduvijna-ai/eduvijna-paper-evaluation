@@ -411,6 +411,36 @@ async def _validate_section_refs(
     return await _scoped(db, AcademicYear, year_id, auth.tenant_id)
 
 
+async def _ensure_class_section_unique(
+    db: AsyncSession,
+    auth: AuthContext,
+    *,
+    academic_year_id: uuid.UUID,
+    grade_label: str,
+    name: str,
+    exclude_id: uuid.UUID | None = None,
+) -> None:
+    conflict_query = select(ClassSection.id).where(
+        ClassSection.tenant_id == auth.tenant_id,
+        ClassSection.academic_year_id == academic_year_id,
+        ClassSection.grade_label == grade_label,
+        ClassSection.name == name,
+    )
+    if exclude_id is not None:
+        conflict_query = conflict_query.where(ClassSection.id != exclude_id)
+    existing = await db.scalar(conflict_query)
+    if existing is not None:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "CLASS_SECTION_CONFLICT",
+                "message": (
+                    f"Class section {grade_label}/{name} already exists for this academic year"
+                ),
+            },
+        )
+
+
 @router.get("/class-sections", response_model=list[ClassSectionOut])
 async def list_class_sections(
     db: Db, auth: AuthContext = Depends(require_permissions("class_section:read"))
@@ -433,6 +463,13 @@ async def create_class_section(
     auth: AuthContext = Depends(require_permissions("class_section:write")),
 ) -> ClassSection:
     await _validate_section_refs(db, auth, payload.academic_year_id)
+    await _ensure_class_section_unique(
+        db,
+        auth,
+        academic_year_id=payload.academic_year_id,
+        grade_label=payload.grade_label,
+        name=payload.name,
+    )
     institution = await _institution(db, auth.tenant_id)
     item = ClassSection(
         tenant_id=auth.tenant_id, institution_id=institution.id, **payload.model_dump()
@@ -464,6 +501,17 @@ async def patch_class_section(
     changes = payload.model_dump(exclude_unset=True)
     if changes.get("academic_year_id"):
         await _validate_section_refs(db, auth, changes["academic_year_id"])
+    year_id = changes.get("academic_year_id", item.academic_year_id)
+    grade_label = changes.get("grade_label", item.grade_label)
+    name = changes.get("name", item.name)
+    await _ensure_class_section_unique(
+        db,
+        auth,
+        academic_year_id=year_id,
+        grade_label=grade_label,
+        name=name,
+        exclude_id=item.id,
+    )
     for key, value in changes.items():
         setattr(item, key, value)
     await _audit(db, auth, item, "updated", payload.model_dump(exclude_unset=True, mode="json"))

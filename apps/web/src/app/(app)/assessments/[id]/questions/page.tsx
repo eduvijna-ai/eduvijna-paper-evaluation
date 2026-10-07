@@ -110,6 +110,11 @@ function ProposedTreeEditor({
             <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-600">
               <span>Marks: {String(node.max_marks)}</span>
               <span>Mode: {node.scoring_mode}</span>
+              {(node.selection_mode ?? "ALL") === "ANY_N" && (
+                <span data-testid={`proposal-any-n-${pathKey}`}>
+                  Answer any {node.selection_count ?? "?"} in group
+                </span>
+              )}
               <span>Type: {node.question_type}</span>
             </div>
             {(node.children?.length ?? 0) > 0 && (
@@ -140,6 +145,7 @@ function LiveQuestionsPage({ id }: { id: string }) {
     null,
   );
   const [actionError, setActionError] = useState<string | null>(null);
+  const [applyNotice, setApplyNotice] = useState<string | null>(null);
 
   const assessmentQuery = useQuery({
     queryKey: ["assessment", id],
@@ -268,9 +274,13 @@ function LiveQuestionsPage({ id }: { id: string }) {
       setActionError(null);
       setDraftRoots(null);
       setActiveRunId(null);
+      setApplyNotice(
+        "Question structure applied. The live question tree below is now authoritative for this assessment version.",
+      );
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["assessment-questions", id] }),
         queryClient.invalidateQueries({ queryKey: ["assessment", id] }),
+        queryClient.invalidateQueries({ queryKey: ["latest-parse-run", versionQuery.data?.id] }),
       ]);
     },
     onError: (err) => {
@@ -320,13 +330,34 @@ function LiveQuestionsPage({ id }: { id: string }) {
           data-testid="question-paper-authoring"
           className="mb-4 space-y-3 rounded-md border border-slate-200 bg-white p-4"
         >
-          <p
-            data-testid="ai-proposal-truth-notice"
-            className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900"
+          <div
+            data-testid="question-paper-workflow-guide"
+            className="rounded-md border border-slate-200 bg-slate-50 px-3 py-3 text-sm text-slate-800"
           >
-            AI proposal requires teacher apply. Parsed structure is not the live
-            question tree until you apply it.
-          </p>
+            <p className="font-medium text-slate-900">Question paper workflow</p>
+            <ol className="mt-2 list-decimal space-y-1 pl-5">
+              <li data-testid="workflow-step-proposal">
+                Parsed proposal ready (after upload + parse)
+              </li>
+              <li data-testid="workflow-step-review">Review and edit the proposed structure</li>
+              <li data-testid="workflow-step-save">Save proposal</li>
+              <li data-testid="workflow-step-apply">
+                <strong>Apply question structure</strong> to publish the live tree
+              </li>
+            </ol>
+            <p className="mt-2 text-xs text-slate-600">
+              Until you apply, the proposal is not the live question tree used for mapping and
+              evaluation.
+            </p>
+          </div>
+          {applyNotice && (
+            <p
+              data-testid="apply-question-tree-success"
+              className="rounded-md border border-teal-200 bg-teal-50 px-3 py-2 text-sm text-teal-900"
+            >
+              {applyNotice}
+            </p>
+          )}
 
           <div className="flex flex-wrap items-center gap-3">
             <label className="inline-flex cursor-pointer items-center gap-2 rounded-md bg-teal-800 px-3 py-2 text-sm font-medium text-white hover:bg-teal-900">

@@ -18,6 +18,49 @@ import type {
 } from "@/lib/types/domain";
 import type { AssessmentState, CurriculumNodeType } from "@/lib/types/enums";
 
+export interface CurriculumFormValues {
+  code: string;
+  name: string;
+  description?: string;
+  academicFramework?: string;
+  versionLabel: string;
+  status?: string;
+}
+
+export interface CurriculumNodeFormValues {
+  parentId?: string | null;
+  nodeType: string;
+  code: string;
+  name: string;
+  description?: string;
+  sequence?: number;
+  status?: string;
+}
+
+export function curriculumFormToApi(form: CurriculumFormValues) {
+  return {
+    code: form.code,
+    name: form.name,
+    description: form.description ?? null,
+    academic_framework: form.academicFramework ?? null,
+    version_label: form.versionLabel,
+    status: form.status ?? "active",
+  };
+}
+
+export function curriculumNodeFormToApi(form: CurriculumNodeFormValues) {
+  return {
+    parent_id: form.parentId || null,
+    node_type: form.nodeType,
+    code: form.code,
+    name: form.name,
+    description: form.description ?? null,
+    sequence: form.sequence ?? 0,
+    metadata: {},
+    status: form.status ?? "active",
+  };
+}
+
 export interface AssessmentFormValues {
   curriculumId: string;
   subjectNodeId?: string | null;

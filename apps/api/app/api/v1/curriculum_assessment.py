@@ -145,6 +145,8 @@ class QuestionIn(BaseModel):
     max_marks: Money
     question_type: str
     scoring_mode: str = Field(pattern="^(LEAF_SCORABLE|CONTAINER_DERIVED)$")
+    selection_mode: str = Field(default="ALL", pattern="^(ALL|ANY_N)$")
+    selection_count: int | None = Field(default=None, ge=1, le=200)
     instructions: str | None = None
 
 
@@ -156,6 +158,8 @@ class QuestionPatch(BaseModel):
     max_marks: Money | None = None
     question_type: str | None = None
     scoring_mode: str | None = Field(default=None, pattern="^(LEAF_SCORABLE|CONTAINER_DERIVED)$")
+    selection_mode: str | None = Field(default=None, pattern="^(ALL|ANY_N)$")
+    selection_count: int | None = Field(default=None, ge=1, le=200)
     instructions: str | None = None
 
 

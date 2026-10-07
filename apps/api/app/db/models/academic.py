@@ -29,7 +29,11 @@ class ClassSection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __tablename__ = "class_sections"
     __table_args__ = (
         UniqueConstraint(
-            "tenant_id", "academic_year_id", "name", name="uq_class_sections_scope_name"
+            "tenant_id",
+            "academic_year_id",
+            "grade_label",
+            "name",
+            name="uq_class_sections_scope_grade_name",
         ),
     )
 

@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -50,6 +51,7 @@ from app.tasks import enqueue_mapping_preparation, enqueue_page_normalization
 
 router = APIRouter()
 Db = Annotated[AsyncSession, Depends(get_db_session)]
+logger = logging.getLogger(__name__)
 
 
 class IdentityConfirmIn(BaseModel):
@@ -363,16 +365,33 @@ async def upload_submission(
     await db.refresh(submission)
     await db.refresh(job)
 
-    task_id = await enqueue_page_normalization(
-        tenant_id=auth.tenant_id,
-        submission_id=submission.id,
-        job_id=job.id,
-    )
-    if task_id:
-        job.celery_task_id = task_id
+    enqueue_error: str | None = None
+    task_id: str | None = None
+    try:
+        task_id = await enqueue_page_normalization(
+            tenant_id=auth.tenant_id,
+            submission_id=submission.id,
+            job_id=job.id,
+        )
+    except Exception as exc:  # noqa: BLE001
+        enqueue_error = str(exc)[:300]
+        logger.exception(
+            "page normalization enqueue failed submission_id=%s job_id=%s",
+            submission.id,
+            job.id,
+        )
+        job.error_code = "PIPELINE_ENQUEUE_FAILED"
+        job.error_detail = enqueue_error
         await db.commit()
+    else:
+        if task_id:
+            job.celery_task_id = task_id
+            await db.commit()
 
-    return _dump_submission(submission, assessment_title=assessment.title)
+    body = _dump_submission(submission, assessment_title=assessment.title)
+    body["pipeline_job_id"] = str(job.id)
+    body["pipeline_enqueue_error"] = enqueue_error
+    return body
 
 
 @router.get("/submissions")

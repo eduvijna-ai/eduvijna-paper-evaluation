@@ -325,7 +325,7 @@ export default function SubmissionsUploadPage() {
         title="Upload submissions"
         description={
           live
-            ? "Upload raw unmarked answer sheets for live identity review."
+            ? "Upload student answer sheets (handwritten responses). Question papers are authored under Assessment → Questions."
             : "Mock upload only — stores no real scanned papers."
         }
         breadcrumbs={[
@@ -334,6 +334,18 @@ export default function SubmissionsUploadPage() {
         ]}
       />
       <RawUnmarkedBanner />
+      {live && (
+        <p
+          data-testid="question-paper-vs-answer-sheet-guidance"
+          className="mb-4 max-w-lg text-sm text-slate-700"
+        >
+          Need to upload the question paper? Open{" "}
+          <a href="/assessments" className="font-medium text-teal-800 underline">
+            Assessment → Questions
+          </a>
+          .
+        </p>
+      )}
       {live ? <LiveUploadForm /> : <MockUploadForm />}
     </div>
   );

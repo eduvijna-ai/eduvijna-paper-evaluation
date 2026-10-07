@@ -4135,6 +4135,8 @@ components:
         max_marks: { $ref: "#/components/schemas/Money" }
         question_type: { type: string }
         scoring_mode: { type: string, enum: [LEAF_SCORABLE, CONTAINER_DERIVED] }
+        selection_mode: { type: string, enum: [ALL, ANY_N], default: ALL }
+        selection_count: { type: [integer, "null"], minimum: 1, maximum: 200 }
         instructions: { type: [string, "null"] }
     AnswerKeyVersionInput:
       type: object
@@ -4361,6 +4363,8 @@ components:
         max_marks: { type: number, minimum: 0 }
         question_type: { type: string, minLength: 1, maxLength: 64 }
         scoring_mode: { type: string, enum: [LEAF_SCORABLE, CONTAINER_DERIVED] }
+        selection_mode: { type: string, enum: [ALL, ANY_N], default: ALL }
+        selection_count: { type: [integer, "null"], minimum: 1, maximum: 200 }
         instructions: { type: [string, "null"], maxLength: 5000 }
         children:
           type: array

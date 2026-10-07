@@ -161,6 +161,15 @@ export interface ApiClient {
     curriculum: Curriculum;
     tree: CurriculumNode[];
   }>;
+  createCurriculum?(form: import("@/lib/api/mappers/authoring").CurriculumFormValues): Promise<Curriculum>;
+  createCurriculumNode?(
+    curriculumId: string,
+    form: import("@/lib/api/mappers/authoring").CurriculumNodeFormValues,
+  ): Promise<CurriculumNode>;
+  updateCurriculumNode?(
+    nodeId: string,
+    form: Partial<import("@/lib/api/mappers/authoring").CurriculumNodeFormValues>,
+  ): Promise<CurriculumNode>;
   listAssessments(): Promise<Assessment[]>;
   getAssessment(id: string): Promise<Assessment>;
   /** B2 live authoring. Optional so the preserved B0 mock client remains source-compatible. */

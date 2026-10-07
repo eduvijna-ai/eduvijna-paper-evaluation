@@ -206,6 +206,8 @@ export interface ProposedQuestionNode {
   max_marks: string | number;
   question_type: string;
   scoring_mode: ProposedQuestionScoringMode | string;
+  selection_mode?: "ALL" | "ANY_N" | string;
+  selection_count?: number | null;
   instructions?: string | null;
   children?: ProposedQuestionNode[];
 }
