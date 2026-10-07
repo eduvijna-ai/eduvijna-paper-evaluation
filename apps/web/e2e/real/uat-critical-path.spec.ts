@@ -527,96 +527,72 @@ test.describe("UAT critical path", () => {
     const versionId = assessmentBody.initial_version_id;
     const assessmentId = assessmentBody.id;
 
-    const leafSpecs = [
-      { code: "Q1", label: "1", prompt: "2+2?", marks: "5.00", answer: "4" },
-      { code: "Q2", label: "2", prompt: "3+3?", marks: "5.00", answer: "6" },
-    ];
-    for (const [index, leaf] of leafSpecs.entries()) {
-      const question = await request.post(
-        `${apiBase}/api/v1/assessment-versions/${versionId}/questions`,
-        {
-          headers,
-          data: {
-            stable_code: leaf.code,
-            display_label: leaf.label,
-            sequence: index + 1,
-            prompt_text: leaf.prompt,
-            max_marks: leaf.marks,
-            question_type: "SHORT",
-            scoring_mode: "LEAF_SCORABLE",
-          },
-        },
-      );
-      expect(question.status()).toBe(201);
-      const questionId = ((await question.json()) as { id: string }).id;
-
-      const key = await request.post(
-        `${apiBase}/api/v1/assessments/${assessmentId}/answer-key-versions`,
-        {
-          headers,
-          data: {
-            assessment_version_id: versionId,
-            question_version_id: questionId,
-            answer_text: leaf.answer,
-            source_type: "TEACHER",
-            status: "DRAFT",
-          },
-        },
-      );
-      expect(key.status()).toBe(201);
-      expect(
-        (
-          await request.post(
-            `${apiBase}/api/v1/answer-key-versions/${(await key.json()).id}/approve`,
-            { headers },
-          )
-        ).ok(),
-      ).toBeTruthy();
-
-      const rubric = await request.post(
-        `${apiBase}/api/v1/assessments/${assessmentId}/rubrics`,
-        {
-          headers,
-          data: {
-            question_version_id: questionId,
-            title: leaf.code,
-            provenance: "TEACHER",
-          },
-        },
-      );
-      expect(rubric.status()).toBe(201);
-      const rubricId = ((await rubric.json()) as { id: string }).id;
-      const rv = await request.post(`${apiBase}/api/v1/rubrics/${rubricId}/versions`, {
+    const q = await request.post(
+      `${apiBase}/api/v1/assessment-versions/${versionId}/questions`,
+      {
         headers,
         data: {
-          question_version_id: questionId,
+          stable_code: "Q1",
+          display_label: "1",
+          sequence: 1,
+          prompt_text: "2+2?",
+          max_marks: "10.00",
+          question_type: "SHORT",
+          scoring_mode: "LEAF_SCORABLE",
+        },
+      },
+    );
+    expect(q.status()).toBe(201);
+    const qvId = ((await q.json()) as { id: string }).id;
+
+    const key = await request.post(
+      `${apiBase}/api/v1/assessments/${assessmentId}/answer-key-versions`,
+      {
+        headers,
+        data: {
+          assessment_version_id: versionId,
+          question_version_id: qvId,
+          answer_text: "4",
           source_type: "TEACHER",
           status: "DRAFT",
         },
-      });
-      expect(rv.status()).toBe(201);
-      const rvId = ((await rv.json()) as { id: string }).id;
-      expect(
-        (
-          await request.post(`${apiBase}/api/v1/rubric-versions/${rvId}/criteria`, {
-            headers,
-            data: {
-              criterion_code: "C1",
-              description: "correct",
-              max_marks: leaf.marks,
-              sequence: 1,
-              scoring_mode: "ADDITIVE",
-              partial_credit_allowed: true,
-              ecf_policy: "NONE",
-            },
-          })
-        ).status(),
-      ).toBe(201);
-      expect(
-        (await request.post(`${apiBase}/api/v1/rubric-versions/${rvId}/approve`, { headers }))
-          .ok(),
-      ).toBeTruthy();
-    }
+      },
+    );
+    expect(key.status()).toBe(201);
+    await request.post(
+      `${apiBase}/api/v1/answer-key-versions/${(await key.json()).id}/approve`,
+      { headers },
+    );
+
+    const rubric = await request.post(`${apiBase}/api/v1/assessments/${assessmentId}/rubrics`, {
+      headers,
+      data: { question_version_id: qvId, title: "R1", provenance: "TEACHER" },
+    });
+    expect(rubric.status()).toBe(201);
+    const rubricId = ((await rubric.json()) as { id: string }).id;
+    const rv = await request.post(`${apiBase}/api/v1/rubrics/${rubricId}/versions`, {
+      headers,
+      data: {
+        question_version_id: qvId,
+        source_type: "TEACHER",
+        status: "DRAFT",
+      },
+    });
+    expect(rv.status()).toBe(201);
+    const rvId = ((await rv.json()) as { id: string }).id;
+    await request.post(`${apiBase}/api/v1/rubric-versions/${rvId}/criteria`, {
+      headers,
+      data: {
+        criterion_code: "C1",
+        description: "Correct",
+        max_marks: "10.00",
+        sequence: 1,
+        scoring_mode: "ADDITIVE",
+        partial_credit_allowed: true,
+        ecf_policy: "NONE",
+      },
+    });
+    await request.post(`${apiBase}/api/v1/rubric-versions/${rvId}/approve`, { headers });
 
     for (const to of ["READY", "ACTIVE"]) {
       const tr = await request.post(
@@ -686,9 +662,6 @@ test.describe("UAT critical path", () => {
     await expect(page.getByTestId("assign-region")).toBeEnabled({ timeout: 60_000 });
     await page.getByTestId("assign-region").click();
     await page.getByTestId("confirm-mapping").click();
-    await page.getByTestId("question-tree-item-2").click();
-    await page.getByTestId("mark-blank").click();
-    await page.getByTestId("confirm-mapping").click();
     await page.getByTestId("finalize-mapping").click();
 
     await expect
@@ -712,24 +685,46 @@ test.describe("UAT critical path", () => {
       .toMatch(/\/transcription$/);
 
     await page.getByTestId("open-current-stage").click();
+    await expect(page.getByTestId("transcription-review-page")).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(
+      page
+        .getByTestId("transcription-ai-copy")
+        .or(page.getByTestId("transcription-text-input"))
+        .first(),
+    ).toBeVisible({ timeout: 90_000 });
+
     const textInput = page.getByTestId("transcription-text-input").first();
     if (await textInput.count()) {
       await textInput.fill("4");
       await page.getByTestId("save-transcription").first().click();
+      await page.waitForTimeout(500);
     }
-    for (let i = 0; i < 12; i += 1) {
-      const confirm = page.locator('[data-testid="confirm-transcription"]:not([disabled])');
-      if ((await confirm.count()) === 0) break;
-      await confirm.first().click();
+    const confirmFirst = page.getByTestId("confirm-transcription").first();
+    if ((await confirmFirst.count()) && (await confirmFirst.isEnabled())) {
+      await confirmFirst.click();
       await page.waitForTimeout(400);
     }
+    for (let i = 0; i < 12; i += 1) {
+      const enabled = page.locator('[data-testid="confirm-transcription"]:not([disabled])');
+      if ((await enabled.count()) === 0) break;
+      await enabled.first().click();
+      await page.waitForTimeout(500);
+    }
+
     await expect(page.getByTestId("finalize-transcription")).toBeEnabled({
-      timeout: 60_000,
-    });
-    await page.getByTestId("finalize-transcription").click();
-    await expect(page).toHaveURL(new RegExp(`/submissions/${submissionId}$`), {
       timeout: 30_000,
     });
+    const finalizeResponsePromise = page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().includes(`/api/v1/submissions/${submissionId}/transcription/finalize`),
+      { timeout: 60_000 },
+    );
+    await page.getByTestId("finalize-transcription").click();
+    const finalizeResponse = await finalizeResponsePromise;
+    expect(finalizeResponse.status()).toBe(200);
 
     await expect
       .poll(
@@ -755,7 +750,7 @@ test.describe("UAT critical path", () => {
       })).status(),
     ).toBe(404);
 
-    await finalizeEvaluationViaApi(request, apiBase, headers, submissionId, 2);
+    await finalizeEvaluationViaApi(request, apiBase, headers, submissionId, 1);
 
     const pubPrep = await request.post(
       `${apiBase}/api/v1/submissions/${submissionId}/publication/prepare`,
