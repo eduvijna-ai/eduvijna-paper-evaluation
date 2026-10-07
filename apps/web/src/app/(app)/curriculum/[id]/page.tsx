@@ -55,7 +55,7 @@ const nodeSchema = z.object({
   code: z.string().min(1),
   name: z.string().min(1),
   description: z.string().optional(),
-  sequence: z.coerce.number().int().min(0).optional(),
+  sequence: z.number().int().min(0).optional(),
   status: z.string().optional(),
 });
 

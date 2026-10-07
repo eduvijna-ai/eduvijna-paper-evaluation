@@ -5,7 +5,6 @@ from __future__ import annotations
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass
-from decimal import Decimal
 
 from app.db.models import QuestionAnswerMapping, QuestionVersion
 
