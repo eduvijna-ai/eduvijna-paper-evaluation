@@ -768,10 +768,9 @@ test.describe("UAT critical path", () => {
       );
       expect(ws.ok()).toBeTruthy();
       const body = (await ws.json()) as {
-        result?: { id?: string };
-        published_result?: { id?: string };
+        latest?: { id?: string };
       };
-      publishedResultId = body.result?.id ?? body.published_result?.id ?? "";
+      publishedResultId = body.latest?.id ?? "";
     }
     expect(publishedResultId).toBeTruthy();
 
@@ -784,10 +783,13 @@ test.describe("UAT critical path", () => {
           );
           if (!ws.ok()) return `ws:${ws.status()}`;
           const body = (await ws.json()) as {
-            result?: { status?: string };
-            published_result?: { status?: string };
+            latest?: { id?: string; status?: string };
           };
-          return body.result?.status ?? body.published_result?.status ?? "";
+          const latestId = body.latest?.id ?? "";
+          if (latestId !== publishedResultId) {
+            return `id:${latestId}`;
+          }
+          return body.latest?.status ?? "";
         },
         { timeout: 120_000 },
       )
