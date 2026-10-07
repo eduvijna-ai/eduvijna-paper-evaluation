@@ -341,9 +341,9 @@ export default function SubmissionsUploadPage() {
           className="mb-4 max-w-lg text-sm text-slate-700"
         >
           Need to upload the question paper? Open{" "}
-          <a href="/assessments" className="font-medium text-teal-800 underline">
+          <Link href="/assessments" className="font-medium text-teal-800 underline">
             Assessment → Questions
-          </a>
+          </Link>
           .
         </p>
       )}
