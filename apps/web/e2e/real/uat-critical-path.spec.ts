@@ -79,7 +79,11 @@ async function finalizeEvaluationViaApi(
           }>;
         };
         const qes = body.question_evaluations ?? [];
-        if (qes.length < minQuestionEvaluations) return `qes:${qes.length}`;
+        if (qes.length < minQuestionEvaluations) {
+          if (body.workflow_state === "APPROVED") return "APPROVED";
+          if (body.workflow_state === "EVALUATING") return "evaluating";
+          return `wait:${body.workflow_state}:qes${qes.length}`;
+        }
         for (const qe of qes) {
           if (qe.workflow_state === "ACCEPTED" || qe.workflow_state === "OVERRIDDEN") {
             continue;
@@ -523,72 +527,96 @@ test.describe("UAT critical path", () => {
     const versionId = assessmentBody.initial_version_id;
     const assessmentId = assessmentBody.id;
 
-    const q = await request.post(
-      `${apiBase}/api/v1/assessment-versions/${versionId}/questions`,
-      {
-        headers,
-        data: {
-          stable_code: "Q1",
-          display_label: "1",
-          sequence: 1,
-          prompt_text: "2+2?",
-          max_marks: "10.00",
-          question_type: "SHORT",
-          scoring_mode: "LEAF_SCORABLE",
+    const leafSpecs = [
+      { code: "Q1", label: "1", prompt: "2+2?", marks: "5.00", answer: "4" },
+      { code: "Q2", label: "2", prompt: "3+3?", marks: "5.00", answer: "6" },
+    ];
+    for (const [index, leaf] of leafSpecs.entries()) {
+      const question = await request.post(
+        `${apiBase}/api/v1/assessment-versions/${versionId}/questions`,
+        {
+          headers,
+          data: {
+            stable_code: leaf.code,
+            display_label: leaf.label,
+            sequence: index + 1,
+            prompt_text: leaf.prompt,
+            max_marks: leaf.marks,
+            question_type: "SHORT",
+            scoring_mode: "LEAF_SCORABLE",
+          },
         },
-      },
-    );
-    expect(q.status()).toBe(201);
-    const qvId = ((await q.json()) as { id: string }).id;
+      );
+      expect(question.status()).toBe(201);
+      const questionId = ((await question.json()) as { id: string }).id;
 
-    const key = await request.post(
-      `${apiBase}/api/v1/assessments/${assessmentId}/answer-key-versions`,
-      {
+      const key = await request.post(
+        `${apiBase}/api/v1/assessments/${assessmentId}/answer-key-versions`,
+        {
+          headers,
+          data: {
+            assessment_version_id: versionId,
+            question_version_id: questionId,
+            answer_text: leaf.answer,
+            source_type: "TEACHER",
+            status: "DRAFT",
+          },
+        },
+      );
+      expect(key.status()).toBe(201);
+      expect(
+        (
+          await request.post(
+            `${apiBase}/api/v1/answer-key-versions/${(await key.json()).id}/approve`,
+            { headers },
+          )
+        ).ok(),
+      ).toBeTruthy();
+
+      const rubric = await request.post(
+        `${apiBase}/api/v1/assessments/${assessmentId}/rubrics`,
+        {
+          headers,
+          data: {
+            question_version_id: questionId,
+            title: leaf.code,
+            provenance: "TEACHER",
+          },
+        },
+      );
+      expect(rubric.status()).toBe(201);
+      const rubricId = ((await rubric.json()) as { id: string }).id;
+      const rv = await request.post(`${apiBase}/api/v1/rubrics/${rubricId}/versions`, {
         headers,
         data: {
-          assessment_version_id: versionId,
-          question_version_id: qvId,
-          answer_text: "4",
+          question_version_id: questionId,
           source_type: "TEACHER",
           status: "DRAFT",
         },
-      },
-    );
-    expect(key.status()).toBe(201);
-    await request.post(
-      `${apiBase}/api/v1/answer-key-versions/${(await key.json()).id}/approve`,
-      { headers },
-    );
-
-    const rubric = await request.post(`${apiBase}/api/v1/assessments/${assessmentId}/rubrics`, {
-      headers,
-      data: { question_version_id: qvId, title: "R1", provenance: "TEACHER" },
-    });
-    expect(rubric.status()).toBe(201);
-    const rubricId = ((await rubric.json()) as { id: string }).id;
-    const rv = await request.post(`${apiBase}/api/v1/rubrics/${rubricId}/versions`, {
-      headers,
-      data: {
-        question_version_id: qvId,
-        source_type: "TEACHER",
-        status: "DRAFT",
-      },
-    });
-    expect(rv.status()).toBe(201);
-    const rvId = ((await rv.json()) as { id: string }).id;
-    await request.post(`${apiBase}/api/v1/rubric-versions/${rvId}/criteria`, {
-      headers,
-      data: {
-        criterion_code: "C1",
-        description: "Correct",
-        max_marks: "10.00",
-        sequence: 1,
-        scoring_mode: "ADDITIVE",
-        partial_credit_allowed: true,
-        ecf_policy: "NONE",
-      },
-    });
-    await request.post(`${apiBase}/api/v1/rubric-versions/${rvId}/approve`, { headers });
+      });
+      expect(rv.status()).toBe(201);
+      const rvId = ((await rv.json()) as { id: string }).id;
+      expect(
+        (
+          await request.post(`${apiBase}/api/v1/rubric-versions/${rvId}/criteria`, {
+            headers,
+            data: {
+              criterion_code: "C1",
+              description: "correct",
+              max_marks: leaf.marks,
+              sequence: 1,
+              scoring_mode: "ADDITIVE",
+              partial_credit_allowed: true,
+              ecf_policy: "NONE",
+            },
+          })
+        ).status(),
+      ).toBe(201);
+      expect(
+        (await request.post(`${apiBase}/api/v1/rubric-versions/${rvId}/approve`, { headers }))
+          .ok(),
+      ).toBeTruthy();
+    }
 
     for (const to of ["READY", "ACTIVE"]) {
       const tr = await request.post(
@@ -658,6 +686,9 @@ test.describe("UAT critical path", () => {
     await expect(page.getByTestId("assign-region")).toBeEnabled({ timeout: 60_000 });
     await page.getByTestId("assign-region").click();
     await page.getByTestId("confirm-mapping").click();
+    await page.getByTestId("question-tree-item-2").click();
+    await page.getByTestId("mark-blank").click();
+    await page.getByTestId("confirm-mapping").click();
     await page.getByTestId("finalize-mapping").click();
 
     await expect
@@ -696,6 +727,27 @@ test.describe("UAT critical path", () => {
       timeout: 60_000,
     });
     await page.getByTestId("finalize-transcription").click();
+    await expect(page).toHaveURL(new RegExp(`/submissions/${submissionId}$`), {
+      timeout: 30_000,
+    });
+
+    await expect
+      .poll(
+        async () => {
+          const detail = await request.get(
+            `${apiBase}/api/v1/submissions/${submissionId}`,
+            { headers },
+          );
+          if (!detail.ok()) return "pending";
+          const body = (await detail.json()) as {
+            workflow_state?: string;
+            transcription_state?: string;
+          };
+          return `${body.workflow_state}|${body.transcription_state}`;
+        },
+        { timeout: 120_000 },
+      )
+      .toMatch(/READY_FOR_EVALUATION\|READY/i);
 
     expect(
       (await request.get(`${apiBase}/api/v1/submissions/${submissionId}/published-result`, {
@@ -703,7 +755,7 @@ test.describe("UAT critical path", () => {
       })).status(),
     ).toBe(404);
 
-    await finalizeEvaluationViaApi(request, apiBase, headers, submissionId, 1);
+    await finalizeEvaluationViaApi(request, apiBase, headers, submissionId, 2);
 
     const pubPrep = await request.post(
       `${apiBase}/api/v1/submissions/${submissionId}/publication/prepare`,
