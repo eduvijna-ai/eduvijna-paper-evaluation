@@ -32,22 +32,35 @@ async def test_class_section_same_name_different_grades() -> None:
         headers = await _headers(client)
         years = await client.get("/api/v1/academic-years", headers=headers)
         year_id = years.json()[0]["id"]
+        section_name = f"A-{uuid.uuid4().hex[:6]}"
         g10 = await client.post(
             "/api/v1/class-sections",
             headers=headers,
-            json={"academic_year_id": year_id, "name": "A", "grade_label": "Grade 10"},
+            json={
+                "academic_year_id": year_id,
+                "name": section_name,
+                "grade_label": "Grade 10",
+            },
         )
         assert g10.status_code == 201, g10.text
         g12 = await client.post(
             "/api/v1/class-sections",
             headers=headers,
-            json={"academic_year_id": year_id, "name": "A", "grade_label": "Grade 12"},
+            json={
+                "academic_year_id": year_id,
+                "name": section_name,
+                "grade_label": "Grade 12",
+            },
         )
         assert g12.status_code == 201, g12.text
         dup = await client.post(
             "/api/v1/class-sections",
             headers=headers,
-            json={"academic_year_id": year_id, "name": "A", "grade_label": "Grade 12"},
+            json={
+                "academic_year_id": year_id,
+                "name": section_name,
+                "grade_label": "Grade 12",
+            },
         )
         assert dup.status_code == 409
         assert dup.json()["error"]["code"] == "CLASS_SECTION_CONFLICT"
