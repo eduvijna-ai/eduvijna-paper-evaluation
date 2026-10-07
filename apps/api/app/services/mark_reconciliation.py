@@ -16,7 +16,9 @@ class _QuestionLike(Protocol):
     selection_count: int | None
 
 
-def _children_map(questions: list[_QuestionLike]) -> dict[Any | None, list[_QuestionLike]]:
+def _children_map(
+    questions: Sequence[_QuestionLike],
+) -> dict[Any | None, list[_QuestionLike]]:
     children: dict[Any | None, list[_QuestionLike]] = defaultdict(list)
     for question in questions:
         children[question.parent_question_version_id].append(question)
