@@ -1254,7 +1254,7 @@ def test_b20_alembic_exactly_one_head() -> None:
     )
     assert proc.returncode == 0, proc.stderr
     lines = [line.strip() for line in proc.stdout.splitlines() if line.strip()]
-    assert lines == ["20260918_0022 (head)"]
+    assert lines == ["20261007_0023 (head)"]
 
 
 @pytest.mark.asyncio
