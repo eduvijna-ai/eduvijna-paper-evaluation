@@ -101,12 +101,63 @@ test.describe("UAT critical path", () => {
     const nodeCode = `UNIT-${suffix}`;
     await page.getByTestId("curriculum-node-code").fill(nodeCode);
     await page.getByTestId("curriculum-node-name").fill("Algebra unit");
+    await page.getByTestId("curriculum-node-sequence").fill("3");
     await page.getByTestId("curriculum-node-submit").click();
     await expect(page.getByText(nodeCode)).toBeVisible({ timeout: 20_000 });
     await page.reload();
     await expect(page.getByText(nodeCode)).toBeVisible({ timeout: 20_000 });
     await page.goto("/curriculum");
     await expect(page.getByText(code)).toBeVisible({ timeout: 20_000 });
+  });
+
+  test("curriculum edit preserves inactive status and description", async ({
+    page,
+    request,
+    baseURL,
+  }) => {
+    const apiBase = apiBaseFromEnv(baseURL);
+    const token = await loginApi(request, apiBase);
+    const headers = { Authorization: `Bearer ${token}` };
+    const suffix = runId();
+    const curriculum = await request.post(`${apiBase}/api/v1/curricula`, {
+      headers,
+      data: {
+        code: `UAT-INACT-${suffix}`,
+        name: `Inactive node ${suffix}`,
+        version_label: "2026",
+        status: "active",
+      },
+    });
+    expect(curriculum.status()).toBe(201);
+    const curriculumId = ((await curriculum.json()) as { id: string }).id;
+    const node = await request.post(`${apiBase}/api/v1/curricula/${curriculumId}/nodes`, {
+      headers,
+      data: {
+        node_type: "UNIT",
+        code: `U-${suffix}`,
+        name: "Original name",
+        description: "Preserved description",
+        sequence: 1,
+        status: "inactive",
+        metadata: {},
+      },
+    });
+    expect(node.status()).toBe(201);
+    const nodeId = ((await node.json()) as { id: string }).id;
+
+    await loginUi(page);
+    await page.goto(`/curriculum/${curriculumId}`);
+    await page.getByTestId(`curriculum-node-edit-${nodeId}`).click();
+    await page.getByTestId("curriculum-node-name").fill("Renamed unit");
+    await page.getByTestId("curriculum-node-submit").click();
+    await page.reload();
+    await expect(page.getByText("Renamed unit")).toBeVisible();
+    await expect(page.getByTestId(`curriculum-node-status-${nodeId}`)).toHaveText(
+      "inactive",
+    );
+    await expect(page.getByTestId(`curriculum-node-description-${nodeId}`)).toHaveText(
+      "Preserved description",
+    );
   });
 
   test("Maths-IIB ANY_N fixture parse, save, apply, and reconcile", async ({
@@ -197,6 +248,21 @@ test.describe("UAT critical path", () => {
     const sectionB = roots.find((r) => r.stable_code === "SEC_B");
     expect(sectionB?.selection_mode).toBe("ANY_N");
 
+    const proposalSave = await request.put(
+      `${apiBase}/api/v1/authoring-ai-runs/${runIdFromPrep}/question-tree-proposal`,
+      {
+        headers,
+        data: {
+          roots: roots.map((root) =>
+            root.stable_code === "SEC_B"
+              ? { ...root, selection_mode: "ANY_N", selection_count: 5 }
+              : root,
+          ),
+        },
+      },
+    );
+    expect(proposalSave.status()).toBe(200);
+
     const apply = await request.post(
       `${apiBase}/api/v1/authoring-ai-runs/${runIdFromPrep}/apply-question-tree`,
       { headers },
@@ -232,6 +298,7 @@ test.describe("UAT critical path", () => {
     await page.goto(`/assessments/${assessmentId}/questions`);
     await expect(page.getByTestId("question-paper-workflow-guide")).toBeVisible();
     await expect(page.getByTestId("question-tree")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByTestId("question-any-n-Section B")).toBeVisible();
   });
 
   test("question paper workflow guidance on draft assessment", async ({
@@ -266,6 +333,40 @@ test.describe("UAT critical path", () => {
     });
     expect(assessment.status()).toBe(201);
     const assessmentId = ((await assessment.json()) as { id: string }).id;
+
+    const newerCurriculum = await request.post(`${apiBase}/api/v1/curricula`, {
+      headers,
+      data: {
+        code: `UAT-NEWER-${suffix}`,
+        name: "Newer listing",
+        version_label: "2026",
+        status: "active",
+      },
+    });
+    expect(newerCurriculum.status()).toBe(201);
+    const newerCurriculumId = ((await newerCurriculum.json()) as { id: string }).id;
+    const newerActive = await request.post(`${apiBase}/api/v1/assessments`, {
+      headers,
+      data: {
+        curriculum_id: newerCurriculumId,
+        code: `UAT-ACT-${suffix}`,
+        title: "Newer active assessment",
+        assessment_type: "EXAM",
+        max_marks: "5.00",
+      },
+    });
+    expect(newerActive.status()).toBe(201);
+    const newerActiveId = ((await newerActive.json()) as { id: string }).id;
+    for (const to of ["READY", "ACTIVE"]) {
+      expect(
+        (
+          await request.post(
+            `${apiBase}/api/v1/assessments/${newerActiveId}/transition`,
+            { headers, data: { to_status: to } },
+          )
+        ).status(),
+      ).toBe(200);
+    }
 
     await loginUi(page);
     await page.goto(`/assessments/${assessmentId}/questions`);

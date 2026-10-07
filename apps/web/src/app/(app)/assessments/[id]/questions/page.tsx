@@ -107,15 +107,60 @@ function ProposedTreeEditor({
                 }
               />
             </label>
-            <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-600">
+            <div className="mt-2 flex flex-wrap items-end gap-3 text-xs text-slate-600">
               <span>Marks: {String(node.max_marks)}</span>
               <span>Mode: {node.scoring_mode}</span>
-              {(node.selection_mode ?? "ALL") === "ANY_N" && (
-                <span data-testid={`proposal-any-n-${pathKey}`}>
-                  Answer any {node.selection_count ?? "?"} in group
-                </span>
-              )}
               <span>Type: {node.question_type}</span>
+              {(node.children?.length ?? 0) > 0 && (
+                <>
+                  <label className="text-xs text-slate-600">
+                    Selection
+                    <select
+                      data-testid={`proposal-selection-mode-${pathKey}`}
+                      className="mt-1 block rounded border border-slate-300 bg-white px-2 py-1 text-sm"
+                      value={node.selection_mode ?? "ALL"}
+                      onChange={(e) =>
+                        onChange(
+                          updateNodeAtPath(roots, [index], {
+                            selection_mode: e.target.value,
+                            selection_count:
+                              e.target.value === "ANY_N"
+                                ? (node.selection_count ?? 1)
+                                : null,
+                          }),
+                        )
+                      }
+                    >
+                      <option value="ALL">ALL</option>
+                      <option value="ANY_N">ANY_N</option>
+                    </select>
+                  </label>
+                  {(node.selection_mode ?? "ALL") === "ANY_N" && (
+                    <label className="text-xs text-slate-600">
+                      Count
+                      <input
+                        data-testid={`proposal-selection-count-${pathKey}`}
+                        type="number"
+                        min={1}
+                        className="mt-1 block w-20 rounded border border-slate-300 bg-white px-2 py-1 text-sm"
+                        value={node.selection_count ?? 1}
+                        onChange={(e) =>
+                          onChange(
+                            updateNodeAtPath(roots, [index], {
+                              selection_count: Number(e.target.value) || 1,
+                            }),
+                          )
+                        }
+                      />
+                    </label>
+                  )}
+                  {(node.selection_mode ?? "ALL") === "ANY_N" && (
+                    <span data-testid={`proposal-any-n-${pathKey}`}>
+                      Answer any {node.selection_count ?? "?"} in group
+                    </span>
+                  )}
+                </>
+              )}
             </div>
             {(node.children?.length ?? 0) > 0 && (
               <div className="mt-3 border-l-2 border-slate-200 pl-3">

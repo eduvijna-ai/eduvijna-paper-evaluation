@@ -55,12 +55,14 @@ def find_choice_group_over_attempts(
         count = question.selection_count
         if count is None:
             continue
-        leaves = _leaf_descendants(question, children)
+        direct_children = children.get(question.id, [])
         answered = 0
-        for leaf in leaves:
-            mapping = mappings.get(leaf.id)
-            if mapping is not None and mapping.disposition == "ANSWERED":
-                answered += 1
+        for child in direct_children:
+            for leaf in _leaf_descendants(child, children):
+                mapping = mappings.get(leaf.id)
+                if mapping is not None and mapping.disposition == "ANSWERED":
+                    answered += 1
+                    break
         if answered > count:
             violations.append(
                 ChoiceGroupViolation(

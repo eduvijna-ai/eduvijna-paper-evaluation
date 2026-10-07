@@ -106,6 +106,8 @@ export function curriculumNodeApiToView(api: A2CurriculumNode): CurriculumNode {
     code: api.code,
     title: api.name,
     sort_order: api.sequence,
+    description: api.description ?? null,
+    status: api.status,
     metadata: api.metadata as CurriculumNode["metadata"],
     children: (api.children ?? []).map(curriculumNodeApiToView),
   };
@@ -170,6 +172,8 @@ export function questionTreeApiToView(
     curriculum_node_ids: [],
     question_version_id: node.id,
     scoring_mode: node.scoring_mode,
+    selection_mode: node.selection_mode ?? "ALL",
+    selection_count: node.selection_count ?? null,
     is_leaf_scorable: node.scoring_mode === "LEAF_SCORABLE",
     children: questionTreeApiToView(node.children ?? [], assessmentId),
   }));

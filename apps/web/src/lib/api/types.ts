@@ -275,6 +275,7 @@ export interface ApiClient {
     languageCode?: string;
     scriptCode?: string;
   }): Promise<Submission>;
+  retryPageNormalization?(submissionId: string): Promise<Submission>;
   putSubmissionLanguage?(
     submissionId: string,
     input: {

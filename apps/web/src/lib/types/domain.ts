@@ -110,6 +110,8 @@ export interface CurriculumNode {
   code: string;
   title: string;
   sort_order: number;
+  description?: string | null;
+  status?: string;
   metadata?: Record<string, string | number | boolean>;
   children?: CurriculumNode[];
 }
@@ -170,6 +172,8 @@ export interface Question {
   /** Live B4 question-version id (often equal to `id` in the mapping tree). */
   question_version_id?: string;
   scoring_mode?: string;
+  selection_mode?: "ALL" | "ANY_N" | string;
+  selection_count?: number | null;
   is_leaf_scorable?: boolean;
 }
 
@@ -437,6 +441,9 @@ export interface Submission {
   subject_context?: SubjectProfileView;
   language_context?: LanguageContextView;
   automation_block_code?: string | null;
+  pipeline_job_id?: string | null;
+  pipeline_job_status?: string | null;
+  pipeline_enqueue_error?: string | null;
 }
 
 export interface SubjectProfileView {

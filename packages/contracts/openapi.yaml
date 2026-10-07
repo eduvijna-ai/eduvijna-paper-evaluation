@@ -765,6 +765,21 @@ paths:
                 $ref: "#/components/schemas/Submission"
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /api/v1/submissions/{id}/retry-page-normalization:
+    parameters: [{ $ref: "#/components/parameters/Id" }]
+    post:
+      operationId: retrySubmissionPageNormalization
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200":
+          description: Re-queue page normalization for a persisted source after enqueue failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Submission"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { description: Source unavailable or job not retryable }
   /api/v1/submissions/{id}/language:
     parameters: [{ $ref: "#/components/parameters/Id" }]
     put:
@@ -4599,6 +4614,11 @@ components:
               LANGUAGE_CONTEXT_REQUIRED,
               null,
             ]
+        pipeline_job_id: { type: [string, "null"], format: uuid }
+        pipeline_job_status:
+          type: [string, "null"]
+          enum: [QUEUED, RUNNING, SUCCEEDED, FAILED, null]
+        pipeline_enqueue_error: { type: [string, "null"] }
         uploaded_by: { type: string, format: uuid }
         uploaded_at: { type: string, format: date-time }
         created_at: { type: string, format: date-time }

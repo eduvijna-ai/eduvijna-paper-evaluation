@@ -2,11 +2,16 @@
 
 import Link from "next/link";
 import { use } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { getApiCapabilities } from "@/lib/api/capabilities";
 import { PageHeader, StatusBadge } from "@/components/layout/PageHeader";
-import { ConfidenceIndicator, ErrorState, LoadingState } from "@/components/ui/FeedbackStates";
+import {
+  ConfidenceIndicator,
+  ErrorState,
+  LoadingState,
+} from "@/components/ui/FeedbackStates";
+import { Button } from "@/components/ui/primitives";
 import { languageStateLabel, subjectProfileLabel } from "@/lib/b20/context";
 import { LanguageReviewPanel } from "@/lib/b20/LanguageReviewPanel";
 
@@ -93,6 +98,19 @@ export default function SubmissionDetailPage({
   const reportsLive = getApiCapabilities().reports === "live";
   const analyticsLive = getApiCapabilities().analytics === "live";
   const learningLive = getApiCapabilities().learning === "live";
+  const queryClient = useQueryClient();
+  const retryPipeline = useMutation({
+    mutationFn: () => {
+      if (!api.retryPageNormalization) {
+        throw new Error("Pipeline retry is not available.");
+      }
+      return api.retryPageNormalization(id);
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["submission", id] });
+    },
+  });
+
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["submission", id],
     queryFn: () => api.getSubmission(id),
@@ -294,6 +312,29 @@ export default function SubmissionDetailPage({
           <StatusBadge kind="identity" state={data.student_match_state} />
         </span>
       </div>
+
+      {live && data.pipeline_enqueue_error && (
+        <div
+          data-testid="pipeline-enqueue-failure-banner"
+          className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-3 py-3 text-sm text-amber-950"
+        >
+          <p className="font-medium">Processing could not be queued</p>
+          <p className="mt-1 text-xs">{data.pipeline_enqueue_error}</p>
+          <p className="mt-2 text-xs text-amber-900">
+            Your file is saved. Retry normalization without re-uploading the same
+            source.
+          </p>
+          <Button
+            type="button"
+            className="mt-3"
+            data-testid="retry-page-normalization"
+            disabled={retryPipeline.isPending}
+            onClick={() => retryPipeline.mutate()}
+          >
+            {retryPipeline.isPending ? "Retrying…" : "Retry normalization"}
+          </Button>
+        </div>
+      )}
 
       {live && (
         <p

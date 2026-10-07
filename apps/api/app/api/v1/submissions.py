@@ -89,6 +89,43 @@ async def _audit(
     )
 
 
+async def _latest_page_normalization_job(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    submission_id: uuid.UUID,
+) -> PipelineJob | None:
+    return await db.scalar(
+        select(PipelineJob)
+        .where(
+            PipelineJob.tenant_id == tenant_id,
+            PipelineJob.submission_id == submission_id,
+            PipelineJob.stage == "PAGE_NORMALIZATION",
+        )
+        .order_by(PipelineJob.created_at.desc())
+        .limit(1)
+    )
+
+
+def _attach_page_normalization_pipeline(
+    dump: dict[str, Any],
+    job: PipelineJob | None,
+    *,
+    enqueue_error: str | None = None,
+) -> None:
+    if job is not None:
+        dump["pipeline_job_id"] = str(job.id)
+        dump["pipeline_job_status"] = job.status
+    if enqueue_error is not None:
+        dump["pipeline_enqueue_error"] = enqueue_error
+    elif (
+        job is not None
+        and job.status == "FAILED"
+        and job.error_code == "PIPELINE_ENQUEUE_FAILED"
+    ):
+        dump["pipeline_enqueue_error"] = job.error_detail
+
+
 def _dump_submission(
     item: Submission,
     *,
@@ -380,6 +417,8 @@ async def upload_submission(
             submission.id,
             job.id,
         )
+        job.status = "FAILED"
+        job.finished_at = datetime.now(UTC)
         job.error_code = "PIPELINE_ENQUEUE_FAILED"
         job.error_detail = enqueue_error
         await db.commit()
@@ -389,8 +428,92 @@ async def upload_submission(
             await db.commit()
 
     body = _dump_submission(submission, assessment_title=assessment.title)
-    body["pipeline_job_id"] = str(job.id)
-    body["pipeline_enqueue_error"] = enqueue_error
+    _attach_page_normalization_pipeline(body, job, enqueue_error=enqueue_error)
+    return body
+
+
+@router.post("/submissions/{submission_id}/retry-page-normalization")
+async def retry_page_normalization(
+    submission_id: uuid.UUID,
+    db: Db,
+    auth: AuthContext = Depends(require_permissions("submission:upload")),
+) -> dict[str, Any]:
+    """Re-queue page normalization for a persisted source after enqueue failure."""
+    submission = await _scoped_submission(db, submission_id, auth.tenant_id)
+    if submission.storage_status != "AVAILABLE":
+        raise HTTPException(
+            409,
+            detail={
+                "error": {
+                    "code": "SOURCE_NOT_AVAILABLE",
+                    "message": "Submission source is not available for retry.",
+                }
+            },
+        )
+    job = await _latest_page_normalization_job(
+        db, tenant_id=auth.tenant_id, submission_id=submission.id
+    )
+    if job is None or job.error_code != "PIPELINE_ENQUEUE_FAILED":
+        raise HTTPException(
+            409,
+            detail={
+                "error": {
+                    "code": "PIPELINE_RETRY_NOT_ALLOWED",
+                    "message": "No failed page-normalization enqueue is pending retry.",
+                }
+            },
+        )
+    if job.status != "FAILED":
+        raise HTTPException(
+            409,
+            detail={
+                "error": {
+                    "code": "PIPELINE_RETRY_NOT_ALLOWED",
+                    "message": "Page normalization is not in a retryable state.",
+                }
+            },
+        )
+    job.status = "QUEUED"
+    job.attempt = job.attempt + 1
+    job.error_code = None
+    job.error_detail = None
+    job.finished_at = None
+    job.celery_task_id = None
+    await db.commit()
+    await db.refresh(job)
+
+    enqueue_error: str | None = None
+    task_id: str | None = None
+    try:
+        task_id = await enqueue_page_normalization(
+            tenant_id=auth.tenant_id,
+            submission_id=submission.id,
+            job_id=job.id,
+        )
+    except Exception as exc:  # noqa: BLE001
+        enqueue_error = str(exc)[:300]
+        logger.exception(
+            "page normalization retry enqueue failed submission_id=%s job_id=%s",
+            submission.id,
+            job.id,
+        )
+        job.status = "FAILED"
+        job.finished_at = datetime.now(UTC)
+        job.error_code = "PIPELINE_ENQUEUE_FAILED"
+        job.error_detail = enqueue_error
+        await db.commit()
+    else:
+        if task_id:
+            job.celery_task_id = task_id
+            await db.commit()
+
+    assessment_title = await _assessment_title(db, submission.assessment_id)
+    body = _dump_submission(
+        submission,
+        assessment_title=assessment_title,
+        student_display_name=await _student_name(db, submission.student_id),
+    )
+    _attach_page_normalization_pipeline(body, job, enqueue_error=enqueue_error)
     return body
 
 
@@ -466,6 +589,10 @@ async def get_submission(
     dump["subject_context"] = context.subject.as_public_dict()
     dump["language_context"] = context.language.as_public_dict()
     dump["automation_block_code"] = context.automation_block_code()
+    page_job = await _latest_page_normalization_job(
+        db, tenant_id=auth.tenant_id, submission_id=item.id
+    )
+    _attach_page_normalization_pipeline(dump, page_job)
     return dump
 
 

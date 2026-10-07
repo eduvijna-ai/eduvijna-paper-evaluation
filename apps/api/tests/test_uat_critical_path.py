@@ -128,7 +128,49 @@ async def test_submission_upload_enqueue_failure_still_persists() -> None:
         assert upload.status_code == 201, upload.text
         body = upload.json()
         assert body["pipeline_enqueue_error"]
+        assert body["pipeline_job_status"] == "FAILED"
         assert body["id"]
+        job_id = body["pipeline_job_id"]
+        async with async_session_factory() as db:
+            from app.db.models import PipelineJob
+
+            job = await db.get(PipelineJob, uuid.UUID(job_id))
+            assert job is not None
+            assert job.finished_at is not None
+            assert job.error_code == "PIPELINE_ENQUEUE_FAILED"
+
+
+@pytest.mark.asyncio
+async def test_submission_enqueue_retry_recovers_without_reupload() -> None:
+    mock_enqueue = AsyncMock(side_effect=RuntimeError("broker down"))
+    async with api_client() as client:
+        headers = await _headers(client)
+        data = await _active_assessment(client, headers)
+        with patch(
+            "app.api.v1.submissions.enqueue_page_normalization",
+            new=mock_enqueue,
+        ):
+            upload = await client.post(
+                "/api/v1/submissions",
+                headers=headers,
+                data={"assessment_id": data["assessment"]["id"]},
+                files={"file": ("retry-me.png", _png_bytes(), "image/png")},
+            )
+        assert upload.status_code == 201, upload.text
+        submission_id = upload.json()["id"]
+        mock_enqueue.side_effect = None
+        mock_enqueue.return_value = "task-recovered"
+        retry = await client.post(
+            f"/api/v1/submissions/{submission_id}/retry-page-normalization",
+            headers=headers,
+        )
+        assert retry.status_code == 200, retry.text
+        assert not retry.json().get("pipeline_enqueue_error")
+        detail = await client.get(
+            f"/api/v1/submissions/{submission_id}", headers=headers
+        )
+        assert detail.status_code == 200
+        assert detail.json().get("pipeline_job_status") in {"QUEUED", "RUNNING", "SUCCEEDED"}
 
 
 @pytest.mark.asyncio
@@ -240,5 +282,89 @@ def test_choice_group_over_attempt_blocks() -> None:
         leaf_ids[2]: SimpleNamespace(disposition="BLANK"),
     }
     violations = find_choice_group_over_attempts(questions, mappings)
+    assert len(violations) == 1
+    assert violations[0].answered_count == 2
+
+
+def test_choice_group_nested_branch_single_attempt_ok() -> None:
+    parent_id = uuid.uuid4()
+    option_a = uuid.uuid4()
+    leaf_a1, leaf_a2 = uuid.uuid4(), uuid.uuid4()
+    option_b = uuid.uuid4()
+    leaf_b1 = uuid.uuid4()
+    questions = [
+        SimpleNamespace(
+            id=parent_id,
+            parent_question_version_id=None,
+            sequence=1,
+            scoring_mode="CONTAINER_DERIVED",
+            max_marks=Decimal("8"),
+            selection_mode="ANY_N",
+            selection_count=1,
+            display_label="G",
+        ),
+        SimpleNamespace(
+            id=option_a,
+            parent_question_version_id=parent_id,
+            sequence=1,
+            scoring_mode="CONTAINER_DERIVED",
+            max_marks=Decimal("4"),
+            selection_mode="ALL",
+            selection_count=None,
+            display_label="A",
+        ),
+        SimpleNamespace(
+            id=leaf_a1,
+            parent_question_version_id=option_a,
+            sequence=1,
+            scoring_mode="LEAF_SCORABLE",
+            max_marks=Decimal("2"),
+            selection_mode="ALL",
+            selection_count=None,
+            display_label="a1",
+        ),
+        SimpleNamespace(
+            id=leaf_a2,
+            parent_question_version_id=option_a,
+            sequence=2,
+            scoring_mode="LEAF_SCORABLE",
+            max_marks=Decimal("2"),
+            selection_mode="ALL",
+            selection_count=None,
+            display_label="a2",
+        ),
+        SimpleNamespace(
+            id=option_b,
+            parent_question_version_id=parent_id,
+            sequence=2,
+            scoring_mode="LEAF_SCORABLE",
+            max_marks=Decimal("4"),
+            selection_mode="ALL",
+            selection_count=None,
+            display_label="B",
+        ),
+        SimpleNamespace(
+            id=leaf_b1,
+            parent_question_version_id=option_b,
+            sequence=1,
+            scoring_mode="LEAF_SCORABLE",
+            max_marks=Decimal("4"),
+            selection_mode="ALL",
+            selection_count=None,
+            display_label="b1",
+        ),
+    ]
+    compliant = {
+        leaf_a1: SimpleNamespace(disposition="ANSWERED"),
+        leaf_a2: SimpleNamespace(disposition="ANSWERED"),
+        leaf_b1: SimpleNamespace(disposition="BLANK"),
+    }
+    assert find_choice_group_over_attempts(questions, compliant) == []
+    over = {
+        leaf_a1: SimpleNamespace(disposition="ANSWERED"),
+        leaf_a2: SimpleNamespace(disposition="ANSWERED"),
+        leaf_b1: SimpleNamespace(disposition="ANSWERED"),
+    }
+    violations = find_choice_group_over_attempts(questions, over)
     assert len(violations) == 1
     assert violations[0].answered_count == 2

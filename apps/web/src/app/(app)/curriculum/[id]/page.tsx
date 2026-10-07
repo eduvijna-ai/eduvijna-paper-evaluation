@@ -39,6 +39,22 @@ function NodeList({ nodes, depth = 0 }: { nodes: CurriculumNode[]; depth?: numbe
             </span>
             <span className="font-medium text-slate-900">{node.title}</span>
             <span className="text-xs text-slate-400">{node.code}</span>
+            {node.status && (
+              <span
+                data-testid={`curriculum-node-status-${node.id}`}
+                className="text-xs text-slate-500"
+              >
+                {node.status}
+              </span>
+            )}
+            {node.description && (
+              <span
+                data-testid={`curriculum-node-description-${node.id}`}
+                className="text-xs text-slate-500"
+              >
+                {node.description}
+              </span>
+            )}
           </div>
           {node.children && node.children.length > 0 && (
             <NodeList nodes={node.children} depth={depth + 1} />
@@ -151,7 +167,8 @@ export default function CurriculumDetailPage({
     setValue("code", node.code);
     setValue("name", node.title);
     setValue("sequence", node.sort_order ?? 0);
-    setValue("status", "active");
+    setValue("description", node.description ?? "");
+    setValue("status", node.status ?? "active");
   };
 
   return (
@@ -224,6 +241,11 @@ export default function CurriculumDetailPage({
               className="mt-1"
               {...register("sequence", { valueAsNumber: true })}
             />
+            {errors.sequence && (
+              <span className="mt-1 block text-xs text-rose-700">
+                {errors.sequence.message}
+              </span>
+            )}
           </label>
           <label className="text-sm">
             Status
