@@ -222,7 +222,7 @@ export default function CurriculumDetailPage({
               data-testid="curriculum-node-sequence"
               type="number"
               className="mt-1"
-              {...register("sequence")}
+              {...register("sequence", { valueAsNumber: true })}
             />
           </label>
           <label className="text-sm">

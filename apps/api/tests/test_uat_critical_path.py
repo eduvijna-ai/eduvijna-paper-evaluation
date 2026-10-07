@@ -16,7 +16,15 @@ from app.db.models import QuestionVersion
 from app.services.authoring_ai import validate_question_tree
 from app.services.choice_groups import find_choice_group_over_attempts
 from app.services.mark_reconciliation import reconcile_marks
-from tests.test_b3_submission_ingestion import _active_assessment, _headers, api_client
+from sqlalchemy import text
+
+from app.db.session import async_session_factory
+from tests.test_b3_submission_ingestion import (
+    _active_assessment,
+    _headers,
+    _pdf_bytes,
+    api_client,
+)
 
 
 def _png_bytes() -> bytes:
@@ -64,6 +72,43 @@ async def test_class_section_same_name_different_grades() -> None:
         )
         assert dup.status_code == 409
         assert dup.json()["error"]["code"] == "CLASS_SECTION_CONFLICT"
+
+
+@pytest.mark.asyncio
+async def test_class_section_migration_unique_includes_grade_label() -> None:
+    async with async_session_factory() as db:
+        row = await db.scalar(
+            text(
+                "SELECT indexdef FROM pg_indexes "
+                "WHERE indexname = 'uq_class_sections_scope_grade_name'"
+            )
+        )
+        assert row is not None
+        assert "grade_label" in row
+
+
+@pytest.mark.asyncio
+async def test_duplicate_submission_source_is_domain_409_not_500() -> None:
+    """Re-uploading the same bytes must not surface as an unhandled 500."""
+    async with api_client() as client:
+        headers = await _headers(client)
+        data = await _active_assessment(client, headers)
+        pdf = _pdf_bytes(1)
+        first = await client.post(
+            "/api/v1/submissions",
+            headers=headers,
+            data={"assessment_id": data["assessment"]["id"]},
+            files={"file": ("dup.pdf", pdf, "application/pdf")},
+        )
+        assert first.status_code == 201, first.text
+        duplicate = await client.post(
+            "/api/v1/submissions",
+            headers=headers,
+            data={"assessment_id": data["assessment"]["id"]},
+            files={"file": ("dup.pdf", pdf, "application/pdf")},
+        )
+        assert duplicate.status_code == 409, duplicate.text
+        assert duplicate.json()["error"]["code"] == "DUPLICATE_SUBMISSION_SOURCE"
 
 
 @pytest.mark.asyncio

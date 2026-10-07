@@ -123,7 +123,7 @@ def _proposed_effective_max(node: ProposedQuestionNode) -> Decimal:
                     f"ANY_N children must have equal marks for {node.stable_code!r}",
                 )
         return (Decimal(count) * per_child).quantize(Decimal("0.01"))
-    return sum(child_totals, Decimal("0.00")).quantize(Decimal("0.01"))
+    return sum(child_totals, start=Decimal("0.00")).quantize(Decimal("0.01"))
 
 
 def validate_question_tree(
