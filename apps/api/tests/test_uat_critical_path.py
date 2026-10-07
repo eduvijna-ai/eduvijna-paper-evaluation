@@ -4,25 +4,18 @@ from __future__ import annotations
 
 import io
 import uuid
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
 import pytest
-from httpx import ASGITransport, AsyncClient
 from PIL import Image
 
 from app.ai.fixtures.maths_iib_uat import build_maths_iib_proposal
-from app.cli.seed_dev import ADMIN_EMAIL, ADMIN_PASSWORD, seed
-from app.core.config import get_settings
 from app.db.models import QuestionVersion
-from app.main import create_app
 from app.services.authoring_ai import validate_question_tree
 from app.services.choice_groups import find_choice_group_over_attempts
 from app.services.mark_reconciliation import reconcile_marks
-from app.services.storage import ObjectStorage
 from tests.test_b3_submission_ingestion import _active_assessment, _headers, api_client
 
 
