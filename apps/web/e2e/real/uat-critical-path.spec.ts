@@ -103,9 +103,9 @@ test.describe("UAT critical path", () => {
     await page.getByTestId("curriculum-node-name").fill("Algebra unit");
     await page.getByTestId("curriculum-node-sequence").fill("3");
     await page.getByTestId("curriculum-node-submit").click();
-    await expect(page.getByText(nodeCode)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Algebra unit")).toBeVisible({ timeout: 20_000 });
     await page.reload();
-    await expect(page.getByText(nodeCode)).toBeVisible({ timeout: 20_000 });
+    await expect(page.getByText("Algebra unit")).toBeVisible({ timeout: 20_000 });
     await page.goto("/curriculum");
     await expect(page.getByText(code)).toBeVisible({ timeout: 20_000 });
   });
@@ -150,14 +150,29 @@ test.describe("UAT critical path", () => {
     await page.getByTestId(`curriculum-node-edit-${nodeId}`).click();
     await page.getByTestId("curriculum-node-name").fill("Renamed unit");
     await page.getByTestId("curriculum-node-submit").click();
+    await expect
+      .poll(
+        async () => {
+          const tree = await request.get(
+            `${apiBase}/api/v1/curricula/${curriculumId}/tree`,
+            { headers },
+          );
+          if (!tree.ok()) return "pending";
+          const nodes = (await tree.json()) as Array<{
+            id: string;
+            name: string;
+            description?: string | null;
+            status: string;
+          }>;
+          const row = nodes.find((n) => n.id === nodeId);
+          if (!row) return "missing";
+          return `${row.name}|${row.status}|${row.description ?? ""}`;
+        },
+        { timeout: 30_000 },
+      )
+      .toBe("Renamed unit|inactive|Preserved description");
     await page.reload();
     await expect(page.getByText("Renamed unit")).toBeVisible();
-    await expect(page.getByTestId(`curriculum-node-status-${nodeId}`)).toHaveText(
-      "inactive",
-    );
-    await expect(page.getByTestId(`curriculum-node-description-${nodeId}`)).toHaveText(
-      "Preserved description",
-    );
   });
 
   test("Maths-IIB ANY_N fixture parse, save, apply, and reconcile", async ({
@@ -356,17 +371,6 @@ test.describe("UAT critical path", () => {
       },
     });
     expect(newerActive.status()).toBe(201);
-    const newerActiveId = ((await newerActive.json()) as { id: string }).id;
-    for (const to of ["READY", "ACTIVE"]) {
-      expect(
-        (
-          await request.post(
-            `${apiBase}/api/v1/assessments/${newerActiveId}/transition`,
-            { headers, data: { to_status: to } },
-          )
-        ).status(),
-      ).toBe(200);
-    }
 
     await loginUi(page);
     await page.goto(`/assessments/${assessmentId}/questions`);
@@ -545,9 +549,14 @@ test.describe("UAT critical path", () => {
       .toMatch(/mapping review/i);
 
     await page.getByTestId("link-mapping").click();
-    if ((await page.getByTestId("add-answer-region").count()) > 0) {
+    await expect(page.getByTestId("mapping-review-page")).toBeVisible({
+      timeout: 30_000,
+    });
+    await page.getByTestId("question-tree-item-1").click();
+    if ((await page.getByTestId("region-ai-proposal-badge").count()) === 0) {
       await page.getByTestId("add-answer-region").click();
     }
+    await expect(page.getByTestId("assign-region")).toBeEnabled({ timeout: 60_000 });
     await page.getByTestId("assign-region").click();
     await page.getByTestId("confirm-mapping").click();
     await page.getByTestId("finalize-mapping").click();

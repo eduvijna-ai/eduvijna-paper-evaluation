@@ -8,7 +8,7 @@ import uuid
 from dataclasses import replace
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Annotated, Any
+from typing import Annotated, Any, cast
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response, StreamingResponse
@@ -95,15 +95,18 @@ async def _latest_page_normalization_job(
     tenant_id: uuid.UUID,
     submission_id: uuid.UUID,
 ) -> PipelineJob | None:
-    return await db.scalar(
-        select(PipelineJob)
-        .where(
-            PipelineJob.tenant_id == tenant_id,
-            PipelineJob.submission_id == submission_id,
-            PipelineJob.stage == "PAGE_NORMALIZATION",
-        )
-        .order_by(PipelineJob.created_at.desc())
-        .limit(1)
+    return cast(
+        PipelineJob | None,
+        await db.scalar(
+            select(PipelineJob)
+            .where(
+                PipelineJob.tenant_id == tenant_id,
+                PipelineJob.submission_id == submission_id,
+                PipelineJob.stage == "PAGE_NORMALIZATION",
+            )
+            .order_by(PipelineJob.created_at.desc())
+            .limit(1)
+        ),
     )
 
 
