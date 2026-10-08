@@ -208,16 +208,20 @@ async def test_submission_retry_enqueue_failure_returns_safe_message_only() -> N
                 data={"assessment_id": data["assessment"]["id"]},
                 files={"file": ("retry-fail.png", _png_bytes(), "image/png")},
             )
-        assert upload.status_code == 201, upload.text
-        submission_id = upload.json()["id"]
-        retry = await client.post(
-            f"/api/v1/submissions/{submission_id}/retry-page-normalization",
-            headers=headers,
-        )
-        assert retry.status_code == 200, retry.text
-        assert retry.json()["pipeline_enqueue_error"] == PIPELINE_ENQUEUE_FAILED_PUBLIC_MESSAGE
-        assert _SENSITIVE_ENQUEUE_EXCEPTION not in retry.text
-        assert retry.json()["pipeline_job_status"] == "FAILED"
+            assert upload.status_code == 201, upload.text
+            submission_id = upload.json()["id"]
+            retry = await client.post(
+                f"/api/v1/submissions/{submission_id}/retry-page-normalization",
+                headers=headers,
+            )
+            assert retry.status_code == 200, retry.text
+            assert (
+                retry.json()["pipeline_enqueue_error"]
+                == PIPELINE_ENQUEUE_FAILED_PUBLIC_MESSAGE
+            )
+            assert _SENSITIVE_ENQUEUE_EXCEPTION not in retry.text
+            assert retry.json()["pipeline_job_status"] == "FAILED"
+            assert mock_enqueue.await_count >= 2
 
 
 @pytest.mark.asyncio
