@@ -10,7 +10,8 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Literal, cast
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.execution_metadata import metadata_from_provider
@@ -85,6 +86,23 @@ def _utcnow() -> datetime:
 async def _get_student(db: AsyncSession, *, tenant_id: uuid.UUID, student_id: uuid.UUID) -> Student:
     student = await db.scalar(
         select(Student).where(Student.id == student_id, Student.tenant_id == tenant_id)
+    )
+    if student is None:
+        raise LearningError("NOT_FOUND", "Student not found")
+    return student
+
+
+_ENQUEUE_CLAIM_TOKEN = "__enqueue_claim__"
+
+
+async def _lock_student_prepare_scope(
+    db: AsyncSession, *, tenant_id: uuid.UUID, student_id: uuid.UUID
+) -> Student:
+    """Serialize learning-plan prepare/enqueue for one student within a transaction."""
+    student = await db.scalar(
+        select(Student)
+        .where(Student.id == student_id, Student.tenant_id == tenant_id)
+        .with_for_update()
     )
     if student is None:
         raise LearningError("NOT_FOUND", "Student not found")
@@ -293,6 +311,9 @@ async def prepare_learning_plan(
         db, tenant_id=tenant_id, student_id=student_id, curriculum_id=curriculum_id
     )
 
+    # Serialize concurrent prepares for the same student (B14 reassessment / double submit).
+    await _lock_student_prepare_scope(db, tenant_id=tenant_id, student_id=student_id)
+
     existing = await db.scalar(
         select(LearningPlanRun).where(
             LearningPlanRun.tenant_id == tenant_id,
@@ -331,6 +352,90 @@ async def prepare_learning_plan(
     db.add(run)
     await db.flush()
     return run
+
+
+async def claim_and_enqueue_learning_plan(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    student_id: uuid.UUID,
+    run_id: uuid.UUID,
+) -> tuple[LearningPlanRun, str | None, str | None]:
+    """Enqueue learning-plan work at most once per QUEUED run under concurrency."""
+    run = await db.scalar(
+        select(LearningPlanRun).where(
+            LearningPlanRun.id == run_id,
+            LearningPlanRun.tenant_id == tenant_id,
+            LearningPlanRun.student_id == student_id,
+        )
+    )
+    if run is None:
+        raise LearningError("NOT_FOUND", "Learning plan run not found")
+
+    task_id: str | None = run.celery_task_id
+    enqueue_error: str | None = None
+    if run.status == "QUEUED" and not run.celery_task_id:
+        claimed = cast(
+            CursorResult[Any],
+            await db.execute(
+                update(LearningPlanRun)
+                .where(
+                    LearningPlanRun.id == run_id,
+                    LearningPlanRun.tenant_id == tenant_id,
+                    LearningPlanRun.student_id == student_id,
+                    LearningPlanRun.status == "QUEUED",
+                    LearningPlanRun.celery_task_id.is_(None),
+                )
+                .values(celery_task_id=_ENQUEUE_CLAIM_TOKEN)
+            ),
+        )
+        if claimed.rowcount == 1:
+            # Commit claim before Celery dispatch so eager workers can update the run row.
+            await db.commit()
+            try:
+                from app.tasks.celery_app import enqueue_learning_plan
+
+                task_id = await enqueue_learning_plan(tenant_id=tenant_id, run_id=run.id)
+                if task_id:
+                    await db.execute(
+                        update(LearningPlanRun)
+                        .where(
+                            LearningPlanRun.id == run_id,
+                            LearningPlanRun.celery_task_id == _ENQUEUE_CLAIM_TOKEN,
+                        )
+                        .values(celery_task_id=task_id)
+                    )
+                else:
+                    await db.execute(
+                        update(LearningPlanRun)
+                        .where(
+                            LearningPlanRun.id == run_id,
+                            LearningPlanRun.celery_task_id == _ENQUEUE_CLAIM_TOKEN,
+                        )
+                        .values(celery_task_id=None)
+                    )
+            except Exception as exc:  # noqa: BLE001
+                enqueue_error = str(exc)[:300]
+                logger.exception("learning plan enqueue failed run_id=%s", run.id)
+                await db.execute(
+                    update(LearningPlanRun)
+                    .where(
+                        LearningPlanRun.id == run_id,
+                        LearningPlanRun.celery_task_id == _ENQUEUE_CLAIM_TOKEN,
+                    )
+                    .values(celery_task_id=None)
+                )
+        run = await db.scalar(
+            select(LearningPlanRun).where(
+                LearningPlanRun.id == run_id,
+                LearningPlanRun.tenant_id == tenant_id,
+                LearningPlanRun.student_id == student_id,
+            )
+        )
+        if run is None:
+            raise LearningError("NOT_FOUND", "Learning plan run not found")
+        task_id = run.celery_task_id if run.celery_task_id != _ENQUEUE_CLAIM_TOKEN else task_id
+    return run, task_id, enqueue_error
 
 
 async def run_learning_plan_pipeline(

@@ -16,6 +16,7 @@ from app.db.session import get_db_session
 from app.services.learning import (
     LearningError,
     approve_blueprint,
+    claim_and_enqueue_learning_plan,
     get_improvement_assessment,
     get_learning_workspace,
     get_plan_run,
@@ -107,23 +108,15 @@ async def prepare_student_learning_plan(
 
     await db.commit()
 
-    task_id: str | None = None
-    enqueue_error: str | None = None
-    if run.status == "QUEUED":
-        try:
-            from app.tasks.celery_app import enqueue_learning_plan
-
-            task_id = await enqueue_learning_plan(
-                tenant_id=auth.tenant_id, run_id=run.id
-            )
-            if task_id:
-                await db.refresh(run)
-                run.celery_task_id = task_id
-                await db.commit()
-                await db.refresh(run)
-        except Exception as exc:  # noqa: BLE001
-            enqueue_error = str(exc)[:300]
-            logger.exception("learning plan enqueue failed run_id=%s", run.id)
+    run, task_id, enqueue_error = await claim_and_enqueue_learning_plan(
+        db,
+        tenant_id=auth.tenant_id,
+        student_id=student_id,
+        run_id=run.id,
+    )
+    if db.in_transaction():
+        await db.commit()
+    await db.refresh(run)
 
     return {
         "run_id": str(run.id),
