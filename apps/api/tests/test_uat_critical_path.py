@@ -13,6 +13,7 @@ from PIL import Image
 from sqlalchemy import text
 
 from app.ai.fixtures.maths_iib_uat import build_maths_iib_proposal
+from app.api.v1.submissions import PIPELINE_ENQUEUE_FAILED_PUBLIC_MESSAGE
 from app.db.models import QuestionVersion
 from app.db.session import async_session_factory
 from app.services.authoring_ai import validate_question_tree
@@ -23,6 +24,10 @@ from tests.test_b3_submission_ingestion import (
     _headers,
     _pdf_bytes,
     api_client,
+)
+
+_SENSITIVE_ENQUEUE_EXCEPTION = (
+    "redis://admin:SECRET_TOKEN@broker.internal:6379/0 connection refused"
 )
 
 
@@ -117,7 +122,9 @@ async def test_submission_upload_enqueue_failure_still_persists() -> None:
         data = await _active_assessment(client, headers)
         with patch(
             "app.api.v1.submissions.enqueue_page_normalization",
-            new=AsyncMock(side_effect=RuntimeError("broker down")),
+            new=AsyncMock(
+                side_effect=RuntimeError(_SENSITIVE_ENQUEUE_EXCEPTION),
+            ),
         ):
             upload = await client.post(
                 "/api/v1/submissions",
@@ -127,9 +134,11 @@ async def test_submission_upload_enqueue_failure_still_persists() -> None:
             )
         assert upload.status_code == 201, upload.text
         body = upload.json()
-        assert body["pipeline_enqueue_error"]
+        assert body["pipeline_enqueue_error"] == PIPELINE_ENQUEUE_FAILED_PUBLIC_MESSAGE
+        assert _SENSITIVE_ENQUEUE_EXCEPTION not in upload.text
         assert body["pipeline_job_status"] == "FAILED"
         assert body["id"]
+        submission_id = body["id"]
         job_id = body["pipeline_job_id"]
         async with async_session_factory() as db:
             from app.db.models import PipelineJob
@@ -138,11 +147,82 @@ async def test_submission_upload_enqueue_failure_still_persists() -> None:
             assert job is not None
             assert job.finished_at is not None
             assert job.error_code == "PIPELINE_ENQUEUE_FAILED"
+            assert _SENSITIVE_ENQUEUE_EXCEPTION not in (job.error_detail or "")
+        detail = await client.get(
+            f"/api/v1/submissions/{submission_id}", headers=headers
+        )
+        assert detail.status_code == 200
+        assert detail.json()["pipeline_enqueue_error"] == PIPELINE_ENQUEUE_FAILED_PUBLIC_MESSAGE
+        assert _SENSITIVE_ENQUEUE_EXCEPTION not in detail.text
+
+
+@pytest.mark.asyncio
+async def test_get_submission_masks_legacy_raw_enqueue_error_detail() -> None:
+    """Older rows may contain raw broker text; GET must not leak it."""
+    async with api_client() as client:
+        headers = await _headers(client)
+        data = await _active_assessment(client, headers)
+        with patch(
+            "app.api.v1.submissions.enqueue_page_normalization",
+            new=AsyncMock(
+                side_effect=RuntimeError(_SENSITIVE_ENQUEUE_EXCEPTION),
+            ),
+        ):
+            upload = await client.post(
+                "/api/v1/submissions",
+                headers=headers,
+                data={"assessment_id": data["assessment"]["id"]},
+                files={"file": ("legacy-leak.png", _png_bytes(), "image/png")},
+            )
+        assert upload.status_code == 201, upload.text
+        submission_id = upload.json()["id"]
+        job_id = upload.json()["pipeline_job_id"]
+        async with async_session_factory() as db:
+            from app.db.models import PipelineJob
+
+            job = await db.get(PipelineJob, uuid.UUID(job_id))
+            assert job is not None
+            job.error_detail = _SENSITIVE_ENQUEUE_EXCEPTION
+            await db.commit()
+        detail = await client.get(
+            f"/api/v1/submissions/{submission_id}", headers=headers
+        )
+        assert detail.status_code == 200
+        assert detail.json()["pipeline_enqueue_error"] == PIPELINE_ENQUEUE_FAILED_PUBLIC_MESSAGE
+        assert _SENSITIVE_ENQUEUE_EXCEPTION not in detail.text
+
+
+@pytest.mark.asyncio
+async def test_submission_retry_enqueue_failure_returns_safe_message_only() -> None:
+    mock_enqueue = AsyncMock(side_effect=RuntimeError(_SENSITIVE_ENQUEUE_EXCEPTION))
+    async with api_client() as client:
+        headers = await _headers(client)
+        data = await _active_assessment(client, headers)
+        with patch(
+            "app.api.v1.submissions.enqueue_page_normalization",
+            new=mock_enqueue,
+        ):
+            upload = await client.post(
+                "/api/v1/submissions",
+                headers=headers,
+                data={"assessment_id": data["assessment"]["id"]},
+                files={"file": ("retry-fail.png", _png_bytes(), "image/png")},
+            )
+        assert upload.status_code == 201, upload.text
+        submission_id = upload.json()["id"]
+        retry = await client.post(
+            f"/api/v1/submissions/{submission_id}/retry-page-normalization",
+            headers=headers,
+        )
+        assert retry.status_code == 200, retry.text
+        assert retry.json()["pipeline_enqueue_error"] == PIPELINE_ENQUEUE_FAILED_PUBLIC_MESSAGE
+        assert _SENSITIVE_ENQUEUE_EXCEPTION not in retry.text
+        assert retry.json()["pipeline_job_status"] == "FAILED"
 
 
 @pytest.mark.asyncio
 async def test_submission_enqueue_retry_recovers_without_reupload() -> None:
-    mock_enqueue = AsyncMock(side_effect=RuntimeError("broker down"))
+    mock_enqueue = AsyncMock(side_effect=RuntimeError(_SENSITIVE_ENQUEUE_EXCEPTION))
     async with api_client() as client:
         headers = await _headers(client)
         data = await _active_assessment(client, headers)

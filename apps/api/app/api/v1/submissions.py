@@ -53,6 +53,10 @@ router = APIRouter()
 Db = Annotated[AsyncSession, Depends(get_db_session)]
 logger = logging.getLogger(__name__)
 
+PIPELINE_ENQUEUE_FAILED_PUBLIC_MESSAGE = (
+    "Processing could not be queued. Your file is saved; retry normalization."
+)
+
 
 class IdentityConfirmIn(BaseModel):
     student_id: uuid.UUID
@@ -114,19 +118,17 @@ def _attach_page_normalization_pipeline(
     dump: dict[str, Any],
     job: PipelineJob | None,
     *,
-    enqueue_error: str | None = None,
+    enqueue_failed: bool = False,
 ) -> None:
     if job is not None:
         dump["pipeline_job_id"] = str(job.id)
         dump["pipeline_job_status"] = job.status
-    if enqueue_error is not None:
-        dump["pipeline_enqueue_error"] = enqueue_error
-    elif (
+    if enqueue_failed or (
         job is not None
         and job.status == "FAILED"
         and job.error_code == "PIPELINE_ENQUEUE_FAILED"
     ):
-        dump["pipeline_enqueue_error"] = job.error_detail
+        dump["pipeline_enqueue_error"] = PIPELINE_ENQUEUE_FAILED_PUBLIC_MESSAGE
 
 
 def _dump_submission(
@@ -405,7 +407,7 @@ async def upload_submission(
     await db.refresh(submission)
     await db.refresh(job)
 
-    enqueue_error: str | None = None
+    enqueue_failed = False
     task_id: str | None = None
     try:
         task_id = await enqueue_page_normalization(
@@ -413,8 +415,7 @@ async def upload_submission(
             submission_id=submission.id,
             job_id=job.id,
         )
-    except Exception as exc:  # noqa: BLE001
-        enqueue_error = str(exc)[:300]
+    except Exception:  # noqa: BLE001
         logger.exception(
             "page normalization enqueue failed submission_id=%s job_id=%s",
             submission.id,
@@ -423,7 +424,8 @@ async def upload_submission(
         job.status = "FAILED"
         job.finished_at = datetime.now(UTC)
         job.error_code = "PIPELINE_ENQUEUE_FAILED"
-        job.error_detail = enqueue_error
+        job.error_detail = PIPELINE_ENQUEUE_FAILED_PUBLIC_MESSAGE
+        enqueue_failed = True
         await db.commit()
     else:
         if task_id:
@@ -431,7 +433,7 @@ async def upload_submission(
             await db.commit()
 
     body = _dump_submission(submission, assessment_title=assessment.title)
-    _attach_page_normalization_pipeline(body, job, enqueue_error=enqueue_error)
+    _attach_page_normalization_pipeline(body, job, enqueue_failed=enqueue_failed)
     return body
 
 
@@ -485,7 +487,7 @@ async def retry_page_normalization(
     await db.commit()
     await db.refresh(job)
 
-    enqueue_error: str | None = None
+    enqueue_failed = False
     task_id: str | None = None
     try:
         task_id = await enqueue_page_normalization(
@@ -493,8 +495,7 @@ async def retry_page_normalization(
             submission_id=submission.id,
             job_id=job.id,
         )
-    except Exception as exc:  # noqa: BLE001
-        enqueue_error = str(exc)[:300]
+    except Exception:  # noqa: BLE001
         logger.exception(
             "page normalization retry enqueue failed submission_id=%s job_id=%s",
             submission.id,
@@ -503,7 +504,8 @@ async def retry_page_normalization(
         job.status = "FAILED"
         job.finished_at = datetime.now(UTC)
         job.error_code = "PIPELINE_ENQUEUE_FAILED"
-        job.error_detail = enqueue_error
+        job.error_detail = PIPELINE_ENQUEUE_FAILED_PUBLIC_MESSAGE
+        enqueue_failed = True
         await db.commit()
     else:
         if task_id:
@@ -516,7 +518,7 @@ async def retry_page_normalization(
         assessment_title=assessment_title,
         student_display_name=await _student_name(db, submission.student_id),
     )
-    _attach_page_normalization_pipeline(body, job, enqueue_error=enqueue_error)
+    _attach_page_normalization_pipeline(body, job, enqueue_failed=enqueue_failed)
     return body
 
 
