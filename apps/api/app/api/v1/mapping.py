@@ -28,6 +28,7 @@ from app.db.models import (
 )
 from app.db.session import get_db_session
 from app.services.audit import add_audit_event
+from app.services.choice_groups import find_choice_group_over_attempts
 from app.services.mapping_prepare import leaf_scorable_questions
 from app.tasks import enqueue_mapping_preparation
 
@@ -1046,6 +1047,27 @@ async def finalize_mapping(
             "MAPPING_INCOMPLETE",
             "Every LEAF_SCORABLE question must have a confirmed disposition",
             unresolved_question_codes=unresolved,
+        )
+
+    over_attempts = find_choice_group_over_attempts(versions, mappings)
+    if over_attempts:
+        first = over_attempts[0]
+        raise _http_error(
+            409,
+            "CHOICE_GROUP_ATTEMPT_LIMIT_EXCEEDED",
+            (
+                f"Choice group {first.container_label} allows {first.selection_count} "
+                f"answers but {first.answered_count} are marked ANSWERED"
+            ),
+            choice_groups=[
+                {
+                    "container_question_version_id": str(v.container_question_version_id),
+                    "container_label": v.container_label,
+                    "selection_count": v.selection_count,
+                    "answered_count": v.answered_count,
+                }
+                for v in over_attempts
+            ],
         )
 
     item.workflow_state = "READY_FOR_EVALUATION"

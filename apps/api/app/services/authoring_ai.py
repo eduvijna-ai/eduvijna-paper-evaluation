@@ -95,18 +95,48 @@ def dump_authoring_run(run: AuthoringAiRun) -> dict[str, Any]:
     return _dump(run)
 
 
+def _proposed_effective_max(node: ProposedQuestionNode) -> Decimal:
+    children = list(node.children)
+    if node.scoring_mode == "LEAF_SCORABLE" and not children:
+        return Decimal(node.max_marks).quantize(Decimal("0.01"))
+    if not children:
+        return Decimal("0.00")
+    child_totals = [_proposed_effective_max(child) for child in children]
+    mode = (node.selection_mode or "ALL").upper()
+    if mode == "ANY_N":
+        count = node.selection_count
+        if count is None or count < 1:
+            raise AuthoringAiError(
+                "QUESTION_TREE_INVALID_SELECTION",
+                f"ANY_N node {node.stable_code!r} requires selection_count",
+            )
+        if count > len(children):
+            raise AuthoringAiError(
+                "QUESTION_TREE_INVALID_SELECTION",
+                f"selection_count exceeds children for {node.stable_code!r}",
+            )
+        per_child = child_totals[0]
+        for other in child_totals[1:]:
+            if other != per_child:
+                raise AuthoringAiError(
+                    "QUESTION_TREE_INVALID_SELECTION",
+                    f"ANY_N children must have equal marks for {node.stable_code!r}",
+                )
+        return (Decimal(count) * per_child).quantize(Decimal("0.01"))
+    return sum(child_totals, start=Decimal("0.00")).quantize(Decimal("0.01"))
+
+
 def validate_question_tree(
     roots: list[ProposedQuestionNode],
     *,
     assessment_max_marks: Decimal,
 ) -> None:
-    """Validate proposed tree: unique codes, hierarchy bounds, leaf marks sum."""
+    """Validate proposed tree: unique codes, hierarchy bounds, effective marks sum."""
     codes: set[str] = set()
     node_count = 0
-    leaf_total = Decimal("0.00")
 
     def walk(node: ProposedQuestionNode, depth: int) -> None:
-        nonlocal node_count, leaf_total
+        nonlocal node_count
         if depth > MAX_AUTHORING_TREE_DEPTH:
             raise AuthoringAiError(
                 "QUESTION_TREE_DEPTH_EXCEEDED",
@@ -127,13 +157,24 @@ def validate_question_tree(
                 f"Duplicate stable_code {code!r}",
             )
         codes.add(code)
+        mode = (node.selection_mode or "ALL").upper()
+        if mode == "ANY_N":
+            if node.scoring_mode != "CONTAINER_DERIVED" or not node.children:
+                raise AuthoringAiError(
+                    "QUESTION_TREE_INVALID_SELECTION",
+                    f"ANY_N is only valid on container groups ({code!r})",
+                )
+        elif mode != "ALL":
+            raise AuthoringAiError(
+                "QUESTION_TREE_INVALID_SELECTION",
+                f"Unsupported selection_mode for {code!r}",
+            )
         if node.scoring_mode == "LEAF_SCORABLE":
             if node.children:
                 raise AuthoringAiError(
                     "QUESTION_TREE_INVALID_HIERARCHY",
                     f"LEAF_SCORABLE node {code!r} cannot have children",
                 )
-            leaf_total += Decimal(node.max_marks)
         elif node.scoring_mode == "CONTAINER_DERIVED":
             if not node.children:
                 raise AuthoringAiError(
@@ -154,11 +195,19 @@ def validate_question_tree(
         walk(root, 1)
 
     expected = Decimal(assessment_max_marks).quantize(Decimal("0.01"))
-    actual = leaf_total.quantize(Decimal("0.01"))
+    try:
+        actual = sum(
+            (_proposed_effective_max(root) for root in roots),
+            start=Decimal("0.00"),
+        ).quantize(Decimal("0.01"))
+    except AuthoringAiError:
+        raise
+    except ValueError as exc:
+        raise AuthoringAiError("QUESTION_TREE_INVALID_SELECTION", str(exc)) from exc
     if actual != expected:
         raise AuthoringAiError(
             "QUESTION_TREE_MARKS_MISMATCH",
-            f"Leaf marks total {actual} != assessment max {expected}",
+            f"Effective marks total {actual} != assessment max {expected}",
         )
 
 
@@ -674,6 +723,8 @@ async def apply_question_tree(
             max_marks=node.max_marks,
             question_type=node.question_type,
             scoring_mode=node.scoring_mode,
+            selection_mode=node.selection_mode or "ALL",
+            selection_count=node.selection_count,
             instructions=node.instructions,
         )
         db.add(qv)

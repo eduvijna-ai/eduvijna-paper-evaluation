@@ -58,6 +58,9 @@ export interface B3SubmissionDto {
     language_state: string;
   } | null;
   automation_block_code?: string | null;
+  pipeline_job_id?: string | null;
+  pipeline_job_status?: string | null;
+  pipeline_enqueue_error?: string | null;
 }
 
 export interface B3PaperPageDto {
@@ -160,6 +163,9 @@ export function submissionApiToView(dto: B3SubmissionDto): Submission {
         }
       : undefined,
     automation_block_code: dto.automation_block_code ?? null,
+    pipeline_job_id: dto.pipeline_job_id ?? null,
+    pipeline_job_status: dto.pipeline_job_status ?? null,
+    pipeline_enqueue_error: dto.pipeline_enqueue_error ?? null,
   };
 }
 
@@ -309,6 +315,14 @@ export const SubmissionHttpApi = {
   async markIdentityUnmatched(submissionId: string): Promise<Submission> {
     const row = await httpRequest<B3SubmissionDto>(
       `/api/v1/submissions/${submissionId}/identity/unmatched`,
+      { method: "POST" },
+    );
+    return submissionApiToView(row);
+  },
+
+  async retryPageNormalization(submissionId: string): Promise<Submission> {
+    const row = await httpRequest<B3SubmissionDto>(
+      `/api/v1/submissions/${submissionId}/retry-page-normalization`,
       { method: "POST" },
     );
     return submissionApiToView(row);

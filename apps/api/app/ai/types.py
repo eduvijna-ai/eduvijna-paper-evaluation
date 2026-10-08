@@ -654,6 +654,8 @@ class ProposedQuestionNode(BaseModel):
     max_marks: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
     question_type: str = Field(min_length=1, max_length=64)
     scoring_mode: Literal["LEAF_SCORABLE", "CONTAINER_DERIVED"]
+    selection_mode: Literal["ALL", "ANY_N"] = "ALL"
+    selection_count: int | None = Field(default=None, ge=1, le=200)
     instructions: str | None = Field(default=None, max_length=5000)
     children: list[ProposedQuestionNode] = Field(
         default_factory=list, max_length=MAX_AUTHORING_TREE_NODES

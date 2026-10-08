@@ -18,6 +18,49 @@ import type {
 } from "@/lib/types/domain";
 import type { AssessmentState, CurriculumNodeType } from "@/lib/types/enums";
 
+export interface CurriculumFormValues {
+  code: string;
+  name: string;
+  description?: string;
+  academicFramework?: string;
+  versionLabel: string;
+  status?: string;
+}
+
+export interface CurriculumNodeFormValues {
+  parentId?: string | null;
+  nodeType: string;
+  code: string;
+  name: string;
+  description?: string;
+  sequence?: number;
+  status?: string;
+}
+
+export function curriculumFormToApi(form: CurriculumFormValues) {
+  return {
+    code: form.code,
+    name: form.name,
+    description: form.description ?? null,
+    academic_framework: form.academicFramework ?? null,
+    version_label: form.versionLabel,
+    status: form.status ?? "active",
+  };
+}
+
+export function curriculumNodeFormToApi(form: CurriculumNodeFormValues) {
+  return {
+    parent_id: form.parentId || null,
+    node_type: form.nodeType,
+    code: form.code,
+    name: form.name,
+    description: form.description ?? null,
+    sequence: form.sequence ?? 0,
+    metadata: {},
+    status: form.status ?? "active",
+  };
+}
+
 export interface AssessmentFormValues {
   curriculumId: string;
   subjectNodeId?: string | null;
@@ -63,6 +106,8 @@ export function curriculumNodeApiToView(api: A2CurriculumNode): CurriculumNode {
     code: api.code,
     title: api.name,
     sort_order: api.sequence,
+    description: api.description ?? null,
+    status: api.status,
     metadata: api.metadata as CurriculumNode["metadata"],
     children: (api.children ?? []).map(curriculumNodeApiToView),
   };
@@ -127,6 +172,8 @@ export function questionTreeApiToView(
     curriculum_node_ids: [],
     question_version_id: node.id,
     scoring_mode: node.scoring_mode,
+    selection_mode: node.selection_mode ?? "ALL",
+    selection_count: node.selection_count ?? null,
     is_leaf_scorable: node.scoring_mode === "LEAF_SCORABLE",
     children: questionTreeApiToView(node.children ?? [], assessmentId),
   }));

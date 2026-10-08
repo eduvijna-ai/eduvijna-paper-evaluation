@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { api, isApiError } from "@/lib/api";
@@ -325,7 +326,7 @@ export default function SubmissionsUploadPage() {
         title="Upload submissions"
         description={
           live
-            ? "Upload raw unmarked answer sheets for live identity review."
+            ? "Upload student answer sheets (handwritten responses). Question papers are authored under Assessment → Questions."
             : "Mock upload only — stores no real scanned papers."
         }
         breadcrumbs={[
@@ -334,6 +335,18 @@ export default function SubmissionsUploadPage() {
         ]}
       />
       <RawUnmarkedBanner />
+      {live && (
+        <p
+          data-testid="question-paper-vs-answer-sheet-guidance"
+          className="mb-4 max-w-lg text-sm text-slate-700"
+        >
+          Need to upload the question paper? Open{" "}
+          <Link href="/assessments" className="font-medium text-teal-800 underline">
+            Assessment → Questions
+          </Link>
+          .
+        </p>
+      )}
       {live ? <LiveUploadForm /> : <MockUploadForm />}
     </div>
   );

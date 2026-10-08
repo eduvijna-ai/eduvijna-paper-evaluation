@@ -111,6 +111,14 @@ function QuestionTreeNode({
       >
         <span>
           <span className="font-medium">{question.code}</span>
+          {(question.selection_mode ?? "ALL") === "ANY_N" && (
+            <span
+              data-testid={`question-any-n-${question.code}`}
+              className="ml-1.5 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-900"
+            >
+              Any {question.selection_count ?? "?"}
+            </span>
+          )}
           <span className="ml-1.5 text-slate-500 line-clamp-1">
             {question.prompt}
           </span>

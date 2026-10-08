@@ -176,6 +176,10 @@ class QuestionVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "scoring_mode IN ('LEAF_SCORABLE','CONTAINER_DERIVED')",
             name="ck_question_versions_scoring_mode",
         ),
+        CheckConstraint(
+            "selection_mode IN ('ALL','ANY_N')",
+            name="ck_question_versions_selection_mode",
+        ),
     )
 
     tenant_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("tenants.id", ondelete="CASCADE"))
@@ -192,6 +196,10 @@ class QuestionVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     max_marks: Mapped[Decimal] = mapped_column(Numeric(10, 2))
     question_type: Mapped[str] = mapped_column(String(64))
     scoring_mode: Mapped[str] = mapped_column(String(32))
+    selection_mode: Mapped[str] = mapped_column(
+        String(16), default="ALL", server_default="ALL"
+    )
+    selection_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 

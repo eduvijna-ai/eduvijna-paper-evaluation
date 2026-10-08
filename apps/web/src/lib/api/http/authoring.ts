@@ -16,8 +16,12 @@ import {
   assessmentFormToApi,
   countCurriculumNodes,
   curriculumApiToView,
+  curriculumFormToApi,
   curriculumMappingsToView,
   curriculumNodeApiToView,
+  curriculumNodeFormToApi,
+  type CurriculumFormValues,
+  type CurriculumNodeFormValues,
   curriculumNodeTitleMap,
   flattenQuestionTree,
   questionTreeApiToView,
@@ -147,6 +151,40 @@ export const AuthoringHttpApi = {
       curriculum: curriculumApiToView(curriculum, countCurriculumNodes(tree)),
       tree: tree.map(curriculumNodeApiToView),
     };
+  },
+
+  async createCurriculum(form: CurriculumFormValues) {
+    const created = await httpRequest<A2Curriculum>("/api/v1/curricula", {
+      method: "POST",
+      body: curriculumFormToApi(form),
+    });
+    return curriculumApiToView(created, 0);
+  },
+
+  async createCurriculumNode(curriculumId: string, form: CurriculumNodeFormValues) {
+    const created = await httpRequest<A2CurriculumNode>(
+      `/api/v1/curricula/${curriculumId}/nodes`,
+      {
+        method: "POST",
+        body: curriculumNodeFormToApi(form),
+      },
+    );
+    return curriculumNodeApiToView(created);
+  },
+
+  async updateCurriculumNode(nodeId: string, form: Partial<CurriculumNodeFormValues>) {
+    const body: Record<string, unknown> = {};
+    if (form.parentId !== undefined) body.parent_id = form.parentId || null;
+    if (form.nodeType !== undefined) body.node_type = form.nodeType;
+    if (form.name !== undefined) body.name = form.name;
+    if (form.description !== undefined) body.description = form.description ?? null;
+    if (form.sequence !== undefined) body.sequence = form.sequence;
+    if (form.status !== undefined) body.status = form.status;
+    const updated = await httpRequest<A2CurriculumNode>(
+      `/api/v1/curriculum-nodes/${nodeId}`,
+      { method: "PATCH", body },
+    );
+    return curriculumNodeApiToView(updated);
   },
 
   async listAssessments() {

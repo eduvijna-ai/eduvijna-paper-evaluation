@@ -39,6 +39,12 @@
           "type": "string",
           "enum": ["LEAF_SCORABLE", "CONTAINER_DERIVED"]
         },
+        "selection_mode": {
+          "type": "string",
+          "enum": ["ALL", "ANY_N"],
+          "default": "ALL"
+        },
+        "selection_count": { "type": ["integer", "null"], "minimum": 1, "maximum": 200 },
         "instructions": { "type": ["string", "null"], "maxLength": 5000 },
         "children": {
           "type": "array",

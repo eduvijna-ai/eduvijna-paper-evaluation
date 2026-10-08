@@ -80,6 +80,8 @@ export interface A2QuestionVersion {
   max_marks: string | number;
   question_type: string;
   scoring_mode: string;
+  selection_mode?: string;
+  selection_count?: number | null;
   instructions?: string | null;
   children?: A2QuestionVersion[];
 }

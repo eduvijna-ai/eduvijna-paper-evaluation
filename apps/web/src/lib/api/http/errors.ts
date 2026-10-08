@@ -59,7 +59,7 @@ export class ApiError extends Error {
       case "not_found":
         return "The requested resource was not found.";
       case "conflict":
-        return "This change conflicts with an existing record.";
+        return this.message || "This change conflicts with an existing record.";
       case "unprocessable":
       case "validation":
         return this.message || "Please check the form and try again.";

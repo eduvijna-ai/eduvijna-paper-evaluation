@@ -9,6 +9,7 @@ from app.ai.execution_metadata import (
     FIXED_AUTHORING_META,
     AIExecutionMetadata,
 )
+from app.ai.fixtures.maths_iib_uat import FIXTURE_MARKER, build_maths_iib_proposal
 from app.ai.types import (
     AnswerKeyProposalInput,
     AnswerKeyProposalResult,
@@ -60,6 +61,9 @@ class FixedAuthoringProvider:
             raise ValueError(
                 "fixed authoring parse requires extracted text evidence from the uploaded paper"
             )
+
+        if FIXTURE_MARKER in combined:
+            return build_maths_iib_proposal()
 
         marks = Decimal(request.max_marks).quantize(Decimal("0.01"))
         match = _LEAF_PATTERN.search(combined)

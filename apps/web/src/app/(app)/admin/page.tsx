@@ -130,7 +130,7 @@ export default function AdminPage() {
           </h2>
           <ul className="mt-3 space-y-2 text-sm text-slate-700">
             <li>Auth / Institution / Years / Sections / Students / Guardians · live when hybrid</li>
-            <li>Curriculum / Assessment / Submissions / Evaluation · mock until later phase</li>
+            <li>Curriculum / Assessment / Submissions / Evaluation · live on hybrid API</li>
           </ul>
         </section>
 

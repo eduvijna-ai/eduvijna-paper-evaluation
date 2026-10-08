@@ -134,6 +134,11 @@ export const HybridEduVijnaApi: ApiClient = {
 
   listCurricula: () => AuthoringHttpApi.listCurricula(),
   getCurriculum: (id) => AuthoringHttpApi.getCurriculum(id),
+  createCurriculum: (form) => AuthoringHttpApi.createCurriculum(form),
+  createCurriculumNode: (curriculumId, form) =>
+    AuthoringHttpApi.createCurriculumNode(curriculumId, form),
+  updateCurriculumNode: (nodeId, form) =>
+    AuthoringHttpApi.updateCurriculumNode(nodeId, form),
   listAssessments: () => AuthoringHttpApi.listAssessments(),
   getAssessment: (id) => AuthoringHttpApi.getAssessment(id),
   createAssessment: (form) => AuthoringHttpApi.createAssessment(form),
@@ -185,6 +190,7 @@ export const HybridEduVijnaApi: ApiClient = {
   listSubmissions: () => SubmissionHttpApi.listSubmissions(),
   getSubmission: (id) => SubmissionHttpApi.getSubmission(id),
   uploadSubmission: (input) => SubmissionHttpApi.uploadSubmission(input),
+  retryPageNormalization: (id) => SubmissionHttpApi.retryPageNormalization(id),
   putSubmissionLanguage: (id, input) =>
     SubmissionHttpApi.putSubmissionLanguage(id, input),
   getSubmissionPageImageBlob: (pageId) =>
