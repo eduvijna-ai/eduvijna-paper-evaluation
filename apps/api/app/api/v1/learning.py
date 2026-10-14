@@ -22,6 +22,7 @@ from app.services.learning import (
     get_plan_run,
     prepare_improvement_blueprint,
     prepare_learning_plan,
+    public_learning_celery_task_id,
     reject_blueprint,
 )
 
@@ -126,7 +127,7 @@ async def prepare_student_learning_plan(
         "status": run.status,
         "input_hash": run.input_hash,
         "algorithm_version": run.algorithm_version,
-        "celery_task_id": task_id or run.celery_task_id,
+        "celery_task_id": public_learning_celery_task_id(task_id or run.celery_task_id),
         "enqueue_error": enqueue_error,
     }
 
