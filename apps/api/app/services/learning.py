@@ -10,7 +10,8 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Literal, cast
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.execution_metadata import metadata_from_provider
@@ -85,6 +86,66 @@ def _utcnow() -> datetime:
 async def _get_student(db: AsyncSession, *, tenant_id: uuid.UUID, student_id: uuid.UUID) -> Student:
     student = await db.scalar(
         select(Student).where(Student.id == student_id, Student.tenant_id == tenant_id)
+    )
+    if student is None:
+        raise LearningError("NOT_FOUND", "Student not found")
+    return student
+
+
+_ENQUEUE_CLAIM_PREFIX = "__lrn_enqueue_claim:v1:"
+_ENQUEUE_LEASE_SECONDS = 120
+
+
+def _is_enqueue_claim_token(value: str | None) -> bool:
+    return value is not None and value.startswith(_ENQUEUE_CLAIM_PREFIX)
+
+
+def _parse_enqueue_claim_expiry(value: str) -> int | None:
+    if not _is_enqueue_claim_token(value) or not value.endswith("__"):
+        return None
+    inner = value[len(_ENQUEUE_CLAIM_PREFIX) : -2]
+    try:
+        return int(inner)
+    except ValueError:
+        return None
+
+
+def _enqueue_claim_is_stale(value: str, *, now_ts: int | None = None) -> bool:
+    expiry = _parse_enqueue_claim_expiry(value)
+    if expiry is None:
+        return True
+    now = now_ts if now_ts is not None else int(_utcnow().timestamp())
+    return expiry <= now
+
+
+def _make_enqueue_claim_token() -> str:
+    expires_at = int(_utcnow().timestamp()) + _ENQUEUE_LEASE_SECONDS
+    return f"{_ENQUEUE_CLAIM_PREFIX}{expires_at}__"
+
+
+def _enqueue_claim_eligible_for_dispatch(stored: str | None) -> bool:
+    if stored is None:
+        return True
+    if _is_enqueue_claim_token(stored):
+        return _enqueue_claim_is_stale(stored)
+    return False
+
+
+def public_learning_celery_task_id(value: str | None) -> str | None:
+    """Hide internal enqueue-claim leases from API consumers."""
+    if value is None or _is_enqueue_claim_token(value):
+        return None
+    return value
+
+
+async def _lock_student_prepare_scope(
+    db: AsyncSession, *, tenant_id: uuid.UUID, student_id: uuid.UUID
+) -> Student:
+    """Serialize learning-plan prepare/enqueue for one student within a transaction."""
+    student = await db.scalar(
+        select(Student)
+        .where(Student.id == student_id, Student.tenant_id == tenant_id)
+        .with_for_update()
     )
     if student is None:
         raise LearningError("NOT_FOUND", "Student not found")
@@ -283,7 +344,8 @@ async def prepare_learning_plan(
     curriculum_id: uuid.UUID,
     requested_by: uuid.UUID,
 ) -> LearningPlanRun:
-    await _get_student(db, tenant_id=tenant_id, student_id=student_id)
+    # Serialize concurrent prepares before readiness/hash snapshot (Issue #124).
+    await _lock_student_prepare_scope(db, tenant_id=tenant_id, student_id=student_id)
     await _get_curriculum(db, tenant_id=tenant_id, curriculum_id=curriculum_id)
     await _ensure_evidence_ready(
         db, tenant_id=tenant_id, student_id=student_id, curriculum_id=curriculum_id
@@ -331,6 +393,100 @@ async def prepare_learning_plan(
     db.add(run)
     await db.flush()
     return run
+
+
+async def claim_and_enqueue_learning_plan(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    student_id: uuid.UUID,
+    run_id: uuid.UUID,
+) -> tuple[LearningPlanRun, str | None, str | None]:
+    """Enqueue learning-plan work at most once per QUEUED run under concurrency."""
+    run = await db.scalar(
+        select(LearningPlanRun).where(
+            LearningPlanRun.id == run_id,
+            LearningPlanRun.tenant_id == tenant_id,
+            LearningPlanRun.student_id == student_id,
+        )
+    )
+    if run is None:
+        raise LearningError("NOT_FOUND", "Learning plan run not found")
+
+    stored_task_id = run.celery_task_id
+    task_id: str | None = public_learning_celery_task_id(stored_task_id)
+    enqueue_error: str | None = None
+    if run.status == "QUEUED" and _enqueue_claim_eligible_for_dispatch(stored_task_id):
+        new_claim = _make_enqueue_claim_token()
+        claim_match: Any
+        if stored_task_id is None:
+            claim_match = LearningPlanRun.celery_task_id.is_(None)
+        else:
+            claim_match = LearningPlanRun.celery_task_id == stored_task_id
+
+        claimed = cast(
+            CursorResult[Any],
+            await db.execute(
+                update(LearningPlanRun)
+                .where(
+                    LearningPlanRun.id == run_id,
+                    LearningPlanRun.tenant_id == tenant_id,
+                    LearningPlanRun.student_id == student_id,
+                    LearningPlanRun.status == "QUEUED",
+                    claim_match,
+                )
+                .values(celery_task_id=new_claim)
+            ),
+        )
+        if claimed.rowcount == 1:
+            # Commit claim before Celery dispatch so eager workers can update the run row.
+            await db.commit()
+            try:
+                from app.tasks.celery_app import enqueue_learning_plan
+
+                task_id = await enqueue_learning_plan(tenant_id=tenant_id, run_id=run.id)
+                if task_id:
+                    await db.execute(
+                        update(LearningPlanRun)
+                        .where(
+                            LearningPlanRun.id == run_id,
+                            LearningPlanRun.celery_task_id == new_claim,
+                        )
+                        .values(celery_task_id=task_id)
+                    )
+                else:
+                    await db.execute(
+                        update(LearningPlanRun)
+                        .where(
+                            LearningPlanRun.id == run_id,
+                            LearningPlanRun.celery_task_id == new_claim,
+                        )
+                        .values(celery_task_id=None)
+                    )
+                    task_id = None
+            except Exception as exc:  # noqa: BLE001
+                enqueue_error = str(exc)[:300]
+                logger.exception("learning plan enqueue failed run_id=%s", run.id)
+                await db.execute(
+                    update(LearningPlanRun)
+                    .where(
+                        LearningPlanRun.id == run_id,
+                        LearningPlanRun.celery_task_id == new_claim,
+                    )
+                    .values(celery_task_id=None)
+                )
+                task_id = None
+        run = await db.scalar(
+            select(LearningPlanRun).where(
+                LearningPlanRun.id == run_id,
+                LearningPlanRun.tenant_id == tenant_id,
+                LearningPlanRun.student_id == student_id,
+            )
+        )
+        if run is None:
+            raise LearningError("NOT_FOUND", "Learning plan run not found")
+        task_id = public_learning_celery_task_id(task_id or run.celery_task_id)
+    return run, task_id, enqueue_error
 
 
 async def run_learning_plan_pipeline(
