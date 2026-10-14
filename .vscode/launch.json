@@ -100,7 +100,6 @@
         "EduVijna Celery Worker — Local MAT",
         "EduVijna Celery Beat — Local MAT"
       ],
-      "preLaunchTask": "Prepare Local API Dependencies",
       "stopAll": true,
       "presentation": {
         "order": 1,
