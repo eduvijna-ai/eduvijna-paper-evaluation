@@ -29,6 +29,7 @@ import {
   subjectProfileLabel,
 } from "@/lib/b20/context";
 import { LanguageReviewPanel } from "@/lib/b20/LanguageReviewPanel";
+import { canFinalizeTranscriptionWorkspace } from "@/lib/transcription/finalize-eligibility";
 
 function regionsToEvidence(
   items: TranscriptionQuestionItem[],
@@ -586,6 +587,14 @@ function TranscriptionReview({ id }: { id: string }) {
   if (isLoading) return <LoadingState />;
   if (isError || !data) return <ErrorState onRetry={() => void refetch()} />;
 
+  const reviewComplete =
+    data.progress.reviewed === data.progress.required;
+  const canFinalize = canFinalizeTranscriptionWorkspace(
+    data.progress.reviewed,
+    data.progress.required,
+    busy,
+  );
+
   return (
     <div data-testid="transcription-review-page" data-transcription-mode={live ? "live" : "mock"}>
       <PageHeader
@@ -705,7 +714,8 @@ function TranscriptionReview({ id }: { id: string }) {
           {actionsEnabled && (
             <Button
               data-testid="finalize-transcription"
-              disabled={busy}
+              disabled={!canFinalize}
+              aria-disabled={!reviewComplete || busy}
               onClick={() => finalizeMutation.mutate()}
             >
               Finalize transcription
