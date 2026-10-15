@@ -1,6 +1,10 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { PDFDocument, StandardFonts } from "pdf-lib";
+import {
+  readTranscriptionProgress,
+  syncTranscriptionConfirmationsThroughUi,
+} from "./helpers/transcription-review-sync";
 
 test.setTimeout(600_000);
 
@@ -759,10 +763,35 @@ test.describe("B20 real multi-subject and multilingual", () => {
     await expect(page.getByTestId("transcription-automation-block")).toContainText(
       "LANGUAGE_UNSUPPORTED",
     );
+
+    const progressBefore = await readTranscriptionProgress(page);
+    expect(progressBefore.reviewed).toBeLessThan(progressBefore.required);
+    expect(progressBefore.required).toBeGreaterThan(0);
+    await expect(page.getByTestId("finalize-transcription")).toBeDisabled();
+
+    const textInput = page.getByTestId("transcription-text-input").first();
+    await expect(textInput).toBeVisible({ timeout: 90_000 });
+    await textInput.fill("4");
+    await page.getByTestId("save-transcription").first().click();
+    await expect(
+      page.locator('[data-testid="confirm-transcription"]:not([disabled])').first(),
+    ).toBeVisible({ timeout: 30_000 });
+    await syncTranscriptionConfirmationsThroughUi(page);
+
+    const progressAfter = await readTranscriptionProgress(page);
+    expect(progressAfter.reviewed).toBe(progressAfter.required);
+
+    await expect(page.getByTestId("finalize-transcription")).toBeEnabled({
+      timeout: 30_000,
+    });
     await page.getByTestId("finalize-transcription").click();
     await expect(page.getByTestId("transcription-action-error")).toContainText(
       "LANGUAGE_UNSUPPORTED",
     );
+    await expect(page.getByTestId("transcription-review-page")).toBeVisible();
+    await expect(page).toHaveURL(/\/transcription$/);
+    await expect(page.getByTestId("submission-detail-page")).toHaveCount(0);
+    await expect(page.getByTestId("evaluation-workspace-page")).toHaveCount(0);
 
     const prepare = await request.post(
       `${apiBase}/api/v1/submissions/${submissionId}/transcription/prepare`,
