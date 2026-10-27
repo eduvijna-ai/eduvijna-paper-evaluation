@@ -12,20 +12,17 @@ Next.js App Router UI for the **Client Validation Build (CVB)**.
 
 ## Quick start
 
-From repo root (pnpm workspace):
+One-time from repo root: `pnpm install`.
+
+Everyday (founder MAT) from `apps/web`:
 
 ```bash
-pnpm install
-pnpm --filter web dev
+npm run dev
 ```
 
-Or from `apps/web`:
+(`pnpm dev` / `pnpm --filter web dev` are equivalent.)
 
-```bash
-pnpm dev
-```
-
-Open [http://localhost:3000/login](http://localhost:3000/login) and choose a demo role.
+Open [http://localhost:3000/login](http://localhost:3000/login). Dev defaults (`apps/web/.env.development`) use `NEXT_PUBLIC_API_MODE=hybrid` and rewrite to `http://127.0.0.1:18000` — start the backend with F5 first.
 
 ## Scripts
 
@@ -61,7 +58,8 @@ Open [http://localhost:3000/login](http://localhost:3000/login) and choose a dem
 
 | Variable | Default | Notes |
 |----------|---------|-------|
-| `NEXT_PUBLIC_API_MODE` | `mock` | Use `http` when backend domain APIs are ready (falls back to mock until then) |
+| `NEXT_PUBLIC_API_MODE` | `hybrid` in `.env.development` (`mock` if unset) | Playwright mock e2e forces `mock`; real e2e forces `hybrid` |
+| `API_UPSTREAM_URL` | `http://127.0.0.1:18000` | Next rewrite target for `/api/*`, `/health`, `/ready` |
 
 See also:
 
