@@ -1,6 +1,10 @@
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { PDFDocument, StandardFonts } from "pdf-lib";
+import {
+  finalizeTranscriptionAndAwaitSubmissionDetail,
+  syncTranscriptionConfirmationsThroughUi,
+} from "./helpers/transcription-review-sync";
 
 const ADMIN_EMAIL = "admin@demo.eduvijna.local";
 const ADMIN_PASSWORD = "DemoAdmin!2026";
@@ -394,71 +398,12 @@ async function publishDeductAttempt(
     // Fixed provider: EXERCISE:DEDUCT → CALCULATION on criterion.
     await textInput.fill("EXERCISE:DEDUCT arithmetic slip");
     await page.getByTestId("save-transcription").first().click();
-    await page.waitForTimeout(500);
+    await expect(
+      page.locator('[data-testid="confirm-transcription"]:not([disabled])').first(),
+    ).toBeVisible({ timeout: 30_000 });
   }
-  for (let i = 0; i < 12; i += 1) {
-    const enabled = page.locator(
-      '[data-testid="confirm-transcription"]:not([disabled])',
-    );
-    if ((await enabled.count()) === 0) break;
-    await enabled.first().click();
-    await page.waitForTimeout(500);
-  }
-
-  // APP-013.1: success must be UI-driven only — no API finalize rescue / forced goto.
-  const finalizeBtn = page.getByTestId("finalize-transcription");
-  await expect(finalizeBtn).toBeEnabled({ timeout: 30_000 });
-  await Promise.all([
-    page
-      .waitForURL(
-        (url) => {
-          try {
-            return new URL(url).pathname === `/submissions/${submissionId}`;
-          } catch {
-            return false;
-          }
-        },
-        { timeout: 90_000 },
-      )
-      .catch(() => undefined),
-    finalizeBtn.click(),
-  ]);
-  await expect
-    .poll(
-      async () => {
-        const path = new URL(page.url()).pathname;
-        if (path === `/submissions/${submissionId}`) return "done";
-        if (path.endsWith("/transcription")) {
-          const btn = page.getByTestId("finalize-transcription");
-          // Retry the same UI control only while it remains legitimately enabled.
-          if (await btn.isEnabled().catch(() => false)) {
-            await Promise.all([
-              page
-                .waitForURL(
-                  (url) => {
-                    try {
-                      return new URL(url).pathname === `/submissions/${submissionId}`;
-                    } catch {
-                      return false;
-                    }
-                  },
-                  { timeout: 20_000 },
-                )
-                .catch(() => undefined),
-              btn.click().catch(() => undefined),
-            ]);
-          }
-        }
-        return new URL(page.url()).pathname === `/submissions/${submissionId}`
-          ? "done"
-          : path;
-      },
-      { timeout: 120_000 },
-    )
-    .toBe("done");
-  await expect(page.getByTestId("submission-detail-page")).toBeVisible({
-    timeout: 30_000,
-  });
+  await syncTranscriptionConfirmationsThroughUi(page);
+  await finalizeTranscriptionAndAwaitSubmissionDetail(page, submissionId);
 
   // Accept AI proposals so criterion error_code=CALCULATION is preserved.
   await expect
