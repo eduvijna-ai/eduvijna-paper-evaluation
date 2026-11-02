@@ -199,18 +199,53 @@ Do not merge with pending, cancelled, unexpected skip, or stale-head CI.
 
 ---
 
-## 7. Local tips
+## 7. Founder / local MAT startup (F5 + npm)
 
-- API: `uvicorn app.main:app --reload`
-- Worker: `celery -A app.tasks.celery_app.celery_app worker -l INFO`
-- Web: `pnpm --filter web dev`
+Everyday path after one-time prep (Docker Desktop, `apps/api/.venv`, `pnpm install`):
+
+### Backend
+
+1. Ensure **Docker Desktop** is running (postgres / redis / minio).
+2. Open this repository in Cursor / VS Code.
+3. Select launch configuration **EduVijna Backend + Worker — Local MAT**.
+4. Press **F5**.
+
+F5 runs `infra/scripts/local-api-prepare` (idempotent): starts postgres/redis/minio if needed, stops compose `api`/`worker` if they hold port 18000 (volumes kept), applies committed Alembic migrations only (no seed/reset), then starts host FastAPI on `http://127.0.0.1:18000`, a Celery worker, and a separate Celery beat process (Windows cannot embed beat in the worker). Env comes from `apps/api/.env.local` (created from `.env.local.example` on first prepare if missing).
+
+### Frontend
+
+```bash
+cd apps/web
+npm run dev
+```
+
+Open [http://localhost:3000](http://localhost:3000). Dev defaults in `apps/web/.env.development`: `NEXT_PUBLIC_API_MODE=hybrid` and rewrite to `http://127.0.0.1:18000`.
+
+### Safe shutdown
+
+- Stop the debugger (Stop / Shift+F5) — stops API + worker; Docker volumes stay.
+- Stop the frontend terminal with Ctrl+C.
+- Do **not** run `docker compose down -v` or `make reset` unless you intentionally wipe MAT data.
+
+### Known limitation
+
+Celery beat task `webhooks.deliver_due` may repeatedly log asyncio connection teardown errors on Windows host workers (often `AttributeError: 'NoneType' object has no attribute 'send'`, historically also `RuntimeError: Event loop is closed`). Do not hide these; they are a known worker asyncio lifecycle issue and are not fixed by this DX work. Tasks still report `succeeded` afterward in local MAT.
+
+---
+
+## 8. Local tips
+
+- API: `uvicorn app.main:app --reload` (host MAT port: `18000` with `apps/api/.env.local`)
+- Worker: `celery -A app.tasks.celery_app.celery_app worker --beat -l INFO`
+- Web: `cd apps/web && npm run dev` (or `pnpm --filter web dev`)
 - Compose hardcodes in-container `S3_ENDPOINT_URL=http://minio:9000`
 
 ---
 
-## 8. Version history
+## 9. Version history
 
 | Date | Change |
 |------|--------|
 | 2026-09-04 | Initial two-cursor workflow |
 | 2026-09-06 | Single implementation engineer; mandatory `--base develop` |
+| 2026-09-20 | Local MAT F5 + `npm run dev` founder startup |

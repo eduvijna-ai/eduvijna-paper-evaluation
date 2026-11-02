@@ -27,6 +27,15 @@ AI proposes; institution/teacher remains the final authority.
 
 ## Quick start
 
+### Founder MAT (everyday)
+
+1. Start **Docker Desktop**.
+2. Open this repo in Cursor → select **EduVijna Backend + Worker — Local MAT** → press **F5**.
+3. In a terminal: `cd apps/web` then `npm run dev`.
+4. Open [http://localhost:3000](http://localhost:3000).
+
+### Full Docker stack / CI-style
+
 ```bash
 # Bootstrap local environment
 make bootstrap   # or: infra/scripts/bootstrap.sh / .ps1
@@ -38,7 +47,7 @@ make up
 make verify
 ```
 
-See [docs/engineering/DEVELOPMENT_WORKFLOW.md](docs/engineering/DEVELOPMENT_WORKFLOW.md) for full developer workflow.
+See [docs/engineering/DEVELOPMENT_WORKFLOW.md](docs/engineering/DEVELOPMENT_WORKFLOW.md) §7 for F5 details and shutdown rules.
 
 ## Documentation
 
